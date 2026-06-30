@@ -1,0 +1,55 @@
+name: PocketChord
+options:
+  bundleIdPrefix: com.pocketaudio
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  xcodeVersion: "16.0"
+  groupSortPosition: top
+
+packages:
+  AudioKit:
+    url: https://github.com/AudioKit/AudioKit
+    from: "5.6.0"
+  SoundpipeAudioKit:
+    url: https://github.com/AudioKit/SoundpipeAudioKit
+    from: "5.6.0"
+
+targets:
+  PocketChord:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Audio
+      - path: Core
+      - path: MIDI
+      - path: Modes
+      - path: ViewModels
+      - path: Views
+      # MusicTheoryCore compiled directly — avoids local-package resolution bug in xcodegen
+      - path: PocketChord/Sources/MusicTheoryCore
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: PocketChord
+        UILaunchScreen: {}
+        UIRequiredDeviceCapabilities:
+          - arm64
+        UIBackgroundModes:
+          - audio
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSMicrophoneUsageDescription: "Used for Mic Sample mode."
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        TARGETED_DEVICE_FAMILY: "1"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.lukesovernconley.pocketchord
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""   # paste your 10-char Team ID here, then run xcodegen generate
+    dependencies:
+      - package: AudioKit
+      - package: SoundpipeAudioKit

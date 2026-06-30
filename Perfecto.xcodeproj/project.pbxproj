@@ -1,0 +1,884 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		05B00B09A2EC9FA4D40A43F0 /* JoystickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A005FBDBD201E0E82068BD1 /* JoystickView.swift */; };
+		127D4567FB6CAA5C37D09E0A /* PerformanceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F62B3A63EFEA69395677B0 /* PerformanceState.swift */; };
+		132354CBD3FCEB8F5BBBDBEC /* Key.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */; };
+		1D3C8086F689ADDC1DB10DD5 /* SoundpipeAudioKit in Frameworks */ = {isa = PBXBuildFile; productRef = BD90D88567B5304C7F556014 /* SoundpipeAudioKit */; };
+		30323E1855ECAD07CCCE6F7D /* KeySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40C2302B57BE28CB4837B30A /* KeySheet.swift */; };
+		3596D666C3C2BB154DDAAE55 /* PerformanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E1668DFD39019C2EF87326 /* PerformanceView.swift */; };
+		35F6583CBEB6BF98F245B31E /* JoystickMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A6B4053145E2EB28520223D /* JoystickMap.swift */; };
+		4208FE1C625C18BCAA7F3F4E /* ModeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 159DFDCE7DED7B73D8692A21 /* ModeSheet.swift */; };
+		460B3ADC3A68D1D3CFC48460 /* ChordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A16BDCF64F055622DF991C /* ChordButton.swift */; };
+		AA9900112233445566778800 /* ChordBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9900112233445566778811 /* ChordBarView.swift */; };
+		BB9900112233445566778800 /* RingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB9900112233445566778811 /* RingView.swift */; };
+		CC9900112233445566778800 /* ChordRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9900112233445566778811 /* ChordRowView.swift */; };
+		DD9900112233445566778800 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9900112233445566778811 /* SettingsSheet.swift */; };
+		49FFF5DBC32FEA1319DDE5F7 /* RepeatMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690CA02E32600E0361B28339 /* RepeatMode.swift */; };
+		4C7D889678D3C5BE552DAEEF /* PerformanceMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044A454352EB036A9EF35C95 /* PerformanceMode.swift */; };
+		4D6C4C3C1059E97D4020F7F2 /* Degree.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D166369984572EF3023797E /* Degree.swift */; };
+		54162D074B2BE4D64E2E8ABA /* MidiSink.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3CE90D83CA87B4296BF0C5F /* MidiSink.swift */; };
+		6D3AE0E68E83D67BD96CEDB7 /* JoystickTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DFFCC7F4B78811B16D415F1 /* JoystickTypes.swift */; };
+		7ED6D2137A9E03627C7F0B77 /* PerfectoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE680B23C261DFD9FCD510C /* PerfectoApp.swift */; };
+		A4ED9A745159C7720684F4B5 /* MasterClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 692368EB486831FC11EB6DB6 /* MasterClock.swift */; };
+		AA1122334455667788990022 /* SequencerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788990011 /* SequencerState.swift */; };
+		AA1122334455667788992222 /* MicSampleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788992211 /* MicSampleState.swift */; };
+		B17AC0436D40104FDE716EB7 /* DroneMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4215305547173D822A94E9E /* DroneMode.swift */; };
+		B39DB497530034E802D3B1D6 /* ArpeggioMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 065803FA05F0D5336C0F3AD3 /* ArpeggioMode.swift */; };
+		BB1122334455667788990022 /* SequencerMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1122334455667788990011 /* SequencerMode.swift */; };
+		BB1122334455667788992222 /* MicSampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1122334455667788992211 /* MicSampler.swift */; };
+		C3788D3D2A1143285DB8D438 /* Voicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7858F81F5DD8E46E3CC2DEAB /* Voicing.swift */; };
+		C3990B4F62CEF1C7E496695C /* AudioKit in Frameworks */ = {isa = PBXBuildFile; productRef = 215DAD3464DDC4F9865B4D06 /* AudioKit */; };
+		C3EE5684574B6D55408E34D7 /* CompositeSink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48588FDF8B81221AFD4313CC /* CompositeSink.swift */; };
+		C7BEEEEA9E863927E630C205 /* LeadMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC5092B5C48527A4CDE2ADA0 /* LeadMode.swift */; };
+		CC1122334455667788990022 /* SequencerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1122334455667788990011 /* SequencerView.swift */; };
+		CC1122334455667788992222 /* MicSampleMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1122334455667788992211 /* MicSampleMode.swift */; };
+		CD21C8E808BBC02B7BFFD963 /* Scale.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E7E18D6B5C5F39FF60569A /* Scale.swift */; };
+		CD8E9DF5DBA68A193CE63AD1 /* SynthPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6619ECDA0877D23A4CED870 /* SynthPreset.swift */; };
+		D558DBC15B8F1AE907A23CF8 /* PlayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76228ABDE6E483844EF9B900 /* PlayMode.swift */; };
+		D5D93D4E967128BDFF819458 /* PitchClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F4140BFCA3796161814B49C /* PitchClass.swift */; };
+		D7A0229B1896202531FE3732 /* ChordEventSink.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3D7C28E298867E6FC8D2CE3 /* ChordEventSink.swift */; };
+		D8A2F8DB1DE20D25BB12DFE6 /* SynthVoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37C9741773A25B60BD7E1B3 /* SynthVoice.swift */; };
+		D9C328F7CBFDD110A282E3F4 /* SoundSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D31AFA500CE42B4563610E06 /* SoundSheet.swift */; };
+		DD1122334455667788990022 /* LooperState.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1122334455667788990011 /* LooperState.swift */; };
+		QQLS0000000000000000CCDD /* QuickLoopState.swift in Sources */ = {isa = PBXBuildFile; fileRef = QQLS0000000000000000AABB /* QuickLoopState.swift */; };
+		DD1122334455667788991122 /* LooperView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1122334455667788991111 /* LooperView.swift */; };
+		DD1122334455667788992222 /* MicSampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1122334455667788992211 /* MicSampleView.swift */; };
+		DF4BED3CDC3963444B3FAC7C /* ComputeVoicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FBA429F85D9C4510F59C804 /* ComputeVoicing.swift */; };
+		E5C2BA39D35F583002D6FC8B /* AudioSink.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8D5F00AFB5D9E9D9BD5F4A /* AudioSink.swift */; };
+		EE1122334455667788990022 /* Looper.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE1122334455667788990011 /* Looper.swift */; };
+		EE1122334455667788993311 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EE1122334455667788993300 /* Assets.xcassets */; };
+		EE648B028240494AF954BF63 /* StrumMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85F7D22B8525084DE996F7C3 /* StrumMode.swift */; };
+		FF1122334455667788990022 /* LooperMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1122334455667788990011 /* LooperMode.swift */; };
+		CCDD000000000000000000B2 /* RecordingSink.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B1 /* RecordingSink.swift */; };
+		CCDD000000000000000000B4 /* ManualClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B3 /* ManualClock.swift */; };
+		CCDD000000000000000000B6 /* RecordingLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B5 /* RecordingLogger.swift */; };
+		CCDD000000000000000000B8 /* StubPermissionGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B7 /* StubPermissionGate.swift */; };
+		CCDD000000000000000000BA /* Expect+Voicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B9 /* Expect+Voicing.swift */; };
+		CCDD000000000000000000BC /* PlayModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000BB /* PlayModeTests.swift */; };
+		CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000BE /* RecordingMidiBackend.swift */; };
+		CCDD000000000000000000D2 /* MidiSinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000D1 /* MidiSinkTests.swift */; };
+		CCDD00000000000000003302 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD00000000000000003301 /* Logger.swift */; };
+		CCDD00000000000000003304 /* LogEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD00000000000000003303 /* LogEvent.swift */; };
+		CCDD00000000000000003306 /* FileLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD00000000000000003305 /* FileLogger.swift */; };
+		CCDD00000000000000003308 /* LoggerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD00000000000000003307 /* LoggerTests.swift */; };
+		EE2200000000000000001100 /* PermissionGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2200000000000000001101 /* PermissionGate.swift */; };
+		EE2200000000000000001102 /* MicrophonePermissionGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2200000000000000001103 /* MicrophonePermissionGate.swift */; };
+		EE2200000000000000001104 /* PermissionFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2200000000000000001105 /* PermissionFlowView.swift */; };
+		EE2200000000000000001106 /* MicrophonePermissionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2200000000000000001107 /* MicrophonePermissionTests.swift */; };
+		QQVT0000000000000000EEFF /* QuickLoopStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = QQVT0000000000000000CCDD /* QuickLoopStateTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		044A454352EB036A9EF35C95 /* PerformanceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMode.swift; sourceTree = "<group>"; };
+		065803FA05F0D5336C0F3AD3 /* ArpeggioMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArpeggioMode.swift; sourceTree = "<group>"; };
+		0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Key.swift; sourceTree = "<group>"; };
+		1118CE8ABE0D40F8660377C7 /* Perfecto.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Perfecto.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		159DFDCE7DED7B73D8692A21 /* ModeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeSheet.swift; sourceTree = "<group>"; };
+		1DFFCC7F4B78811B16D415F1 /* JoystickTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickTypes.swift; sourceTree = "<group>"; };
+		3A6B4053145E2EB28520223D /* JoystickMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickMap.swift; sourceTree = "<group>"; };
+		40C2302B57BE28CB4837B30A /* KeySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeySheet.swift; sourceTree = "<group>"; };
+		48588FDF8B81221AFD4313CC /* CompositeSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositeSink.swift; sourceTree = "<group>"; };
+		49E7E18D6B5C5F39FF60569A /* Scale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scale.swift; sourceTree = "<group>"; };
+		690CA02E32600E0361B28339 /* RepeatMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepeatMode.swift; sourceTree = "<group>"; };
+		692368EB486831FC11EB6DB6 /* MasterClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterClock.swift; sourceTree = "<group>"; };
+		6FBA429F85D9C4510F59C804 /* ComputeVoicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComputeVoicing.swift; sourceTree = "<group>"; };
+		76228ABDE6E483844EF9B900 /* PlayMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayMode.swift; sourceTree = "<group>"; };
+		7858F81F5DD8E46E3CC2DEAB /* Voicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Voicing.swift; sourceTree = "<group>"; };
+		7A005FBDBD201E0E82068BD1 /* JoystickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickView.swift; sourceTree = "<group>"; };
+		85F7D22B8525084DE996F7C3 /* StrumMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrumMode.swift; sourceTree = "<group>"; };
+		9106D4B6F8C11042193A2D30 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		9D166369984572EF3023797E /* Degree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Degree.swift; sourceTree = "<group>"; };
+		9F4140BFCA3796161814B49C /* PitchClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchClass.swift; sourceTree = "<group>"; };
+		AA1122334455667788990011 /* SequencerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerState.swift; sourceTree = "<group>"; };
+		AA1122334455667788992211 /* MicSampleState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicSampleState.swift; sourceTree = "<group>"; };
+		AC8D5F00AFB5D9E9D9BD5F4A /* AudioSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSink.swift; sourceTree = "<group>"; };
+		B4215305547173D822A94E9E /* DroneMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DroneMode.swift; sourceTree = "<group>"; };
+		BB1122334455667788990011 /* SequencerMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerMode.swift; sourceTree = "<group>"; };
+		BB1122334455667788992211 /* MicSampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicSampler.swift; sourceTree = "<group>"; };
+		C37C9741773A25B60BD7E1B3 /* SynthVoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthVoice.swift; sourceTree = "<group>"; };
+		C6619ECDA0877D23A4CED870 /* SynthPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthPreset.swift; sourceTree = "<group>"; };
+		CC1122334455667788990011 /* SequencerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerView.swift; sourceTree = "<group>"; };
+		CC1122334455667788992211 /* MicSampleMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicSampleMode.swift; sourceTree = "<group>"; };
+		D31AFA500CE42B4563610E06 /* SoundSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundSheet.swift; sourceTree = "<group>"; };
+		DC5092B5C48527A4CDE2ADA0 /* LeadMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadMode.swift; sourceTree = "<group>"; };
+		DD1122334455667788990011 /* LooperState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LooperState.swift; sourceTree = "<group>"; };
+		QQLS0000000000000000AABB /* QuickLoopState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLoopState.swift; sourceTree = "<group>"; };
+		DD1122334455667788991111 /* LooperView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LooperView.swift; sourceTree = "<group>"; };
+		DD1122334455667788992211 /* MicSampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicSampleView.swift; sourceTree = "<group>"; };
+		E1E1668DFD39019C2EF87326 /* PerformanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceView.swift; sourceTree = "<group>"; };
+		E3CE90D83CA87B4296BF0C5F /* MidiSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiSink.swift; sourceTree = "<group>"; };
+		E3D7C28E298867E6FC8D2CE3 /* ChordEventSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordEventSink.swift; sourceTree = "<group>"; };
+		E9F62B3A63EFEA69395677B0 /* PerformanceState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceState.swift; sourceTree = "<group>"; };
+		EE1122334455667788990011 /* Looper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Looper.swift; sourceTree = "<group>"; };
+		EE1122334455667788993300 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AA9900112233445566778811 /* ChordBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordBarView.swift; sourceTree = "<group>"; };
+		BB9900112233445566778811 /* RingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingView.swift; sourceTree = "<group>"; };
+		CC9900112233445566778811 /* ChordRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordRowView.swift; sourceTree = "<group>"; };
+		DD9900112233445566778811 /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
+		F8A16BDCF64F055622DF991C /* ChordButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordButton.swift; sourceTree = "<group>"; };
+		FAE680B23C261DFD9FCD510C /* PerfectoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfectoApp.swift; sourceTree = "<group>"; };
+		FF1122334455667788990011 /* LooperMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LooperMode.swift; sourceTree = "<group>"; };
+		CCDD000000000000000000B1 /* RecordingSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSink.swift; sourceTree = "<group>"; };
+		CCDD000000000000000000B3 /* ManualClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualClock.swift; sourceTree = "<group>"; };
+		CCDD000000000000000000B5 /* RecordingLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingLogger.swift; sourceTree = "<group>"; };
+		CCDD000000000000000000B7 /* StubPermissionGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubPermissionGate.swift; sourceTree = "<group>"; };
+		CCDD000000000000000000B9 /* Expect+Voicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Expect+Voicing.swift"; sourceTree = "<group>"; };
+		CCDD000000000000000000BB /* PlayModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayModeTests.swift; sourceTree = "<group>"; };
+		CCDD000000000000000000BE /* RecordingMidiBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMidiBackend.swift; sourceTree = "<group>"; };
+		CCDD000000000000000000D1 /* MidiSinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiSinkTests.swift; sourceTree = "<group>"; };
+		CCDD000000000000000000C7 /* PerfectoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PerfectoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CCDD00000000000000003301 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
+		CCDD00000000000000003303 /* LogEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEvent.swift; sourceTree = "<group>"; };
+		CCDD00000000000000003305 /* FileLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileLogger.swift; sourceTree = "<group>"; };
+		CCDD00000000000000003307 /* LoggerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggerTests.swift; sourceTree = "<group>"; };
+		EE2200000000000000001101 /* PermissionGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionGate.swift; sourceTree = "<group>"; };
+		EE2200000000000000001103 /* MicrophonePermissionGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophonePermissionGate.swift; sourceTree = "<group>"; };
+		EE2200000000000000001105 /* PermissionFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionFlowView.swift; sourceTree = "<group>"; };
+		EE2200000000000000001107 /* MicrophonePermissionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophonePermissionTests.swift; sourceTree = "<group>"; };
+		QQVT0000000000000000CCDD /* QuickLoopStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLoopStateTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXContainerItemProxy section */
+		CCDD000000000000000000C8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 18FA063FE1FEC147C81E7C25 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DA7DC43442A05BC0BBDEE6F1;
+			remoteInfo = Perfecto;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		CCDD000000000000000000C9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DA7DC43442A05BC0BBDEE6F1 /* Perfecto */;
+			targetProxy = CCDD000000000000000000C8 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		14EC2895C0B828A91EEE287A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C3990B4F62CEF1C7E496695C /* AudioKit in Frameworks */,
+				1D3C8086F689ADDC1DB10DD5 /* SoundpipeAudioKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCDD000000000000000000C6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1803DCC66A2D550A4C56D4E9 /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				AC8D5F00AFB5D9E9D9BD5F4A /* AudioSink.swift */,
+				EE1122334455667788990011 /* Looper.swift */,
+				BB1122334455667788992211 /* MicSampler.swift */,
+				C6619ECDA0877D23A4CED870 /* SynthPreset.swift */,
+				C37C9741773A25B60BD7E1B3 /* SynthVoice.swift */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		4E9DA745BAD66FE77BA0236E /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				E9F62B3A63EFEA69395677B0 /* PerformanceState.swift */,
+				DD1122334455667788990011 /* LooperState.swift */,
+				QQLS0000000000000000AABB /* QuickLoopState.swift */,
+				AA1122334455667788992211 /* MicSampleState.swift */,
+				AA1122334455667788990011 /* SequencerState.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		61713468985FC25437200DCC /* Perfecto */ = {
+			isa = PBXGroup;
+			children = (
+				DCD7B8626DB81B6FDDF99C1C /* Sources */,
+			);
+			path = Perfecto;
+			sourceTree = "<group>";
+		};
+		65C8968EE0576A05760E94F7 /* Events */ = {
+			isa = PBXGroup;
+			children = (
+				E3D7C28E298867E6FC8D2CE3 /* ChordEventSink.swift */,
+				48588FDF8B81221AFD4313CC /* CompositeSink.swift */,
+			);
+			path = Events;
+			sourceTree = "<group>";
+		};
+		6B997445A9C3FF55AD7DB863 /* Sheets */ = {
+			isa = PBXGroup;
+			children = (
+				40C2302B57BE28CB4837B30A /* KeySheet.swift */,
+				159DFDCE7DED7B73D8692A21 /* ModeSheet.swift */,
+				DD9900112233445566778811 /* SettingsSheet.swift */,
+				D31AFA500CE42B4563610E06 /* SoundSheet.swift */,
+			);
+			path = Sheets;
+			sourceTree = "<group>";
+		};
+		781162F233E64F5A2545D24D /* Clock */ = {
+			isa = PBXGroup;
+			children = (
+				692368EB486831FC11EB6DB6 /* MasterClock.swift */,
+			);
+			path = Clock;
+			sourceTree = "<group>";
+		};
+		8D2F0BCFA958B2C26A3CA55E /* MusicTheoryCore */ = {
+			isa = PBXGroup;
+			children = (
+				6FBA429F85D9C4510F59C804 /* ComputeVoicing.swift */,
+				9D166369984572EF3023797E /* Degree.swift */,
+				3A6B4053145E2EB28520223D /* JoystickMap.swift */,
+				1DFFCC7F4B78811B16D415F1 /* JoystickTypes.swift */,
+				0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */,
+				9F4140BFCA3796161814B49C /* PitchClass.swift */,
+				49E7E18D6B5C5F39FF60569A /* Scale.swift */,
+				7858F81F5DD8E46E3CC2DEAB /* Voicing.swift */,
+			);
+			path = MusicTheoryCore;
+			sourceTree = "<group>";
+		};
+		910EE5F73843C83A6A1D9112 /* MIDI */ = {
+			isa = PBXGroup;
+			children = (
+				E3CE90D83CA87B4296BF0C5F /* MidiSink.swift */,
+			);
+			path = MIDI;
+			sourceTree = "<group>";
+		};
+		944B624F5339E9F9EFB40021 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				9106D4B6F8C11042193A2D30 /* Info.plist */,
+				FAE680B23C261DFD9FCD510C /* PerfectoApp.swift */,
+				EE1122334455667788993300 /* Assets.xcassets */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A39AD8E1FA5CC79D1102AC1F = {
+			isa = PBXGroup;
+			children = (
+				944B624F5339E9F9EFB40021 /* App */,
+				1803DCC66A2D550A4C56D4E9 /* Audio */,
+				B2B6A3C109C5BC5EF6E6FD8C /* Core */,
+				910EE5F73843C83A6A1D9112 /* MIDI */,
+				A66B7480B3BE49079FBD26FB /* Modes */,
+				61713468985FC25437200DCC /* Perfecto */,
+				CCDD000000000000000000A1 /* Tests */,
+				4E9DA745BAD66FE77BA0236E /* ViewModels */,
+				AF0BF9511B105EB3F222CFB0 /* Views */,
+				EFE9B2964AC4B317595196C7 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A66B7480B3BE49079FBD26FB /* Modes */ = {
+			isa = PBXGroup;
+			children = (
+				065803FA05F0D5336C0F3AD3 /* ArpeggioMode.swift */,
+				B4215305547173D822A94E9E /* DroneMode.swift */,
+				DC5092B5C48527A4CDE2ADA0 /* LeadMode.swift */,
+				FF1122334455667788990011 /* LooperMode.swift */,
+				CC1122334455667788992211 /* MicSampleMode.swift */,
+				044A454352EB036A9EF35C95 /* PerformanceMode.swift */,
+				76228ABDE6E483844EF9B900 /* PlayMode.swift */,
+				690CA02E32600E0361B28339 /* RepeatMode.swift */,
+				BB1122334455667788990011 /* SequencerMode.swift */,
+				85F7D22B8525084DE996F7C3 /* StrumMode.swift */,
+			);
+			path = Modes;
+			sourceTree = "<group>";
+		};
+		AF0BF9511B105EB3F222CFB0 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				6B997445A9C3FF55AD7DB863 /* Sheets */,
+				AA9900112233445566778811 /* ChordBarView.swift */,
+				BB9900112233445566778811 /* RingView.swift */,
+				CC9900112233445566778811 /* ChordRowView.swift */,
+				F8A16BDCF64F055622DF991C /* ChordButton.swift */,
+				7A005FBDBD201E0E82068BD1 /* JoystickView.swift */,
+				DD1122334455667788991111 /* LooperView.swift */,
+				DD1122334455667788992211 /* MicSampleView.swift */,
+				EE2200000000000000001105 /* PermissionFlowView.swift */,
+				E1E1668DFD39019C2EF87326 /* PerformanceView.swift */,
+				CC1122334455667788990011 /* SequencerView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		B2B6A3C109C5BC5EF6E6FD8C /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				781162F233E64F5A2545D24D /* Clock */,
+				65C8968EE0576A05760E94F7 /* Events */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		DCD7B8626DB81B6FDDF99C1C /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				8D2F0BCFA958B2C26A3CA55E /* MusicTheoryCore */,
+				CCDD00000000000000003309 /* Logging */,
+				EE2200000000000000001110 /* Permissions */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		EE2200000000000000001110 /* Permissions */ = {
+			isa = PBXGroup;
+			children = (
+				EE2200000000000000001101 /* PermissionGate.swift */,
+				EE2200000000000000001103 /* MicrophonePermissionGate.swift */,
+			);
+			path = Permissions;
+			sourceTree = "<group>";
+		};
+		CCDD00000000000000003309 /* Logging */ = {
+			isa = PBXGroup;
+			children = (
+				CCDD00000000000000003301 /* Logger.swift */,
+				CCDD00000000000000003303 /* LogEvent.swift */,
+				CCDD00000000000000003305 /* FileLogger.swift */,
+			);
+			path = Logging;
+			sourceTree = "<group>";
+		};
+		QQVT0000000000000000AABB /* ViewModelTests */ = {
+			isa = PBXGroup;
+			children = (
+				QQVT0000000000000000CCDD /* QuickLoopStateTests.swift */,
+			);
+			path = ViewModelTests;
+			sourceTree = "<group>";
+		};
+		CCDD000000000000000000A1 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				CCDD000000000000000000A2 /* Helpers */,
+				CCDD000000000000000000A3 /* ModeTests */,
+				CCDD000000000000000000D3 /* SinkTests */,
+				CCDD0000000000000000330A /* LoggingTests */,
+				EE2200000000000000001120 /* PermissionTests */,
+				QQVT0000000000000000AABB /* ViewModelTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		EE2200000000000000001120 /* PermissionTests */ = {
+			isa = PBXGroup;
+			children = (
+				EE2200000000000000001107 /* MicrophonePermissionTests.swift */,
+			);
+			path = PermissionTests;
+			sourceTree = "<group>";
+		};
+		CCDD0000000000000000330A /* LoggingTests */ = {
+			isa = PBXGroup;
+			children = (
+				CCDD00000000000000003307 /* LoggerTests.swift */,
+			);
+			path = LoggingTests;
+			sourceTree = "<group>";
+		};
+		CCDD000000000000000000A2 /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				CCDD000000000000000000B1 /* RecordingSink.swift */,
+				CCDD000000000000000000B3 /* ManualClock.swift */,
+				CCDD000000000000000000B5 /* RecordingLogger.swift */,
+				CCDD000000000000000000B7 /* StubPermissionGate.swift */,
+				CCDD000000000000000000B9 /* Expect+Voicing.swift */,
+				CCDD000000000000000000BE /* RecordingMidiBackend.swift */,
+			);
+			path = Helpers;
+			sourceTree = "<group>";
+		};
+		CCDD000000000000000000A3 /* ModeTests */ = {
+			isa = PBXGroup;
+			children = (
+				CCDD000000000000000000BB /* PlayModeTests.swift */,
+			);
+			path = ModeTests;
+			sourceTree = "<group>";
+		};
+		CCDD000000000000000000D3 /* SinkTests */ = {
+			isa = PBXGroup;
+			children = (
+				CCDD000000000000000000D1 /* MidiSinkTests.swift */,
+			);
+			path = SinkTests;
+			sourceTree = "<group>";
+		};
+		EFE9B2964AC4B317595196C7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1118CE8ABE0D40F8660377C7 /* Perfecto.app */,
+				CCDD000000000000000000C7 /* PerfectoTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		DA7DC43442A05BC0BBDEE6F1 /* Perfecto */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C04541A50B98D226B4017DB2 /* Build configuration list for PBXNativeTarget "Perfecto" */;
+			buildPhases = (
+				EE1122334455667788993400 /* Resources */,
+				D6556412FD44A254086C491F /* Sources */,
+				14EC2895C0B828A91EEE287A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Perfecto;
+			packageProductDependencies = (
+				215DAD3464DDC4F9865B4D06 /* AudioKit */,
+				BD90D88567B5304C7F556014 /* SoundpipeAudioKit */,
+			);
+			productName = Perfecto;
+			productReference = 1118CE8ABE0D40F8660377C7 /* Perfecto.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CCDD000000000000000000C1 /* PerfectoTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CCDD000000000000000000C2 /* Build configuration list for PBXNativeTarget "PerfectoTests" */;
+			buildPhases = (
+				CCDD000000000000000000C5 /* Sources */,
+				CCDD000000000000000000C6 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CCDD000000000000000000C9 /* PBXTargetDependency */,
+			);
+			name = PerfectoTests;
+			productName = PerfectoTests;
+			productReference = CCDD000000000000000000C7 /* PerfectoTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		18FA063FE1FEC147C81E7C25 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					DA7DC43442A05BC0BBDEE6F1 = {
+						ProvisioningStyle = Automatic;
+					};
+					CCDD000000000000000000C1 = {
+						ProvisioningStyle = Automatic;
+						TestTargetID = DA7DC43442A05BC0BBDEE6F1;
+					};
+				};
+			};
+			buildConfigurationList = 2F00DC42BADA1F5F8E21B48C /* Build configuration list for PBXProject "Perfecto" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = A39AD8E1FA5CC79D1102AC1F;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				39FFEC56C8C49AD8A1BC8576 /* XCRemoteSwiftPackageReference "AudioKit" */,
+				C5CE2265FB6F6418BAEDDE78 /* XCRemoteSwiftPackageReference "SoundpipeAudioKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = EFE9B2964AC4B317595196C7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DA7DC43442A05BC0BBDEE6F1 /* Perfecto */,
+				CCDD000000000000000000C1 /* PerfectoTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		EE1122334455667788993400 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EE1122334455667788993311 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D6556412FD44A254086C491F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CCDD00000000000000003302 /* Logger.swift in Sources */,
+				CCDD00000000000000003304 /* LogEvent.swift in Sources */,
+				CCDD00000000000000003306 /* FileLogger.swift in Sources */,
+				EE2200000000000000001100 /* PermissionGate.swift in Sources */,
+				EE2200000000000000001102 /* MicrophonePermissionGate.swift in Sources */,
+				EE2200000000000000001104 /* PermissionFlowView.swift in Sources */,
+				B39DB497530034E802D3B1D6 /* ArpeggioMode.swift in Sources */,
+				E5C2BA39D35F583002D6FC8B /* AudioSink.swift in Sources */,
+				AA9900112233445566778800 /* ChordBarView.swift in Sources */,
+				BB9900112233445566778800 /* RingView.swift in Sources */,
+				CC9900112233445566778800 /* ChordRowView.swift in Sources */,
+				DD9900112233445566778800 /* SettingsSheet.swift in Sources */,
+				460B3ADC3A68D1D3CFC48460 /* ChordButton.swift in Sources */,
+				D7A0229B1896202531FE3732 /* ChordEventSink.swift in Sources */,
+				C3EE5684574B6D55408E34D7 /* CompositeSink.swift in Sources */,
+				DF4BED3CDC3963444B3FAC7C /* ComputeVoicing.swift in Sources */,
+				4D6C4C3C1059E97D4020F7F2 /* Degree.swift in Sources */,
+				B17AC0436D40104FDE716EB7 /* DroneMode.swift in Sources */,
+				35F6583CBEB6BF98F245B31E /* JoystickMap.swift in Sources */,
+				6D3AE0E68E83D67BD96CEDB7 /* JoystickTypes.swift in Sources */,
+				05B00B09A2EC9FA4D40A43F0 /* JoystickView.swift in Sources */,
+				132354CBD3FCEB8F5BBBDBEC /* Key.swift in Sources */,
+				30323E1855ECAD07CCCE6F7D /* KeySheet.swift in Sources */,
+				C7BEEEEA9E863927E630C205 /* LeadMode.swift in Sources */,
+				A4ED9A745159C7720684F4B5 /* MasterClock.swift in Sources */,
+				54162D074B2BE4D64E2E8ABA /* MidiSink.swift in Sources */,
+				4208FE1C625C18BCAA7F3F4E /* ModeSheet.swift in Sources */,
+				4C7D889678D3C5BE552DAEEF /* PerformanceMode.swift in Sources */,
+				127D4567FB6CAA5C37D09E0A /* PerformanceState.swift in Sources */,
+				3596D666C3C2BB154DDAAE55 /* PerformanceView.swift in Sources */,
+				D5D93D4E967128BDFF819458 /* PitchClass.swift in Sources */,
+				D558DBC15B8F1AE907A23CF8 /* PlayMode.swift in Sources */,
+				7ED6D2137A9E03627C7F0B77 /* PerfectoApp.swift in Sources */,
+				49FFF5DBC32FEA1319DDE5F7 /* RepeatMode.swift in Sources */,
+				CD21C8E808BBC02B7BFFD963 /* Scale.swift in Sources */,
+				AA1122334455667788990022 /* SequencerState.swift in Sources */,
+				BB1122334455667788990022 /* SequencerMode.swift in Sources */,
+				CC1122334455667788990022 /* SequencerView.swift in Sources */,
+				DD1122334455667788990022 /* LooperState.swift in Sources */,
+				QQLS0000000000000000CCDD /* QuickLoopState.swift in Sources */,
+				EE1122334455667788990022 /* Looper.swift in Sources */,
+				FF1122334455667788990022 /* LooperMode.swift in Sources */,
+				DD1122334455667788991122 /* LooperView.swift in Sources */,
+				AA1122334455667788992222 /* MicSampleState.swift in Sources */,
+				BB1122334455667788992222 /* MicSampler.swift in Sources */,
+				CC1122334455667788992222 /* MicSampleMode.swift in Sources */,
+				DD1122334455667788992222 /* MicSampleView.swift in Sources */,
+				D9C328F7CBFDD110A282E3F4 /* SoundSheet.swift in Sources */,
+				EE648B028240494AF954BF63 /* StrumMode.swift in Sources */,
+				CD8E9DF5DBA68A193CE63AD1 /* SynthPreset.swift in Sources */,
+				D8A2F8DB1DE20D25BB12DFE6 /* SynthVoice.swift in Sources */,
+				C3788D3D2A1143285DB8D438 /* Voicing.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCDD000000000000000000C5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CCDD000000000000000000B2 /* RecordingSink.swift in Sources */,
+				CCDD000000000000000000B4 /* ManualClock.swift in Sources */,
+				CCDD000000000000000000B6 /* RecordingLogger.swift in Sources */,
+				CCDD000000000000000000B8 /* StubPermissionGate.swift in Sources */,
+				CCDD000000000000000000BA /* Expect+Voicing.swift in Sources */,
+				CCDD000000000000000000BC /* PlayModeTests.swift in Sources */,
+				CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */,
+				CCDD000000000000000000D2 /* MidiSinkTests.swift in Sources */,
+				CCDD00000000000000003308 /* LoggerTests.swift in Sources */,
+				EE2200000000000000001106 /* MicrophonePermissionTests.swift in Sources */,
+				QQVT0000000000000000EEFF /* QuickLoopStateTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		378CA153ACED71B4D8248FBB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		5624DF7CD402D58DCC9EAEE2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = TX66B5HHB7;
+				INFOPLIST_FILE = App/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesovernconley.pocketchord;
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		9AFF51F3DCBE3F5E84FAE4B4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A9D0BFA80AA1131160B0571A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = TX66B5HHB7;
+				INFOPLIST_FILE = App/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lukesovernconley.pocketchord;
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		CCDD000000000000000000C3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = TX66B5HHB7;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.lukesovernconley.pocketchord.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Perfecto.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Perfecto";
+			};
+			name = Debug;
+		};
+		CCDD000000000000000000C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = TX66B5HHB7;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.lukesovernconley.pocketchord.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Perfecto.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Perfecto";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2F00DC42BADA1F5F8E21B48C /* Build configuration list for PBXProject "Perfecto" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9AFF51F3DCBE3F5E84FAE4B4 /* Debug */,
+				378CA153ACED71B4D8248FBB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C04541A50B98D226B4017DB2 /* Build configuration list for PBXNativeTarget "Perfecto" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5624DF7CD402D58DCC9EAEE2 /* Debug */,
+				A9D0BFA80AA1131160B0571A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CCDD000000000000000000C2 /* Build configuration list for PBXNativeTarget "PerfectoTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CCDD000000000000000000C3 /* Debug */,
+				CCDD000000000000000000C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		39FFEC56C8C49AD8A1BC8576 /* XCRemoteSwiftPackageReference "AudioKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/AudioKit/AudioKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.6.0;
+			};
+		};
+		C5CE2265FB6F6418BAEDDE78 /* XCRemoteSwiftPackageReference "SoundpipeAudioKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/AudioKit/SoundpipeAudioKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		215DAD3464DDC4F9865B4D06 /* AudioKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 39FFEC56C8C49AD8A1BC8576 /* XCRemoteSwiftPackageReference "AudioKit" */;
+			productName = AudioKit;
+		};
+		BD90D88567B5304C7F556014 /* SoundpipeAudioKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C5CE2265FB6F6418BAEDDE78 /* XCRemoteSwiftPackageReference "SoundpipeAudioKit" */;
+			productName = SoundpipeAudioKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 18FA063FE1FEC147C81E7C25 /* Project object */;
+}
