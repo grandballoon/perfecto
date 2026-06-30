@@ -50,9 +50,9 @@ final class CoreMidiBackend: MidiBackend {
                  | (UInt32(data1) << 8) | UInt32(data2)
         var eventList = MIDIEventList()
         let packetPtr = MIDIEventListInit(&eventList, ._1_0)
-        guard MIDIEventListAdd(
-            &eventList, MemoryLayout<MIDIEventList>.size, packetPtr, 0, 1, &word) != nil
-        else { return }
+        // MIDIEventListAdd is imported as returning a non-optional pointer, so its
+        // result can't signal failure; adding one word to a fresh list always fits.
+        _ = MIDIEventListAdd(&eventList, MemoryLayout<MIDIEventList>.size, packetPtr, 0, 1, &word)
 
         // Broadcast via virtual source (Mac via USB; apps that subscribe to "Perfecto")
         MIDIReceivedEventList(source, &eventList)
