@@ -20,10 +20,11 @@ struct PerformanceView: View {
     @Environment(PerformanceState.self) private var state
 
     @State private var showKeySheet      = false
-    @State private var showSoundSheet    = false
-    @State private var showModeSheet     = false
     @State private var showSettingsSheet = false
     @State private var inputViewMode: InputViewMode = .joystick
+
+    @State private var keyQuick = KeyQuickController()
+    @State private var keyButtonCenter: CGPoint = .zero
 
     private let topRow:    [(Degree, String, Color)] = [
         (.I,   "I",    .orange),
@@ -52,12 +53,16 @@ struct PerformanceView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                     .padding(.leading, 16)
                     .padding(.bottom, 20)
+
+                if keyQuick.isActive {
+                    KeyQuickSelectOverlay(controller: keyQuick)
+                        .allowsHitTesting(false)
+                }
             }
+            .coordinateSpace(.named("perf"))
         }
         .ignoresSafeArea(edges: .bottom)
         .sheet(isPresented: $showKeySheet)      { KeySheet().environment(state) }
-        .sheet(isPresented: $showSoundSheet)    { SoundSheet().environment(state) }
-        .sheet(isPresented: $showModeSheet)     { ModeSheet().environment(state) }
         .sheet(isPresented: $showSettingsSheet) { SettingsSheet().environment(state) }
     }
 
@@ -84,9 +89,6 @@ struct PerformanceView: View {
                 statusColumn(label: "KEY",
                              value: "\(state.key.root.name) \(state.key.scale.displayName)")
                 Spacer()
-                statusColumn(label: "SOUND", value: state.synthPreset.name)
-                Spacer()
-                statusColumn(label: "MODE",  value: state.mode.name)
             }
             .padding(.horizontal, 24)
             .padding(.top, 16)
@@ -96,7 +98,6 @@ struct PerformanceView: View {
                 .padding(.top, 16)
 
             let isFullScreenMode = state.mode.name == "Sequencer"
-                                || state.mode.name == "Looper"
             if !isFullScreenMode { Spacer() }
 
             functionButtons
@@ -108,17 +109,7 @@ struct PerformanceView: View {
                     .environment(state.sequencerState)
                     .padding(.top, 8)
                     .padding(.bottom, 40)
-            } else if state.mode.name == "Looper" {
-                LooperView()
-                    .environment(state.looperState)
-                    .padding(.top, 8)
             } else {
-                if state.mode.name == "Mic Sample" {
-                    MicSampleView()
-                        .environment(state)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
-                }
                 chordGrid
                     .padding(.horizontal, 20)
 
@@ -176,33 +167,28 @@ struct PerformanceView: View {
                 let circleRadius = min(panelW * 0.40, panelH * 0.35)
 
                 // Left panel: input control
-                let isFullScreenMode = state.mode.name == "Looper"
                 VStack(spacing: 8) {
-                    if isFullScreenMode {
+                    HStack(alignment: .top, spacing: 8) {
+                        loopControlColumn
+                        Spacer()
                         modeToggle
-                    } else {
-                        HStack(alignment: .top, spacing: 8) {
-                            loopControlColumn
-                            Spacer()
-                            modeToggle
-                        }
-                        .padding(.horizontal, 16)
+                    }
+                    .padding(.horizontal, 16)
 
-                        switch inputViewMode {
-                        case .bar:
-                            ChordBarView(axis: .vertical)
-                                .environment(state)
-                                .frame(maxWidth: panelW * 0.55, maxHeight: .infinity)
-                        case .joystick:
-                            Spacer()
-                            JoystickView(outerRadius: circleRadius)
-                            Spacer()
-                        case .ring:
-                            Spacer()
-                            RingView(outerRadius: circleRadius)
-                                .environment(state)
-                            Spacer()
-                        }
+                    switch inputViewMode {
+                    case .bar:
+                        ChordBarView(axis: .vertical)
+                            .environment(state)
+                            .frame(maxWidth: panelW * 0.55, maxHeight: .infinity)
+                    case .joystick:
+                        Spacer()
+                        JoystickView(outerRadius: circleRadius)
+                        Spacer()
+                    case .ring:
+                        Spacer()
+                        RingView(outerRadius: circleRadius)
+                            .environment(state)
+                        Spacer()
                     }
                 }
                 .padding(.vertical, 16)
@@ -210,30 +196,19 @@ struct PerformanceView: View {
 
                 // Right panel: OLED + chord grid + function buttons
                 VStack(spacing: 0) {
-                    if state.mode.name == "Looper" {
-                        LooperView()
-                            .environment(state.looperState)
+                    oledDisplay
+                        .padding(.bottom, 8)
+                    if state.horizontalLandscapeChords {
+                        ChordRowView()
+                            .environment(state)
+                            .frame(maxHeight: .infinity)
+                            .padding(.vertical, 8)
                     } else {
-                        oledDisplay
-                            .padding(.bottom, 8)
-                        if state.mode.name == "Mic Sample" {
-                            MicSampleView()
-                                .environment(state)
-                                .padding(.horizontal, 16)
-                                .padding(.bottom, 8)
-                        }
-                        if state.horizontalLandscapeChords {
-                            ChordRowView()
-                                .environment(state)
-                                .frame(maxHeight: .infinity)
-                                .padding(.vertical, 8)
-                        } else {
-                            Spacer()
-                            chordGrid
-                            Spacer()
-                        }
-                        functionButtons
+                        Spacer()
+                        chordGrid
+                        Spacer()
                     }
+                    functionButtons
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 16)
@@ -282,11 +257,81 @@ struct PerformanceView: View {
     private var functionButtons: some View {
         @Bindable var state = state
         return HStack(spacing: 10) {
-            functionButton(label: "KEY")   { showKeySheet   = true }
-            functionButton(label: "SOUND") { showSoundSheet = true }
-            functionButton(label: "MODE")  { showModeSheet  = true }
+            keyQuickButton
+            modeSegToggle
             toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
         }
+    }
+
+    // MARK: – Mode: inline Play / Sequencer toggle (replaces the Mode sheet)
+
+    private var modeSegToggle: some View {
+        HStack(spacing: 3) {
+            modeSegButton(label: "PLAY", active: state.mode.name == "Play") {
+                if state.mode.name != "Play" { state.setMode(PlayMode()) }
+            }
+            modeSegButton(label: "SEQ", active: state.mode.name == "Sequencer") {
+                if state.mode.name != "Sequencer" { state.setMode(SequencerMode(state.sequencerState)) }
+            }
+        }
+        .padding(3)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(white: 0.09))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(white: 0.25), lineWidth: 1))
+        )
+    }
+
+    private func modeSegButton(label: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(active ? Color.black : Color(white: 0.7))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 6).fill(active ? Color.orange : Color.clear))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: – KEY button: tap opens the sheet, press-and-hold quick-selects
+
+    private var keyQuickButton: some View {
+        functionButton(label: "KEY") { showKeySheet = true }
+            .background(
+                GeometryReader { g in
+                    Color.clear
+                        .onAppear { updateKeyCenter(g) }
+                        .onChange(of: g.frame(in: .named("perf"))) { updateKeyCenter(g) }
+                }
+            )
+            .highPriorityGesture(keyQuickGesture)
+    }
+
+    private var keyQuickGesture: some Gesture {
+        LongPressGesture(minimumDuration: 0.22)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named("perf")))
+            .onChanged { value in
+                if case .second(true, let drag) = value {
+                    if !keyQuick.isActive {
+                        keyQuick.begin(at: keyButtonCenter,
+                                       key: state.key,
+                                       style: state.keyQuickStyle)
+                    }
+                    if let drag { keyQuick.update(location: drag.location) }
+                }
+            }
+            .onEnded { _ in
+                if keyQuick.isActive, let newKey = keyQuick.end() {
+                    state.key = newKey
+                }
+            }
+    }
+
+    private func updateKeyCenter(_ g: GeometryProxy) {
+        let f = g.frame(in: .named("perf"))
+        keyButtonCenter = CGPoint(x: f.midX, y: f.midY)
     }
 
     private var chordGrid: some View {

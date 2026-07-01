@@ -17,3 +17,6 @@ build/
 
 # Claude local settings
 .claude/settings.local.json
+
+# Lavish Editor scratch review artifacts
+.lavish/

@@ -18,7 +18,10 @@ struct SequencerView: View {
 
     private var portraitBody: some View {
         VStack(spacing: 12) {
-            transportBar
+            HStack(spacing: 12) {
+                transportBar
+                tempoControl
+            }
             stepGrid
             pageBar
             stepEditorPanel
@@ -38,7 +41,7 @@ struct SequencerView: View {
             // Right: clear control, centered grid, Play anchored bottom-right.
             ZStack(alignment: .bottomTrailing) {
                 VStack(spacing: 14) {
-                    HStack { Spacer(); clearButton }
+                    HStack(spacing: 10) { Spacer(); tempoControl; clearButton }
                     Spacer(minLength: 0)
                     stepGrid
                     Spacer(minLength: 0)
@@ -77,6 +80,44 @@ struct SequencerView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    // MARK: – Tempo (moved here from the old Mode sheet — BPM only matters in the Sequencer)
+
+    private var tempoControl: some View {
+        HStack(spacing: 8) {
+            tempoStep(system: "minus", enabled: perfState.bpm > 20) {
+                perfState.setBPM(perfState.bpm - 5)
+            }
+            VStack(spacing: 0) {
+                Text("\(Int(perfState.bpm))")
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.white)
+                Text("BPM")
+                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.4))
+                    .kerning(1)
+            }
+            .frame(minWidth: 40)
+            tempoStep(system: "plus", enabled: perfState.bpm < 300) {
+                perfState.setBPM(perfState.bpm + 5)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color(white: 0.12)))
+    }
+
+    private func tempoStep(system: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: system)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(enabled ? Color.orange : Color(white: 0.25))
+                .frame(width: 30, height: 30)
+                .background(RoundedRectangle(cornerRadius: 7).fill(Color(white: 0.16)))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 
     // MARK: – Transport pieces (landscape)
