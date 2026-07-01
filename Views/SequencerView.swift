@@ -5,28 +5,55 @@ struct SequencerView: View {
     @Environment(SequencerState.self)   private var seqState
 
     var body: some View {
+        GeometryReader { geo in
+            if geo.size.width > geo.size.height {
+                landscapeBody(width: geo.size.width)
+            } else {
+                portraitBody
+            }
+        }
+    }
+
+    // MARK: – Portrait (stacked)
+
+    private var portraitBody: some View {
         VStack(spacing: 12) {
             transportBar
             stepGrid
-            stepEditor
+            stepEditorPanel
         }
         .padding(.horizontal, 16)
+        .padding(.bottom, 4)
     }
 
-    // MARK: – Transport
+    // MARK: – Landscape (editor left, grid + corner transport right)
+
+    private func landscapeBody(width: CGFloat) -> some View {
+        HStack(spacing: 12) {
+            // Left: roomy step editor filling the freed half.
+            stepEditorPanel
+                .frame(width: width * 0.40, alignment: .top)
+
+            // Right: clear control, centered grid, Play anchored bottom-right.
+            ZStack(alignment: .bottomTrailing) {
+                VStack(spacing: 14) {
+                    HStack { Spacer(); clearButton }
+                    Spacer(minLength: 0)
+                    stepGrid
+                    Spacer(minLength: 0)
+                }
+                playCornerButton
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .padding(16)
+    }
+
+    // MARK: – Transport (portrait)
 
     private var transportBar: some View {
         HStack(spacing: 16) {
-            Button {
-                if seqState.isPlaying {
-                    seqState.isPlaying = false
-                    seqState.currentStep = -1
-                    perfState.endChord()
-                } else {
-                    seqState.currentStep = -1
-                    seqState.isPlaying = true
-                }
-            } label: {
+            Button { togglePlay() } label: {
                 Label(seqState.isPlaying ? "Stop" : "Play",
                       systemImage: seqState.isPlaying ? "stop.fill" : "play.fill")
                     .font(.system(size: 13, weight: .semibold, design: .monospaced))
@@ -37,13 +64,7 @@ struct SequencerView: View {
             }
             .buttonStyle(.plain)
 
-            Button {
-                seqState.isPlaying = false
-                seqState.currentStep = -1
-                perfState.endChord()
-                seqState.steps = Array(repeating: SequencerStep(), count: 16)
-                seqState.save()
-            } label: {
+            Button { clearGrid() } label: {
                 Label("Clear", systemImage: "arrow.counterclockwise")
                     .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     .foregroundStyle(Color(white: 0.6))
@@ -53,6 +74,62 @@ struct SequencerView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    // MARK: – Transport pieces (landscape)
+
+    private var playCornerButton: some View {
+        Button { togglePlay() } label: {
+            Image(systemName: seqState.isPlaying ? "stop.fill" : "play.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(seqState.isPlaying ? Color.red : Color.green)
+                .frame(width: 60, height: 60)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(white: 0.12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(seqState.isPlaying ? Color.red.opacity(0.6)
+                                                           : Color.green.opacity(0.5),
+                                        lineWidth: 1)
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var clearButton: some View {
+        Button { clearGrid() } label: {
+            Label("Clear", systemImage: "arrow.counterclockwise")
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color(white: 0.6))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color(white: 0.12)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: – Transport actions
+
+    private func togglePlay() {
+        if seqState.isPlaying {
+            seqState.isPlaying = false
+            seqState.currentStep = -1
+            perfState.endChord()
+        } else {
+            seqState.currentStep = -1
+            seqState.isPlaying = true
+        }
+    }
+
+    private func clearGrid() {
+        seqState.isPlaying = false
+        seqState.currentStep = -1
+        perfState.endChord()
+        seqState.snapshot()
+        seqState.steps = Array(repeating: SequencerStep(), count: 16)
+        seqState.save()
     }
 
     // MARK: – 4×4 Grid
@@ -104,15 +181,19 @@ struct SequencerView: View {
 
     // MARK: – Step Editor
 
-    private var stepEditor: some View {
+    private var stepEditorPanel: some View {
         let idx  = seqState.selectedStep
         let step = seqState.steps[idx]
 
         return VStack(alignment: .leading, spacing: 10) {
-            Text("STEP \(idx + 1)")
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                .foregroundStyle(Color(white: 0.4))
-                .kerning(2)
+            HStack {
+                Text("STEP \(idx + 1)")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.4))
+                    .kerning(2)
+                Spacer()
+                undoButton
+            }
 
             // Degree picker
             let degrees: [(Degree, String)] = [
@@ -122,6 +203,7 @@ struct SequencerView: View {
             HStack(spacing: 5) {
                 ForEach(degrees, id: \.0) { degree, label in
                     Button {
+                        seqState.snapshot()
                         seqState.steps[idx].degree = degree
                         seqState.steps[idx].isRest = false
                         seqState.save()
@@ -141,14 +223,14 @@ struct SequencerView: View {
                 }
             }
 
-            // Direction picker (3×3 joystick grid) + Rest toggle
+            // Direction picker (3×3 joystick grid) + Rest toggle + Gate
             HStack(alignment: .top, spacing: 12) {
                 directionPicker(idx: idx, step: step)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Toggle(isOn: Binding(
                         get: { seqState.steps[idx].isRest },
-                        set: { seqState.steps[idx].isRest = $0; seqState.save() }
+                        set: { seqState.snapshot(); seqState.steps[idx].isRest = $0; seqState.save() }
                     )) {
                         Text("Rest")
                             .font(.system(size: 12, design: .monospaced))
@@ -157,21 +239,57 @@ struct SequencerView: View {
                     .toggleStyle(SwitchToggleStyle(tint: .orange))
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Gate \(Int(seqState.steps[idx].gate * 100))%")
+                        Text(gateLabel(step.gate))
                             .font(.system(size: 10, design: .monospaced))
                             .foregroundStyle(Color(white: 0.4))
                         Slider(value: Binding(
                             get: { seqState.steps[idx].gate },
                             set: { seqState.steps[idx].gate = $0; seqState.save() }
-                        ), in: 0.1...1.0)
+                        ), in: 0.1...1.0, onEditingChanged: { editing in
+                            if editing { seqState.snapshot() }
+                        })
                         .tint(.orange)
                     }
                 }
                 .frame(maxWidth: .infinity)
             }
+
+            Text("Edit while it loops — changes apply on the next pass.  ↶ Undo to revert.")
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(Color(white: 0.3))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
         }
         .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.07)))
+    }
+
+    private var undoButton: some View {
+        Button { seqState.undo() } label: {
+            Label("Undo", systemImage: "arrow.uturn.backward")
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .foregroundStyle(seqState.canUndo ? Color(white: 0.6) : Color(white: 0.25))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(Color(white: 0.12))
+                        .overlay(RoundedRectangle(cornerRadius: 7)
+                            .stroke(Color(white: 0.2), lineWidth: 1))
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!seqState.canUndo)
+    }
+
+    /// Gate read-out names the audible behavior, matching the prototype:
+    /// crisp at the bottom, tied/legato at the very top.
+    private func gateLabel(_ gate: Double) -> String {
+        let pct = Int(gate * 100)
+        if gate >= 0.98 { return "Gate \(pct)% · tie" }
+        if gate <= 0.30 { return "Gate \(pct)% · staccato" }
+        return "Gate \(pct)%"
     }
 
     @ViewBuilder
@@ -192,6 +310,7 @@ struct SequencerView: View {
                     ForEach(0..<3, id: \.self) { col in
                         if let dir = grid[row][col] {
                             Button {
+                                seqState.snapshot()
                                 seqState.steps[idx].joystickDirection = dir
                                 seqState.save()
                             } label: {

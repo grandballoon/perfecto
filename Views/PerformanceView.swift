@@ -161,14 +161,22 @@ struct PerformanceView: View {
 
     // MARK: – Landscape layout
 
+    @ViewBuilder
     private func landscapeLayout(geo: GeometryProxy) -> some View {
+        if state.mode.name == "Sequencer" {
+            // Sequencer owns the whole screen in landscape and lays out its own
+            // two-column editor/grid. No split panel, no PAD/BAR/RING toggle.
+            SequencerView()
+                .environment(state.sequencerState)
+                .frame(width: geo.size.width, height: geo.size.height)
+        } else {
         HStack(spacing: 0) {
                 let panelW = geo.size.width / 2
                 let panelH = geo.size.height
                 let circleRadius = min(panelW * 0.40, panelH * 0.35)
 
                 // Left panel: input control
-                let isFullScreenMode = state.mode.name == "Sequencer" || state.mode.name == "Looper"
+                let isFullScreenMode = state.mode.name == "Looper"
                 VStack(spacing: 8) {
                     if isFullScreenMode {
                         modeToggle
@@ -202,10 +210,7 @@ struct PerformanceView: View {
 
                 // Right panel: OLED + chord grid + function buttons
                 VStack(spacing: 0) {
-                    if state.mode.name == "Sequencer" {
-                        SequencerView()
-                            .environment(state.sequencerState)
-                    } else if state.mode.name == "Looper" {
+                    if state.mode.name == "Looper" {
                         LooperView()
                             .environment(state.looperState)
                     } else {
@@ -233,6 +238,7 @@ struct PerformanceView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 16)
                 .frame(width: panelW, height: panelH)
+        }
         }
     }
 

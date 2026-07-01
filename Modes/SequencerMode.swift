@@ -34,13 +34,18 @@ final class SequencerMode: PerformanceMode {
                                 joystickMode: step.joystickMode,
                                 joystickDirection: step.joystickDirection)
 
-        // Note-off after gate fraction of one 1/16th note
+        // Gate shapes note length within the 1/16th step:
+        //  • ≥ 98% → legato/tie: skip the note-off so the chord rings into the
+        //    next step, where the next note-on (or a rest) takes over. This is
+        //    the clearly-audible top of the range.
+        //  • otherwise → release after `gate` fraction of the step (staccato as
+        //    the value drops).
+        guard step.gate < 0.98 else { return }
         let stepSecs = 60.0 / state.bpm / 4.0
         let gateNs   = UInt64(step.gate * stepSecs * 1_000_000_000)
-        gateTask = Task { @MainActor [weak self] in
+        gateTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: gateNs)
-            guard let self, !Task.isCancelled else { return }
-            _ = self  // silence unused warning
+            guard !Task.isCancelled else { return }
             state.stopAudioOnly()
         }
     }
