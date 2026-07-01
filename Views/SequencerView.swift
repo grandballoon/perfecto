@@ -20,6 +20,7 @@ struct SequencerView: View {
         VStack(spacing: 12) {
             transportBar
             stepGrid
+            pageBar
             stepEditorPanel
         }
         .padding(.horizontal, 16)
@@ -41,6 +42,8 @@ struct SequencerView: View {
                     Spacer(minLength: 0)
                     stepGrid
                     Spacer(minLength: 0)
+                    pageBar
+                        .padding(.trailing, 72)   // clear the Play corner button
                 }
                 playCornerButton
             }
@@ -110,6 +113,82 @@ struct SequencerView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: – Bars / pagination bar
+
+    private var pageBar: some View {
+        HStack(spacing: 8) {
+            Text("BARS")
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .foregroundStyle(Color(white: 0.35))
+                .kerning(1)
+            ForEach(SequencerState.barOptions, id: \.self) { barsPill($0) }
+
+            Rectangle().fill(Color(white: 0.2)).frame(width: 1, height: 18)
+
+            ForEach(Array(0..<seqState.bars), id: \.self) { pageTab($0) }
+            if seqState.canAddBar { addBarButton }
+
+            Spacer(minLength: 0)
+            chainToggle
+        }
+    }
+
+    private func barsPill(_ b: Int) -> some View {
+        let on = seqState.bars == b
+        return Button { seqState.setBars(b) } label: {
+            Text("\(b)")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(on ? Color.orange : Color(white: 0.5))
+                .frame(minWidth: 22)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(white: 0.10))
+                        .overlay(RoundedRectangle(cornerRadius: 6)
+                            .stroke(on ? Color.orange.opacity(0.7) : Color(white: 0.2), lineWidth: 1))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func pageTab(_ p: Int) -> some View {
+        let on = seqState.currentPage == p
+        return Button { seqState.currentPage = p } label: {
+            Text("\(p + 1)")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(on ? .black : Color(white: 0.6))
+                .frame(minWidth: 22)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 6)
+                    .fill(on ? Color.orange : Color(white: 0.13)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var addBarButton: some View {
+        Button { seqState.addBar() } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color(white: 0.6))
+                .frame(width: 26, height: 29)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.13)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var chainToggle: some View {
+        Button { seqState.chain.toggle(); seqState.save() } label: {
+            Text("⟳ chain")
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundStyle(seqState.chain ? .black : Color(white: 0.6))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 6)
+                    .fill(seqState.chain ? Color.orange : Color(white: 0.13)))
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: – Transport actions
 
     private func togglePlay() {
@@ -137,8 +216,8 @@ struct SequencerView: View {
     private var stepGrid: some View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
         return LazyVGrid(columns: columns, spacing: 6) {
-            ForEach(0..<16, id: \.self) { idx in
-                stepCell(idx)
+            ForEach(0..<16, id: \.self) { col in
+                stepCell(seqState.currentPage * 16 + col)
             }
         }
     }
