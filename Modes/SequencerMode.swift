@@ -18,10 +18,22 @@ final class SequencerMode: PerformanceMode {
     func onClockTick(state: PerformanceState) {
         guard seqState.isPlaying else { return }
 
-        // Advance (or start at step 0 on first tick after Play)
-        let idx = (seqState.currentStep + 1) % 16
+        // Advance the global playhead. In chain mode it runs through every bar;
+        // otherwise it loops the 16 steps of the current bar. The visible page
+        // follows the playhead so the grid shows the bar that's sounding.
+        let total = seqState.steps.count
+        let idx: Int
+        if seqState.chain {
+            idx = (seqState.currentStep + 1) % total
+            seqState.currentPage = idx / 16
+        } else {
+            let base = seqState.currentPage * 16
+            let within = (((seqState.currentStep - base) + 1) % 16 + 16) % 16
+            idx = base + within
+        }
         seqState.currentStep = idx
 
+        guard idx < seqState.steps.count else { return }
         let step = seqState.steps[idx]
         gateTask?.cancel()
 
