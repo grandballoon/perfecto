@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-tests:
+    name: MusicTheoryCore (SwiftPM)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Run core unit tests
+        working-directory: Perfecto
+        run: swift test
+
+  app-tests:
+    name: PerfectoTests (iOS Simulator)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # Runner images ship different iPhone models per Xcode version, so pick
+      # whatever iPhone simulator is actually available rather than hardcoding one.
+      - name: Pick an available iPhone simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available --json \
+            | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; ids=[dev['udid'] for rt in d for dev in d[rt] if dev.get('isAvailable') and 'iPhone' in dev['name']]; print(ids[0])")
+          echo "Using simulator $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Run app + test target
+        run: |
+          set -o pipefail
+          # Use xcbeautify for readable logs when present; fall back to raw output.
+          if command -v xcbeautify >/dev/null 2>&1; then FMT=xcbeautify; else FMT=cat; fi
+          xcodebuild test \
+            -project Perfecto.xcodeproj \
+            -scheme Perfecto \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            CODE_SIGNING_ALLOWED=NO \
+            | "$FMT"
