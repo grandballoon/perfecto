@@ -33,6 +33,25 @@ final class SequencerState {
     var isPlaying: Bool = false
     var swing: Double = 0       // 0...0.5 (reserved for v2 timing offset)
 
+    /// Edit history for the step grid. Each mutating edit pushes the prior
+    /// `steps` so a single tap of Undo restores it — supports fine-tuning a
+    /// loop in real time without fear.
+    private var undoStack: [[SequencerStep]] = []
+    private let undoLimit = 50
+    var canUndo: Bool { !undoStack.isEmpty }
+
+    /// Call immediately *before* mutating `steps` to make the change undoable.
+    func snapshot() {
+        undoStack.append(steps)
+        if undoStack.count > undoLimit { undoStack.removeFirst() }
+    }
+
+    func undo() {
+        guard let previous = undoStack.popLast() else { return }
+        steps = previous
+        save()
+    }
+
     init() { load() }
 
     func save() {
