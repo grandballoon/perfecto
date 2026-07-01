@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xcrun --sdk iphoneos --show-sdk-path)"
+      "Bash(xcrun --sdk iphoneos --show-sdk-path)",
+      "Bash(lavish-axi poll *)",
+      "Bash(lavish-axi playbook *)",
+      "Bash(xcrun simctl list *)",
+      "Bash(gh-axi pr view *)",
+      "Bash(gh-axi pr list *)"
     ]
   }
 }

@@ -24,6 +24,24 @@ struct SettingsSheet: View {
                 } header: {
                     sectionLabel("LAYOUT")
                 }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Press and hold the KEY button to quick-pick a key without opening this menu.")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(Color(white: 0.45))
+                        Picker("Style", selection: $state.keyQuickStyle) {
+                            ForEach(KeyQuickStyle.allCases, id: \.self) { style in
+                                Text(style.label).tag(style)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    .padding(.vertical, 4)
+                    .listRowBackground(Color(white: 0.10))
+                } header: {
+                    sectionLabel("KEY QUICK-SELECT")
+                }
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)

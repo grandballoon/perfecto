@@ -13,6 +13,10 @@ final class PerformanceState {
     /// uniform-width horizontal row on the right instead of the staggered grid.
     var horizontalLandscapeChords = false
 
+    /// Which press-and-hold key quick-selector is wired to the KEY button.
+    /// Two candidates ship side by side for on-device comparison; see `KeyQuickSelect`.
+    var keyQuickStyle: KeyQuickStyle = .wheel
+
     var isExternalSynth: Bool = false {
         didSet { engine?.isExternalSynth = isExternalSynth }
     }
