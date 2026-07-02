@@ -18,7 +18,9 @@
 		460B3ADC3A68D1D3CFC48460 /* ChordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A16BDCF64F055622DF991C /* ChordButton.swift */; };
 		AA9900112233445566778800 /* ChordBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9900112233445566778811 /* ChordBarView.swift */; };
 		BB9900112233445566778800 /* RingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB9900112233445566778811 /* RingView.swift */; };
+		EE2200112233445566778800 /* KeyQuickSelect.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2200112233445566778811 /* KeyQuickSelect.swift */; };
 		CC9900112233445566778800 /* ChordRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9900112233445566778811 /* ChordRowView.swift */; };
+		FF0000112233445566778800 /* CircleChordGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0000112233445566778811 /* CircleChordGridView.swift */; };
 		DD9900112233445566778800 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9900112233445566778811 /* SettingsSheet.swift */; };
 		49FFF5DBC32FEA1319DDE5F7 /* RepeatMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690CA02E32600E0361B28339 /* RepeatMode.swift */; };
 		4C7D889678D3C5BE552DAEEF /* PerformanceMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044A454352EB036A9EF35C95 /* PerformanceMode.swift */; };
@@ -120,7 +122,9 @@
 		EE1122334455667788993300 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA9900112233445566778811 /* ChordBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordBarView.swift; sourceTree = "<group>"; };
 		BB9900112233445566778811 /* RingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingView.swift; sourceTree = "<group>"; };
+		EE2200112233445566778811 /* KeyQuickSelect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyQuickSelect.swift; sourceTree = "<group>"; };
 		CC9900112233445566778811 /* ChordRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordRowView.swift; sourceTree = "<group>"; };
+		FF0000112233445566778811 /* CircleChordGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleChordGridView.swift; sourceTree = "<group>"; };
 		DD9900112233445566778811 /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
 		F8A16BDCF64F055622DF991C /* ChordButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordButton.swift; sourceTree = "<group>"; };
 		FAE680B23C261DFD9FCD510C /* PerfectoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfectoApp.swift; sourceTree = "<group>"; };
@@ -315,7 +319,9 @@
 				6B997445A9C3FF55AD7DB863 /* Sheets */,
 				AA9900112233445566778811 /* ChordBarView.swift */,
 				BB9900112233445566778811 /* RingView.swift */,
+				EE2200112233445566778811 /* KeyQuickSelect.swift */,
 				CC9900112233445566778811 /* ChordRowView.swift */,
+				FF0000112233445566778811 /* CircleChordGridView.swift */,
 				F8A16BDCF64F055622DF991C /* ChordButton.swift */,
 				7A005FBDBD201E0E82068BD1 /* JoystickView.swift */,
 				DD1122334455667788991111 /* LooperView.swift */,
@@ -549,7 +555,9 @@
 				E5C2BA39D35F583002D6FC8B /* AudioSink.swift in Sources */,
 				AA9900112233445566778800 /* ChordBarView.swift in Sources */,
 				BB9900112233445566778800 /* RingView.swift in Sources */,
+				EE2200112233445566778800 /* KeyQuickSelect.swift in Sources */,
 				CC9900112233445566778800 /* ChordRowView.swift in Sources */,
+				FF0000112233445566778800 /* CircleChordGridView.swift in Sources */,
 				DD9900112233445566778800 /* SettingsSheet.swift in Sources */,
 				460B3ADC3A68D1D3CFC48460 /* ChordButton.swift in Sources */,
 				D7A0229B1896202531FE3732 /* ChordEventSink.swift in Sources */,

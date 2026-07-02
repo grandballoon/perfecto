@@ -1,17 +1,38 @@
 import Observation
 
+enum ChordGridLayout: CaseIterable {
+    case grid
+    case circle
+    case horizontalBar
+
+    var displayName: String {
+        switch self {
+        case .grid:          return "Grid"
+        case .circle:        return "Circle"
+        case .horizontalBar: return "Horizontal bar"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .grid:          return "Default staggered Nashville grid."
+        case .circle:        return "Root chord in the centre, six chords arranged clockwise around the edge."
+        case .horizontalBar: return "In landscape, one tall row of all seven chords. Portrait uses the grid."
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class PerformanceState {
     var key = Key(root: .C, scale: .major)
+    var keyQuickStyle: KeyQuickStyle = .wheel
     var octave = 4
     var joystickMode: JoystickMode = .default
     var synthPreset: SynthPreset = .sinePad
     var bpm: Double = 120
 
-    /// When enabled, landscape shows the seven chord buttons in one tall,
-    /// uniform-width horizontal row on the right instead of the staggered grid.
-    var horizontalLandscapeChords = false
+    var chordGridLayout: ChordGridLayout = .grid
 
     var isExternalSynth: Bool = false {
         didSet { engine?.isExternalSynth = isExternalSynth }

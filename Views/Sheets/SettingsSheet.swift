@@ -9,20 +9,58 @@ struct SettingsSheet: View {
         NavigationStack {
             List {
                 Section {
-                    Toggle(isOn: $state.horizontalLandscapeChords) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Horizontal chord row")
-                                .font(.system(size: 15, design: .monospaced))
-                                .foregroundStyle(.white)
-                            Text("In landscape, show the seven chord buttons in one tall row on the right, instead of the staggered grid.")
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(Color(white: 0.45))
+                    ForEach(KeyQuickStyle.allCases, id: \.self) { style in
+                        Button {
+                            state.keyQuickStyle = style
+                        } label: {
+                            HStack {
+                                Text(style.label)
+                                    .font(.system(size: 15, design: .monospaced))
+                                    .foregroundStyle(.white)
+                                Spacer()
+                                if state.keyQuickStyle == style {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.orange)
+                                        .fontWeight(.semibold)
+                                }
+                            }
                         }
+                        .listRowBackground(Color(white: 0.10))
                     }
-                    .tint(.orange)
-                    .listRowBackground(Color(white: 0.10))
                 } header: {
-                    sectionLabel("LAYOUT")
+                    sectionLabel("KEY SELECTOR STYLE")
+                } footer: {
+                    Text("Press and hold the KEY button to activate.")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(Color(white: 0.35))
+                }
+
+                Section {
+                    ForEach(ChordGridLayout.allCases, id: \.self) { layout in
+                        Button {
+                            state.chordGridLayout = layout
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(layout.displayName)
+                                        .font(.system(size: 15, design: .monospaced))
+                                        .foregroundStyle(.white)
+                                    Text(layout.detail)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundStyle(Color(white: 0.45))
+                                }
+                                Spacer()
+                                if state.chordGridLayout == layout {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.orange)
+                                        .fontWeight(.semibold)
+                                }
+                            }
+                        }
+                        .listRowBackground(Color(white: 0.10))
+                    }
+                } header: {
+                    sectionLabel("CHORD LAYOUT")
                 }
             }
             .listStyle(.insetGrouped)

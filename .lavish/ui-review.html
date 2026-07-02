@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perfecto – UI Review</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #000;
+    --card-1: #0a0a0a;
+    --card-2: #111;
+    --card-3: #1a1a1a;
+    --card-4: #212121;
+    --border-1: #1f1f1f;
+    --border-2: #2e2e2e;
+    --border-3: #3d3d3d;
+    --text-dim: #4d4d4d;
+    --text-mid: #666;
+    --text-lo: #999;
+    --text-hi: #e0e0e0;
+    --orange: #FF9500;
+    --orange-dim: rgba(255,149,0,0.18);
+    --orange-border: rgba(255,149,0,0.55);
+    --green: #30D158;
+    --red: #FF3B30;
+    --amber: #FFA600;
+    --mono: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  }
+
+  body {
+    background: #0e0e0e;
+    color: var(--text-hi);
+    font-family: var(--mono);
+    min-height: 100vh;
+    padding: 32px 24px 64px;
+  }
+
+  h1 {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .page-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--text-mid);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .section {
+    margin-bottom: 48px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-1);
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    color: var(--text-lo);
+    text-transform: uppercase;
+  }
+
+  .section-desc {
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  /* ────────────────────────────────────────────────
+     iPhone frames
+  ──────────────────────────────────────────────── */
+
+  .iphone-portrait {
+    width: 393px;
+    height: 852px;
+    background: var(--bg);
+    border-radius: 48px;
+    border: 2px solid #2a2a2a;
+    box-shadow: 0 0 0 1px #111, 0 32px 80px rgba(0,0,0,0.7), inset 0 0 0 1px #333;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .landscape-scaler {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    /* height set by JS to match scaled frame height */
+  }
+
+  .iphone-landscape {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 852px;
+    height: 393px;
+    background: var(--bg);
+    border-radius: 48px;
+    border: 2px solid #2a2a2a;
+    box-shadow: 0 0 0 1px #111, 0 32px 80px rgba(0,0,0,0.7), inset 0 0 0 1px #333;
+    overflow: hidden;
+    transform-origin: top left;
+  }
+
+  .notch-portrait {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 126px;
+    height: 34px;
+    background: #000;
+    border-radius: 0 0 22px 22px;
+    z-index: 10;
+  }
+
+  .notch-landscape {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    width: 34px;
+    height: 126px;
+    background: #000;
+    border-radius: 0 22px 22px 0;
+    z-index: 10;
+  }
+
+  /* ────────────────────────────────────────────────
+     PORTRAIT PLAY VIEW
+  ──────────────────────────────────────────────── */
+
+  .play-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding-top: 44px;
+    position: relative;
+  }
+
+  /* Settings gear – bottom left */
+  .settings-gear {
+    position: absolute;
+    bottom: 24px;
+    left: 16px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--card-3);
+    border: 1px solid var(--border-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    font-size: 15px;
+  }
+
+  .key-status {
+    padding: 16px 24px 0;
+    flex-shrink: 0;
+  }
+
+  .key-status .label {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 1.5px;
+    margin-bottom: 2px;
+  }
+
+  .key-status .value {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-lo);
+  }
+
+  .oled-display {
+    margin: 16px 24px 0;
+    background: #0d0d0d;
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 10px 20px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--amber);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+  }
+
+  .spacer { flex: 1; }
+
+  /* Function buttons */
+  .function-row {
+    display: flex;
+    gap: 10px;
+    padding: 12px 20px;
+    flex-shrink: 0;
+  }
+
+  .seg-group {
+    display: flex;
+    background: #1a1a1a;
+    border: 1px solid var(--border-2);
+    border-radius: 9px;
+    padding: 3px;
+    flex: 1;
+  }
+
+  .seg-btn {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--mono);
+    padding: 8px 0;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: background 0.1s, color 0.1s;
+  }
+
+  .seg-btn.active {
+    background: var(--orange);
+    color: #000;
+  }
+
+  .seg-btn:not(.active) {
+    background: transparent;
+    color: var(--text-hi);
+  }
+
+  .fn-btn {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--mono);
+    padding: 8px 0;
+    border-radius: 8px;
+    border: 1px solid var(--border-2);
+    background: var(--card-3);
+    color: var(--text-hi);
+    cursor: pointer;
+    letter-spacing: 0.3px;
+  }
+
+  .fn-btn.active {
+    background: var(--orange);
+    border-color: var(--orange);
+    color: #000;
+  }
+
+  /* Chord grid */
+  .chord-grid {
+    padding: 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .chord-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .chord-btn {
+    flex: 1;
+    min-height: 52px;
+    border-radius: 10px;
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: var(--mono);
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.1s;
+    letter-spacing: 0.3px;
+  }
+
+  .chord-btn.orange { background: rgba(255,149,0,0.12); border-color: rgba(255,149,0,0.3); color: var(--orange); }
+  .chord-btn.blue   { background: rgba(10,132,255,0.12); border-color: rgba(10,132,255,0.3); color: #0A84FF; }
+  .chord-btn.indigo { background: rgba(94,92,230,0.12);  border-color: rgba(94,92,230,0.3);  color: #5E5CE6; }
+  .chord-btn.purple { background: rgba(175,82,222,0.12); border-color: rgba(175,82,222,0.3); color: #AF52DE; }
+
+  .chord-btn:active { opacity: 0.7; }
+
+  .chord-spacer {
+    flex: 1;
+  }
+
+  /* Bottom strip: Joystick + mode toggle */
+  .bottom-strip {
+    display: flex;
+    align-items: center;
+    padding: 0 20px 44px;
+    padding-left: 28px;
+    flex-shrink: 0;
+    margin-top: 16px;
+  }
+
+  .joystick-wrap {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    flex-shrink: 0;
+  }
+
+  .joystick-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid var(--border-2);
+    background: var(--card-2);
+  }
+
+  .joystick-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--card-4);
+    border: 1px solid var(--border-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: var(--text-lo);
+    cursor: grab;
+  }
+
+  /* Cross hair lines */
+  .joystick-ring::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    right: 12px;
+    height: 1px;
+    background: var(--border-1);
+  }
+
+  .joystick-ring::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 12px;
+    bottom: 12px;
+    width: 1px;
+    background: var(--border-1);
+  }
+
+  .strip-spacer { flex: 1; }
+
+  .mode-toggle {
+    font-size: 10px;
+    font-weight: 600;
+    font-family: var(--mono);
+    color: var(--text-lo);
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border-2);
+    background: var(--card-3);
+    cursor: pointer;
+    letter-spacing: 0.5px;
+  }
+
+  /* ────────────────────────────────────────────────
+     LANDSCAPE SEQUENCER VIEW
+  ──────────────────────────────────────────────── */
+
+  .seq-root {
+    display: flex;
+    height: 100%;
+    padding: 16px;
+    gap: 12px;
+    padding-left: 50px; /* account for notch */
+  }
+
+  /* Left: Step Editor */
+  .step-editor {
+    width: 38%;
+    background: #121212;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .editor-step-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-mid);
+    letter-spacing: 2px;
+  }
+
+  .undo-btn {
+    font-size: 10px;
+    font-weight: 500;
+    font-family: var(--mono);
+    color: var(--text-mid);
+    padding: 4px 9px;
+    border-radius: 7px;
+    border: 1px solid var(--border-1);
+    background: var(--card-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Degree picker */
+  .degree-row {
+    display: flex;
+    gap: 3px;
+    flex-shrink: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .degree-btn {
+    flex: 1;
+    min-width: 0;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--mono);
+    padding: 5px 0;
+    border-radius: 5px;
+    border: none;
+    background: var(--card-4);
+    color: var(--text-hi);
+    cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .degree-btn.active {
+    background: var(--orange);
+    color: #000;
+  }
+
+  /* Direction picker + controls */
+  .dir-and-controls {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    flex-shrink: 0;
+  }
+
+  .dir-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 30px);
+    grid-template-rows: repeat(3, 30px);
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .dir-cell {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    background: var(--card-4);
+    border: none;
+    color: var(--text-hi);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-family: var(--mono);
+  }
+
+  .dir-cell.active {
+    background: var(--orange);
+    color: #000;
+  }
+
+  .controls-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .rest-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .rest-label {
+    font-size: 12px;
+    color: var(--text-lo);
+  }
+
+  /* iOS-style toggle */
+  .toggle-switch {
+    width: 44px;
+    height: 26px;
+    border-radius: 13px;
+    background: var(--card-3);
+    border: 2px solid var(--border-2);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch.on {
+    background: var(--orange);
+    border-color: var(--orange);
+  }
+
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  .toggle-switch.on::after {
+    transform: translateX(18px);
+  }
+
+  .gate-section { display: flex; flex-direction: column; gap: 4px; }
+
+  .gate-label {
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .gate-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-2);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .gate-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--orange);
+    cursor: pointer;
+  }
+
+  .editor-hint {
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    flex-shrink: 0;
+  }
+
+  /* Right: grid + transport */
+  .seq-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    position: relative;
+  }
+
+  .right-top {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+  }
+
+  .bpm-ctrl {
+    display: flex;
+    align-items: center;
+    background: var(--card-2);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .bpm-step {
+    width: 28px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: var(--text-lo);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-family: var(--mono);
+  }
+
+  .bpm-val {
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    min-width: 44px;
+    text-align: center;
+  }
+
+  .clear-btn {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--mono);
+    color: var(--text-mid);
+    padding: 7px 12px;
+    background: var(--card-2);
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* 4×4 step grid */
+  .step-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    flex: 1;
+    align-content: center;
+  }
+
+  .step-cell {
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 4px;
+    cursor: pointer;
+    border: 1px solid;
+    gap: 2px;
+  }
+
+  .step-cell.empty {
+    background: var(--card-2);
+    border-color: var(--border-1);
+  }
+
+  .step-cell.filled {
+    background: var(--card-3);
+    border-color: var(--border-2);
+  }
+
+  .step-cell.selected {
+    background: #363636;
+    border-color: var(--border-3);
+  }
+
+  .step-cell.playing {
+    background: var(--orange-dim);
+    border-color: var(--orange);
+    border-width: 1.5px;
+  }
+
+  .step-num {
+    font-size: 9px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+  }
+
+  .step-label {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--mono);
+  }
+
+  .step-label.rest { color: var(--text-dim); }
+  .step-label.filled { color: white; }
+
+  /* Page bar */
+  .page-bar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    margin-top: 10px;
+    padding-right: 68px; /* clear play button */
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .bars-label {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  .pill {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--mono);
+    min-width: 22px;
+    padding: 4px 4px;
+    border-radius: 6px;
+    border: 1px solid;
+    text-align: center;
+    cursor: pointer;
+    background: var(--card-2);
+    color: var(--text-mid);
+    border-color: var(--border-1);
+  }
+
+  .pill.active {
+    color: var(--orange);
+    border-color: var(--orange-border);
+  }
+
+  .page-tab {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--mono);
+    min-width: 22px;
+    padding: 4px 4px;
+    border-radius: 6px;
+    border: none;
+    text-align: center;
+    cursor: pointer;
+    background: var(--card-3);
+    color: var(--text-lo);
+  }
+
+  .page-tab.active {
+    background: var(--orange);
+    color: #000;
+  }
+
+  .divider-v {
+    width: 1px;
+    height: 18px;
+    background: var(--border-2);
+  }
+
+  .chain-btn {
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--mono);
+    padding: 5px 7px;
+    border-radius: 6px;
+    border: none;
+    background: var(--card-3);
+    color: var(--text-lo);
+    cursor: pointer;
+    margin-left: auto;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .chain-btn.active {
+    background: var(--orange);
+    color: #000;
+  }
+
+  /* Corner play button */
+  .play-corner {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    background: var(--card-2);
+    border: 1px solid rgba(48,209,88,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    cursor: pointer;
+  }
+
+  .play-corner.playing {
+    border-color: rgba(255,59,48,0.6);
+  }
+
+  /* ────────────────────────────────────────────────
+     Interactive state helpers
+  ──────────────────────────────────────────────── */
+
+  button { font-family: var(--mono); }
+
+  [data-lavish-action] { cursor: pointer; }
+
+  /* Annotation hint */
+  .hint-bar {
+    background: rgba(255,149,0,0.07);
+    border: 1px solid rgba(255,149,0,0.15);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 10px;
+    color: rgba(255,149,0,0.7);
+    letter-spacing: 0.5px;
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<h1 style="letter-spacing:3px;margin-bottom:6px;">PERFECTO</h1>
+<p style="font-size:10px;color:var(--text-dim);margin-bottom:24px;line-height:1.7;">UI Review · Annotate any element, then send feedback. Buttons are interactive — click to toggle state.</p>
+
+<div class="hint-bar">
+  Click UI elements to toggle their state &nbsp;·&nbsp; Select + annotate any region to leave a note &nbsp;·&nbsp; Press "Send to Agent" when ready
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECTION 1: PORTRAIT PLAY VIEW
+══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title">Portrait · Play Mode</span>
+    <span class="section-desc">iPhone 15 Pro · 393 × 852 pt</span>
+  </div>
+
+  <div class="iphone-portrait" id="portrait-frame">
+    <div class="notch-portrait"></div>
+
+    <div class="play-root">
+
+      <!-- Key status -->
+      <div class="key-status">
+        <div class="label">KEY</div>
+        <div class="value">C major</div>
+      </div>
+
+      <!-- OLED display -->
+      <div class="oled-display" id="oled">Cmaj7 · C E G B</div>
+
+      <div class="spacer"></div>
+
+      <!-- Function buttons -->
+      <div class="function-row">
+        <!-- PLAY | SEQ toggle -->
+        <div class="seg-group">
+          <button class="seg-btn active" id="btn-play" onclick="setMode('play')">PLAY</button>
+          <button class="seg-btn" id="btn-seq" onclick="setMode('seq')">SEQ</button>
+        </div>
+        <!-- KEY -->
+        <button class="fn-btn">KEY</button>
+        <!-- MIDI -->
+        <button class="fn-btn" id="btn-midi" onclick="this.classList.toggle('active')">MIDI</button>
+      </div>
+
+      <!-- Chord grid -->
+      <div class="chord-grid">
+        <!-- Row 1 -->
+        <div class="chord-row">
+          <div class="chord-btn orange" onclick="selectChord(this, 'Cmaj7 · C E G B')">I</div>
+          <div class="chord-btn blue"   onclick="selectChord(this, 'Dm7 · D F A C')">ii</div>
+          <div class="chord-btn indigo" onclick="selectChord(this, 'Em7 · E G B D')">iii</div>
+          <div class="chord-btn orange" onclick="selectChord(this, 'Fmaj7 · F A C E')">IV</div>
+        </div>
+        <!-- Row 2 -->
+        <div class="chord-row">
+          <div class="chord-btn orange" onclick="selectChord(this, 'G7 · G B D F')">V</div>
+          <div class="chord-btn blue"   onclick="selectChord(this, 'Am7 · A C E G')">vi</div>
+          <div class="chord-btn purple" onclick="selectChord(this, 'Bm7b5 · B D F A')">vii°</div>
+          <div class="chord-spacer"></div>
+        </div>
+      </div>
+
+      <!-- Bottom strip: Joystick + mode toggle -->
+      <div class="bottom-strip">
+        <div class="joystick-wrap" id="joystick">
+          <div class="joystick-ring"></div>
+          <div class="joystick-inner">·</div>
+        </div>
+        <div class="strip-spacer"></div>
+        <button class="mode-toggle" id="mode-cycle" onclick="cycleMode()">PAD</button>
+      </div>
+    </div>
+
+    <!-- Settings gear -->
+    <div class="settings-gear" data-lavish-action>⚙</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 2: LANDSCAPE SEQUENCER VIEW
+══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title">Landscape · Sequencer Mode</span>
+    <span class="section-desc">iPhone 15 Pro · 852 × 393 pt · 2-bar pattern, step 5 selected &amp; playing</span>
+  </div>
+
+  <div class="landscape-scaler" id="landscape-scaler">
+  <div class="iphone-landscape" id="landscape-frame">
+    <div class="notch-landscape"></div>
+
+    <div class="seq-root">
+
+      <!-- LEFT: Step editor -->
+      <div class="step-editor">
+
+        <div class="editor-header">
+          <span class="editor-step-label">STEP 5</span>
+          <button class="undo-btn">↩ Undo</button>
+        </div>
+
+        <!-- Degree picker -->
+        <div class="degree-row" id="degree-row">
+          <button class="degree-btn active" onclick="selectDegree(this)">I</button>
+          <button class="degree-btn"       onclick="selectDegree(this)">ii</button>
+          <button class="degree-btn"       onclick="selectDegree(this)">iii</button>
+          <button class="degree-btn"       onclick="selectDegree(this)">IV</button>
+          <button class="degree-btn"       onclick="selectDegree(this)">V</button>
+          <button class="degree-btn"       onclick="selectDegree(this)">vi</button>
+          <button class="degree-btn"       onclick="selectDegree(this)">vii°</button>
+        </div>
+
+        <!-- Direction grid + controls -->
+        <div class="dir-and-controls">
+          <div class="dir-grid" id="dir-grid">
+            <button class="dir-cell" onclick="selectDir(this)">↖</button>
+            <button class="dir-cell" onclick="selectDir(this)">↑</button>
+            <button class="dir-cell" onclick="selectDir(this)">↗</button>
+            <button class="dir-cell" onclick="selectDir(this)">←</button>
+            <button class="dir-cell active" onclick="selectDir(this)">·</button>
+            <button class="dir-cell" onclick="selectDir(this)">→</button>
+            <button class="dir-cell" onclick="selectDir(this)">↙</button>
+            <button class="dir-cell" onclick="selectDir(this)">↓</button>
+            <button class="dir-cell" onclick="selectDir(this)">↘</button>
+          </div>
+
+          <div class="controls-col">
+            <div class="rest-row">
+              <span class="rest-label">Rest</span>
+              <div class="toggle-switch" id="rest-toggle" onclick="this.classList.toggle('on')"></div>
+            </div>
+            <div class="gate-section">
+              <div class="gate-label" id="gate-label">Gate 80%</div>
+              <input type="range" class="gate-slider" id="gate-slider" min="10" max="100" value="80"
+                     oninput="updateGate(this.value)">
+            </div>
+          </div>
+        </div>
+
+        <div class="editor-hint">Edit while it loops — changes apply on next pass. &nbsp;↶ Undo to revert.</div>
+
+      </div>
+
+      <!-- RIGHT: BPM + grid + page bar + play -->
+      <div class="seq-right">
+
+        <div class="right-top">
+          <div class="bpm-ctrl">
+            <button class="bpm-step">−</button>
+            <span class="bpm-val">120</span>
+            <button class="bpm-step">+</button>
+          </div>
+          <button class="clear-btn">↺ Clear</button>
+        </div>
+
+        <!-- 4×4 step grid: 2 bars shown, page 1 -->
+        <div class="step-grid" id="step-grid">
+          <!-- steps 1-16 rendered by JS -->
+        </div>
+
+        <!-- Page / bars bar -->
+        <div class="page-bar">
+          <span class="bars-label">BARS</span>
+          <span class="pill active">1</span>
+          <span class="pill active" style="color:var(--orange);border-color:var(--orange-border);">2</span>
+          <span class="pill">4</span>
+          <span class="pill">8</span>
+
+          <div class="divider-v"></div>
+
+          <span class="page-tab active">1</span>
+          <span class="page-tab" onclick="this.parentElement.querySelector('.page-tab.active').classList.remove('active'); this.classList.add('active');">2</span>
+          <button style="background:var(--card-2);border:none;border-radius:6px;width:26px;height:29px;color:var(--text-lo);font-size:13px;cursor:pointer;font-family:var(--mono);">+</button>
+
+          <span class="chain-btn">⟳ chain</span>
+        </div>
+
+        <!-- Corner play button -->
+        <div class="play-corner" id="play-corner" onclick="togglePlay()">▶</div>
+
+      </div>
+    </div>
+  </div>
+  </div><!-- /landscape-scaler -->
+</div>
+
+<script>
+// ── Portrait state ──────────────────────────────
+let currentMode = 'play';
+const modes = ['PAD', 'RING', 'BAR'];
+let modeIdx = 0;
+
+function setMode(m) {
+  currentMode = m;
+  document.getElementById('btn-play').className = 'seg-btn' + (m === 'play' ? ' active' : '');
+  document.getElementById('btn-seq').className  = 'seg-btn' + (m === 'seq'  ? ' active' : '');
+}
+
+function cycleMode() {
+  modeIdx = (modeIdx + 1) % modes.length;
+  document.getElementById('mode-cycle').textContent = modes[modeIdx];
+}
+
+function selectChord(el, label) {
+  document.getElementById('oled').textContent = label;
+}
+
+// ── Landscape state ─────────────────────────────
+function selectDegree(btn) {
+  document.querySelectorAll('#degree-row .degree-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function selectDir(btn) {
+  document.querySelectorAll('#dir-grid .dir-cell').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function updateGate(val) {
+  const pct = parseInt(val);
+  let suffix = '';
+  if (pct >= 98) suffix = ' · tie';
+  else if (pct <= 30) suffix = ' · staccato';
+  document.getElementById('gate-label').textContent = 'Gate ' + pct + '%' + suffix;
+}
+
+let isPlaying = false;
+function togglePlay() {
+  isPlaying = !isPlaying;
+  const btn = document.getElementById('play-corner');
+  btn.textContent = isPlaying ? '■' : '▶';
+  btn.className = 'play-corner' + (isPlaying ? ' playing' : '');
+  // Animate step playhead if playing
+  if (isPlaying) startPlayhead();
+  else stopPlayhead();
+}
+
+// Sequencer step grid data
+const stepData = [
+  { degree: 'I',   isRest: false },
+  { degree: 'V',   isRest: false },
+  { degree: 'vi',  isRest: false },
+  { degree: 'IV',  isRest: false },
+  { degree: 'I',   isRest: false },  // step 5 — selected
+  { degree: '—',   isRest: true  },
+  { degree: 'V',   isRest: false },
+  { degree: '—',   isRest: true  },
+  { degree: 'vi',  isRest: false },
+  { degree: 'IV',  isRest: false },
+  { degree: '—',   isRest: true  },
+  { degree: 'V',   isRest: false },
+  { degree: 'I',   isRest: false },
+  { degree: 'vi',  isRest: false },
+  { degree: '—',   isRest: true  },
+  { degree: 'IV',  isRest: false },
+];
+
+let selectedStep = 4; // 0-indexed step 5
+let playingStep  = -1;
+let playheadTimer = null;
+
+function renderGrid() {
+  const grid = document.getElementById('step-grid');
+  grid.innerHTML = '';
+  stepData.forEach((s, i) => {
+    const cell = document.createElement('div');
+    const cls = ['step-cell'];
+    if (s.isRest)          cls.push('empty'); else cls.push('filled');
+    if (i === selectedStep) cls.push('selected');
+    if (i === playingStep)  cls.push('playing');
+    cell.className = cls.join(' ');
+    cell.innerHTML = `<span class="step-num">${i + 1}</span>
+                      <span class="step-label ${s.isRest ? 'rest' : 'filled'}">${s.degree}</span>`;
+    cell.onclick = () => { selectedStep = i; renderGrid(); };
+    grid.appendChild(cell);
+  });
+}
+
+function startPlayhead() {
+  let step = 0;
+  function tick() {
+    playingStep = step;
+    renderGrid();
+    step = (step + 1) % 16;
+    playheadTimer = setTimeout(tick, 500);
+  }
+  tick();
+}
+
+function stopPlayhead() {
+  clearTimeout(playheadTimer);
+  playingStep = -1;
+  renderGrid();
+}
+
+// Init
+renderGrid();
+
+// Scale landscape frame to fit viewport
+function scaleLandscape() {
+  const frame   = document.getElementById('landscape-frame');
+  const scaler  = document.getElementById('landscape-scaler');
+  const nativeW = 852;
+  const nativeH = 393;
+  // clientWidth of section (scaler's parent) to avoid measuring after transform
+  const available = scaler.parentElement.clientWidth;
+  const scale = Math.min(1, available / nativeW);
+  frame.style.transform = `scale(${scale})`;
+  scaler.style.height = Math.ceil(nativeH * scale) + 'px';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  requestAnimationFrame(scaleLandscape);
+});
+window.addEventListener('resize', scaleLandscape);
+</script>
+</body>
+</html>

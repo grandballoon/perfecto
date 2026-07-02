@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perfecto — Loop-Friendly Sequencer</title>
+<style>
+  :root{
+    --bg:#000; --panel:#0d0d0d; --panel2:#121212; --cell:#1a1a1a;
+    --stroke:#2e2e2e; --stroke-soft:#202020;
+    --text:#fff; --text2:#9a9a9a; --text3:#666; --text4:#474747;
+    --orange:#ff9500; --oled:#ffa600;
+    --blue:#0a84ff; --indigo:#5e5ce6; --purple:#bf5af2; --green:#30d158; --red:#ff453a;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box; min-width:0;}
+  html,body{margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--mono); -webkit-font-smoothing:antialiased;}
+  body{padding:32px 20px 96px; line-height:1.5;}
+  .wrap{max-width:1120px; margin:0 auto;}
+  a{color:var(--orange);}
+
+  /* ---------- typography ---------- */
+  .eyebrow{font-size:10px; letter-spacing:2.5px; color:var(--text4); text-transform:uppercase;}
+  h1{font-size:30px; font-weight:700; margin:8px 0 6px; letter-spacing:-0.5px;}
+  h2{font-size:13px; letter-spacing:2px; color:var(--text3); text-transform:uppercase; margin:0 0 14px; font-weight:600;}
+  .lede{color:var(--text2); font-size:15px; max-width:760px; margin:0 0 4px;}
+  .section{margin-top:46px;}
+  .muted{color:var(--text2);} .dim{color:var(--text3);} .faint{color:var(--text4);}
+
+  /* ---------- goal chips ---------- */
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:18px;}
+  .chip{font-size:11px; color:var(--text2); background:var(--panel2);
+    border:1px solid var(--stroke-soft); border-radius:999px; padding:6px 12px;}
+  .chip b{color:var(--orange); font-weight:600;}
+
+  /* ---------- model diagram ---------- */
+  .model{display:flex; flex-wrap:wrap; gap:10px; align-items:stretch;}
+  .mnode{flex:1 1 148px; background:var(--panel2); border:1px solid var(--stroke-soft); border-radius:10px;
+    padding:13px 12px;}
+  .mnode .k{font-size:10px; letter-spacing:1.5px; color:var(--orange); text-transform:uppercase;}
+  .mnode .t{font-size:14px; font-weight:600; margin:5px 0 4px;}
+  .mnode .d{font-size:11px; color:var(--text3); line-height:1.45;}
+  .msep{flex:0 0 auto; align-self:center; color:var(--text4); font-size:14px;}
+  @media(max-width:760px){ .mnode{flex:1 1 40%;} .msep{display:none;} }
+
+  /* ---------- option cards ---------- */
+  .options{display:flex; flex-direction:column; gap:22px;}
+  .opt{background:linear-gradient(180deg,#0c0c0c,#080808);
+    border:1px solid var(--stroke-soft); border-radius:16px; overflow:hidden;}
+  .opt-head{display:flex; align-items:flex-start; gap:14px; padding:18px 20px 14px;
+    border-bottom:1px solid var(--stroke-soft);}
+  .opt-badge{flex:0 0 auto; width:34px; height:34px; border-radius:9px; display:grid; place-items:center;
+    font-weight:700; font-size:15px; color:#000;}
+  .opt-title{flex:1 1 auto;}
+  .opt-title h3{margin:0; font-size:18px; font-weight:700;}
+  .opt-title p{margin:3px 0 0; font-size:13px; color:var(--text2);}
+  .opt-body{display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:0;}
+  @media(max-width:840px){ .opt-body{grid-template-columns:1fr;} }
+  .opt-mock{padding:20px; border-right:1px solid var(--stroke-soft); background:#000;}
+  @media(max-width:840px){ .opt-mock{border-right:none; border-bottom:1px solid var(--stroke-soft);} }
+  .opt-notes{padding:18px 20px;}
+  .opt-notes .grp{margin-bottom:14px;}
+  .opt-notes .grp:last-child{margin-bottom:0;}
+  .opt-notes .lbl{font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text4); margin-bottom:6px;}
+  .opt-notes ul{margin:0; padding-left:16px;}
+  .opt-notes li{font-size:12.5px; color:var(--text2); margin:3px 0;}
+  .opt-notes li.win::marker{content:"▸ "; color:var(--green);}
+  .opt-notes li.cost{color:var(--text3);}
+  .nails{display:flex; flex-wrap:wrap; gap:6px;}
+  .nails .n{font-size:10.5px; padding:4px 9px; border-radius:6px; background:rgba(255,149,0,.12);
+    color:var(--orange); border:1px solid rgba(255,149,0,.25);}
+
+  /* ---------- app-skin mockup primitives ---------- */
+  .scr{background:#000; border:1px solid #161616; border-radius:12px; padding:12px; position:relative;}
+  .addpage{position:absolute; right:14px; bottom:14px; width:36px; height:36px; border-radius:10px;
+    background:var(--orange); color:#000; display:grid; place-items:center; font-size:22px; font-weight:600;
+    line-height:1; box-shadow:0 3px 12px rgba(0,0,0,.6); z-index:3;}
+  .bar{display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  .pill{font-size:11px; padding:6px 10px; border-radius:7px; background:var(--cell);
+    border:1px solid var(--stroke-soft); color:var(--text2); white-space:nowrap;}
+  .pill.play{color:var(--green);} .pill.rec{color:var(--red);} .pill.accent{color:var(--orange); border-color:rgba(255,149,0,.4);}
+  .pill.on{background:var(--orange); color:#000; border-color:var(--orange);}
+  .grow{flex:1 1 auto;}
+
+  /* step strip */
+  .strip{display:flex; gap:3px;}
+  .strip .st{flex:1 1 0; min-width:0; height:26px; border-radius:4px; background:var(--cell);
+    border:1px solid var(--stroke-soft); display:grid; place-items:center;
+    font-size:10px; color:var(--text2);}
+  .st.rest{color:var(--text4);}
+  .st.fill{background:#161616;}
+  .st.play{background:rgba(255,149,0,.35); border-color:var(--orange); color:#fff;}
+  .st.c-or{color:var(--orange);} .st.c-bl{color:#5aa9ff;} .st.c-pu{color:#cf8bf3;} .st.c-gr{color:#5ee08a;}
+
+  /* lane row (Option A) */
+  .lane{display:flex; align-items:center; gap:10px; padding:8px; border-radius:9px;
+    background:var(--panel2); border:1px solid var(--stroke-soft); margin-bottom:7px;}
+  .lane .lname{flex:0 0 86px; font-size:11px;}
+  .lane .lname small{display:block; color:var(--text4); font-size:9px; letter-spacing:.5px;}
+  .lane .lstrip{flex:1 1 auto;}
+  .lane .ctl{flex:0 0 auto; display:flex; gap:4px;}
+  .mini{width:22px; height:22px; border-radius:5px; display:grid; place-items:center; font-size:9px;
+    background:var(--cell); border:1px solid var(--stroke-soft); color:var(--text3);}
+  .mini.on-m{background:#3a2a00; color:var(--orange); border-color:rgba(255,149,0,.4);}
+  .mini.on-s{background:#0a2a3a; color:var(--blue); border-color:rgba(10,132,255,.4);}
+  .loopbadge{font-size:9px; color:var(--text3); padding:3px 6px; border-radius:5px;
+    background:#0a0a0a; border:1px solid var(--stroke-soft); white-space:nowrap;}
+  .dotplay{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);}
+  .dotidle{width:8px;height:8px;border-radius:50%;background:#222;}
+  .addrow{font-size:11px; color:var(--text3); text-align:center; padding:7px; border:1px dashed #262626;
+    border-radius:9px;}
+
+  /* pages (Option B) */
+  .tabs{display:flex; gap:5px;}
+  .tab{font-size:11px; padding:5px 11px; border-radius:6px 6px 0 0; background:var(--cell);
+    border:1px solid var(--stroke-soft); color:var(--text3);}
+  .tab.act{background:rgba(255,149,0,.18); color:var(--orange); border-color:var(--orange);}
+  .grid4{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px;}
+  .gcell{height:42px; border-radius:6px; background:var(--cell); border:1px solid var(--stroke-soft);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .gcell .num{font-size:8px; color:var(--text4);}
+  .gcell .deg{font-size:13px; font-weight:600;}
+  .gcell.play{background:rgba(255,149,0,.35); border-color:var(--orange);}
+  .gcell.rest .deg{color:var(--text4);}
+  .ribbon{display:flex; gap:4px; margin-top:10px; overflow-x:auto; padding-bottom:4px; padding-right:52px;}
+  .pageblk{flex:0 0 auto; width:54px; height:30px; border-radius:5px; background:var(--panel2);
+    border:1px solid var(--stroke-soft); display:grid; place-items:center; font-size:9px; color:var(--text3); position:relative;}
+  .pageblk.act{border-color:var(--orange); color:var(--orange);}
+  .pageblk .ph{position:absolute; left:6px; top:4px; bottom:4px; width:2px; background:var(--orange); border-radius:2px;}
+
+  /* song (Option C) */
+  .song{display:flex; gap:5px; margin-bottom:10px; overflow-x:auto; padding-bottom:4px;}
+  .block{flex:0 0 auto; border-radius:8px; padding:8px 9px; min-width:74px;
+    border:1px solid var(--stroke-soft);}
+  .block .bt{font-size:11px; font-weight:600;}
+  .block .bx{font-size:9px; color:var(--text4); margin-top:2px;}
+  .block.intro{background:rgba(94,92,230,.16); border-color:rgba(94,92,230,.5);}
+  .block.verse{background:rgba(10,132,255,.14); border-color:rgba(10,132,255,.45);}
+  .block.chorus{background:rgba(255,149,0,.16); border-color:rgba(255,149,0,.5);}
+  .block.bridge{background:rgba(191,90,242,.16); border-color:rgba(191,90,242,.5);}
+  .lib{display:flex; flex-direction:column; gap:6px;}
+  .libitem{display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:7px;
+    background:var(--panel2); border:1px solid var(--stroke-soft);}
+  .libitem .swatch{width:6px; height:22px; border-radius:3px;}
+  .libitem .li-name{flex:1 1 auto; font-size:11px;}
+  .libitem .li-meta{font-size:9px; color:var(--text4);}
+  .libitem .li-act{font-size:9px; color:var(--orange); padding:3px 7px; border-radius:5px;
+    border:1px solid rgba(255,149,0,.3); background:rgba(255,149,0,.08);}
+
+  .caption{font-size:11px; color:var(--text4); margin-top:10px; text-align:center;}
+
+  .callout{display:flex; gap:11px; align-items:flex-start; background:rgba(48,209,88,.06);
+    border:1px solid rgba(48,209,88,.28); border-radius:11px; padding:13px 15px; margin:0 0 22px;}
+  .callout .ci{flex:0 0 auto; font-size:13px; color:var(--green); margin-top:1px;}
+  .callout .ct{font-size:12.5px; color:var(--text2); line-height:1.5;}
+  .callout .ct b{color:var(--text);}
+
+  /* deferred option */
+  .opt.deferred{opacity:.6;}
+  .defer-tag{flex:0 0 auto; align-self:flex-start; font-size:10px; letter-spacing:1px; text-transform:uppercase;
+    color:var(--text3); background:#161616; border:1px solid var(--stroke); border-radius:999px; padding:5px 10px; white-space:nowrap;}
+  .defer-reason{font-size:11.5px; color:var(--text3); padding:10px 20px; background:#0a0a0a;
+    border-bottom:1px solid var(--stroke-soft);}
+  .defer-reason b{color:var(--text2);}
+
+  /* decisions banner */
+  .decided{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:6px;}
+  .dpill{font-size:11px; padding:7px 12px; border-radius:8px; background:rgba(48,209,88,.08);
+    border:1px solid rgba(48,209,88,.3); color:var(--text2);}
+  .dpill b{color:var(--green);}
+  .dpill.off{background:#0c0c0c; border-color:var(--stroke-soft); color:var(--text3);}
+  .dpill.off b{color:var(--text4);}
+
+  /* fixes */
+  .fixes{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px;}
+  @media(max-width:760px){ .fixes{grid-template-columns:1fr;} }
+  .fix{background:var(--panel2); border:1px solid var(--stroke-soft); border-radius:11px; padding:14px;}
+  .fix .fh{display:flex; align-items:center; gap:8px; margin-bottom:7px;}
+  .fix .fn{font-size:10px; color:var(--red); letter-spacing:.5px;}
+  .fix .ft{font-size:13.5px; font-weight:600;}
+  .fix .fd{font-size:11.5px; color:var(--text3); line-height:1.5;}
+  .fix .fd .arrow-fix{color:var(--green);}
+
+  /* ---------- scorecard ---------- */
+  .score{width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px;
+    border:1px solid var(--stroke-soft); border-radius:12px; overflow:hidden;}
+  .score th,.score td{padding:11px 12px; text-align:left; border-bottom:1px solid var(--stroke-soft);}
+  .score thead th{background:var(--panel2); font-size:11px; letter-spacing:.5px; color:var(--text2); font-weight:600;}
+  .score tbody tr:last-child td{border-bottom:none;}
+  .score td.goal{color:var(--text2);}
+  .score td.c{text-align:center; font-size:13px;}
+  .full{color:var(--green); font-weight:700;}
+  .part{color:var(--orange);}
+  .none{color:var(--text4);}
+  .score .legend{font-size:10px; color:var(--text4);}
+  .scroll-x{overflow-x:auto;}
+
+  /* ---------- recommendation ---------- */
+  .rec{background:linear-gradient(180deg,rgba(255,149,0,.08),rgba(255,149,0,.02));
+    border:1px solid rgba(255,149,0,.3); border-radius:14px; padding:20px 22px;}
+  .phases{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:14px;}
+  @media(max-width:760px){ .phases{grid-template-columns:1fr;} }
+  .phase{background:#0a0a0a; border:1px solid var(--stroke-soft); border-radius:10px; padding:13px;}
+  .phase .pn{font-size:10px; letter-spacing:1.5px; color:var(--orange); text-transform:uppercase;}
+  .phase .pt{font-size:14px; font-weight:600; margin:5px 0 5px;}
+  .phase .pd{font-size:11.5px; color:var(--text3); line-height:1.5;}
+
+  /* ---------- input ---------- */
+  .qcard{background:var(--panel2); border:1px solid var(--stroke-soft); border-radius:14px; padding:20px; margin-bottom:16px;}
+  .qcard h3{margin:0 0 4px; font-size:15px;}
+  .qcard .qsub{font-size:12px; color:var(--text3); margin:0 0 14px;}
+  .qopts{display:flex; flex-direction:column; gap:8px; margin-bottom:14px;}
+  label.qo{display:flex; align-items:flex-start; gap:11px; padding:12px 14px; border-radius:10px;
+    background:#0a0a0a; border:1px solid var(--stroke-soft); cursor:pointer; transition:border-color .12s, background .12s;}
+  label.qo:hover{border-color:#3a3a3a;}
+  label.qo input{margin-top:2px; accent-color:var(--orange); width:15px; height:15px; flex:0 0 auto;}
+  label.qo:has(input:checked){border-color:var(--orange); background:rgba(255,149,0,.07);}
+  .qo .qo-t{font-size:13.5px; font-weight:600;}
+  .qo .qo-d{font-size:11.5px; color:var(--text3); margin-top:2px;}
+  .qbtn{font-family:var(--mono); font-size:12.5px; font-weight:600; color:#000; background:var(--orange);
+    border:none; border-radius:9px; padding:10px 18px; cursor:pointer;}
+  .qbtn:disabled{background:#333; color:#777; cursor:default;}
+  .qbtn.ghost{background:transparent; color:var(--orange); border:1px solid rgba(255,149,0,.4);}
+  .qstate{font-size:11px; color:var(--green); margin-left:12px;}
+  .sendrow{display:flex; align-items:center; gap:12px; margin-top:8px; flex-wrap:wrap;}
+  .freeform{width:100%; background:#0a0a0a; border:1px solid var(--stroke-soft); border-radius:10px;
+    color:var(--text); font-family:var(--mono); font-size:12.5px; padding:11px 13px; margin-bottom:12px; resize:vertical; min-height:64px;}
+  .freeform::placeholder{color:var(--text4);}
+
+  .foot{margin-top:40px; font-size:11px; color:var(--text4); border-top:1px solid var(--stroke-soft); padding-top:16px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===================== HEADER ===================== -->
+  <header>
+    <div class="eyebrow">Perfecto · Design exploration</div>
+    <h1>A loop-friendly sequencer</h1>
+    <p class="lede">Today the Sequencer is a single 16-step pattern that loops on itself. This explores turning it into a
+      <b class="muted" style="color:var(--text)">compositional surface</b> — layer loops, reuse them as blocks, grow past 16 steps into whole songs,
+      and keep a library of beats you can fire alongside live play.</p>
+    <div class="chips">
+      <span class="chip"><b>1</b>&nbsp; Compile &amp; layer loops</span>
+      <span class="chip"><b>2</b>&nbsp; Blocks that repeat as tracks</span>
+      <span class="chip"><b>3</b>&nbsp; Beyond 16 steps → songs</span>
+      <span class="chip"><b>4</b>&nbsp; Infinite scroll / pagination</span>
+      <span class="chip"><b>5</b>&nbsp; Pattern library + live play</span>
+    </div>
+  </header>
+
+  <!-- ===================== MODEL ===================== -->
+  <section class="section">
+    <h2>The unifying model — one vocabulary behind every option</h2>
+    <p class="lede" style="margin-bottom:18px;">Each direction below is a different <em>face</em> of the same data model. Settling this hierarchy first is what makes the rest composable instead of three disconnected features.</p>
+    <div class="model">
+      <div class="mnode"><div class="k">Step</div><div class="t">Step</div><div class="d">One chord cell: degree + joystick color + gate. <span class="faint">(exists today)</span></div></div>
+      <span class="msep">→</span>
+      <div class="mnode"><div class="k">Pattern</div><div class="t">Pattern</div><div class="d">An ordered run of steps. 16 today; 32 / 64 / variable next.</div></div>
+      <span class="msep">→</span>
+      <div class="mnode"><div class="k">Track</div><div class="t">Track / Lane</div><div class="d">A pattern looping on its own length, with mute / solo / sound.</div></div>
+      <span class="msep">→</span>
+      <div class="mnode"><div class="k">Block</div><div class="t">Block</div><div class="d">A named, reusable stack of lanes — "Verse", "Chorus" — repeatable ×N.</div></div>
+      <span class="msep">→</span>
+      <div class="mnode"><div class="k">Song</div><div class="t">Song</div><div class="d">Blocks arranged on a timeline. The whole arrangement.</div></div>
+    </div>
+  </section>
+
+  <!-- ===================== OPTIONS ===================== -->
+  <section class="section">
+    <h2>Three directions for the main screen</h2>
+    <p class="lede" style="margin-bottom:18px;">Mutually exclusive as a <em>default</em> layout, but they stack on the model above — so picking one first doesn't close the others off. Mockups are in Perfecto's actual skin.</p>
+
+    <div class="callout">
+      <span class="ci">◆</span>
+      <span class="ct">From your review: the redundant <b>PAD / BAR / RING selector is being removed</b> from the landscape Sequencer — the in-block D-pad already covers it. That frees the <b>entire left half of the screen</b>, which is exactly the canvas these directions fill (lanes, a song timeline, or a live-trigger library). <span class="faint">Code change queued for the implementation pass.</span></span>
+    </div>
+
+    <div class="options">
+
+      <!-- OPTION A -->
+      <article class="opt">
+        <div class="opt-head">
+          <div class="opt-badge" style="background:var(--green);">A</div>
+          <div class="opt-title">
+            <h3>Session Lanes</h3>
+            <p>The 16-step grid becomes one of several stacked loop lanes you build up and layer live.</p>
+          </div>
+        </div>
+        <div class="opt-body">
+          <div class="opt-mock">
+            <div class="scr">
+              <div class="bar">
+                <span class="pill play">▶ PLAY</span>
+                <span class="pill accent">120 BPM</span>
+                <span class="pill">C Major</span>
+                <span class="grow"></span>
+                <span class="pill rec">● REC LANE</span>
+              </div>
+
+              <div class="lane">
+                <div class="lname">Chords<small>Sine Pad</small></div>
+                <div class="lstrip"><div class="strip">
+                  <div class="st c-or fill">I</div><div class="st rest">·</div><div class="st c-bl fill">vi</div><div class="st rest">·</div>
+                  <div class="st c-or fill">IV</div><div class="st rest">·</div><div class="st c-or fill play">V</div><div class="st rest">·</div>
+                  <div class="st c-or fill">I</div><div class="st rest">·</div><div class="st c-bl fill">vi</div><div class="st rest">·</div>
+                  <div class="st c-or fill">IV</div><div class="st rest">·</div><div class="st c-or fill">V</div><div class="st rest">·</div>
+                </div></div>
+                <span class="loopbadge">⟳ 16</span>
+                <div class="ctl"><span class="mini">M</span><span class="mini">S</span></div>
+                <span class="dotplay"></span>
+              </div>
+
+              <div class="lane">
+                <div class="lname">Bass<small>Sub</small></div>
+                <div class="lstrip"><div class="strip">
+                  <div class="st c-gr fill">I</div><div class="st rest">·</div><div class="st rest">·</div><div class="st rest">·</div>
+                  <div class="st c-gr fill">vi</div><div class="st rest">·</div><div class="st rest">·</div><div class="st rest">·</div>
+                  <div class="st c-gr fill">IV</div><div class="st rest">·</div><div class="st rest">·</div><div class="st rest">·</div>
+                  <div class="st c-gr fill">V</div><div class="st rest">·</div><div class="st rest">·</div><div class="st rest">·</div>
+                </div></div>
+                <span class="loopbadge">⟳ 16</span>
+                <div class="ctl"><span class="mini on-m">M</span><span class="mini">S</span></div>
+                <span class="dotidle"></span>
+              </div>
+
+              <div class="lane">
+                <div class="lname">Arp<small>Pluck</small></div>
+                <div class="lstrip"><div class="strip">
+                  <div class="st c-pu fill">I</div><div class="st c-pu fill">3</div><div class="st c-pu fill">5</div><div class="st c-pu fill">8</div>
+                  <div class="st c-pu fill">5</div><div class="st c-pu fill">3</div><div class="st c-pu fill play">I</div><div class="st c-pu fill">3</div>
+                  <div class="st c-pu fill">5</div><div class="st c-pu fill">8</div><div class="st c-pu fill">5</div><div class="st c-pu fill">3</div>
+                  <div class="st fill">·</div><div class="st fill">·</div><div class="st fill">·</div><div class="st fill">·</div>
+                </div></div>
+                <span class="loopbadge">⟳ 32</span>
+                <div class="ctl"><span class="mini">M</span><span class="mini on-s">S</span></div>
+                <span class="dotplay"></span>
+              </div>
+
+              <div class="addrow">＋ add lane &nbsp;·&nbsp; record from live play, or pick a saved pattern</div>
+            </div>
+            <p class="caption">Lanes loop on independent lengths (16 vs 32) and lock to the MasterClock.</p>
+          </div>
+          <div class="opt-notes">
+            <div class="grp"><div class="lbl">Nails these goals</div>
+              <div class="nails"><span class="n">Compile &amp; layer</span><span class="n">Blocks-as-tracks</span></div></div>
+            <div class="grp"><div class="lbl">Why it's good</div>
+              <ul>
+                <li class="win">Layering is the literal mental model — stack lanes, mute/solo to arrange on the fly.</li>
+                <li class="win">"Record lane from live play" ties straight into the existing performance engine.</li>
+                <li class="win">Reuses <span class="dim">SequencerState</span> per lane almost unchanged.</li>
+              </ul></div>
+            <div class="grp"><div class="lbl">Costs</div>
+              <ul>
+                <li class="cost">Multiple simultaneous voices → audio engine routing &amp; polyphony budget.</li>
+                <li class="cost">Independent loop lengths need careful clock-phase handling (drift risk).</li>
+                <li class="cost">Song-length structure still implicit until blocks are added.</li>
+              </ul></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- OPTION B -->
+      <article class="opt">
+        <div class="opt-head">
+          <div class="opt-badge" style="background:var(--blue);">B</div>
+          <div class="opt-title">
+            <h3>Paginated Patterns</h3>
+            <p>Keep the familiar 4×4 grid, but give it pages — scroll/snap through P1·P2·P3 to build patterns far longer than 16.</p>
+          </div>
+        </div>
+        <div class="opt-body">
+          <div class="opt-mock">
+            <div class="scr">
+              <div class="bar">
+                <div class="tabs">
+                  <span class="tab act">1</span><span class="tab">2</span><span class="tab">3</span>
+                </div>
+                <span class="grow"></span>
+                <span class="pill">length&nbsp; <b style="color:var(--orange)">64</b></span>
+                <span class="pill on">⟳ chain</span>
+              </div>
+
+              <div class="grid4">
+                <div class="gcell play"><span class="num">1</span><span class="deg c-or" style="color:var(--orange)">I</span></div>
+                <div class="gcell"><span class="num">2</span><span class="deg" style="color:#5aa9ff">ii</span></div>
+                <div class="gcell rest"><span class="num">3</span><span class="deg">—</span></div>
+                <div class="gcell"><span class="num">4</span><span class="deg" style="color:var(--orange)">IV</span></div>
+                <div class="gcell"><span class="num">5</span><span class="deg" style="color:var(--orange)">V</span></div>
+                <div class="gcell"><span class="num">6</span><span class="deg" style="color:#5aa9ff">vi</span></div>
+                <div class="gcell rest"><span class="num">7</span><span class="deg">—</span></div>
+                <div class="gcell"><span class="num">8</span><span class="deg" style="color:#cf8bf3">vii°</span></div>
+                <div class="gcell"><span class="num">9</span><span class="deg" style="color:var(--orange)">I</span></div>
+                <div class="gcell"><span class="num">10</span><span class="deg" style="color:#5aa9ff">vi</span></div>
+                <div class="gcell"><span class="num">11</span><span class="deg" style="color:var(--orange)">IV</span></div>
+                <div class="gcell"><span class="num">12</span><span class="deg" style="color:var(--orange)">V</span></div>
+                <div class="gcell rest"><span class="num">13</span><span class="deg">—</span></div>
+                <div class="gcell"><span class="num">14</span><span class="deg" style="color:var(--orange)">I</span></div>
+                <div class="gcell"><span class="num">15</span><span class="deg" style="color:#5aa9ff">ii</span></div>
+                <div class="gcell"><span class="num">16</span><span class="deg" style="color:var(--orange)">V</span></div>
+              </div>
+
+              <div class="ribbon">
+                <span class="pageblk act"><span class="ph"></span>1 · 1–16</span>
+                <span class="pageblk">2 · 17–32</span>
+                <span class="pageblk">3 · 33–48</span>
+                <span class="pageblk">4 · 49–64</span>
+              </div>
+
+              <div class="addpage" title="Add page">＋</div>
+            </div>
+            <p class="caption">Swipe between pages; the mini-map ribbon shows the playhead crossing the whole pattern. The ＋ adds a page.</p>
+          </div>
+          <div class="opt-notes">
+            <div class="grp"><div class="lbl">Nails these goals</div>
+              <div class="nails"><span class="n">Beyond 16 steps</span><span class="n">Infinite scroll</span></div></div>
+            <div class="grp"><div class="lbl">Why it's good</div>
+              <ul>
+                <li class="win">Lowest-risk evolution — the current grid + editor stay exactly as they are.</li>
+                <li class="win">"Infinite scroll" reads naturally as pages with a playhead mini-map.</li>
+                <li class="win">Smallest data change: <span class="dim">steps</span> grows from 16 to N; persistence is a versioned bump.</li>
+              </ul></div>
+            <div class="grp"><div class="lbl">Costs</div>
+              <ul>
+                <li class="cost">Single track — doesn't address layering on its own.</li>
+                <li class="cost">Long linear patterns get tedious vs. reusing blocks.</li>
+                <li class="cost">No reuse/library benefit by itself.</li>
+              </ul></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- OPTION C -->
+      <article class="opt deferred">
+        <div class="opt-head">
+          <div class="opt-badge" style="background:var(--orange);">C</div>
+          <div class="opt-title">
+            <h3>Song Blocks + Library</h3>
+            <p>A song timeline of named, repeatable blocks, with a side library of patterns you can drop in <em>or</em> fire live.</p>
+          </div>
+          <span class="defer-tag">Deferred · later</span>
+        </div>
+        <div class="defer-reason">Your call: <b>too much for now — it'd overwhelm a new user.</b> Makes sense once someone has actually built up a library, so it becomes a natural unlock rather than an upfront wall. Kept here for reference; revisit later.</div>
+        <div class="opt-body">
+          <div class="opt-mock">
+            <div class="scr">
+              <div class="bar"><span class="pill play">▶</span><span class="pill accent">SONG</span><span class="pill">02:14 / bar 9</span><span class="grow"></span><span class="pill">＋ block</span></div>
+              <div class="song">
+                <div class="block intro"><div class="bt">Intro</div><div class="bx">×2 · 1 lane</div></div>
+                <div class="block verse"><div class="bt">Verse</div><div class="bx">×4 · 3 lanes</div></div>
+                <div class="block chorus"><div class="bt">Chorus</div><div class="bx">×4 · 4 lanes</div></div>
+                <div class="block verse"><div class="bt">Verse</div><div class="bx">×4 · 3 lanes</div></div>
+                <div class="block bridge"><div class="bt">Bridge</div><div class="bx">×2 · 2 lanes</div></div>
+                <div class="block chorus"><div class="bt">Chorus</div><div class="bx">×8 · 4 lanes</div></div>
+              </div>
+              <div class="bar" style="margin:2px 0 8px;"><span class="eyebrow">Library — tap ▸ to audition live, drag to drop into song</span></div>
+              <div class="lib">
+                <div class="libitem"><span class="swatch" style="background:var(--blue)"></span><span class="li-name">Verse A — I·vi·IV·V</span><span class="li-meta">16 · maj7</span><span class="li-act">▸ live</span></div>
+                <div class="libitem"><span class="swatch" style="background:var(--orange)"></span><span class="li-name">Chorus Lift</span><span class="li-meta">32 · sus</span><span class="li-act">▸ live</span></div>
+                <div class="libitem"><span class="swatch" style="background:var(--purple)"></span><span class="li-name">Walk-up fill</span><span class="li-meta">8 · add9</span><span class="li-act">▸ live</span></div>
+              </div>
+            </div>
+            <p class="caption">Blocks reference patterns by name — edit once, every repeat updates. Library doubles as live-trigger pads.</p>
+          </div>
+          <div class="opt-notes">
+            <div class="grp"><div class="lbl">Nails these goals</div>
+              <div class="nails"><span class="n">Whole songs</span><span class="n">Library + live play</span><span class="n">Blocks-as-tracks</span></div></div>
+            <div class="grp"><div class="lbl">Why it's good</div>
+              <ul>
+                <li class="win">The only direction that delivers <em>whole-song</em> arrangement end-to-end.</li>
+                <li class="win">Library is the bridge to live play — saved beats become trigger pads.</li>
+                <li class="win">Named blocks = edit-once / reuse-everywhere; real composition leverage.</li>
+              </ul></div>
+            <div class="grp"><div class="lbl">Costs</div>
+              <ul>
+                <li class="cost">Biggest build — needs the full model, drag/drop, and a library store.</li>
+                <li class="cost">Most screen real estate; tightest fit on a phone in landscape.</li>
+                <li class="cost">Assumes lanes (A) and longer patterns (B) already exist underneath.</li>
+              </ul></div>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ===================== SCORECARD ===================== -->
+  <section class="section">
+    <h2>How each option covers what you asked for</h2>
+    <div class="scroll-x">
+      <table class="score">
+        <thead>
+          <tr><th>Your goal</th><th style="text-align:center">A · Session Lanes</th><th style="text-align:center">B · Paginated</th><th style="text-align:center">C · Song + Library <span class="dim" style="font-weight:400">(deferred)</span></th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="goal">Compile &amp; layer loops</td><td class="c full">●● full</td><td class="c none">○ no</td><td class="c full">●● full</td></tr>
+          <tr><td class="goal">Blocks repeat as tracks</td><td class="c part">● via lanes</td><td class="c none">○ no</td><td class="c full">●● full</td></tr>
+          <tr><td class="goal">Beyond 16 steps → songs</td><td class="c part">● layered, not long</td><td class="c part">● long, not layered</td><td class="c full">●● full</td></tr>
+          <tr><td class="goal">Infinite scroll / pagination</td><td class="c none">○ no</td><td class="c full">●● full</td><td class="c part">● across blocks</td></tr>
+          <tr><td class="goal">Library + live play</td><td class="c part">● record source</td><td class="c none">○ no</td><td class="c full">●● full</td></tr>
+          <tr><td class="goal"><span class="dim">Build effort / risk</span></td><td class="c part">medium</td><td class="c full" style="color:var(--green)">low</td><td class="c none" style="color:var(--red)">high</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption" style="text-align:left; margin-top:8px;"><span class="full">●● full</span> &nbsp; <span class="part">● partial</span> &nbsp; <span class="none">○ not addressed</span> — read effort row inversely: low is good.</p>
+  </section>
+
+  <!-- ===================== CURRENT FIXES ===================== -->
+  <section class="section">
+    <h2>Today's Sequencer — three things you flagged</h2>
+    <p class="lede" style="margin-bottom:18px;">Before new structure, the current screen has fixable problems. These fold straight into the redesign — the freed left half plus the wasted margins are exactly the room the cramped parts need.</p>
+    <div class="fixes">
+      <div class="fix">
+        <div class="fh"><span class="fn">REAL ESTATE</span></div>
+        <div class="ft">Wasted top &amp; bottom margins</div>
+        <div class="fd">On your 12 Pro Max the grid floats in the middle with dead space above and below. <span class="arrow-fix">→ Fix:</span> let the sequencer fill the full height; the new lanes / pages expand into that room instead of leaving it empty.</div>
+      </div>
+      <div class="fix">
+        <div class="fh"><span class="fn">FEELS DEAD</span></div>
+        <div class="ft">Gate slider seems to do nothing</div>
+        <div class="fd">It <em>is</em> wired — it sets note-off timing inside each 1/16 step — but a pad's release tail masks it, so it's inaudible. <span class="arrow-fix">→ Fix:</span> make it perceptible: crisp staccato at low values, legato / tied notes near 100%.</div>
+      </div>
+      <div class="fix">
+        <div class="fh"><span class="fn">CRAMPED</span></div>
+        <div class="ft">"Step N" editor is squeezed</div>
+        <div class="fd">Degree picker, D-pad, rest, and gate are packed into a tiny strip. <span class="arrow-fix">→ Fix:</span> move the step editor into the freed left half — full-height, breathing room, the D-pad at a usable size.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== RECOMMENDATION ===================== -->
+  <section class="section">
+    <h2>Where we landed — focused path</h2>
+    <div class="decided">
+      <span class="dpill"><b>✓ Priority</b> &nbsp;Layer / compile loops</span>
+      <span class="dpill"><b>✓ Priority</b> &nbsp;Infinite scroll / pagination</span>
+      <span class="dpill off"><b>↓ Deferred</b> &nbsp;Song blocks + library</span>
+    </div>
+    <div class="rec">
+      <p class="lede" style="margin:0; color:var(--text)">With Song/Library parked, the path narrows to your two priorities — built on the same model so each phase ships something usable and de-risks the next. <b style="color:var(--orange)">Fix the current screen first</b>, then grow it.</p>
+      <div class="phases">
+        <div class="phase"><div class="pn">Phase 1 · now</div><div class="pt">Reclaim &amp; fix today's screen</div><div class="pd">Fill the wasted margins, give the step editor the freed left half, and make Gate audible (staccato ↔ legato). Pure win, no new concepts.</div></div>
+        <div class="phase"><div class="pn">Phase 2 · pagination</div><div class="pt">B — Paginate the pattern</div><div class="pd">Grow <span class="dim">steps</span> past 16 with pages + a playhead mini-map and the corner ＋. Lowest-risk structural change; establishes variable-length Patterns.</div></div>
+        <div class="phase"><div class="pn">Phase 3 · the core ask</div><div class="pt">A — Session Lanes</div><div class="pd">Stack patterns as looping lanes with mute/solo and "record from live." This is the layering &amp; compiling you asked for — and saved patterns fall out of it for free.</div></div>
+      </div>
+      <p class="caption" style="text-align:left; margin-top:14px; color:var(--text4)">Parked for later: <b style="color:var(--text3)">C — Song Blocks + Library</b>, revisited once lanes &amp; saved patterns make a library worth arranging.</p>
+    </div>
+  </section>
+
+  <!-- ===================== INPUT ===================== -->
+  <section class="section">
+    <h2>Tell me where to point next</h2>
+    <p class="lede" style="margin-bottom:18px;">Pick what you want me to take further — a full clickable prototype of one direction, a deeper spec, or a different blend. Selections queue locally; nothing is sent until you hit <b style="color:var(--orange)">Send to Claude</b>.</p>
+
+    <!-- Q1: primary direction -->
+    <form class="qcard" id="q-dir" data-lavish-question="direction"
+      onsubmit="event.preventDefault(); queueDir(this);">
+      <h3>1 · Which direction should I prototype first?</h3>
+      <p class="qsub">Drives the next deliverable — a higher-fidelity, walkable mockup.</p>
+      <div class="qopts">
+        <label class="qo"><input type="radio" name="direction" value="the focused path: fix today's screen, then B (pagination), then A (lanes); C parked"><span><span class="qo-t">The focused path <span class="dim">— fixes → B → A (recommended)</span></span><span class="qo-d">One roadmap: the data model + all three phases, Song/Library parked.</span></span></label>
+        <label class="qo"><input type="radio" name="direction" value="Phase 1 only — fix today's Sequencer screen first (margins, step editor, gate)"><span><span class="qo-t">Phase 1 only · fix today's screen</span><span class="qo-d">Reclaim margins, roomier step editor, make Gate audible — before new structure.</span></span></label>
+        <label class="qo"><input type="radio" name="direction" value="B — Paginated Patterns, in detail"><span><span class="qo-t">B · Paginated Patterns — in detail</span><span class="qo-d">Walk pages, length, chain, the playhead mini-map at higher fidelity.</span></span></label>
+        <label class="qo"><input type="radio" name="direction" value="A — Session Lanes, in detail"><span><span class="qo-t">A · Session Lanes — in detail</span><span class="qo-d">Walk lane record / mute / solo, independent loop lengths, record-from-live.</span></span></label>
+      </div>
+      <div class="sendrow"><button type="submit" class="qbtn">Queue this answer</button><span class="qstate" id="state-dir"></span></div>
+    </form>
+
+    <!-- Q2: priority capabilities -->
+    <form class="qcard" id="q-caps" data-lavish-question="priorities"
+      onsubmit="event.preventDefault(); queueCaps(this);">
+      <h3>2 · Which capabilities matter most? <span class="dim" style="font-size:12px;">(choose any)</span></h3>
+      <p class="qsub">Helps me weight the prototype toward what you'll actually use.</p>
+      <div class="qopts">
+        <label class="qo"><input type="checkbox" name="cap" value="layer/compile loops"><span><span class="qo-t">Compile &amp; layer loops</span></span></label>
+        <label class="qo"><input type="checkbox" name="cap" value="blocks repeat as tracks"><span><span class="qo-t">Blocks that repeat as tracks</span></span></label>
+        <label class="qo"><input type="checkbox" name="cap" value="beyond 16 steps / whole songs"><span><span class="qo-t">Beyond 16 steps → whole songs</span></span></label>
+        <label class="qo"><input type="checkbox" name="cap" value="infinite scroll / pagination"><span><span class="qo-t">Infinite scroll / pagination</span></span></label>
+        <label class="qo"><input type="checkbox" name="cap" value="pattern library usable alongside live play"><span><span class="qo-t">Library usable alongside live play</span></span></label>
+      </div>
+      <div class="sendrow"><button type="submit" class="qbtn ghost">Queue priorities</button><span class="qstate" id="state-caps"></span></div>
+    </form>
+
+    <!-- Q3: free notes + send -->
+    <div class="qcard">
+      <h3>3 · Anything to add, then send</h3>
+      <p class="qsub">Optional notes — references, constraints, a feature I missed. Then ship it all back to me.</p>
+      <textarea class="freeform" id="notes" placeholder="e.g. 'must stay one-handed in landscape' · 'I care most about jamming, less about full arrangement' · 'how would MIDI export work?'"></textarea>
+      <div class="sendrow">
+        <button type="button" class="qbtn" onclick="queueNotesAndSend()">Send to Claude →</button>
+        <span class="qstate" id="state-send"></span>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">
+    Design source: rendered in Perfecto's own UI language (pure-black OLED, monospaced type, system-orange accent, chord colors) pulled from <span class="dim">SequencerView.swift</span> / <span class="dim">ChordButton.swift</span> — chosen over a generic design system so this previews the real product. Mockups are static representations, not live controls.
+  </div>
+</div>
+
+<script>
+  function L(){ return (typeof window !== 'undefined' && window.lavish) ? window.lavish : null; }
+  function flash(id, msg){ var e=document.getElementById(id); if(e){ e.textContent=msg; } }
+
+  function queueDir(form){
+    var v = new FormData(form).get('direction');
+    if(!v){ flash('state-dir','Pick one first.'); return; }
+    flash('state-dir','✓ queued');
+    var l=L(); if(l) l.queuePrompt('Prototype this sequencer direction next: ' + v + '. Produce a higher-fidelity, walkable mockup (and a short spec).',
+      { tag:'choice', text:'Direction: ' + v, data:{ question:'direction', answer:v } });
+  }
+
+  function queueCaps(form){
+    var vals = Array.from(form.querySelectorAll('input[name=cap]:checked')).map(function(c){return c.value;});
+    if(vals.length===0){ flash('state-caps','Select at least one.'); return; }
+    flash('state-caps','✓ queued ('+vals.length+')');
+    var l=L(); if(l) l.queuePrompt('Prioritize these sequencer capabilities: ' + vals.join('; ') + '.',
+      { tag:'priorities', text:'Priorities: ' + vals.join(', '), queueKey:'priorities', data:{ question:'priorities', answer:vals } });
+  }
+
+  function queueNotesAndSend(){
+    var n=(document.getElementById('notes').value||'').trim();
+    var l=L();
+    if(l && n){ l.queuePrompt('Additional notes on the loop-sequencer direction: ' + n,
+      { tag:'note', text:'Notes: ' + n, queueKey:'notes' }); }
+    flash('state-send','✓ sent');
+    if(l && l.sendQueuedPrompts) l.sendQueuedPrompts();
+  }
+</script>
+</body>
+</html>

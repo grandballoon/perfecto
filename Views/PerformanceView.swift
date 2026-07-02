@@ -20,8 +20,7 @@ struct PerformanceView: View {
     @Environment(PerformanceState.self) private var state
 
     @State private var showKeySheet      = false
-    @State private var showSoundSheet    = false
-    @State private var showModeSheet     = false
+    @State private var showKeyOverlay    = false
     @State private var showSettingsSheet = false
     @State private var inputViewMode: InputViewMode = .joystick
 
@@ -52,12 +51,21 @@ struct PerformanceView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                     .padding(.leading, 16)
                     .padding(.bottom, 20)
+
+                if showKeyOverlay {
+                    Group {
+                        if state.keyQuickStyle == .wheel {
+                            KeyWheelOverlay(isPresented: $showKeyOverlay)
+                        } else {
+                            KeySwipeOverlay(isPresented: $showKeyOverlay)
+                        }
+                    }
+                    .transition(.opacity)
+                }
             }
         }
         .ignoresSafeArea(edges: .bottom)
         .sheet(isPresented: $showKeySheet)      { KeySheet().environment(state) }
-        .sheet(isPresented: $showSoundSheet)    { SoundSheet().environment(state) }
-        .sheet(isPresented: $showModeSheet)     { ModeSheet().environment(state) }
         .sheet(isPresented: $showSettingsSheet) { SettingsSheet().environment(state) }
     }
 
@@ -80,16 +88,11 @@ struct PerformanceView: View {
 
     private var portraitLayout: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 0) {
-                statusColumn(label: "KEY",
-                             value: "\(state.key.root.name) \(state.key.scale.displayName)")
-                Spacer()
-                statusColumn(label: "SOUND", value: state.synthPreset.name)
-                Spacer()
-                statusColumn(label: "MODE",  value: state.mode.name)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 16)
+            statusColumn(label: "KEY",
+                         value: "\(state.key.root.name) \(state.key.scale.displayName)")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.top, 16)
 
             oledDisplay
                 .padding(.horizontal, 24)
@@ -119,8 +122,14 @@ struct PerformanceView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 8)
                 }
-                chordGrid
-                    .padding(.horizontal, 20)
+                if state.chordGridLayout == .circle {
+                    CircleChordGridView()
+                        .environment(state)
+                        .padding(.horizontal, 20)
+                } else {
+                    chordGrid
+                        .padding(.horizontal, 20)
+                }
 
                 Spacer()
 
@@ -222,12 +231,17 @@ struct PerformanceView: View {
                                 .padding(.horizontal, 16)
                                 .padding(.bottom, 8)
                         }
-                        if state.horizontalLandscapeChords {
+                        switch state.chordGridLayout {
+                        case .horizontalBar:
                             ChordRowView()
                                 .environment(state)
                                 .frame(maxHeight: .infinity)
                                 .padding(.vertical, 8)
-                        } else {
+                        case .circle:
+                            CircleChordGridView()
+                                .environment(state)
+                                .padding(.vertical, 8)
+                        case .grid:
                             Spacer()
                             chordGrid
                             Spacer()
@@ -282,11 +296,63 @@ struct PerformanceView: View {
     private var functionButtons: some View {
         @Bindable var state = state
         return HStack(spacing: 10) {
-            functionButton(label: "KEY")   { showKeySheet   = true }
-            functionButton(label: "SOUND") { showSoundSheet = true }
-            functionButton(label: "MODE")  { showModeSheet  = true }
+            playSeqToggle
+            keyButton
             toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
         }
+    }
+
+    private var keyButton: some View {
+        Text("KEY")
+            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Color(white: 0.85))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(white: 0.13))
+                    .overlay(RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(white: 0.25), lineWidth: 1))
+            )
+            .contentShape(Rectangle())
+            .onTapGesture { showKeySheet = true }
+            .onLongPressGesture(minimumDuration: 0.4) {
+                withAnimation(.easeIn(duration: 0.12)) { showKeyOverlay = true }
+            }
+    }
+
+    private var playSeqToggle: some View {
+        HStack(spacing: 0) {
+            segButton("PLAY", active: state.mode.name == "Play") {
+                state.setMode(PlayMode())
+            }
+            segButton("SEQ", active: state.mode.name == "Sequencer") {
+                state.setMode(SequencerMode(state.sequencerState))
+            }
+        }
+        .padding(3)
+        .background(
+            RoundedRectangle(cornerRadius: 9)
+                .fill(Color(white: 0.10))
+                .overlay(RoundedRectangle(cornerRadius: 9)
+                    .stroke(Color(white: 0.22), lineWidth: 1))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 9))
+    }
+
+    private func segButton(_ label: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .foregroundStyle(active ? Color.black : Color(white: 0.85))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(active ? Color.orange : Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     private var chordGrid: some View {

@@ -38,7 +38,7 @@ struct SequencerView: View {
             // Right: clear control, centered grid, Play anchored bottom-right.
             ZStack(alignment: .bottomTrailing) {
                 VStack(spacing: 14) {
-                    HStack { Spacer(); clearButton }
+                    HStack { Spacer(); bpmControl; clearButton }
                     Spacer(minLength: 0)
                     stepGrid
                     Spacer(minLength: 0)
@@ -67,6 +67,8 @@ struct SequencerView: View {
             }
             .buttonStyle(.plain)
 
+            bpmControl
+
             Button { clearGrid() } label: {
                 Label("Clear", systemImage: "arrow.counterclockwise")
                     .font(.system(size: 13, weight: .semibold, design: .monospaced))
@@ -77,6 +79,30 @@ struct SequencerView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    private var bpmControl: some View {
+        HStack(spacing: 0) {
+            Button { perfState.setBPM(max(20, perfState.bpm - 5)) } label: {
+                Image(systemName: "minus")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(perfState.bpm > 20 ? Color(white: 0.7) : Color(white: 0.3))
+                    .frame(width: 28, height: 34)
+            }
+            .buttonStyle(.plain)
+            Text("\(Int(perfState.bpm))")
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.white)
+                .frame(minWidth: 44)
+            Button { perfState.setBPM(min(300, perfState.bpm + 5)) } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(perfState.bpm < 300 ? Color(white: 0.7) : Color(white: 0.3))
+                    .frame(width: 28, height: 34)
+            }
+            .buttonStyle(.plain)
+        }
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color(white: 0.12)))
     }
 
     // MARK: – Transport pieces (landscape)

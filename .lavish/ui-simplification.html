@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Perfecto — UI Simplification Mockups</title>
+<style>
+  :root {
+    --bg:#000; --card:#212121; --card-hi:#2c2c2c; --panel:#0d0d0d; --panel2:#141414;
+    --stroke:#404040; --stroke-dim:#262626; --stroke-hi:#4a4a4a;
+    --orange:#ff9500; --amber:#ffa600;
+    --t-dim:#525252; --t-mid:#8a8a8a; --t-hi:#d9d9d9; --t-label:#6a6a6a; --t-faint:#3a3a3a;
+    --blue:#0a84ff; --indigo:#5e5ce6; --purple:#bf5af2;
+    --green:#30d158; --red:#ff453a;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--t-hi); font-family:var(--mono); }
+  body { padding:32px 24px 120px; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1180px; margin:0 auto; }
+
+  /* ---------- Typographic system ---------- */
+  .kicker { font-size:10px; letter-spacing:2px; color:var(--t-label); text-transform:uppercase; }
+  h1 { font-size:26px; font-weight:600; margin:6px 0 8px; letter-spacing:-0.3px; }
+  h2 { font-size:16px; font-weight:600; margin:0; letter-spacing:0.2px; }
+  .lede { color:var(--t-mid); font-size:13px; line-height:1.6; max-width:760px; margin:0; }
+  .accent { color:var(--orange); }
+
+  .banner {
+    border:1px solid var(--stroke-dim); border-left:3px solid var(--orange);
+    background:linear-gradient(180deg,#111,#0a0a0a); border-radius:10px;
+    padding:20px 22px; margin-bottom:36px;
+  }
+
+  section { margin-bottom:44px; }
+  .sec-head { display:flex; align-items:baseline; gap:12px; margin-bottom:18px; padding-bottom:12px; border-bottom:1px solid var(--stroke-dim); }
+  .sec-num { font-size:11px; color:var(--orange); letter-spacing:1px; border:1px solid var(--stroke); border-radius:5px; padding:3px 7px; }
+  .sec-sub { color:var(--t-dim); font-size:12px; margin-left:auto; }
+
+  /* ---------- Before / After comparison ---------- */
+  .cmp-grid { display:grid; grid-template-columns:1fr auto 1fr; gap:20px; align-items:stretch; }
+  @media (max-width:820px){ .cmp-grid{ grid-template-columns:1fr; } .cmp-arrow{ transform:rotate(90deg); } }
+  .cmp-col { min-width:0; border:1px solid var(--stroke-dim); border-radius:12px; overflow:hidden; background:var(--panel); }
+  .cmp-col.after { border-color:var(--stroke); box-shadow:0 0 0 1px rgba(255,149,0,.10), 0 10px 40px -20px rgba(255,149,0,.35); }
+  .cmp-head { padding:11px 16px; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; border-bottom:1px solid var(--stroke-dim); display:flex; justify-content:space-between; align-items:center; }
+  .cmp-col.before .cmp-head { color:var(--t-dim); }
+  .cmp-col.after  .cmp-head { color:var(--orange); background:rgba(255,149,0,.05); }
+  .pill { font-size:10px; padding:2px 7px; border-radius:20px; letter-spacing:.5px; }
+  .pill.count-lo { background:rgba(255,149,0,.14); color:var(--orange); }
+  .pill.count-hi { background:#1c1c1c; color:var(--t-dim); }
+  .cmp-arrow { align-self:center; color:var(--t-dim); font-size:22px; }
+
+  /* iOS-style list rows (matches ModeSheet / SoundSheet) */
+  .ios-list { padding:8px; display:flex; flex-direction:column; gap:6px; }
+  .ios-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; background:#1a1a1a; min-width:0; }
+  .ios-row.dim { background:#121212; }
+  .ios-row.keep { background:#1a1a1a; box-shadow:inset 0 0 0 1px rgba(255,149,0,.25); }
+  .ios-row .rtext { min-width:0; }
+  .ios-row .rname { font-size:14px; color:#fff; }
+  .ios-row.dim .rname { color:var(--t-dim); text-decoration:line-through; text-decoration-color:#3a2a10; }
+  .ios-row .rdesc { font-size:10.5px; color:var(--t-dim); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ios-row .rspacer { margin-left:auto; }
+  .chk { color:var(--orange); font-weight:700; font-size:13px; }
+  .tag-cut { font-size:9.5px; color:#7a4a1a; letter-spacing:.5px; }
+  .tag-soon { font-size:9.5px; color:var(--t-faint); letter-spacing:.5px; }
+
+  .note { font-size:12px; color:var(--t-mid); line-height:1.6; margin-top:14px; padding:12px 14px; border:1px dashed var(--stroke-dim); border-radius:8px; background:#0a0a0a; }
+  .note b { color:var(--t-hi); font-weight:600; }
+
+  /* ---------- Phone mock ---------- */
+  .phones { display:flex; flex-wrap:wrap; gap:28px; }
+  .phone-unit { display:flex; flex-direction:column; gap:12px; }
+  .phone {
+    width:296px; height:610px; border-radius:44px; background:#000;
+    border:1px solid #2a2a2a; box-shadow:0 0 0 8px #0d0d0d, 0 30px 60px -30px rgba(0,0,0,.9);
+    position:relative; overflow:hidden; padding:20px 18px 0; display:flex; flex-direction:column;
+    touch-action:none; user-select:none;
+  }
+  .notch { position:absolute; top:9px; left:50%; transform:translateX(-50%); width:96px; height:22px; background:#000; border-radius:14px; z-index:5; }
+  .phone-cap { font-size:11px; color:var(--t-mid); text-align:center; }
+  .phone-cap b { color:var(--t-hi); }
+
+  /* status row */
+  .stat-row { display:flex; justify-content:space-between; margin-top:14px; gap:8px; }
+  .stat { min-width:0; }
+  .stat.r { text-align:right; }
+  .stat .l { font-size:8px; letter-spacing:1.5px; color:var(--t-faint); }
+  .stat .v { font-size:11px; color:var(--t-mid); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* OLED */
+  .oled { margin-top:14px; border:1px solid var(--stroke-dim); background:#050505; border-radius:8px; padding:9px 14px; font-size:12px; color:var(--amber); text-align:center; letter-spacing:.5px; }
+
+  /* function buttons */
+  .fn-row { display:flex; gap:8px; margin-top:16px; }
+  .fn { flex:1; text-align:center; font-size:11px; font-weight:600; color:var(--t-hi); padding:9px 4px; border-radius:8px; background:var(--card); border:1px solid var(--stroke); position:relative; }
+  .fn.on { background:var(--orange); color:#000; border-color:var(--orange); }
+  .fn.hot { border-color:var(--orange); box-shadow:0 0 0 1px rgba(255,149,0,.4); cursor:pointer; overflow:hidden; }
+  .fn .hint { position:absolute; top:3px; right:3px; font-size:7px; background:var(--orange); color:#000; border-radius:8px; padding:1px 4px; letter-spacing:.2px; line-height:1.2; }
+  .seg { flex:1.4; display:flex; padding:3px; gap:3px; border-radius:8px; background:#151515; border:1px solid var(--stroke); }
+  .seg span { flex:1; text-align:center; font-size:10.5px; font-weight:600; padding:6px 2px; border-radius:6px; color:var(--t-mid); }
+  .seg span.sel { background:var(--orange); color:#000; }
+
+  /* chord grid */
+  .cg { margin-top:18px; display:flex; flex-direction:column; gap:9px; }
+  .cg-row { display:flex; gap:9px; }
+  .chord { flex:1; aspect-ratio:1.55; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:600; background:#161616; border:1px solid #262626; position:relative; }
+  .chord::after { content:""; position:absolute; top:7px; left:7px; width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.95; }
+  .c-orange{ color:var(--orange);} .c-blue{ color:var(--blue);} .c-indigo{ color:var(--indigo);} .c-purple{ color:var(--purple);}
+  .chord .lbl{ color:currentColor; }
+
+  /* bottom input strip */
+  .in-strip { margin-top:auto; display:flex; align-items:center; justify-content:space-between; padding:20px 6px 26px; }
+  .joy { width:96px; height:96px; border-radius:50%; background:#141414; border:1.5px solid var(--stroke); display:flex; align-items:center; justify-content:center; }
+  .joy .thumb { width:30px; height:30px; border-radius:50%; background:#8c8c8c; }
+  .toggle-mini { font-size:9px; color:var(--t-mid); padding:5px 8px; border-radius:6px; background:var(--card); border:1px solid var(--stroke-hi); }
+  .gear { position:absolute; left:16px; bottom:20px; width:34px; height:34px; border-radius:50%; background:#212121; border:1px solid var(--stroke); display:flex; align-items:center; justify-content:center; color:var(--t-mid); font-size:14px; }
+  .right-col { display:flex; flex-direction:column; align-items:flex-end; gap:12px; }
+  .gear-inline { width:34px; height:34px; border-radius:50%; background:#212121; border:1px solid var(--stroke); display:flex; align-items:center; justify-content:center; color:var(--t-mid); font-size:14px; }
+
+  /* removed-callout overlay on before phone */
+  .ghost { opacity:.28; filter:grayscale(.4); }
+  .strike-tag { position:absolute; z-index:6; font-size:9px; letter-spacing:.5px; color:#000; background:var(--orange); padding:2px 7px; border-radius:5px; transform:rotate(-4deg); box-shadow:0 4px 12px rgba(0,0,0,.6); }
+
+  /* ---------- Key selector wheel ---------- */
+  .wheel-overlay { position:absolute; inset:0; z-index:20; background:rgba(0,0,0,.72); backdrop-filter:blur(2px); display:none; }
+  .wheel-overlay.show { display:block; }
+  .wheel { position:absolute; width:236px; height:236px; transform:translate(-50%,-50%); }
+  .wheel-foot { position:absolute; left:0; right:0; bottom:22px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .wheel .ring-lbl { position:absolute; font-size:14px; font-weight:600; color:var(--t-mid); transform:translate(-50%,-50%); transition:color .08s, transform .08s; }
+  .wheel .ring-lbl.hot { color:#000; }
+  .wheel .hot-bg { position:absolute; width:38px; height:38px; border-radius:50%; background:var(--orange); transform:translate(-50%,-50%); box-shadow:0 0 22px rgba(255,149,0,.6); transition:left .06s, top .06s; }
+  .wheel .core { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:112px; height:112px; border-radius:50%; background:#0c0c0c; border:1px solid var(--stroke-dim); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .wheel .core .big { font-size:30px; font-weight:700; color:var(--orange); line-height:1; }
+  .wheel .core .scl { font-size:10px; color:var(--t-mid); margin-top:7px; letter-spacing:1px; }
+  /* radial Major (inner) / Minor (outer) bands */
+  .wheel .band-major { position:absolute; left:50%; top:50%; width:188px; height:188px; border-radius:50%; transform:translate(-50%,-50%); background:rgba(255,255,255,0.02); border:1px solid #1c1c1c; }
+  .wheel .band-minor-ring { position:absolute; left:50%; top:50%; width:236px; height:236px; border-radius:50%; transform:translate(-50%,-50%); border:1px dashed #2a2a2a; transition:border-color .1s; }
+  .wheel .band-minor-lbl { position:absolute; left:50%; top:3px; transform:translateX(-50%); font-size:8px; letter-spacing:1.5px; color:var(--t-faint); transition:color .1s; }
+  .wheel.minor .band-minor-ring { border-color:var(--orange); border-style:solid; }
+  .wheel.minor .band-minor-lbl { color:var(--orange); }
+  .wheel-hint { font-size:10.5px; color:var(--t-dim); letter-spacing:.5px; text-align:center; padding:0 18px; }
+
+  .concept-badge { display:inline-flex; align-items:center; gap:6px; font-size:10px; letter-spacing:1px; padding:3px 9px; border-radius:20px; text-transform:uppercase; }
+  .b-rec { background:rgba(48,209,88,.14); color:var(--green); }
+  .b-alt { background:#161616; color:var(--t-dim); }
+  .concept-desc { font-size:11.5px; color:var(--t-mid); line-height:1.55; max-width:300px; }
+  .concept-desc b{ color:var(--t-hi); }
+  .try-tag { font-size:9.5px; color:var(--orange); letter-spacing:.5px; margin-top:2px; }
+
+  /* schematic (non-interactive) mini illustrations for alt concepts */
+  .schem { width:296px; height:200px; border-radius:16px; border:1px solid var(--stroke-dim); background:#080808; position:relative; overflow:hidden; }
+  .kb-cell { position:absolute; border-radius:6px; background:#161616; border:1px solid #242424; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--t-mid); }
+  .kb-cell.trace { background:var(--orange); color:#000; border-color:var(--orange); }
+  .kb-cell.sel { background:var(--orange); color:#000; border-color:var(--orange); }
+  .kb-cell.sel.minor { background:transparent; color:var(--orange); border-color:var(--orange); box-shadow:0 0 0 2px rgba(255,149,0,.35); }
+  .kb-path { position:absolute; height:3px; background:linear-gradient(90deg,transparent,var(--orange)); border-radius:3px; opacity:.7; }
+  .kb-zone { position:absolute; left:0; right:0; height:30px; display:flex; align-items:center; justify-content:center; font-size:9px; letter-spacing:1px; color:var(--t-faint); transition:color .1s; }
+  .kb-zone.hot { color:var(--orange); }
+
+  /* interactive XY pad (A3) */
+  .xy-inner { position:absolute; inset:0; touch-action:none; }
+  .xy-band { position:absolute; left:0; right:0; display:flex; align-items:center; padding-left:12px; font-size:10px; color:var(--t-dim); border-top:1px dashed #1a1a1a; }
+  .xy-band.sel { color:var(--orange); background:rgba(255,149,0,.05); }
+  .xy-col { position:absolute; top:0; bottom:0; width:1px; background:#141414; }
+  .xy-root { position:absolute; bottom:6px; font-size:8px; color:var(--t-faint); transform:translateX(-50%); }
+  .xy-puck { position:absolute; width:46px; height:46px; border-radius:50%; background:var(--orange); transform:translate(-50%,-50%); box-shadow:0 0 22px rgba(255,149,0,.55); display:flex; align-items:center; justify-content:center; color:#000; font-weight:700; font-size:16px; }
+  .xy-axis { position:absolute; font-size:9px; letter-spacing:1px; color:var(--t-dim); z-index:2; }
+
+  /* ---------- Decision input ---------- */
+  .decision { border:1px solid var(--stroke); border-radius:12px; background:var(--panel); padding:22px; }
+  .q { margin-bottom:26px; }
+  .q:last-child{ margin-bottom:0; }
+  .q .qlabel { font-size:13px; color:var(--t-hi); margin-bottom:12px; }
+  .q .qlabel span { color:var(--t-dim); font-size:11px; }
+  .opts { display:flex; flex-wrap:wrap; gap:10px; }
+  .opts label { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border:1px solid var(--stroke-dim); border-radius:9px; background:#111; cursor:pointer; min-width:220px; flex:1; transition:border-color .1s, background .1s; }
+  .opts label:hover { border-color:var(--stroke-hi); }
+  .opts input { margin-top:2px; accent-color:var(--orange); }
+  .opts .ot { font-size:13px; color:var(--t-hi); }
+  .opts .od { font-size:11px; color:var(--t-dim); margin-top:3px; line-height:1.5; }
+  .opts input:checked + .ol { color:#fff; }
+  .opts label:has(input:checked) { border-color:var(--orange); background:rgba(255,149,0,.06); }
+  .btn { font-family:var(--mono); font-size:12px; font-weight:600; color:#000; background:var(--orange); border:none; border-radius:8px; padding:10px 18px; cursor:pointer; letter-spacing:.3px; }
+  .btn.ghost { background:transparent; color:var(--orange); border:1px solid var(--stroke); }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .qactions { margin-top:14px; display:flex; gap:10px; align-items:center; }
+  .queued-note { font-size:11px; color:var(--green); opacity:0; transition:opacity .2s; }
+  .queued-note.show { opacity:1; }
+  .send-bar { margin-top:24px; padding-top:20px; border-top:1px solid var(--stroke-dim); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .send-bar .sb-hint { font-size:11px; color:var(--t-dim); }
+
+  .legend { display:flex; gap:18px; flex-wrap:wrap; font-size:10.5px; color:var(--t-dim); margin-top:10px; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .dot { width:9px; height:9px; border-radius:50%; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="banner">
+    <div class="kicker">Perfecto · Pre-refactor UI pass</div>
+    <h1>Strip the instrument down to <span class="accent">Play + Sequencer</span>, one sound, and an on-screen key swipe</h1>
+    <p class="lede">
+      Goal before the audio-engine rewrite: remove options that are placeholder-quality or confusing for a beginner, so the surviving surface is honest about what actually works.
+      Below — <b>(A)</b> three key-selector concepts you can drive with the mouse, and <b>(B)</b> the pared-back menus and core screen. Pick a direction at the bottom and it queues straight back to me.
+    </p>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--orange)"></span>keep / new</span>
+      <span><span class="dot" style="background:#333"></span>removed</span>
+      <span><span class="dot" style="background:var(--green)"></span>recommended</span>
+      <span style="color:var(--t-faint)">rendered in Perfecto's own design system (matched from the SwiftUI source)</span>
+    </div>
+  </div>
+
+  <!-- ============ SECTION B1: MODE MENU ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">B·1</span>
+      <h2>Mode menu — 9 modes down to 2</h2>
+      <span class="sec-sub">ModeSheet.swift</span>
+    </div>
+    <div class="cmp-grid">
+      <div class="cmp-col before">
+        <div class="cmp-head">Now <span class="pill count-hi">9 rows</span></div>
+        <div class="ios-list">
+          <div class="ios-row keep"><div class="rtext"><div class="rname">Play</div><div class="rdesc">Chord sustains while held</div></div><span class="rspacer chk">✓</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Strum</div><div class="rdesc">Notes arpeggiate on press</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Lead</div><div class="rdesc">Single melody note per button</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Drone</div><div class="rdesc">Latch on / off</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Arpeggio</div><div class="rdesc">Sequential notes at tempo</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Repeat</div><div class="rdesc">Chord retriggers at tempo</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row"><div class="rtext"><div class="rname">Sequencer</div><div class="rdesc">16-step chord sequence</div></div></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Looper</div><div class="rdesc">2-track audio looper</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Mic Sample</div><div class="rdesc">Record clip → play via buttons</div></div><span class="rspacer tag-cut">CUT?</span></div>
+        </div>
+      </div>
+      <div class="cmp-arrow">→</div>
+      <div class="cmp-col after">
+        <div class="cmp-head">Proposed <span class="pill count-lo">2 → inline toggle</span></div>
+        <div class="ios-list">
+          <div class="ios-row keep"><div class="rtext"><div class="rname">Play</div><div class="rdesc">Chord sustains while held</div></div><span class="rspacer chk">✓</span></div>
+          <div class="ios-row"><div class="rtext"><div class="rname">Sequencer</div><div class="rdesc">16-step chord sequence</div></div></div>
+        </div>
+        <div class="note" style="margin:8px 12px 14px;">
+          With only two modes, the <b>Mode sheet disappears entirely</b> — it becomes a two-segment <b>Play / Seq</b> toggle on the main screen (see B·3). One fewer sheet, zero taps to switch.
+          <br>Tempo (BPM) moves onto the Sequencer screen where it's the only place it matters.
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      <b>Flag:</b> Mic Sample already renders as “coming soon / clock” in places — confirm whether it was ever fully wired before we delete vs. hide it. The other six are effect-layers on the placeholder synth, so they inherit its mediocrity; cutting them is low-risk and reversible from git.
+    </div>
+  </section>
+
+  <!-- ============ SECTION B2: SOUND MENU ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">B·2</span>
+      <h2>Sound menu — 8 presets down to 1</h2>
+      <span class="sec-sub">SoundSheet.swift</span>
+    </div>
+    <div class="cmp-grid">
+      <div class="cmp-col before">
+        <div class="cmp-head">Now <span class="pill count-hi">8 presets</span></div>
+        <div class="ios-list">
+          <div class="ios-row keep"><div class="rtext"><div class="rname">Sine Pad</div></div><span class="rspacer chk">✓</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Saw Lead</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Square Bass</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Triangle Bell</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">FM Bell</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">FM Bass</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Pluck</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Brass</div></div><span class="rspacer tag-cut">CUT</span></div>
+          <div class="ios-row dim"><div class="rtext"><div class="rname">Salamander Piano</div></div><span class="rspacer tag-soon">SOON</span></div>
+        </div>
+      </div>
+      <div class="cmp-arrow">→</div>
+      <div class="cmp-col after">
+        <div class="cmp-head">Proposed <span class="pill count-lo">1 · no menu</span></div>
+        <div class="ios-list">
+          <div class="ios-row keep"><div class="rtext"><div class="rname">Perfecto <span style="color:var(--t-dim)">(default)</span></div><div class="rdesc">the one placeholder voice, until the new engine lands</div></div><span class="rspacer chk">✓</span></div>
+        </div>
+        <div class="note" style="margin:8px 12px 14px;">
+          One voice ⇒ nothing to choose ⇒ <b>the Sound sheet and the SOUND button both go away</b>.
+          The oddly-named oscillator presets (“FM Bass”, “Square Bass”) never made sense to a beginner and are just wavetable swaps on a placeholder engine.
+          Re-introduce a real picker <i>after</i> the engine rewrite, with musician-legible names.
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      Which single voice survives as the placeholder is a judgment call — <b>Sine Pad</b> is the most neutral/forgiving for held chords, but it's temporary either way. Choose below.
+    </div>
+  </section>
+
+  <!-- ============ SECTION B3: CORE SCREEN ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">B·3</span>
+      <h2>Core performance screen — before &amp; after</h2>
+      <span class="sec-sub">PerformanceView.swift · portrait</span>
+    </div>
+    <div class="phones">
+
+      <!-- BEFORE phone -->
+      <div class="phone-unit">
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="stat-row">
+            <div class="stat"><div class="l">KEY</div><div class="v">C Major</div></div>
+            <div class="stat" style="text-align:center"><div class="l">SOUND</div><div class="v">Sine Pad</div></div>
+            <div class="stat r"><div class="l">MODE</div><div class="v">Play</div></div>
+          </div>
+          <div class="oled">Cmaj7 · C E G B</div>
+          <div class="fn-row">
+            <div class="fn">KEY</div>
+            <div class="fn ghost">SOUND</div>
+            <div class="fn">MODE<span class="strike-tag" style="position:static;transform:none;margin-left:4px;display:none"></span></div>
+            <div class="fn on">MIDI</div>
+          </div>
+          <div class="cg">
+            <div class="cg-row">
+              <div class="chord c-orange"><span class="lbl">I</span></div>
+              <div class="chord c-blue"><span class="lbl">ii</span></div>
+              <div class="chord c-indigo"><span class="lbl">iii</span></div>
+              <div class="chord c-orange"><span class="lbl">IV</span></div>
+            </div>
+            <div class="cg-row">
+              <div class="chord c-orange"><span class="lbl">V</span></div>
+              <div class="chord c-blue"><span class="lbl">vi</span></div>
+              <div class="chord c-purple"><span class="lbl">vii°</span></div>
+              <div style="flex:1"></div>
+            </div>
+          </div>
+          <div class="in-strip">
+            <div class="joy"><div class="thumb"></div></div>
+            <div class="toggle-mini">PAD</div>
+          </div>
+          <div class="gear">⚙</div>
+          <div class="strike-tag" style="top:150px; left:120px;">SOUND btn cut</div>
+          <div class="strike-tag" style="top:150px; right:20px; background:#333; color:#aaa;">PAD/RING/BAR?</div>
+        </div>
+        <div class="phone-cap"><b>Now</b> — 4 function buttons, 3 input layouts</div>
+      </div>
+
+      <!-- AFTER phone -->
+      <div class="phone-unit">
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="stat-row">
+            <div class="stat"><div class="l">KEY</div><div class="v accent" style="color:var(--orange)">C Major</div></div>
+            <div class="stat r"><div class="l">MODE</div><div class="v">Play</div></div>
+          </div>
+          <div class="oled">Cmaj7 · C E G B</div>
+          <div class="fn-row">
+            <div class="fn hot" id="keyBtnAfter">KEY<span class="hint">hold ⟲</span></div>
+            <div class="seg"><span class="sel">PLAY</span><span>SEQ</span></div>
+            <div class="fn on">MIDI</div>
+          </div>
+          <div class="cg">
+            <div class="cg-row">
+              <div class="chord c-orange"><span class="lbl">I</span></div>
+              <div class="chord c-blue"><span class="lbl">ii</span></div>
+              <div class="chord c-indigo"><span class="lbl">iii</span></div>
+              <div class="chord c-orange"><span class="lbl">IV</span></div>
+            </div>
+            <div class="cg-row">
+              <div class="chord c-orange"><span class="lbl">V</span></div>
+              <div class="chord c-blue"><span class="lbl">vi</span></div>
+              <div class="chord c-purple"><span class="lbl">vii°</span></div>
+              <div style="flex:1"></div>
+            </div>
+          </div>
+          <div class="in-strip">
+            <div class="joy"><div class="thumb"></div></div>
+            <div class="right-col">
+              <div class="toggle-mini" style="opacity:.5">PAD</div>
+              <div class="gear-inline">⚙</div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-cap"><b>Proposed</b> — SOUND gone · MODE → Play/Seq toggle · KEY is press-hold</div>
+      </div>
+
+      <div style="max-width:280px; align-self:center;">
+        <div class="note" style="margin:0;">
+          <b>What changed on the main screen</b>
+          <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px; font-size:11.5px;">
+            <div>· <b>SOUND</b> status + button removed (one voice)</div>
+            <div>· <b>MODE</b> sheet → inline <b>Play / Seq</b> segmented toggle</div>
+            <div>· <b>KEY</b> button now also responds to <b>press-and-hold → radial swipe</b> (§A) — tap still opens the full sheet for octave, etc.</div>
+            <div>· Open question: keep the <b>PAD / RING / BAR</b> input switcher, or commit to one? (dimmed here)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION A: KEY SELECTOR CONCEPTS ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">A</span>
+      <h2>Key selector — press-and-hold quick swipe, no sheet</h2>
+      <span class="sec-sub">try them with your mouse</span>
+    </div>
+
+    <div class="phones">
+
+      <!-- CONCEPT A1: RADIAL WHEEL (interactive) -->
+      <div class="phone-unit">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:2px;">
+          <span class="concept-badge b-rec">◆ Recommended</span>
+          <b style="font-size:13px;">A1 · Radial wheel</b>
+        </div>
+        <div class="phone" id="phoneWheel">
+          <div class="notch"></div>
+          <div class="stat-row">
+            <div class="stat"><div class="l">KEY</div><div class="v accent" id="wheelKeyStat" style="color:var(--orange)">C Major</div></div>
+            <div class="stat r"><div class="l">MODE</div><div class="v">Play</div></div>
+          </div>
+          <div class="oled" id="wheelOled">Cmaj7 · C E G B</div>
+          <div class="fn-row">
+            <div class="seg"><span class="sel">PLAY</span><span>SEQ</span></div>
+            <div class="fn hot" id="wheelTrigger">KEY<span class="hint">hold ⟲</span></div>
+            <div class="fn on">MIDI</div>
+          </div>
+          <div class="cg">
+            <div class="cg-row">
+              <div class="chord c-orange"><span class="lbl">I</span></div>
+              <div class="chord c-blue"><span class="lbl">ii</span></div>
+              <div class="chord c-indigo"><span class="lbl">iii</span></div>
+              <div class="chord c-orange"><span class="lbl">IV</span></div>
+            </div>
+            <div class="cg-row">
+              <div class="chord c-orange"><span class="lbl">V</span></div>
+              <div class="chord c-blue"><span class="lbl">vi</span></div>
+              <div class="chord c-purple"><span class="lbl">vii°</span></div>
+              <div style="flex:1"></div>
+            </div>
+          </div>
+          <div class="in-strip">
+            <div class="joy"><div class="thumb"></div></div>
+            <div class="right-col">
+              <div class="toggle-mini" style="opacity:.5">PAD</div>
+              <div class="gear-inline">⚙</div>
+            </div>
+          </div>
+
+          <!-- wheel overlay (blooms centered on the KEY button) -->
+          <div class="wheel-overlay" id="wheelOverlay">
+            <div class="wheel" id="wheel">
+              <div class="band-minor-ring"></div>
+              <div class="band-major"></div>
+              <div class="band-minor-lbl">MINOR ▸ PUSH OUT</div>
+              <div class="hot-bg" id="wheelHot"></div>
+              <div class="core">
+                <div class="big" id="wheelCoreRoot">C</div>
+                <div class="scl" id="wheelCoreScale">MAJOR</div>
+              </div>
+            </div>
+            <div class="wheel-foot">
+              <div class="wheel-hint">ring blooms under your thumb · drag angle → root · push out past the ring → minor · release to set</div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-cap try-tag">▸ press &amp; hold the KEY button, drag, release</div>
+        <div class="concept-desc">
+          Hold KEY → a 12-root ring blooms under the thumb. Angle picks the root; <b>push out past the ring into the outer band to make it minor</b> — no separate toggle, the fingertip never leaves the wheel; release commits. Mirrors the Joystick/Ring language. Full scale list + octave stay in the tap-to-open sheet. <b>This is exactly how the Swift build already behaves.</b>
+        </div>
+      </div>
+
+      <!-- CONCEPT A2: SWIPE KEYBOARD (schematic) -->
+      <div class="phone-unit">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:2px;">
+          <span class="concept-badge b-alt">Alt</span>
+          <b style="font-size:13px;">A2 · Swipe keyboard</b>
+        </div>
+        <div class="schem" id="schemKb" style="height:610px; border-radius:44px; padding:0; display:flex; align-items:center; justify-content:center; background:#000; border:1px solid #2a2a2a; box-shadow:0 0 0 8px #0d0d0d;">
+          <div id="kbPad" style="position:relative; width:250px; height:230px; touch-action:none;">
+            <div class="kb-zone" id="kbZoneTop" style="top:0;">▲ PUSH UP = MINOR</div>
+            <div id="kbCells"></div>
+            <div class="kb-zone" id="kbZoneBot" style="bottom:0;">▼ PUSH DOWN = MINOR</div>
+          </div>
+        </div>
+        <div class="phone-cap" id="kbReadout"><b>C Major</b> — swipe to a key, push out for minor</div>
+        <div class="concept-desc">
+          Interactive now — hold KEY → a 2×6 chromatic grid; slide to a key and <b>push out past the top or bottom edge to minor-ize it</b> (up for the top row, down for the bottom). Familiar and cheap to read exact letters; the trade-off vs. the wheel is a denser target grid. Being built in Swift alongside A1 so you can A/B them on the phone.
+        </div>
+      </div>
+
+      <!-- CONCEPT A3: XY GLIDE PAD (schematic) -->
+      <div class="phone-unit">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:2px;">
+          <span class="concept-badge b-alt">Alt</span>
+          <b style="font-size:13px;">A3 · XY glide pad</b>
+        </div>
+        <div class="schem" id="schemXy" style="height:610px; border-radius:44px; padding:0; display:flex; align-items:center; justify-content:center; background:#000; border:1px solid #2a2a2a; box-shadow:0 0 0 8px #0d0d0d;">
+          <div style="position:relative; width:238px; height:300px; border:1px solid var(--stroke-dim); border-radius:16px; background:#080808; overflow:hidden;">
+            <div class="xy-axis" style="top:8px; right:12px;">SCALE ↑</div>
+            <div class="xy-axis" style="bottom:8px; right:12px;">ROOT →</div>
+            <div class="xy-inner" id="xyInner"></div>
+          </div>
+        </div>
+        <div class="phone-cap" id="xyReadout"><b>G Major</b> — drag the puck</div>
+        <div class="concept-desc">
+          One square trackpad: horizontal = root, vertical = scale (so you get <b>any scale</b> in one gesture, not just Major/Minor). Most expressive and scales to all 10 scales — but least precise for a specific key, and a beginner may not build a mental map of the 2-D grid quickly. Good “power user” complement to A1.
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      All three keep the current KEY sheet reachable by a normal <b>tap</b> (octave, full 10-scale list, exotic roots). The press-and-hold gesture is purely an <b>accelerator</b> for the common case: “get me to a new key/major-minor fast, mid-performance.”
+    </div>
+  </section>
+
+  <!-- ============ DECISION INPUT ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">▶</span>
+      <h2>Your call — this queues straight back to me</h2>
+    </div>
+    <div class="decision">
+
+      <form class="q" id="qKey" onsubmit="return submitKey(event)">
+        <div class="qlabel">A · Which key-selector concept should I build first? <span>(the others can follow as alternates)</span></div>
+        <div class="opts">
+          <label><input type="radio" name="keyc" value="A1 Radial wheel" checked><span class="ol"><span class="ot">A1 · Radial wheel</span><span class="od">Recommended — native feel, root+major/minor in one gesture</span></span></label>
+          <label><input type="radio" name="keyc" value="A2 Swipe keyboard"><span class="ol"><span class="ot">A2 · Swipe keyboard</span><span class="od">Familiar GBoard glide; cramped on phone</span></span></label>
+          <label><input type="radio" name="keyc" value="A3 XY glide pad"><span class="ol"><span class="ot">A3 · XY glide pad</span><span class="od">All 10 scales in one pad; less precise</span></span></label>
+        </div>
+        <div class="qactions"><button class="btn" type="submit">Queue this choice</button><span class="queued-note" id="qKeyNote">✓ queued</span></div>
+      </form>
+
+      <form class="q" id="qSound" onsubmit="return submitSound(event)">
+        <div class="qlabel">B · Which single voice survives as the placeholder? <span>(temporary, until the engine rewrite)</span></div>
+        <div class="opts">
+          <label><input type="radio" name="snd" value="Sine Pad" checked><span class="ol"><span class="ot">Sine Pad</span><span class="od">Recommended — neutral, forgiving for held chords</span></span></label>
+          <label><input type="radio" name="snd" value="Pluck"><span class="ol"><span class="ot">Pluck</span><span class="od">More percussive attack, clearer note onsets</span></span></label>
+          <label><input type="radio" name="snd" value="Brass"><span class="ol"><span class="ot">Brass</span><span class="od">Fuller/louder body</span></span></label>
+        </div>
+        <div class="qactions"><button class="btn" type="submit">Queue this choice</button><span class="queued-note" id="qSoundNote">✓ queued</span></div>
+      </form>
+
+      <form class="q" id="qMic" onsubmit="return submitMic(event)">
+        <div class="qlabel">C · Mic Sample mode — delete or hold? <span>(you weren't sure it was finished)</span></div>
+        <div class="opts">
+          <label><input type="radio" name="mic" value="delete Mic Sample" checked><span class="ol"><span class="ot">Delete it now</span><span class="od">Clean removal; recover from git if ever wanted</span></span></label>
+          <label><input type="radio" name="mic" value="keep Mic Sample hidden"><span class="ol"><span class="ot">Keep code, hide from menu</span><span class="od">Leave dormant behind a flag</span></span></label>
+          <label><input type="radio" name="mic" value="investigate Mic Sample first"><span class="ol"><span class="ot">Investigate first</span><span class="od">I check whether it actually works, then decide</span></span></label>
+        </div>
+        <div class="qactions"><button class="btn" type="submit">Queue this choice</button><span class="queued-note" id="qMicNote">✓ queued</span></div>
+      </form>
+
+      <div class="send-bar">
+        <button class="btn ghost" type="button" onclick="queueEverything()">Queue the whole direction in one go</button>
+        <button class="btn" type="button" onclick="sendNow()">Send to agent now</button>
+        <span class="sb-hint">…or annotate any card above and hit “Send to Agent”.</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // ---------- Lavish-safe queue helpers ----------
+  function q(prompt, data){
+    if (window.lavish && window.lavish.queuePrompt) window.lavish.queuePrompt(prompt, data);
+  }
+  function flash(id){ const n=document.getElementById(id); if(n){ n.classList.add('show'); setTimeout(()=>n.classList.remove('show'),1800);} }
+
+  function submitKey(e){ e.preventDefault();
+    const v=new FormData(e.currentTarget).get('keyc');
+    q('Build the key selector using concept '+v+' first.',{tag:'choice',text:'Key selector: '+v,queueKey:'keyc',data:{q:'key-concept',answer:v}});
+    flash('qKeyNote'); return false; }
+  function submitSound(e){ e.preventDefault();
+    const v=new FormData(e.currentTarget).get('snd');
+    q('Keep "'+v+'" as the single placeholder voice and remove the other synth presets + the Sound sheet/button.',{tag:'choice',text:'Single voice: '+v,queueKey:'snd',data:{q:'sound',answer:v}});
+    flash('qSoundNote'); return false; }
+  function submitMic(e){ e.preventDefault();
+    const v=new FormData(e.currentTarget).get('mic');
+    q('For Mic Sample mode: '+v+'.',{tag:'choice',text:'Mic Sample: '+v,queueKey:'mic',data:{q:'mic',answer:v}});
+    flash('qMicNote'); return false; }
+
+  function readVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:''; }
+  function queueEverything(){
+    const key=readVal('keyc'), snd=readVal('snd'), mic=readVal('mic');
+    q('Proceed with the Perfecto UI simplification: (1) reduce modes to Play + Sequencer, turning the Mode sheet into an inline Play/Seq toggle and moving BPM onto the Sequencer screen; '
+      +'(2) reduce sounds to a single voice ("'+snd+'") and remove the Sound sheet + SOUND button/status; '
+      +'(3) '+mic+'; '
+      +'(4) add an on-screen press-and-hold key selector using concept '+key+' (root + Major/Minor quick pick), keeping the full Key sheet on tap. Do the UI pass first, before the audio-engine work.',
+      {tag:'direction',text:'Full UI simplification direction',queueKey:'full',data:{key,snd,mic}});
+    flash('qKeyNote'); flash('qSoundNote'); flash('qMicNote');
+  }
+  function sendNow(){ if(window.lavish && window.lavish.sendQueuedPrompts) window.lavish.sendQueuedPrompts(); }
+
+  // ---------- Interactive radial wheel (concept A1) ----------
+  const ROOTS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  // chord tones for the OLED (root major triad + maj7-ish), just illustrative
+  const wheel = document.getElementById('wheel');
+  const overlay = document.getElementById('wheelOverlay');
+  const trigger = document.getElementById('wheelTrigger');
+  const hotBg = document.getElementById('wheelHot');
+  const coreRoot = document.getElementById('wheelCoreRoot');
+  const coreScale = document.getElementById('wheelCoreScale');
+  const keyStat = document.getElementById('wheelKeyStat');
+  const oled = document.getElementById('wheelOled');
+
+  const R = 72;         // root-label ring radius within 236 box (center 118)
+  const CENTER = 118;
+  const MAJOR_MAX = 94; // inside this = Major; push past it = Minor
+  let curRoot = 0, curScale = 'Major', active=false;
+
+  // place labels around ring
+  ROOTS.forEach((r,i)=>{
+    const ang = (-90 + i*30) * Math.PI/180;
+    const x = CENTER + R*Math.cos(ang);
+    const y = CENTER + R*Math.sin(ang);
+    const el = document.createElement('div');
+    el.className='ring-lbl'; el.textContent=r; el.style.left=x+'px'; el.style.top=y+'px';
+    el.dataset.i=i; wheel.appendChild(el);
+  });
+  const labels = [...wheel.querySelectorAll('.ring-lbl')];
+
+  function paint(){
+    labels.forEach((el,i)=> el.classList.toggle('hot', i===curRoot));
+    const ang = (-90 + curRoot*30) * Math.PI/180;
+    // when minor, the highlight rides outward past the label ring into the outer band
+    const hr = curScale==='Minor' ? 104 : R;
+    hotBg.style.left = (CENTER + hr*Math.cos(ang))+'px';
+    hotBg.style.top  = (CENTER + hr*Math.sin(ang))+'px';
+    coreRoot.textContent = ROOTS[curRoot];
+    coreScale.textContent = curScale.toUpperCase();
+    wheel.classList.toggle('minor', curScale==='Minor');
+  }
+  function commit(){
+    keyStat.textContent = ROOTS[curRoot]+' '+curScale;
+    const triad = curScale==='Major' ? ['','maj7'] : ['m','m7'];
+    oled.textContent = ROOTS[curRoot]+triad[1]+' · voicing';
+  }
+
+  function pointFromEvent(ev){
+    const rect = wheel.getBoundingClientRect();
+    const px = ev.clientX - rect.left, py = ev.clientY - rect.top;
+    const dx = px - CENTER, dy = py - CENTER;
+    const dist = Math.hypot(dx,dy);
+    if (dist > 26){ // outside dead zone → root by angle, scale by how far out
+      let deg = Math.atan2(dy,dx)*180/Math.PI; // -180..180, 0 = right
+      let a = (deg + 90 + 360) % 360;          // 0 at top, clockwise
+      curRoot = Math.round(a/30) % 12;
+      curScale = dist < MAJOR_MAX ? 'Major' : 'Minor';
+    }
+    paint();
+  }
+  const phoneWheel = document.getElementById('phoneWheel');
+  function openWheel(ev){
+    active=true;
+    // bloom the ring centered on the KEY button so the fingertip never moves
+    const tr = trigger.getBoundingClientRect(), pr = phoneWheel.getBoundingClientRect();
+    wheel.style.left = (tr.left - pr.left + tr.width/2) + 'px';
+    wheel.style.top  = (tr.top  - pr.top  + tr.height/2) + 'px';
+    overlay.classList.add('show'); paint();
+    if (ev && ev.pointerId!=null && trigger.setPointerCapture){ try{trigger.setPointerCapture(ev.pointerId);}catch(_){} }
+  }
+  function closeWheel(){ active=false; overlay.classList.remove('show'); commit(); }
+
+  trigger.addEventListener('pointerdown', e=>{ e.preventDefault(); openWheel(e); });
+  trigger.addEventListener('pointermove', e=>{ if(active) pointFromEvent(e); });
+  trigger.addEventListener('pointerup', e=>{ if(active) closeWheel(); });
+  overlay.addEventListener('pointermove', e=>{ if(active) pointFromEvent(e); });
+  paint();
+
+  // ---------- interactive swipe keyboard (A2): 2×6 grid, push out = minor ----------
+  const kb = document.getElementById('kbCells');
+  const kbPad = document.getElementById('kbPad');
+  const kbReadout = document.getElementById('kbReadout');
+  const kbZoneTop = document.getElementById('kbZoneTop');
+  const kbZoneBot = document.getElementById('kbZoneBot');
+  const KB_CW = 36, KB_GAP = 6.4, KB_X0 = 2;
+  const KB_TOP_Y = 36, KB_BOT_Y = 136, KB_CELL_H = 58;   // rows; bottom ends at 194
+  const kbCells = [];
+  ROOTS.forEach((r,i)=>{
+    const row = Math.floor(i/6), col = i%6;
+    const c=document.createElement('div');
+    c.className='kb-cell'; c.textContent=r;
+    c.style.left=(KB_X0 + col*(KB_CW+KB_GAP))+'px';
+    c.style.top=(row===0 ? KB_TOP_Y : KB_BOT_Y)+'px';
+    c.style.width=KB_CW+'px'; c.style.height=KB_CELL_H+'px';
+    kb.appendChild(c); kbCells.push(c);
+  });
+  let kbRoot=0, kbMinor=false;
+  function kbPaint(){
+    kbCells.forEach((c,i)=>{
+      c.classList.toggle('sel', i===kbRoot);
+      c.classList.toggle('minor', i===kbRoot && kbMinor);
+    });
+    const topMinor = kbMinor && kbRoot < 6, botMinor = kbMinor && kbRoot >= 6;
+    kbZoneTop.classList.toggle('hot', topMinor);
+    kbZoneBot.classList.toggle('hot', botMinor);
+    kbReadout.innerHTML='<b>'+ROOTS[kbRoot]+' '+(kbMinor?'Minor':'Major')+'</b> — swipe to a key, push out for minor';
+  }
+  function kbFromEvent(ev){
+    const rect=kbPad.getBoundingClientRect();
+    const x=ev.clientX-rect.left, y=ev.clientY-rect.top;
+    const col=Math.max(0,Math.min(5,Math.floor((x-KB_X0)/(KB_CW+KB_GAP))));
+    let row, minor;
+    if (y < KB_TOP_Y)            { row=0; minor=true; }   // pushed above the top row
+    else if (y > KB_BOT_Y+KB_CELL_H) { row=1; minor=true; }   // pushed below the bottom row
+    else { row = y < (KB_TOP_Y+KB_BOT_Y+KB_CELL_H)/2 ? 0 : 1; minor=false; }
+    kbRoot=row*6+col; kbMinor=minor;
+    kbPaint();
+  }
+  let kbActive=false;
+  kbPad.addEventListener('pointerdown', e=>{ e.preventDefault(); kbActive=true; try{kbPad.setPointerCapture(e.pointerId);}catch(_){} kbFromEvent(e); });
+  kbPad.addEventListener('pointermove', e=>{ if(kbActive) kbFromEvent(e); });
+  kbPad.addEventListener('pointerup',   ()=>{ kbActive=false; });
+  kbPad.addEventListener('pointercancel',()=>{ kbActive=false; });
+  kbPaint();
+
+  // ---------- interactive XY glide pad (A3) ----------
+  const XY_SCALES = ['Lydian','Major','Mixolydian','Dorian','Minor']; // bright → dark, top → bottom
+  const xyInner = document.getElementById('xyInner');
+  const xyReadout = document.getElementById('xyReadout');
+  const bandEls = [];
+  XY_SCALES.forEach((s,i)=>{
+    const b=document.createElement('div');
+    b.className='xy-band'; b.textContent=s;
+    b.style.top=(i/XY_SCALES.length*100)+'%';
+    b.style.height=(100/XY_SCALES.length)+'%';
+    xyInner.appendChild(b); bandEls.push(b);
+  });
+  // faint root gridlines + labels along the bottom
+  ROOTS.forEach((r,i)=>{
+    const x = ((i+0.5)/ROOTS.length*100);
+    const col=document.createElement('div'); col.className='xy-col'; col.style.left=x+'%'; xyInner.appendChild(col);
+    const lbl=document.createElement('div'); lbl.className='xy-root'; lbl.textContent=r; lbl.style.left=x+'%'; xyInner.appendChild(lbl);
+  });
+  const xyPuck=document.createElement('div'); xyPuck.className='xy-puck'; xyPuck.textContent='G'; xyInner.appendChild(xyPuck);
+
+  let xyRoot=7, xyScaleIdx=1; // G, Major
+  function xyPaint(){
+    const x=((xyRoot+0.5)/ROOTS.length)*100;
+    const y=((xyScaleIdx+0.5)/XY_SCALES.length)*100;
+    xyPuck.style.left=x+'%'; xyPuck.style.top=y+'%'; xyPuck.textContent=ROOTS[xyRoot];
+    bandEls.forEach((b,i)=> b.classList.toggle('sel', i===xyScaleIdx));
+    xyReadout.innerHTML='<b>'+ROOTS[xyRoot]+' '+XY_SCALES[xyScaleIdx]+'</b> — drag the puck';
+  }
+  function xyFromEvent(ev){
+    const rect=xyInner.getBoundingClientRect();
+    let fx=(ev.clientX-rect.left)/rect.width, fy=(ev.clientY-rect.top)/rect.height;
+    fx=Math.max(0,Math.min(0.999,fx)); fy=Math.max(0,Math.min(0.999,fy));
+    xyRoot=Math.floor(fx*ROOTS.length);
+    xyScaleIdx=Math.floor(fy*XY_SCALES.length);
+    xyPaint();
+  }
+  let xyActive=false;
+  xyInner.addEventListener('pointerdown', e=>{ e.preventDefault(); xyActive=true; try{xyInner.setPointerCapture(e.pointerId);}catch(_){} xyFromEvent(e); });
+  xyInner.addEventListener('pointermove', e=>{ if(xyActive) xyFromEvent(e); });
+  xyInner.addEventListener('pointerup',   ()=>{ xyActive=false; });
+  xyInner.addEventListener('pointercancel',()=>{ xyActive=false; });
+  xyPaint();
+</script>
+</body>
+</html>
