@@ -12,6 +12,10 @@ enum ChordSource: String, Codable {
     case button, sequencer, arpeggio, looper
 }
 
+enum ChordLinkFrameKind: String, Codable {
+    case chord, release
+}
+
 enum PrePromptChoice: String, Codable {
     case `continue`, notNow
 }
@@ -31,6 +35,10 @@ enum LogEvent {
     case midi_source_created(name: String, status: Int32)
     case midi_note_sent(note: Int, velocity: Int, channel: Int, kind: MidiNoteKind)
     case midi_send_failed(status: Int32, attemptedNote: Int?)
+    case midi_network_session_enabled(name: String)
+
+    // ChordLink (semantic SysEx plane; see chordlink.md)
+    case chordlink_frame_sent(kind: ChordLinkFrameKind, byteCount: Int)
 
     // Sinks
     case sink_attached(kind: SinkKind)
@@ -109,6 +117,13 @@ extension LogEvent: Encodable {
             try c.encode("midi_send_failed", forKey: Key("type"))
             try c.encode(status,        forKey: Key("status"))
             try c.encodeIfPresent(attemptedNote, forKey: Key("attemptedNote"))
+        case let .midi_network_session_enabled(name):
+            try c.encode("midi_network_session_enabled", forKey: Key("type"))
+            try c.encode(name, forKey: Key("name"))
+        case let .chordlink_frame_sent(kind, byteCount):
+            try c.encode("chordlink_frame_sent", forKey: Key("type"))
+            try c.encode(kind,      forKey: Key("kind"))
+            try c.encode(byteCount, forKey: Key("byteCount"))
         case let .sink_attached(kind):
             try c.encode("sink_attached", forKey: Key("type"))
             try c.encode(kind, forKey: Key("kind"))
