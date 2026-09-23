@@ -20,7 +20,7 @@ final class ArpeggioMode: PerformanceMode {
 
     private var cursor     = 0
     private var direction  = 1   // +1 ascending, -1 descending (upDown only)
-    private var tickCount  = 0   // MasterClock fires at 1/16th; fire arpeggio every 4 ticks
+    private var tickCount  = 0   // fire one arpeggio note per beat (ticksPerBeat ticks)
 
     func onButtonDown(degree: Degree, state: PerformanceState) {
         state.armChord(degree: degree)
@@ -39,7 +39,7 @@ final class ArpeggioMode: PerformanceMode {
 
     func onClockTick(state: PerformanceState) {
         tickCount += 1
-        guard tickCount >= 4 else { return }
+        guard tickCount >= state.ticksPerBeat else { return }
         tickCount = 0
         guard let degree = state.activeDegree,
               let voicing = state.currentVoicing,

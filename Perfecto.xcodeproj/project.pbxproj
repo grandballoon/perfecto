@@ -68,6 +68,7 @@
 		CCDD000000000000000000B8 /* StubPermissionGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B7 /* StubPermissionGate.swift */; };
 		CCDD000000000000000000BA /* Expect+Voicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B9 /* Expect+Voicing.swift */; };
 		CCDD000000000000000000BC /* PlayModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000BB /* PlayModeTests.swift */; };
+		A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */; };
 		CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000BE /* RecordingMidiBackend.swift */; };
 		CCDD000000000000000000D2 /* MidiSinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000D1 /* MidiSinkTests.swift */; };
 		CCDD00000000000000003302 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD00000000000000003301 /* Logger.swift */; };
@@ -143,6 +144,7 @@
 		CCDD000000000000000000B7 /* StubPermissionGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubPermissionGate.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B9 /* Expect+Voicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Expect+Voicing.swift"; sourceTree = "<group>"; };
 		CCDD000000000000000000BB /* PlayModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayModeTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockResolutionTests.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000BE /* RecordingMidiBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMidiBackend.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000D1 /* MidiSinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiSinkTests.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000C7 /* PerfectoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PerfectoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -436,6 +438,7 @@
 			isa = PBXGroup;
 			children = (
 				CCDD000000000000000000BB /* PlayModeTests.swift */,
+				A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */,
 			);
 			path = ModeTests;
 			sourceTree = "<group>";
@@ -627,6 +630,7 @@
 				CCDD000000000000000000B8 /* StubPermissionGate.swift in Sources */,
 				CCDD000000000000000000BA /* Expect+Voicing.swift in Sources */,
 				CCDD000000000000000000BC /* PlayModeTests.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */,
 				CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */,
 				C1B000000000000000000008 /* MidiAnnouncerSinkTests.swift in Sources */,
 				CCDD000000000000000000D2 /* MidiSinkTests.swift in Sources */,

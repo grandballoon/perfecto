@@ -80,6 +80,11 @@ final class PerformanceState {
         clock.bpm = value
     }
 
+    /// Clock resolution (ticks per quarter-note beat), surfaced for tempo-aware
+    /// modes that schedule musical durations. Sourced from the injected clock so
+    /// a change to the clock's resolution propagates to every mode automatically.
+    var ticksPerBeat: Int { clock.ticksPerBeat }
+
     func setSynthPreset(_ preset: SynthPreset) {
         synthPreset = preset
         engine?.setPreset(preset)
@@ -128,8 +133,13 @@ final class PerformanceState {
         activeVoicingText = displayText(degree: degree)
     }
 
-    /// Stop audio without touching the OLED display — for rhythmic retriggering.
-    func stopAudioOnly() {
+    /// Stop the sounding chord on *every* sink — audio note-off, MIDI note-off,
+    /// and a ChordLink release all fire — while leaving the OLED display and the
+    /// active-gesture state (`activeDegree`, `currentVoicing`) untouched, so a
+    /// tempo-aware mode can retrigger. Contrast `endChord()`, which also clears
+    /// the display and ends the gesture. (The old name "stopAudioOnly" hid that
+    /// this reaches MIDI and ChordLink, not just audio.)
+    func stopSounding() {
         sink.stopChord()
     }
 

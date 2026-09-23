@@ -6,6 +6,10 @@
 final class ManualClock: ClockTickable {
     var bpm: Double = 120
 
+    /// Overridable so tests can prove tempo-aware modes read the clock's
+    /// resolution rather than assuming the production default of 4.
+    var ticksPerBeat: Int = 4
+
     private var tickHandler: (@MainActor () -> Void)?
     private(set) var started = false
 

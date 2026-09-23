@@ -5,7 +5,7 @@ final class RepeatMode: PerformanceMode {
 
     private var heldDegree: Degree?
     private var retriggerTask: Task<Void, Never>?
-    private var tickCount = 0   // MasterClock fires at 1/16th; retrigger every 4 ticks
+    private var tickCount = 0   // retrigger once per beat (ticksPerBeat ticks)
 
     func onButtonDown(degree: Degree, state: PerformanceState) {
         cancelRetrigger()           // cancel any in-flight gap from previous key
@@ -27,11 +27,11 @@ final class RepeatMode: PerformanceMode {
 
     func onClockTick(state: PerformanceState) {
         tickCount += 1
-        guard tickCount >= 4 else { return }
+        guard tickCount >= state.ticksPerBeat else { return }
         tickCount = 0
         guard let degree = heldDegree else { return }
         cancelRetrigger()
-        state.stopAudioOnly()       // silence without clearing OLED display
+        state.stopSounding()        // silence without clearing OLED display
         retriggerTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 80_000_000)  // 80 ms silent gap
             guard let self, !Task.isCancelled, self.heldDegree != nil else { return }
