@@ -164,44 +164,9 @@ struct RingView: View {
         }
     }
 
+    // Ring legend labels come from the core so the joystick's gesture names stay
+    // in lockstep with the chord map they describe (see ChordNaming.swift).
     private func qualityLabel(for direction: JoystickDirection) -> String {
-        switch state.joystickMode {
-        case .default:
-            switch direction {
-            case .up:        return "Flip 3rd"
-            case .upRight:   return "Dom 7"
-            case .right:     return "Maj 7"
-            case .downRight: return "Add 9"
-            case .down:      return "Sus 4"
-            case .downLeft:  return "6/Sus2"
-            case .left:      return "Dim"
-            case .upLeft:    return "Aug"
-            case .center:    return "Base"
-            }
-        case .extended:
-            switch direction {
-            case .up:        return "Flip 3rd"
-            case .upRight:   return "Dom 9"
-            case .right:     return "Add 11"
-            case .downRight: return "Min 11"
-            case .down:      return "7♯9"
-            case .downLeft:  return "Add 9"
-            case .left:      return "Sus4 7"
-            case .upLeft:    return "½dim 7"
-            case .center:    return "Base"
-            }
-        case .chromatic:
-            switch direction {
-            case .up:        return "MinMaj 7"
-            case .upRight:   return "Dom 13"
-            case .right:     return "6/9"
-            case .downRight: return "7alt"
-            case .down:      return "Maj 13"
-            case .downLeft:  return "7♭9"
-            case .left:      return "½dim 7"
-            case .upLeft:    return "Maj7♯11"
-            case .center:    return "Base"
-            }
-        }
+        joystickActionLabel(mode: state.joystickMode, direction: direction)
     }
 }

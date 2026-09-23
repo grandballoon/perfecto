@@ -14,6 +14,7 @@
 		30323E1855ECAD07CCCE6F7D /* KeySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40C2302B57BE28CB4837B30A /* KeySheet.swift */; };
 		3596D666C3C2BB154DDAAE55 /* PerformanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E1668DFD39019C2EF87326 /* PerformanceView.swift */; };
 		35F6583CBEB6BF98F245B31E /* JoystickMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A6B4053145E2EB28520223D /* JoystickMap.swift */; };
+		A1B2C3D4E5F6A1B2C3D40001 /* ChordNaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D40002 /* ChordNaming.swift */; };
 		4208FE1C625C18BCAA7F3F4E /* ModeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 159DFDCE7DED7B73D8692A21 /* ModeSheet.swift */; };
 		460B3ADC3A68D1D3CFC48460 /* ChordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A16BDCF64F055622DF991C /* ChordButton.swift */; };
 		AA9900112233445566778800 /* ChordBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9900112233445566778811 /* ChordBarView.swift */; };
@@ -88,6 +89,7 @@
 		159DFDCE7DED7B73D8692A21 /* ModeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeSheet.swift; sourceTree = "<group>"; };
 		1DFFCC7F4B78811B16D415F1 /* JoystickTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickTypes.swift; sourceTree = "<group>"; };
 		3A6B4053145E2EB28520223D /* JoystickMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickMap.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D40002 /* ChordNaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordNaming.swift; sourceTree = "<group>"; };
 		40C2302B57BE28CB4837B30A /* KeySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeySheet.swift; sourceTree = "<group>"; };
 		48588FDF8B81221AFD4313CC /* CompositeSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositeSink.swift; sourceTree = "<group>"; };
 		49E7E18D6B5C5F39FF60569A /* Scale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scale.swift; sourceTree = "<group>"; };
@@ -260,6 +262,7 @@
 				6FBA429F85D9C4510F59C804 /* ComputeVoicing.swift */,
 				9D166369984572EF3023797E /* Degree.swift */,
 				3A6B4053145E2EB28520223D /* JoystickMap.swift */,
+				A1B2C3D4E5F6A1B2C3D40002 /* ChordNaming.swift */,
 				1DFFCC7F4B78811B16D415F1 /* JoystickTypes.swift */,
 				0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */,
 				9F4140BFCA3796161814B49C /* PitchClass.swift */,
@@ -575,6 +578,7 @@
 				4D6C4C3C1059E97D4020F7F2 /* Degree.swift in Sources */,
 				B17AC0436D40104FDE716EB7 /* DroneMode.swift in Sources */,
 				35F6583CBEB6BF98F245B31E /* JoystickMap.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D40001 /* ChordNaming.swift in Sources */,
 				6D3AE0E68E83D67BD96CEDB7 /* JoystickTypes.swift in Sources */,
 				05B00B09A2EC9FA4D40A43F0 /* JoystickView.swift in Sources */,
 				132354CBD3FCEB8F5BBBDBEC /* Key.swift in Sources */,

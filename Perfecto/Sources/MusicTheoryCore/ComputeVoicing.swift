@@ -19,20 +19,13 @@ public func computeVoicing(
     // Semitone offset of the chord root above the key root
     let degreeOffset = scaleIntervals[degIdx % n] + (degIdx / n) * 12
 
-    // Semitone intervals of the 3rd and 5th above the chord root (for quality detection)
-    let thirdSteps = degIdx + 2
-    let fifthSteps  = degIdx + 4
-    let thirdAbs = scaleIntervals[thirdSteps % n] + (thirdSteps / n) * 12
-    let fifthAbs  = scaleIntervals[fifthSteps % n] + (fifthSteps  / n) * 12
-    let thirdInterval = thirdAbs - degreeOffset
-    let fifthInterval  = fifthAbs  - degreeOffset
-
-    let isMinor = thirdInterval < 4   // minor or augmented-4th third
-    let isDim   = isMinor && fifthInterval < 7  // flat fifth confirms diminished
+    // Base triad quality (major/minor/dim) — shared with the on-screen label so
+    // the notes and the displayed name can never disagree (see ChordNaming.swift).
+    let base = triadBase(key: key, degree: degree)
 
     // Resolve chord intervals from the joystick map
     let outcome = JoystickMap.outcome(mode: joystickMode, direction: joystickDirection)
-    let intervals: [Int] = isDim ? outcome.dim : isMinor ? outcome.minor : outcome.major
+    let intervals: [Int] = outcome.shape(for: base).intervals
 
     // MIDI note of the chord root
     let chordRoot = key.root.rawValue + (octave + 1) * 12 + degreeOffset
