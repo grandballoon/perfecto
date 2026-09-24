@@ -268,6 +268,13 @@ Several of these disappear naturally with Phase 0b; fix them there if the interf
 
 Goal 1 starts by checking that the grid function reproduces today's 38 qualities, using the existing `computeVoicing` tests as the oracle, before any UI work.
 
+**Goal 1 progress (2026-09-24).** The X axis is built: `diatonicMode(key:degree:)` reads a degree's seven-note mode, and `stackThirds(_:height:)` stacks triad → 7 → 9 → 11 → 13 through any mode ([TertianStack.swift](../Perfecto/Sources/MusicTheoryCore/TertianStack.swift)).
+A perfect 11 over a major 3rd drops the 3rd in the 11 column (C11) and the 11 in the 13 column (C13), so no two columns repeat.
+Stacking through the diatonic mode already fixes the augmented-III problem and reaches dim7, maj9, min13 and 9sus4-style 11 chords.
+**Open: the Y axis.** A single one-note-per-step brightness ladder (Lydian → Locrian, continuing to Lydian augmented and the altered scale at the ends) can't reach Lydian dominant, melodic minor, harmonic minor or Phrygian dominant, because those change notes out of the ladder's order.
+Covering them means either rows sorted by brightness with some two-note jumps, or a second brightness dimension.
+This needs a decision before `ChordColor` gets a grid case and before any UI.
+
 ## Open decisions
 
 1. **Grid on non-heptatonic scales.** Resolved for now (2026-09-24): the Key sheet offers only the seven-note scales (`ScaleType.isHeptatonic`), so the grid only needs to handle seven-note scales. The pentatonic and blues cases stay in `ScaleType` so ChordWire numbering is unchanged. Revisit if they return; harmonizing from a parent seven-note scale is the likely answer.
