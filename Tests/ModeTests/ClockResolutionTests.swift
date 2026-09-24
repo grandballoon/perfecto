@@ -71,6 +71,32 @@ struct ClockResolutionTests {
         // retrigger gap; that stop is the observable per-beat event.
         #expect(sink.calls.contains(.stop))
     }
+
+    /// Sequencer steps stay sixteenth notes on a finer clock: at 8 ticks per
+    /// beat the playhead moves every second tick.
+    @Test func sequencerStepsStaySixteenthsOnAFinerClock() {
+        let clock = ManualClock()
+        clock.ticksPerBeat = 8
+        let (state, _) = makeState(clock: clock)
+        let seq = SequencerState(defaults: isolatedDefaults())
+        state.setMode(SequencerMode(seq))
+        seq.isPlaying = true
+
+        var playhead: [Int] = []
+        for _ in 0..<6 { clock.tick(); playhead.append(seq.currentStep) }
+        #expect(playhead == [0, 0, 1, 1, 2, 2])
+    }
+
+    @Test func tempoStaysInTheSupportedRange() {
+        let clock = ManualClock()
+        let (state, _) = makeState(clock: clock)
+        state.setBPM(0)
+        #expect(state.bpm == MusicalTime.tempoRange.lowerBound)
+        #expect(clock.bpm == state.bpm)
+        state.setBPM(1000)
+        #expect(state.bpm == MusicalTime.tempoRange.upperBound)
+        #expect(clock.bpm == state.bpm)
+    }
 }
 
 /// Fix #3 — `stopSounding()` (formerly the misnamed `stopAudioOnly()`) stops the

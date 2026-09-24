@@ -29,7 +29,8 @@ final class PerformanceState {
     var octave = 4
     var joystickMode: JoystickMode = .default
     var synthPreset: SynthPreset = .sinePad
-    var bpm: Double = 120
+    /// Always within `MusicalTime.tempoRange`; change it with `setBPM`.
+    private(set) var bpm: Double = 120
 
     var chordGridLayout: ChordGridLayout = .circle
 
@@ -114,8 +115,8 @@ final class PerformanceState {
     }
 
     func setBPM(_ value: Double) {
-        bpm = value
-        clock.bpm = value
+        bpm = value.clamped(to: MusicalTime.tempoRange)
+        clock.bpm = bpm
     }
 
     /// Clock resolution (ticks per quarter-note beat), surfaced for tempo-aware
@@ -260,7 +261,7 @@ final class PerformanceState {
                                        key: key,
                                        octave: octave,
                                        bpm: bpm,
-                                       stepsPerBeat: ticksPerBeat)
+                                       stepsPerBeat: MusicalTime.stepsPerBeat)
         return SequencerMidiExport(pattern: pattern) { [weak self] noteCount, byteCount in
             self?.logger?.log(.sequencer_midi_exported(stepCount: pattern.steps.count,
                                                        noteCount: noteCount,

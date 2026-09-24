@@ -62,7 +62,8 @@ enum SequencerMidiRenderer {
                                              previousVoicing: previousVoicing)
             previousVoicing = voicing
 
-            if let chord = sounding, chord.tied, chord.notes == voicing.notes {
+            let previous = index > 0 ? pattern.steps[index - 1] : nil
+            if sounding != nil, step.continues(previous) {
                 sounding?.tied = step.isTied          // tie continues the held chord
             } else {
                 release(at: start)

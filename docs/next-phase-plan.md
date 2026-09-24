@@ -1,6 +1,6 @@
 # Next Phase Plan: Chord Grid, Tonnetz, Audio
 
-> **Status (2026-09-24):** Phase 0b steps 1–4 done; see "Updated plan" for what remains.
+> **Status (2026-09-24):** Phase 0b steps 1–4 done, step 5 partly; see "Updated plan" for what remains.
 > This document supersedes the feature list in the chat that produced it.
 
 ## Goals
@@ -248,6 +248,10 @@ Several of these disappear naturally with Phase 0b; fix them there if the interf
    Sequencer steps store a `ChordColor`; patterns save as JSON under `sequencer.pattern.v3`, enums by case name and `Degree` by its now-explicit raw value. Unreadable data (unknown case, unsupported bar count) loads as the empty pattern. The v1/v2 formats are no longer read.
    **ChordLink v2 moves to goal 1:** its purpose is carrying grid coordinates and modifiers, which don't exist yet. The wire format is unchanged, so Harmonicland needs no code change; its copy of `chordlink.md` needs the same edit to the Perfecto-side architecture section (Harmonicland's current branch has no copy).
 5. **Musical time** (F). Clock owns tempo; multi-subscriber ticks; one scheduling function for live and export.
+   *Partly done (2026-09-24).* `MusicalTime` states steps per beat, beats per bar and the tempo range once; `PerformanceState.bpm` is `private(set)` and clamped with the clock's range.
+   The sequencer counts ticks per step from `ticksPerBeat` (which must be a multiple of 4), the looper's default bar is `beatsPerBar × ticksPerBeat`, and the export's step length no longer follows the clock's resolution.
+   Tie behaviour now matches the export: a tied step into the same chord holds it instead of re-striking (reproduced first; `SequencerStep.continues` is the one rule both use). **Audible change**: listen to tied repeats in the sequencer.
+   Deferred to goal 5, where the listeners exist: a multi-subscriber clock, and moving gates, Repeat's gap and strum spacing off `Task.sleep` onto a clock fine enough to carry them (an audio-thread clock, which also serves the Looper accuracy risk).
 6. **Audio graph owner** (G). Named insertion points and one session owner. Only needed before goals 4–6, so it can move later.
 7. Clean up H alongside whichever step touches each file, and update `CLAUDE.md` to match.
 

@@ -5,6 +5,8 @@ final class SequencerMode: PerformanceMode {
 
     private let seqState: SequencerState
     private var gateTask: Task<Void, Never>?
+    /// Ticks elapsed within the current step (0 = the step starts on this tick).
+    private var tickInStep = 0
 
     init(_ seqState: SequencerState) {
         self.seqState = seqState
@@ -18,23 +20,31 @@ final class SequencerMode: PerformanceMode {
     func onClockTick(state: PerformanceState) {
         guard seqState.isPlaying else { return }
 
+        // Steps are sixteenth notes; the clock may tick more finely.
+        let ticksPerStep = state.ticksPerBeat / MusicalTime.stepsPerBeat
+        defer { tickInStep = (tickInStep + 1) % ticksPerStep }
+        guard tickInStep == 0 else { return }
+
         // Advance the global playhead. In chain mode it runs through every bar;
-        // otherwise it loops the 16 steps of the current bar. The visible page
-        // follows the playhead so the grid shows the bar that's sounding.
+        // otherwise it loops the current bar. The visible page follows the
+        // playhead so the grid shows the bar that's sounding.
         let total = seqState.steps.count
+        let perBar = SequencerState.stepsPerBar
+        let previousIdx = seqState.currentStep
         let idx: Int
         if seqState.chain {
-            idx = (seqState.currentStep + 1) % total
-            seqState.currentPage = idx / 16
+            idx = (previousIdx + 1) % total
+            seqState.currentPage = idx / perBar
         } else {
-            let base = seqState.currentPage * 16
-            let within = (((seqState.currentStep - base) + 1) % 16 + 16) % 16
+            let base = seqState.currentPage * perBar
+            let within = (((previousIdx - base) + 1) % perBar + perBar) % perBar
             idx = base + within
         }
         seqState.currentStep = idx
 
-        guard idx < seqState.steps.count else { return }
+        guard idx < total else { return }
         let step = seqState.steps[idx]
+        let previous = seqState.steps.indices.contains(previousIdx) ? seqState.steps[previousIdx] : nil
         gateTask?.cancel()
 
         if step.isRest {
@@ -42,18 +52,19 @@ final class SequencerMode: PerformanceMode {
             return
         }
 
-        state.playSequencerStep(step.spec)
+        if !step.continues(previous) {
+            state.playSequencerStep(step.spec)
+        }
 
-        // Gate shapes note length within the 1/16th step:
+        // Gate shapes note length within the step:
         //  • ≥ 98% → legato/tie: skip the note-off so the chord rings into the
-        //    next step, where the next note-on (or a rest) takes over. This is
-        //    the clearly-audible top of the range.
+        //    next step, where the next note-on (or a rest) takes over — or, for
+        //    the same chord, simply continues. This is the clearly-audible top
+        //    of the range.
         //  • otherwise → release after `gate` fraction of the step (staccato as
         //    the value drops).
         guard !step.isTied else { return }
-        // One sequencer step spans one clock tick; derive its length from the
-        // clock's own resolution rather than re-hardcoding the 1/16-note divisor.
-        let stepSecs = 60.0 / state.bpm / Double(state.ticksPerBeat)
+        let stepSecs = 60.0 / state.bpm / Double(MusicalTime.stepsPerBeat)
         let gateNs   = UInt64(step.gate * stepSecs * 1_000_000_000)
         gateTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: gateNs)

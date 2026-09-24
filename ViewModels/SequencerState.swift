@@ -15,6 +15,14 @@ struct SequencerStep: Codable, Equatable {
     /// instead of being released, the clearly-audible top of the gate range.
     static let tieThreshold = 0.98
     var isTied: Bool { gate >= Self.tieThreshold }
+
+    /// Whether this step holds the chord of `previous` rather than striking a
+    /// new one: `previous` is tied into it and asks for the same chord. The one
+    /// tie rule, shared by live playback and the MIDI export.
+    func continues(_ previous: SequencerStep?) -> Bool {
+        guard let previous, previous.isTied, !previous.isRest, !isRest else { return false }
+        return previous.spec == spec
+    }
 }
 
 @Observable
@@ -42,7 +50,7 @@ final class SequencerState {
 
     /// The bar counts the UI offers, in order — also drives the "add bar" step.
     static let barOptions = [1, 2, 4]
-    static let stepsPerBar = 16
+    static let stepsPerBar = MusicalTime.stepsPerBar
 
     /// The steps playback runs through, in order: every bar in chain mode,
     /// otherwise just the visible bar, which is the one that loops.

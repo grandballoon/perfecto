@@ -72,7 +72,7 @@ struct ModeSheet: View {
             } label: {
                 Image(systemName: "minus.circle.fill")
                     .font(.system(size: 26))
-                    .foregroundStyle(state.bpm > 20 ? Color.orange : Color(white: 0.25))
+                    .foregroundStyle(state.bpm > MusicalTime.tempoRange.lowerBound ? Color.orange : Color(white: 0.25))
             }
             .buttonStyle(.plain)
 
@@ -89,7 +89,7 @@ struct ModeSheet: View {
             } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 26))
-                    .foregroundStyle(state.bpm < 300 ? Color.orange : Color(white: 0.25))
+                    .foregroundStyle(state.bpm < MusicalTime.tempoRange.upperBound ? Color.orange : Color(white: 0.25))
             }
             .buttonStyle(.plain)
         }

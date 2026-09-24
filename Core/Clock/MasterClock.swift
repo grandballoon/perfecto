@@ -1,5 +1,16 @@
 import Foundation
 
+/// Musical time shared by every clock-driven feature, so none of them
+/// restates "16" or "4" on its own.
+enum MusicalTime {
+    /// Sequencer steps are sixteenth notes.
+    static let stepsPerBeat = 4
+    static let beatsPerBar = 4
+    static let stepsPerBar = stepsPerBeat * beatsPerBar
+    /// The tempos the app supports, in BPM.
+    static let tempoRange = 20.0...300.0
+}
+
 /// Protocol that both MasterClock (production) and ManualClock (tests) conform to.
 /// Callers register a tick handler via onTick(_:) rather than conforming to a delegate.
 @MainActor
@@ -9,7 +20,8 @@ protocol ClockTickable: AnyObject {
     /// place the clock's resolution is stated: MasterClock derives its timer
     /// interval from it, and tempo-aware modes divide by it to schedule musical
     /// durations. Without it, every mode hardcoded "4" and silently depended on
-    /// a resolution the protocol never exposed.
+    /// a resolution the protocol never exposed. Must be a multiple of
+    /// `MusicalTime.stepsPerBeat`, so every sequencer step starts on a tick.
     var ticksPerBeat: Int { get }
     func start()
     func stop()
@@ -29,7 +41,7 @@ extension ClockTickable {
 final class MasterClock: ClockTickable {
     var bpm: Double = 120 {
         didSet {
-            bpm = bpm.clamped(to: 20...300)
+            bpm = bpm.clamped(to: MusicalTime.tempoRange)
             if isRunning { schedule() }
         }
     }

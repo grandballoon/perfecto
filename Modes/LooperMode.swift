@@ -1,7 +1,7 @@
 /// Clock-driven state machine for the 2-track looper.
 ///
 /// All timing (recording elapsed ticks, quantized stop) is driven by
-/// onClockTick so loop boundaries always land on a 1/16th-note grid.
+/// onClockTick so loop boundaries always land on the clock's tick grid.
 ///
 /// Chord buttons remain active — the player can perform over the loop.
 @MainActor
@@ -72,7 +72,8 @@ final class LooperMode: PerformanceMode {
             looperState.pendingStop = nil
             switch clockPhase {
             case .recording(let t, let elapsed, _) where t == track:
-                let barLen = looperState.loopLengthTicks > 0 ? looperState.loopLengthTicks : 16
+                let barLen = looperState.loopLengthTicks > 0 ? looperState.loopLengthTicks
+                                                              : MusicalTime.beatsPerBar * state.ticksPerBeat
                 let rem    = elapsed % barLen
                 let stopAt = rem == 0 ? elapsed : elapsed + (barLen - rem)
                 clockPhase = .recording(track: t, elapsed: elapsed, stopAt: stopAt)

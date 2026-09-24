@@ -68,4 +68,22 @@ struct SequencerPlaybackTests {
         #expect(seq.isPlaying)
         withExtendedLifetime(state) {}
     }
+
+    /// A tied step followed by the same chord holds it, as the MIDI export
+    /// does: one note-on, no retrigger.
+    @Test func tiedIdenticalStepsHoldTheChord() {
+        let seq = SequencerState(defaults: isolatedDefaults())
+        seq.steps[0] = SequencerStep(degree: .I, gate: 1)
+        seq.steps[1] = SequencerStep(degree: .I, gate: 0.5)
+        let sink = RecordingSink()
+        let clock = ManualClock()
+        let state = PerformanceState(sink: sink, clock: clock)
+        state.setMode(SequencerMode(seq))
+        seq.isPlaying = true
+        clock.tick()
+        clock.tick()
+
+        #expect(sink.playCalls.count == 1)
+        withExtendedLifetime(state) {}
+    }
 }

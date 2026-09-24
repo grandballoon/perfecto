@@ -113,10 +113,10 @@ struct SequencerView: View {
 
     private var bpmControl: some View {
         HStack(spacing: 0) {
-            Button { perfState.setBPM(max(20, perfState.bpm - 5)) } label: {
+            Button { perfState.setBPM(perfState.bpm - 5) } label: {
                 Image(systemName: "minus")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(perfState.bpm > 20 ? Color(white: 0.7) : Color(white: 0.3))
+                    .foregroundStyle(perfState.bpm > MusicalTime.tempoRange.lowerBound ? Color(white: 0.7) : Color(white: 0.3))
                     .frame(width: 35, height: 43)
                     .contentShape(Rectangle())
             }
@@ -125,10 +125,10 @@ struct SequencerView: View {
                 .font(.system(size: 15, weight: .semibold, design: .monospaced))
                 .foregroundStyle(.white)
                 .frame(minWidth: 55)
-            Button { perfState.setBPM(min(300, perfState.bpm + 5)) } label: {
+            Button { perfState.setBPM(perfState.bpm + 5) } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(perfState.bpm < 300 ? Color(white: 0.7) : Color(white: 0.3))
+                    .foregroundStyle(perfState.bpm < MusicalTime.tempoRange.upperBound ? Color(white: 0.7) : Color(white: 0.3))
                     .frame(width: 35, height: 43)
                     .contentShape(Rectangle())
             }

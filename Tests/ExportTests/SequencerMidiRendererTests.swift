@@ -173,7 +173,7 @@ struct SequencerMidiRendererTests {
         #expect(export.pattern.key == state.key)
         #expect(export.pattern.octave == 3)
         #expect(export.pattern.bpm == 90)
-        #expect(export.pattern.stepsPerBeat == state.ticksPerBeat)
+        #expect(export.pattern.stepsPerBeat == MusicalTime.stepsPerBeat)
         #expect(export.fileName == "Perfecto A Natural Minor 90 BPM.mid")
     }
 
