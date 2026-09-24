@@ -18,8 +18,10 @@
 		4208FE1C625C18BCAA7F3F4E /* ModeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 159DFDCE7DED7B73D8692A21 /* ModeSheet.swift */; };
 		460B3ADC3A68D1D3CFC48460 /* ChordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A16BDCF64F055622DF991C /* ChordButton.swift */; };
 		AA9900112233445566778800 /* ChordBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9900112233445566778811 /* ChordBarView.swift */; };
-		BB9900112233445566778800 /* RingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB9900112233445566778811 /* RingView.swift */; };
+		AA9900112233445566779900 /* ChordColorBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9900112233445566779911 /* ChordColorBar.swift */; };
 		CC9900112233445566778800 /* ChordRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9900112233445566778811 /* ChordRowView.swift */; };
+		FF0000112233445566778800 /* CircleChordGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0000112233445566778811 /* CircleChordGridView.swift */; };
+		D5E9A1000000000000000B01 /* DegreeRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E9A1000000000000000F01 /* DegreeRingView.swift */; };
 		DD9900112233445566778800 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9900112233445566778811 /* SettingsSheet.swift */; };
 		AA00000000000000000000B1 /* KeyQuickSelect.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000B2 /* KeyQuickSelect.swift */; };
 		49FFF5DBC32FEA1319DDE5F7 /* RepeatMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690CA02E32600E0361B28339 /* RepeatMode.swift */; };
@@ -64,11 +66,13 @@
 		FF1122334455667788990022 /* LooperMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1122334455667788990011 /* LooperMode.swift */; };
 		CCDD000000000000000000B2 /* RecordingSink.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B1 /* RecordingSink.swift */; };
 		CCDD000000000000000000B4 /* ManualClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B3 /* ManualClock.swift */; };
+		D5E9A2000000000000000B01 /* IsolatedDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E9A2000000000000000F01 /* IsolatedDefaults.swift */; };
 		CCDD000000000000000000B6 /* RecordingLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B5 /* RecordingLogger.swift */; };
 		CCDD000000000000000000B8 /* StubPermissionGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B7 /* StubPermissionGate.swift */; };
 		CCDD000000000000000000BA /* Expect+Voicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B9 /* Expect+Voicing.swift */; };
 		CCDD000000000000000000BC /* PlayModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000BB /* PlayModeTests.swift */; };
 		A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */; };
+		D5E9A5000000000000000B01 /* SequencerPlaybackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */; };
 		CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000BE /* RecordingMidiBackend.swift */; };
 		CCDD000000000000000000D2 /* MidiSinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000D1 /* MidiSinkTests.swift */; };
 		CCDD00000000000000003302 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD00000000000000003301 /* Logger.swift */; };
@@ -80,6 +84,8 @@
 		EE2200000000000000001104 /* PermissionFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2200000000000000001105 /* PermissionFlowView.swift */; };
 		EE2200000000000000001106 /* MicrophonePermissionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2200000000000000001107 /* MicrophonePermissionTests.swift */; };
 		QQVT0000000000000000EEFF /* QuickLoopStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = QQVT0000000000000000CCDD /* QuickLoopStateTests.swift */; };
+		D5E9A4000000000000000B01 /* SequencerBarsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E9A4000000000000000F01 /* SequencerBarsTests.swift */; };
+		D5E9A3000000000000000B01 /* SequencerSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E9A3000000000000000F01 /* SequencerSelectionTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -131,8 +137,10 @@
 		EE1122334455667788990011 /* Looper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Looper.swift; sourceTree = "<group>"; };
 		EE1122334455667788993300 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA9900112233445566778811 /* ChordBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordBarView.swift; sourceTree = "<group>"; };
-		BB9900112233445566778811 /* RingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingView.swift; sourceTree = "<group>"; };
+		AA9900112233445566779911 /* ChordColorBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordColorBar.swift; sourceTree = "<group>"; };
 		CC9900112233445566778811 /* ChordRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordRowView.swift; sourceTree = "<group>"; };
+		FF0000112233445566778811 /* CircleChordGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleChordGridView.swift; sourceTree = "<group>"; };
+		D5E9A1000000000000000F01 /* DegreeRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DegreeRingView.swift; sourceTree = "<group>"; };
 		DD9900112233445566778811 /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
 		AA00000000000000000000B2 /* KeyQuickSelect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyQuickSelect.swift; sourceTree = "<group>"; };
 		F8A16BDCF64F055622DF991C /* ChordButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordButton.swift; sourceTree = "<group>"; };
@@ -140,11 +148,13 @@
 		FF1122334455667788990011 /* LooperMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LooperMode.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B1 /* RecordingSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSink.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B3 /* ManualClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualClock.swift; sourceTree = "<group>"; };
+		D5E9A2000000000000000F01 /* IsolatedDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IsolatedDefaults.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B5 /* RecordingLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingLogger.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B7 /* StubPermissionGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubPermissionGate.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B9 /* Expect+Voicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Expect+Voicing.swift"; sourceTree = "<group>"; };
 		CCDD000000000000000000BB /* PlayModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayModeTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockResolutionTests.swift; sourceTree = "<group>"; };
+		D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerPlaybackTests.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000BE /* RecordingMidiBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMidiBackend.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000D1 /* MidiSinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiSinkTests.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000C7 /* PerfectoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PerfectoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -157,6 +167,8 @@
 		EE2200000000000000001105 /* PermissionFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionFlowView.swift; sourceTree = "<group>"; };
 		EE2200000000000000001107 /* MicrophonePermissionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophonePermissionTests.swift; sourceTree = "<group>"; };
 		QQVT0000000000000000CCDD /* QuickLoopStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLoopStateTests.swift; sourceTree = "<group>"; };
+		D5E9A4000000000000000F01 /* SequencerBarsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerBarsTests.swift; sourceTree = "<group>"; };
+		D5E9A3000000000000000F01 /* SequencerSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerSelectionTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -332,8 +344,10 @@
 			children = (
 				6B997445A9C3FF55AD7DB863 /* Sheets */,
 				AA9900112233445566778811 /* ChordBarView.swift */,
-				BB9900112233445566778811 /* RingView.swift */,
+				AA9900112233445566779911 /* ChordColorBar.swift */,
 				CC9900112233445566778811 /* ChordRowView.swift */,
+				FF0000112233445566778811 /* CircleChordGridView.swift */,
+				D5E9A1000000000000000F01 /* DegreeRingView.swift */,
 				F8A16BDCF64F055622DF991C /* ChordButton.swift */,
 				7A005FBDBD201E0E82068BD1 /* JoystickView.swift */,
 				DD1122334455667788991111 /* LooperView.swift */,
@@ -388,6 +402,8 @@
 			isa = PBXGroup;
 			children = (
 				QQVT0000000000000000CCDD /* QuickLoopStateTests.swift */,
+				D5E9A4000000000000000F01 /* SequencerBarsTests.swift */,
+				D5E9A3000000000000000F01 /* SequencerSelectionTests.swift */,
 			);
 			path = ViewModelTests;
 			sourceTree = "<group>";
@@ -426,6 +442,7 @@
 			children = (
 				CCDD000000000000000000B1 /* RecordingSink.swift */,
 				CCDD000000000000000000B3 /* ManualClock.swift */,
+				D5E9A2000000000000000F01 /* IsolatedDefaults.swift */,
 				CCDD000000000000000000B5 /* RecordingLogger.swift */,
 				CCDD000000000000000000B7 /* StubPermissionGate.swift */,
 				CCDD000000000000000000B9 /* Expect+Voicing.swift */,
@@ -439,6 +456,7 @@
 			children = (
 				CCDD000000000000000000BB /* PlayModeTests.swift */,
 				A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */,
+				D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */,
 			);
 			path = ModeTests;
 			sourceTree = "<group>";
@@ -569,8 +587,10 @@
 				B39DB497530034E802D3B1D6 /* ArpeggioMode.swift in Sources */,
 				E5C2BA39D35F583002D6FC8B /* AudioSink.swift in Sources */,
 				AA9900112233445566778800 /* ChordBarView.swift in Sources */,
-				BB9900112233445566778800 /* RingView.swift in Sources */,
+				AA9900112233445566779900 /* ChordColorBar.swift in Sources */,
 				CC9900112233445566778800 /* ChordRowView.swift in Sources */,
+				FF0000112233445566778800 /* CircleChordGridView.swift in Sources */,
+				D5E9A1000000000000000B01 /* DegreeRingView.swift in Sources */,
 				DD9900112233445566778800 /* SettingsSheet.swift in Sources */,
 				AA00000000000000000000B1 /* KeyQuickSelect.swift in Sources */,
 				460B3ADC3A68D1D3CFC48460 /* ChordButton.swift in Sources */,
@@ -626,17 +646,21 @@
 			files = (
 				CCDD000000000000000000B2 /* RecordingSink.swift in Sources */,
 				CCDD000000000000000000B4 /* ManualClock.swift in Sources */,
+				D5E9A2000000000000000B01 /* IsolatedDefaults.swift in Sources */,
 				CCDD000000000000000000B6 /* RecordingLogger.swift in Sources */,
 				CCDD000000000000000000B8 /* StubPermissionGate.swift in Sources */,
 				CCDD000000000000000000BA /* Expect+Voicing.swift in Sources */,
 				CCDD000000000000000000BC /* PlayModeTests.swift in Sources */,
 				A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */,
+				D5E9A5000000000000000B01 /* SequencerPlaybackTests.swift in Sources */,
 				CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */,
 				C1B000000000000000000008 /* MidiAnnouncerSinkTests.swift in Sources */,
 				CCDD000000000000000000D2 /* MidiSinkTests.swift in Sources */,
 				CCDD00000000000000003308 /* LoggerTests.swift in Sources */,
 				EE2200000000000000001106 /* MicrophonePermissionTests.swift in Sources */,
 				QQVT0000000000000000EEFF /* QuickLoopStateTests.swift in Sources */,
+				D5E9A4000000000000000B01 /* SequencerBarsTests.swift in Sources */,
+				D5E9A3000000000000000B01 /* SequencerSelectionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

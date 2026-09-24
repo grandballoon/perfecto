@@ -1,41 +1,25 @@
 import SwiftUI
 import UIKit
 
-private enum InputViewMode: CaseIterable {
-    case joystick, ring, bar
-    var label: String {
-        switch self {
-        case .joystick: return "PAD"
-        case .ring:     return "RING"
-        case .bar:      return "BAR"
-        }
-    }
-    var next: InputViewMode {
-        let all = Self.allCases
-        return all[(all.firstIndex(of: self)! + 1) % all.count]
-    }
-}
-
 struct PerformanceView: View {
     @Environment(PerformanceState.self) private var state
 
     @State private var showKeySheet      = false
     @State private var showSettingsSheet = false
-    @State private var inputViewMode: InputViewMode = .joystick
 
     @State private var keyQuick = KeyQuickController()
     @State private var keyButtonCenter: CGPoint = .zero
 
     private let topRow:    [(Degree, String, Color)] = [
         (.I,   "I",    .orange),
-        (.ii,  "ii",   .blue),
-        (.iii, "iii",  .indigo),
+        (.ii,  "ii",   .orange),
+        (.iii, "iii",  .orange),
         (.IV,  "IV",   .orange),
     ]
     private let bottomRow: [(Degree, String, Color)] = [
         (.V,      "V",    .orange),
-        (.vi,     "vi",   .blue),
-        (.viiDim, "vii°", .purple),
+        (.vi,     "vi",   .orange),
+        (.viiDim, "vii°", .orange),
     ]
 
     var body: some View {
@@ -50,9 +34,9 @@ struct PerformanceView: View {
                 }
 
                 settingsButton
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(.leading, 16)
-                    .padding(.bottom, 20)
+                    .padding(.top, 12)
 
                 if keyQuick.isActive {
                     KeyQuickSelectOverlay(controller: keyQuick)
@@ -85,23 +69,24 @@ struct PerformanceView: View {
 
     private var portraitLayout: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 0) {
-                statusColumn(label: "KEY",
-                             value: "\(state.key.root.name) \(state.key.scale.displayName)")
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 16)
+            statusColumn(label: "KEY",
+                         value: "\(state.key.root.name) \(state.key.scale.displayName)")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 66)
+                .padding(.trailing, 24)
+                .padding(.top, 16)
 
             oledDisplay
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
 
-            let isFullScreenMode = state.mode.name == "Sequencer"
-            if !isFullScreenMode { Spacer() }
-
+            // The chits sit a uniform distance below the note display in every
+            // mode: play/lead/etc. anchor them here (a single Spacer below pushes
+            // the input strip to the bottom), and the full-screen modes get the
+            // same gap instead of butting straight against the OLED.
             functionButtons
                 .padding(.horizontal, 20)
+                .padding(.top, 16)
                 .padding(.bottom, 12)
 
             if state.mode.name == "Sequencer" {
@@ -109,43 +94,38 @@ struct PerformanceView: View {
                     .environment(state.sequencerState)
                     .padding(.top, 8)
                     .padding(.bottom, 40)
+            } else if state.mode.name == "Looper" {
+                LooperView()
+                    .environment(state.looperState)
+                    .padding(.top, 8)
             } else {
-                chordGrid
-                    .padding(.horizontal, 20)
-
+                if state.mode.name == "Mic Sample" {
+                    MicSampleView()
+                        .environment(state)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                }
+                // Push the chord ring toward the bottom so it falls under the
+                // thumb when the phone is held normally, rather than sitting
+                // high under the function buttons.
                 Spacer()
 
-                // Bottom input strip
-                switch inputViewMode {
-                case .bar:
-                    HStack(spacing: 8) {
-                        ChordBarView(axis: .horizontal)
-                            .environment(state)
-                            .frame(height: 88)
-                        modeToggle
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 40)
-                case .joystick:
-                    HStack(alignment: .center, spacing: 0) {
-                        JoystickView()
-                            .padding(.leading, 28)
-                        Spacer()
-                        modeToggle
-                            .padding(.trailing, 20)
-                    }
-                    .padding(.bottom, 40)
-                case .ring:
-                    HStack(alignment: .center, spacing: 0) {
-                        RingView()
-                            .environment(state)
-                            .padding(.leading, 28)
-                        Spacer()
-                        modeToggle
-                            .padding(.trailing, 20)
-                    }
-                    .padding(.bottom, 40)
+                if state.chordGridLayout == .circle {
+                    CircleChordGridView()
+                        .environment(state)
+                        .padding(.horizontal, 20)
+                } else {
+                    chordGrid
+                        .padding(.horizontal, 20)
                 }
+
+                // Bottom input strip
+                ChordBarView(axis: .horizontal)
+                    .environment(state)
+                    .frame(height: 88)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+                    .padding(.bottom, 40)
             }
         }
     }
@@ -156,7 +136,7 @@ struct PerformanceView: View {
     private func landscapeLayout(geo: GeometryProxy) -> some View {
         if state.mode.name == "Sequencer" {
             // Sequencer owns the whole screen in landscape and lays out its own
-            // two-column editor/grid. No split panel, no PAD/BAR/RING toggle.
+            // two-column editor/grid. No split panel.
             SequencerView()
                 .environment(state.sequencerState)
                 .frame(width: geo.size.width, height: geo.size.height)
@@ -164,51 +144,56 @@ struct PerformanceView: View {
         HStack(spacing: 0) {
                 let panelW = geo.size.width / 2
                 let panelH = geo.size.height
-                let circleRadius = min(panelW * 0.40, panelH * 0.35)
 
-                // Left panel: input control
+                // Left panel: input control. The coloration bar stays
+                // horizontal here (as in portrait) and keeps the same 88pt
+                // height. It sits at the bottom so its lower margin lines up
+                // with the function buttons in the right panel.
+                let isFullScreenMode = state.mode.name == "Looper"
                 VStack(spacing: 8) {
-                    HStack(alignment: .top, spacing: 8) {
-                        loopControlColumn
-                        Spacer()
-                        modeToggle
-                    }
-                    .padding(.horizontal, 16)
-
-                    switch inputViewMode {
-                    case .bar:
-                        ChordBarView(axis: .vertical)
+                    Spacer(minLength: 0)
+                    if !isFullScreenMode {
+                        ChordBarView(axis: .horizontal)
                             .environment(state)
-                            .frame(maxWidth: panelW * 0.55, maxHeight: .infinity)
-                    case .joystick:
-                        Spacer()
-                        JoystickView(outerRadius: circleRadius)
-                        Spacer()
-                    case .ring:
-                        Spacer()
-                        RingView(outerRadius: circleRadius)
-                            .environment(state)
-                        Spacer()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 88)
                     }
                 }
+                .padding(.horizontal, 16)
                 .padding(.vertical, 16)
                 .frame(width: panelW, height: panelH)
 
                 // Right panel: OLED + chord grid + function buttons
                 VStack(spacing: 0) {
-                    oledDisplay
-                        .padding(.bottom, 8)
-                    if state.horizontalLandscapeChords {
-                        ChordRowView()
-                            .environment(state)
-                            .frame(maxHeight: .infinity)
-                            .padding(.vertical, 8)
+                    if state.mode.name == "Looper" {
+                        LooperView()
+                            .environment(state.looperState)
                     } else {
-                        Spacer()
-                        chordGrid
-                        Spacer()
+                        oledDisplay
+                            .padding(.bottom, 8)
+                        if state.mode.name == "Mic Sample" {
+                            MicSampleView()
+                                .environment(state)
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 8)
+                        }
+                        switch state.chordGridLayout {
+                        case .horizontalBar:
+                            ChordRowView()
+                                .environment(state)
+                                .frame(maxHeight: .infinity)
+                                .padding(.vertical, 8)
+                        case .circle:
+                            CircleChordGridView()
+                                .environment(state)
+                                .padding(.vertical, 8)
+                        case .grid:
+                            Spacer()
+                            chordGrid
+                            Spacer()
+                        }
+                        functionButtons
                     }
-                    functionButtons
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 16)
@@ -218,23 +203,6 @@ struct PerformanceView: View {
     }
 
     // MARK: – Shared subviews
-
-    private var modeToggle: some View {
-        Button { inputViewMode = inputViewMode.next } label: {
-            Text(inputViewMode.label)
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color(white: 0.7))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(white: 0.13))
-                        .overlay(RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color(white: 0.28), lineWidth: 1))
-                )
-        }
-        .buttonStyle(.plain)
-    }
 
     private var oledDisplay: some View {
         Text(state.activeVoicingText)
