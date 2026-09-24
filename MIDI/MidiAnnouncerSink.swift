@@ -84,30 +84,12 @@ final class NoopSysExTransport: SysExTransport {
 }
 
 /// ChordLink announcer — one more ChordEventSink in the CompositeSink, beside
-/// AudioSink and MidiSink. Where those consume only the Voicing, this one
-/// pairs each event with the semantic selection (key, degree, joystick,
-/// octave) pulled from a context provider at send time, and broadcasts the
-/// result as a ChordWire SysEx frame for Harmonicland and other listeners.
-///
-/// The provider is settable after init because PerformanceState owns the
-/// context but is itself constructed with the CompositeSink: build the
-/// announcer, build the state, then point the provider at the state.
-/// Events arriving before the provider is set (or when it returns nil, e.g.
-/// no active degree yet) are silently skipped — the note plane still sounds.
+/// AudioSink and MidiSink. Where those consume only the notes, this one
+/// broadcasts each event's chord context (key, degree, color, voicing
+/// settings) with its voicing as a ChordWire SysEx frame, for Harmonicland
+/// and other listeners. Everything it sends comes from the event itself.
 @MainActor
 final class MidiAnnouncerSink: ChordEventSink {
-
-    struct Context {
-        let key: Key
-        let degree: Degree
-        let joystickMode: JoystickMode
-        let joystickDirection: JoystickDirection
-        let inversion: Inversion
-        let octave: Int
-        let voiceLeading: Bool
-    }
-
-    var contextProvider: (() -> Context?)?
 
     private let transport: any SysExTransport
     private let logger: (any Logger)?
@@ -117,17 +99,21 @@ final class MidiAnnouncerSink: ChordEventSink {
         self.transport = transport ?? CoreMidiSysExTransport(logger: logger)
     }
 
-    func playChord(_ voicing: Voicing) {
-        guard let ctx = contextProvider?() else { return }
+    func playChord(_ event: ChordEvent) {
+        let ctx = event.context
+        let joystickMode: JoystickMode, joystickDirection: JoystickDirection
+        switch ctx.spec.color {
+        case let .joystick(mode, direction): (joystickMode, joystickDirection) = (mode, direction)
+        }
         let frame = ChordWire.encodeChord(ChordAnnouncement(
             key: ctx.key,
-            degree: ctx.degree,
-            joystickMode: ctx.joystickMode,
-            joystickDirection: ctx.joystickDirection,
+            degree: ctx.spec.degree,
+            joystickMode: joystickMode,
+            joystickDirection: joystickDirection,
             inversion: ctx.inversion,
             octave: ctx.octave,
             voiceLeading: ctx.voiceLeading,
-            voicing: voicing
+            voicing: event.voicing
         ))
         transport.send(frame)
         logger?.log(.chordlink_frame_sent(kind: .chord, byteCount: frame.count))

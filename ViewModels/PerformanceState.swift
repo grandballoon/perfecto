@@ -47,6 +47,9 @@ final class PerformanceState {
     var color: ChordColor { .joystick(joystickMode, joystickDirection) }
     private(set) var activeDegree: Degree? = nil
     private(set) var currentVoicing: Voicing? = nil
+    /// The context `currentVoicing` was built from; single notes of the active
+    /// chord (lead, arpeggio) are sent with it.
+    private var currentContext: ChordContext? = nil
     private(set) var activeVoicingText = "—"
 
     let sequencerState  = SequencerState()
@@ -133,28 +136,19 @@ final class PerformanceState {
     // MARK: – Mode-facing API
 
     func startChord(degree: Degree) {
-        let spec = ChordSpec(degree: degree, color: color)
-        activeDegree = degree
-        let voicing = makeVoicing(for: spec)
-        currentVoicing = voicing
-        activeVoicingText = chordLabel(key: key, spec: spec)
+        let voicing = select(ChordSpec(degree: degree, color: color))
         logger?.log(.chord_button_pressed(
             degree: degree.rawValue,
             key: "\(key.root.name) \(key.scale.displayName)",
             joystick: "\(joystickMode)/\(joystickDirection)",
             resultingNotes: voicing.notes
         ))
-        sink.playChord(voicing)
-        logger?.log(.chord_played(notes: voicing.notes, source: .button))
+        sound(voicing, .block, source: .button)
     }
 
     /// Sets up voicing state without triggering audio — for clock-driven modes.
     func armChord(degree: Degree) {
-        let spec = ChordSpec(degree: degree, color: color)
-        activeDegree = degree
-        let voicing = makeVoicing(for: spec)
-        currentVoicing = voicing
-        activeVoicingText = chordLabel(key: key, spec: spec)
+        select(ChordSpec(degree: degree, color: color))
     }
 
     /// Stop the sounding chord on *every* sink — audio note-off, MIDI note-off,
@@ -167,10 +161,9 @@ final class PerformanceState {
         sink.stopChord()
     }
 
-    /// Plays a single MIDI note — for arpeggiator tick playback.
+    /// Plays a single note of the armed chord — for arpeggiator tick playback.
     func playNote(_ midiNote: Int) {
-        sink.playChord(Voicing(notes: [midiNote]))
-        logger?.log(.chord_played(notes: [midiNote], source: .arpeggio))
+        sound(Voicing(notes: [midiNote]), .block, source: .arpeggio)
     }
 
     func endChord() {
@@ -181,28 +174,17 @@ final class PerformanceState {
         logger?.log(.chord_stopped(notes: notes, source: .button))
     }
 
-    func strumChord(degree: Degree) {
-        let spec = ChordSpec(degree: degree, color: color)
-        let voicing = makeVoicing(for: spec)
-        activeDegree = degree
-        currentVoicing = voicing
-        activeVoicingText = chordLabel(key: key, spec: spec)
-        if let engine {
-            engine.strumChord(voicing)
-        } else {
-            sink.playChord(voicing)
-        }
-        logger?.log(.chord_played(notes: voicing.notes, source: .button))
+    func strumChord(degree: Degree, interval: Double) {
+        let voicing = select(ChordSpec(degree: degree, color: color))
+        sound(voicing, .strum(interval: interval), source: .button)
     }
 
     func leadNote(degree: Degree) {
+        select(ChordSpec(degree: degree, color: color))
         let midiNote = key.root.rawValue + (octave + 1) * 12 + key.scale.offset(of: degree)
         let voicing = Voicing(notes: [midiNote])
-        activeDegree = degree
         currentVoicing = voicing
-        activeVoicingText = chordLabel(key: key, spec: ChordSpec(degree: degree, color: color))
-        sink.playChord(voicing)
-        logger?.log(.chord_played(notes: voicing.notes, source: .button))
+        sound(voicing, .block, source: .button)
     }
 
     // MARK: – Mic Sample mode actions (called from MicSampleView buttons)
@@ -250,20 +232,29 @@ final class PerformanceState {
     /// Plays a sequencer step, which carries its own chord color rather than
     /// the live one.
     func playSequencerStep(_ spec: ChordSpec) {
-        activeDegree = spec.degree
-        let voicing = makeVoicing(for: spec)
-        currentVoicing = voicing
-        activeVoicingText = chordLabel(key: key, spec: spec)
-        sink.playChord(voicing)
-        logger?.log(.chord_played(notes: voicing.notes, source: .sequencer))
+        sound(select(spec), .block, source: .sequencer)
     }
 
     // MARK: – Private
 
-    /// Voices `spec` for playback. The OLED text is always `chordLabel` of the
-    /// same spec, which reads the shape that produces these notes, so the label
-    /// can never disagree with what sounds.
-    private func makeVoicing(for spec: ChordSpec) -> Voicing {
-        performanceVoicing(key: key, octave: octave, spec: spec, previousVoicing: currentVoicing)
+    /// Makes `spec` the active chord: voices it and updates the display.
+    /// The OLED text is `chordLabel` of the same spec, which reads the shape
+    /// that produces these notes, so the label can never disagree with what sounds.
+    @discardableResult
+    private func select(_ spec: ChordSpec) -> Voicing {
+        let context = performanceContext(key: key, octave: octave, spec: spec)
+        let voicing = context.voicing(after: currentVoicing)
+        activeDegree = spec.degree
+        currentContext = context
+        currentVoicing = voicing
+        activeVoicingText = chordLabel(key: key, spec: spec)
+        return voicing
+    }
+
+    /// Sends `voicing` to every sink as part of the active chord.
+    private func sound(_ voicing: Voicing, _ articulation: Articulation, source: ChordSource) {
+        guard let currentContext else { return }
+        sink.playChord(ChordEvent(voicing: voicing, articulation: articulation, context: currentContext))
+        logger?.log(.chord_played(notes: voicing.notes, source: source))
     }
 }

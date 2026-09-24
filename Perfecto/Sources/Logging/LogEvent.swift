@@ -30,6 +30,7 @@ enum LogEvent {
     case audio_engine_started
     case audio_engine_stopped
     case audio_engine_failed(message: String)
+    case audio_notes_dropped(requested: Int, voices: Int)
 
     // MIDI
     case midi_source_created(name: String, status: Int32)
@@ -106,6 +107,10 @@ extension LogEvent: Encodable {
         case let .audio_engine_failed(message):
             try c.encode("audio_engine_failed", forKey: Key("type"))
             try c.encode(message, forKey: Key("message"))
+        case let .audio_notes_dropped(requested, voices):
+            try c.encode("audio_notes_dropped", forKey: Key("type"))
+            try c.encode(requested, forKey: Key("requested"))
+            try c.encode(voices,    forKey: Key("voices"))
         case let .midi_source_created(name, status):
             try c.encode("midi_source_created", forKey: Key("type"))
             try c.encode(name,   forKey: Key("name"))

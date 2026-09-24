@@ -71,6 +71,7 @@
 		EE648B028240494AF954BF63 /* StrumMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85F7D22B8525084DE996F7C3 /* StrumMode.swift */; };
 		FF1122334455667788990022 /* LooperMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1122334455667788990011 /* LooperMode.swift */; };
 		CCDD000000000000000000B2 /* RecordingSink.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B1 /* RecordingSink.swift */; };
+		E7A000000000000000000010 /* ChordEvent+Testing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A00000000000000000000F /* ChordEvent+Testing.swift */; };
 		CCDD000000000000000000B4 /* ManualClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B3 /* ManualClock.swift */; };
 		D5E9A2000000000000000B01 /* IsolatedDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E9A2000000000000000F01 /* IsolatedDefaults.swift */; };
 		CCDD000000000000000000B6 /* RecordingLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B5 /* RecordingLogger.swift */; };
@@ -159,6 +160,7 @@
 		FAE680B23C261DFD9FCD510C /* PerfectoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfectoApp.swift; sourceTree = "<group>"; };
 		FF1122334455667788990011 /* LooperMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LooperMode.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B1 /* RecordingSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSink.swift; sourceTree = "<group>"; };
+		E7A00000000000000000000F /* ChordEvent+Testing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChordEvent+Testing.swift"; sourceTree = "<group>"; };
 		CCDD000000000000000000B3 /* ManualClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualClock.swift; sourceTree = "<group>"; };
 		D5E9A2000000000000000F01 /* IsolatedDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IsolatedDefaults.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B5 /* RecordingLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingLogger.swift; sourceTree = "<group>"; };
@@ -475,6 +477,7 @@
 			isa = PBXGroup;
 			children = (
 				CCDD000000000000000000B1 /* RecordingSink.swift */,
+				E7A00000000000000000000F /* ChordEvent+Testing.swift */,
 				CCDD000000000000000000B3 /* ManualClock.swift */,
 				D5E9A2000000000000000F01 /* IsolatedDefaults.swift */,
 				CCDD000000000000000000B5 /* RecordingLogger.swift */,
@@ -685,6 +688,7 @@
 			files = (
 				E7A00000000000000000000A /* SequencerMidiRendererTests.swift in Sources */,
 				CCDD000000000000000000B2 /* RecordingSink.swift in Sources */,
+				E7A000000000000000000010 /* ChordEvent+Testing.swift in Sources */,
 				CCDD000000000000000000B4 /* ManualClock.swift in Sources */,
 				D5E9A2000000000000000B01 /* IsolatedDefaults.swift in Sources */,
 				CCDD000000000000000000B6 /* RecordingLogger.swift in Sources */,

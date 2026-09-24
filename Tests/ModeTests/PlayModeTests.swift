@@ -33,7 +33,7 @@ struct PlayModeTests {
         state.press(degree: .I)
         state.release(degree: .I)
 
-        #expect(sink.calls.last?.kind == .stop)
+        #expect(sink.calls.last == .stop)
         #expect(state.activeDegree == nil)
     }
 

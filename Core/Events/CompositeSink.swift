@@ -8,8 +8,8 @@ final class CompositeSink: ChordEventSink {
         self.sinks = sinks
     }
 
-    func playChord(_ voicing: Voicing) {
-        for sink in sinks { sink.playChord(voicing) }
+    func playChord(_ event: ChordEvent) {
+        for sink in sinks { sink.playChord(event) }
     }
 
     func stopChord() {

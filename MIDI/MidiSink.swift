@@ -87,28 +87,36 @@ final class MidiSink: ChordEventSink {
 
     private let backend: any MidiBackend
     private let logger: (any Logger)?
+    /// Notes sent note-on and not yet note-off, including the started part of a strum.
     private var activeNotes: [UInt8] = []
+    private var strumTask: Task<Void, Never>?
 
     init(backend: (any MidiBackend)? = nil, logger: (any Logger)? = nil) {
         self.logger  = logger
         self.backend = backend ?? CoreMidiBackend(logger: logger)
     }
 
-    func playChord(_ voicing: Voicing) {
+    func playChord(_ event: ChordEvent) {
         stopChord()
-        activeNotes = voicing.notes.map { UInt8(clamping: $0) }
-        for note in activeNotes {
-            backend.sendNoteOn(note: note, velocity: 100, channel: 0)
-            logger?.log(.midi_note_sent(note: Int(note), velocity: 100, channel: 0, kind: .noteOn))
+        strumTask = startNotes(event.voicing.notes, event.articulation) { [weak self] _, note in
+            self?.noteOn(UInt8(note))   // in range: the Voicing invariant
         }
     }
 
     func stopChord() {
+        strumTask?.cancel()
+        strumTask = nil
         for note in activeNotes {
             backend.sendNoteOff(note: note, velocity: 0, channel: 0)
             logger?.log(.midi_note_sent(note: Int(note), velocity: 0, channel: 0, kind: .noteOff))
         }
         activeNotes = []
+    }
+
+    private func noteOn(_ note: UInt8) {
+        activeNotes.append(note)
+        backend.sendNoteOn(note: note, velocity: 100, channel: 0)
+        logger?.log(.midi_note_sent(note: Int(note), velocity: 100, channel: 0, kind: .noteOn))
     }
 
     // MARK: – Diagnostics

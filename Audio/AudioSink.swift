@@ -2,11 +2,15 @@ import AudioKit
 import AVFoundation
 import SoundpipeAudioKit
 
-/// Drives six polyphonic SynthVoices from chord voicings.
+/// Drives a pool of `polyphony` SynthVoices from chord events.
 /// Signal chain: SynthVoices → synthMixer → finalMixer → AudioEngine output
 ///               Looper players        → looper.outputMixer ↗
 @MainActor
 final class AudioSink: ChordEventSink {
+
+    /// Voices in the pool: the most notes one chord can sound. Notes past this
+    /// are dropped and logged (`audio_notes_dropped`); MIDI still sends them.
+    static let polyphony = 8
 
     private let engine     = AudioEngine()
     private var voices:    [SynthVoice] = []
@@ -31,7 +35,7 @@ final class AudioSink: ChordEventSink {
         try? AVAudioSession.sharedInstance().setActive(true)
         Settings.sampleRate = AVAudioSession.sharedInstance().sampleRate
 
-        for _ in 0..<6 {
+        for _ in 0..<Self.polyphony {
             let voice = SynthVoice()
             voices.append(voice)
             synthMixer.addInput(voice.node)
@@ -134,25 +138,14 @@ final class AudioSink: ChordEventSink {
         }
     }
 
-    func playChord(_ voicing: Voicing) {
+    func playChord(_ event: ChordEvent) {
         stopChord()
-        for (voice, note) in zip(voices, voicing.notes.prefix(voices.count)) {
-            voice.noteOn(midiNote: note)
+        let notes = event.voicing.notes
+        if notes.count > voices.count {
+            logger?.log(.audio_notes_dropped(requested: notes.count, voices: voices.count))
         }
-    }
-
-    func strumChord(_ voicing: Voicing, interval: TimeInterval = 0.06) {
-        strumTask?.cancel()
-        for voice in voices { voice.noteOff() }
-        let notes = Array(voicing.notes.prefix(voices.count))
-        strumTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            for (i, note) in notes.enumerated() {
-                guard !Task.isCancelled else { return }
-                voices[i].noteOn(midiNote: note)
-                try? await Task.sleep(nanoseconds: 60_000_000)
-            }
-            strumTask = nil
+        strumTask = startNotes(Array(notes.prefix(voices.count)), event.articulation) { [weak self] i, note in
+            self?.voices[i].noteOn(midiNote: note)
         }
     }
 
@@ -165,7 +158,7 @@ final class AudioSink: ChordEventSink {
     func setPreset(_ preset: SynthPreset) {
         stopChord()
         for voice in voices { synthMixer.removeInput(voice.node) }
-        voices = (0..<6).map { _ in
+        voices = (0..<Self.polyphony).map { _ in
             let voice = SynthVoice(waveform: preset.table)
             synthMixer.addInput(voice.node)
             voice.prepare()

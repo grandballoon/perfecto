@@ -1,29 +1,28 @@
 @testable import Perfecto
 
 /// Recording double for ChordEventSink. Captures calls instead of driving audio/MIDI.
-/// Use in mode tests to assert what voicings were played or stopped.
+/// Use in mode tests to assert what was played or stopped.
 @MainActor
 final class RecordingSink: ChordEventSink {
 
-    struct Call: Equatable {
-        enum Kind: Equatable { case play, stop }
-        let kind: Kind
-        let voicing: Voicing
+    enum Call: Equatable {
+        case play(ChordEvent)
+        case stop
     }
 
     private(set) var calls: [Call] = []
 
-    var playCalls: [Voicing] { calls.compactMap { $0.kind == .play  ? $0.voicing : nil } }
-    var stopCalls: [Voicing] { calls.compactMap { $0.kind == .stop  ? $0.voicing : nil } }
-    var lastPlay:  Voicing?  { playCalls.last }
+    var playEvents: [ChordEvent] { calls.compactMap { if case let .play(e) = $0 { e } else { nil } } }
+    var playCalls:  [Voicing]    { playEvents.map(\.voicing) }
+    var stopCount:  Int          { calls.filter { $0 == .stop }.count }
+    var lastPlay:   Voicing?     { playCalls.last }
 
-    func playChord(_ voicing: Voicing) {
-        calls.append(Call(kind: .play, voicing: voicing))
+    func playChord(_ event: ChordEvent) {
+        calls.append(.play(event))
     }
 
     func stopChord() {
-        // stopChord has no voicing on the protocol; record a sentinel with empty notes
-        calls.append(Call(kind: .stop, voicing: Voicing(notes: [])))
+        calls.append(.stop)
     }
 
     func reset() { calls = [] }

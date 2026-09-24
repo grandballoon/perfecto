@@ -1,6 +1,6 @@
 # Next Phase Plan: Chord Grid, Tonnetz, Audio
 
-> **Status (2026-09-24):** planning. No code has been written for this phase.
+> **Status (2026-09-24):** Phase 0b steps 1–2 done; see "Updated plan" for what remains.
 > This document supersedes the feature list in the chat that produced it.
 
 ## Goals
@@ -209,9 +209,9 @@ Modes and views send intents to it; nothing outside it touches AudioKit nodes or
 
 Each fix starts with an end-to-end repro, as CLAUDE.md requires.
 
-1. Strum sends no MIDI/ChordLink (A).
-2. MIDI notes above 127 go out as status bytes (A).
-3. ChordLink announces the live joystick instead of the sequencer step's color (A).
+1. ~~Strum sends no MIDI/ChordLink (A).~~ Fixed in Phase 0b step 2. Not reachable from the UI (nothing presents the mode sheet), so it was confirmed by code reading, with a regression test through `StrumMode`.
+2. ~~MIDI notes above 127 go out as status bytes (A).~~ Fixed in Phase 0b step 2. Reproduced first: B major, octave 7, vii with ↘ sent note 132 (0x84).
+3. ~~ChordLink announces the live joystick instead of the sequencer step's color (A).~~ Fixed in Phase 0b step 2. Reproduced first: a G7 step was announced as `.center` with G7's notes.
 4. Tapping SEQ in the landscape sequencer stops playback (D).
 5. `ChordColorBar` fires haptics on every move with no steps selected (E).
 6. ~~Lead mode octave error in pentatonic scales (C).~~ No longer reachable now that pentatonic scales are hidden; `leadNote` uses `ScaleType.offset(of:)` since Phase 0b step 1.
@@ -230,6 +230,13 @@ Several of these disappear naturally with Phase 0b; fix them there if the interf
    Modifiers are deferred to goal 2, which adds them to `ChordSpec`.
    Still joystick-shaped, left for later steps: `PerformanceState.joystickMode`/`joystickDirection`, `SequencerStep`'s stored fields and persistence (step 4), `ChordAnnouncement` (steps 2 and 4), and `MicSampleMode`'s `degree.index - 3` transpose (a behaviour decision; the mode is unreachable today).
 2. **`ChordEvent` + sink contract** (A). Range-checked MIDI notes, articulation, semantic spec carried to sinks. Deletes the context provider and the strum bypass. Voice count sized from the event.
+   *Done (2026-09-24).* `Voicing` keeps every note in 0–127 by folding octaves, and has unique notes.
+   `ChordEvent` carries the voicing, an `Articulation` (block or strum), and the `ChordContext` that produced the notes; `performanceContext` is the one voicing policy.
+   The sink protocol documents its contract (`playChord` replaces what is sounding).
+   `startNotes` realizes articulation for both audio and MIDI.
+   The audio voice pool is `AudioSink.polyphony` (8), and notes beyond it are logged as `audio_notes_dropped`.
+   Lead and arpeggio notes still announce the chord they belong to with a one-note voicing; ChordLink v2 (step 4) should decide whether single notes get their own frame kind.
+   Strum timing still uses `Task.sleep` (group F).
 3. **Pointer contract + shared gesture adapter** (E), and **mode kind + mode-to-surface mapping** (D). Together these make the secondary UI swappable.
 4. **Versioned persistence and ChordLink v2** (B), coordinated with Harmonicland through `chordlink.md`. Explicit numbering tables for every enum on the wire, failing loudly on unknown cases.
 5. **Musical time** (F). Clock owns tempo; multi-subscriber ticks; one scheduling function for live and export.

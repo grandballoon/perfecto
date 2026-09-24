@@ -69,7 +69,7 @@ struct ClockResolutionTests {
         clock.tick()
         // On the beat, Repeat silences the chord (stopSounding) to start the
         // retrigger gap; that stop is the observable per-beat event.
-        #expect(sink.calls.contains { $0.kind == .stop })
+        #expect(sink.calls.contains(.stop))
     }
 }
 
@@ -92,7 +92,7 @@ struct StopSoundingTests {
         state.stopSounding()
 
         // It really stops on the sink (audio/MIDI/ChordLink all fan out from here)…
-        #expect(sink.calls.contains { $0.kind == .stop })
+        #expect(sink.calls.contains(.stop))
         // …but the held gesture and display survive, so a mode can retrigger.
         #expect(state.activeDegree == .I)
         #expect(state.activeVoicingText != "—")
