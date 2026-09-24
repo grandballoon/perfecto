@@ -59,7 +59,9 @@ struct KeySheet: View {
                 columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2),
                 spacing: 8
             ) {
-                ForEach(ScaleType.allCases) { scale in
+                // Pentatonic and blues are hidden until chords on scales with
+                // fewer than seven notes are defined (docs/next-phase-plan.md).
+                ForEach(ScaleType.allCases.filter(\.isHeptatonic)) { scale in
                     chipButton(
                         label: scale.displayName,
                         selected: state.key.scale == scale

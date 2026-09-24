@@ -26,6 +26,10 @@ public enum ScaleType: CaseIterable, Hashable, Identifiable, Sendable {
         }
     }
 
+    /// Seven-note scale. Chord building stacks thirds by skipping every other
+    /// scale step, which only yields tertian chords on a seven-note scale.
+    public var isHeptatonic: Bool { intervals.count == 7 }
+
     public var intervals: [Int] {
         switch self {
         case .major:           return [0, 2, 4, 5, 7, 9, 11]

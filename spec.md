@@ -451,7 +451,7 @@ Both supported. Color tokens via SwiftUI's adaptive color system. Dark mode uses
 
 ### 8.5 Menu sheets
 
-- **Key sheet**: 12 keys × 10 scales grid + octave selector.
+- **Key sheet**: 12 keys × 7 scales grid + octave selector. Pentatonic and blues are hidden for now: chords on scales with fewer than seven notes aren't defined yet.
 - **Sound sheet**: list of synth presets + sampled instruments, with category headers.
 - **Mode sheet**: list of 9 modes + mode-specific settings panel below.
 
@@ -825,7 +825,7 @@ This spec reflects decisions made in conversation on 2026-05-11. Scope locked at
 - Drum module deferred.
 - 2-track looper in v1, 6-track later.
 - Synth + sample sound engines, both in v1.
-- All 10 scales, all 3 joystick modes (28 chord types), all 12 keys.
+- All 7 seven-note scales (pentatonic and blues hidden for now), all 3 joystick modes (28 chord types), all 12 keys.
 - MIDI out in v1.
 - iPhone portrait only.
 - Light + dark modes.

@@ -34,6 +34,12 @@ struct ScaleTests {
         #expect(ScaleType.blues.intervals == [0, 3, 5, 6, 7, 10])
     }
 
+    @Test func heptatonicScales() {
+        let heptatonic = ScaleType.allCases.filter(\.isHeptatonic)
+        #expect(heptatonic == [.major, .naturalMinor, .harmonicMinor, .melodicMinor,
+                               .dorian, .mixolydian, .lydian])
+    }
+
     @Test func dorianIntervals() {
         #expect(ScaleType.dorian.intervals == [0, 2, 3, 5, 7, 9, 10])
     }
