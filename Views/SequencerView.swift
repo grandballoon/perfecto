@@ -482,8 +482,8 @@ struct SequencerView: View {
 
     @ViewBuilder
     private func colorationTag(_ step: SequencerStep) -> some View {
-        if !step.isRest, step.joystickDirection != .center {
-            Text(joystickActionLabel(mode: step.joystickMode, direction: step.joystickDirection))
+        if !step.isRest, !step.color.isBase {
+            Text(colorActionLabel(step.color))
                 .font(.system(size: 8.75, weight: .medium, design: .monospaced))
                 .foregroundStyle(Color.orange.opacity(0.85))
                 .lineLimit(1)
@@ -534,8 +534,8 @@ struct SequencerView: View {
             .padding(.vertical, 4)
 
             // Chord-coloration bar — the same strip used in Play mode. It edits
-            // the selected step's `joystickDirection` instead of the live
-            // performance direction. In portrait (no box) it bleeds past the
+            // the selected step's color instead of the live performance
+            // direction. In portrait (no box) it bleeds past the
             // panel's 12pt inset on the sides and bottom so it spans the full
             // width and drops to the same 40pt-from-bottom position as Play
             // mode's bar, keeping the bar visually identical across modes.
@@ -553,11 +553,10 @@ struct SequencerView: View {
                     }
                     stepColorTransient = direction
                     seqState.editSelectedSteps {
-                        $0.joystickDirection = direction
-                        // Record the mode the labels were drawn from, so playback
+                        // Use the mode the labels were drawn from, so playback
                         // and the step's coloration indicator match what the bar
                         // showed.
-                        $0.joystickMode = perfState.joystickMode
+                        $0.color = .joystick(perfState.joystickMode, direction)
                         $0.isRest = false
                     }
                 },

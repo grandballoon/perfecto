@@ -1,6 +1,6 @@
 # Next Phase Plan: Chord Grid, Tonnetz, Audio
 
-> **Status (2026-09-24):** Phase 0b steps 1–3 done; see "Updated plan" for what remains.
+> **Status (2026-09-24):** Phase 0b steps 1–4 done; see "Updated plan" for what remains.
 > This document supersedes the feature list in the chat that produced it.
 
 ## Goals
@@ -244,6 +244,9 @@ Several of these disappear naturally with Phase 0b; fix them there if the interf
    All chord surfaces (button, circle, row) report through `movePointer(from:to:)`, which presses the new degree before releasing the old, so slides have no gap and no double stop.
    The mode sheet is still never presented (Open decision 4).
 4. **Versioned persistence and ChordLink v2** (B), coordinated with Harmonicland through `chordlink.md`. Explicit numbering tables for every enum on the wire, failing loudly on unknown cases.
+   *Done for v1 (2026-09-24).* ChordWire encodes through tables that a test proves cover every case (a missing case traps instead of encoding as 0), numbers degrees by table rather than raw value, and rejects octaves above 8 and non-ascending notes, as `chordlink.md` requires.
+   Sequencer steps store a `ChordColor`; patterns save as JSON under `sequencer.pattern.v3`, enums by case name and `Degree` by its now-explicit raw value. Unreadable data (unknown case, unsupported bar count) loads as the empty pattern. The v1/v2 formats are no longer read.
+   **ChordLink v2 moves to goal 1:** its purpose is carrying grid coordinates and modifiers, which don't exist yet. The wire format is unchanged, so Harmonicland needs no code change; its copy of `chordlink.md` needs the same edit to the Perfecto-side architecture section (Harmonicland's current branch has no copy).
 5. **Musical time** (F). Clock owns tempo; multi-subscriber ticks; one scheduling function for live and export.
 6. **Audio graph owner** (G). Named insertion points and one session owner. Only needed before goals 4–6, so it can move later.
 7. Clean up H alongside whichever step touches each file, and update `CLAUDE.md` to match.

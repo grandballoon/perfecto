@@ -18,7 +18,7 @@ struct SequencerMidiRendererTests {
 
     private func step(_ degree: Degree, gate: Double = 0.5,
                       direction: JoystickDirection = .center) -> SequencerStep {
-        SequencerStep(degree: degree, joystickDirection: direction, gate: gate)
+        SequencerStep(degree: degree, color: .joystick(.default, direction), gate: gate)
     }
 
     private var rest: SequencerStep { SequencerStep(isRest: true) }
@@ -169,8 +169,7 @@ struct SequencerMidiRendererTests {
         state.setBPM(90)
 
         let export = state.sequencerMidiExport
-        #expect(export.pattern.steps.map(\.spec) == state.sequencerState.playedSteps.map(\.spec))
-        #expect(export.pattern.steps.map(\.isRest) == state.sequencerState.playedSteps.map(\.isRest))
+        #expect(export.pattern.steps == state.sequencerState.playedSteps)
         #expect(export.pattern.key == state.key)
         #expect(export.pattern.octave == 3)
         #expect(export.pattern.bpm == 90)

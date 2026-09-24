@@ -104,11 +104,12 @@ Both test suites assert this exact byte sequence; changing it requires a version
 New pieces, one file each, no changes to the event flow:
 
 - `Perfecto/Sources/MusicTheoryCore/ChordWire.swift` — `ChordAnnouncement` + `ChordWire` encode/decode. Pure Swift (Int/Array only), honoring the Music Theory Core purity constraint, and round-trip tested in the SwiftPM package (`ChordWireTests`).
-- `MIDI/MidiAnnouncerSink.swift` — `MidiAnnouncerSink: ChordEventSink`, registered in the `CompositeSink` beside `AudioSink` and `MidiSink`. It pairs each voicing with a semantic context pulled from an injected `contextProvider` closure at send time, and hands the encoded frame to a `SysExTransport`. The transport seam (`CoreMidiSysExTransport` / `RecordingSysExTransport`) mirrors the existing `MidiBackend` seam.
+- `MIDI/MidiAnnouncerSink.swift` — `MidiAnnouncerSink: ChordEventSink`, registered in the `CompositeSink` beside `AudioSink` and `MidiSink`. Each `ChordEvent` carries the `ChordContext` that produced its notes (key, degree, color, octave, inversion, voice leading), and the announcer encodes that with the event's voicing and hands the frame to a `SysExTransport`. The transport seam (`CoreMidiSysExTransport` / `RecordingSysExTransport`) mirrors the existing `MidiBackend` seam.
 - `MIDI/MidiNetwork.swift` — enables the RTP-MIDI network session so both virtual sources reach the Mac over Wi-Fi.
-- `App/PerfectoApp.swift` — wiring only: builds the announcer, adds it to the composite, binds the context provider to `PerformanceState` after construction.
+- `App/PerfectoApp.swift` — wiring only: builds the announcer and adds it to the composite.
 
-The context provider reads `PerformanceState.activeDegree`, `key`, `joystickMode`, `joystickDirection`, and `octave`; inversion and voice-leading mirror `makeVoicing`'s current fixed values and are carried in the protocol for when those become live settings.
+Because the context travels on the event, a frame always describes the chord that produced its notes, including sequencer steps, which carry their own color. Inversion and voice leading come from `performanceContext`, the same policy that voices the notes.
+The encoder's numbering tables list every case (a test checks), so a new enum case fails loudly instead of encoding as 0.
 
 ## Harmonicland-side architecture
 

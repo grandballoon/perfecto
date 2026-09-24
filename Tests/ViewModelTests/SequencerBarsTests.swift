@@ -115,15 +115,35 @@ struct SequencerBarsTests {
         #expect(reloaded.steps[20].gate == 0.3)
     }
 
-    @Test func v1PatternMigratesToOneBar() {
+    @Test func stepColorsPersistByName() {
         let defaults = isolatedDefaults()
-        var v1 = Array(repeating: ["degree": Degree.I.rawValue] as [String: Any], count: 16)
-        v1[7] = ["degree": Degree.V.rawValue]
-        defaults.set(v1, forKey: "seqSteps.v1")
+        let original = SequencerState(defaults: defaults)
+        original.steps[3] = SequencerStep(degree: .ii, color: .joystick(.chromatic, .upLeft),
+                                          gate: 1, isRest: false)
+        original.steps[4].isRest = true
+        original.save()
 
-        let state = SequencerState(defaults: defaults)
-        #expect(state.bars == 1)
-        #expect(state.steps.count == 16)
-        #expect(state.steps[7].degree == .V)
+        let reloaded = SequencerState(defaults: defaults)
+        #expect(reloaded.steps == original.steps)
+    }
+
+    /// Data this build can't read (an unknown color, an unsupported length)
+    /// leaves the default pattern instead of being partly interpreted.
+    @Test func unreadablePatternsLoadAsEmpty() {
+        let defaults = isolatedDefaults()
+        let original = SequencerState(defaults: defaults)
+        original.steps[0].degree = .V
+        original.save()
+        let key = "sequencer.pattern.v3"
+        let saved = String(decoding: defaults.data(forKey: key)!, as: UTF8.self)
+
+        defaults.set(Data(saved.replacingOccurrences(of: "\"default\"", with: "\"future\"").utf8),
+                     forKey: key)
+        #expect(SequencerState(defaults: defaults).steps == SequencerState(defaults: isolatedDefaults()).steps)
+
+        defaults.set(Data(saved.replacingOccurrences(of: "\"bars\":1", with: "\"bars\":3").utf8),
+                     forKey: key)
+        #expect(SequencerState(defaults: defaults).bars == 1)
+        #expect(SequencerState(defaults: defaults).steps[0].degree == .I)
     }
 }

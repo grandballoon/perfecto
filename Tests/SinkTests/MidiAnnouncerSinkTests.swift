@@ -57,7 +57,7 @@ struct MidiAnnouncerSinkTests {
         let state = PerformanceState(sink: MidiAnnouncerSink(transport: transport), clock: clock)
 
         let seq = SequencerState(defaults: isolatedDefaults())
-        seq.steps[0] = SequencerStep(degree: .V, joystickDirection: .upRight)
+        seq.steps[0] = SequencerStep(degree: .V, color: .joystick(.default, .upRight))
         state.setMode(SequencerMode(seq))
         seq.isPlaying = true
         clock.tick()

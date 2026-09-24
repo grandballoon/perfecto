@@ -110,15 +110,26 @@ struct ChordWireTests {
         var badDegree = good
         badDegree[8] = 9                                                        // degree out of range
         #expect(ChordWire.decode(badDegree) == nil)
+        var badOctave = good
+        badOctave[12] = 9                                                       // octave out of range
+        #expect(ChordWire.decode(badOctave) == nil)
+        var unsorted = good
+        unsorted.swapAt(17, 18)                                                 // notes not ascending
+        #expect(ChordWire.decode(unsorted) == nil)
     }
 
     // MARK: – Wire tables stay exhaustive
 
     @Test func wireTablesCoverEveryCase() {
-        #expect(ChordWire.scaleOrder.count == ScaleType.allCases.count)
-        #expect(Set(ChordWire.scaleOrder).count == ChordWire.scaleOrder.count)
-        #expect(ChordWire.modeOrder.count == 3)
-        #expect(ChordWire.directionOrder.count == 9)
-        #expect(ChordWire.inversionOrder.count == 3)
+        // Each table lists every case exactly once, so encoding never traps
+        // and no two cases share a wire number.
+        func coversEveryCase<T: CaseIterable & Hashable>(_ table: [T]) -> Bool {
+            table.count == Set(table).count && Set(table) == Set(T.allCases)
+        }
+        #expect(coversEveryCase(ChordWire.scaleOrder))
+        #expect(coversEveryCase(ChordWire.degreeOrder))
+        #expect(coversEveryCase(ChordWire.modeOrder))
+        #expect(coversEveryCase(ChordWire.directionOrder))
+        #expect(coversEveryCase(ChordWire.inversionOrder))
     }
 }

@@ -73,6 +73,14 @@ public func chordLabel(key: Key, spec: ChordSpec) -> String {
     return "\(root.name) \(chordQualityName(key: key, spec: spec))"
 }
 
+/// What `color` does to any degree's triad, e.g. "Dom 7" — the legend for a
+/// color independent of the degree it is applied to.
+public func colorActionLabel(_ color: ChordColor) -> String {
+    switch color {
+    case let .joystick(mode, direction): return joystickActionLabel(mode: mode, direction: direction)
+    }
+}
+
 /// Base-independent gesture legend for the joystick ring, e.g. "Dom 7".
 public func joystickActionLabel(mode: JoystickMode,
                                 direction: JoystickDirection) -> String {

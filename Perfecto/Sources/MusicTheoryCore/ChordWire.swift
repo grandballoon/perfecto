@@ -72,6 +72,19 @@ public enum ChordWire {
         .down, .downLeft, .left, .upLeft,
     ]
     static let inversionOrder: [Inversion] = [.root, .first, .second]
+    /// Wire value = index + 1 (I = 1 … vii° = 7).
+    static let degreeOrder: [Degree] = [.I, .ii, .iii, .IV, .V, .vi, .viiDim]
+    static let octaveRange = 0...8
+
+    /// Wire number of `value` in `table`. Every table lists every case
+    /// (ChordWireTests checks), so a missing case traps instead of silently
+    /// encoding as index 0.
+    private static func index<T: Equatable>(_ value: T, in table: [T]) -> UInt8 {
+        guard let i = table.firstIndex(of: value) else {
+            preconditionFailure("\(value) missing from its ChordWire numbering table")
+        }
+        return UInt8(i)
+    }
 
     // MARK: – Encode
 
@@ -79,11 +92,11 @@ public enum ChordWire {
         var bytes: [UInt8] = [
             sysExStart, manufacturer, tagP, tagF, version, typeChord,
             UInt8(a.key.root.rawValue),
-            UInt8(scaleOrder.firstIndex(of: a.key.scale) ?? 0),
-            UInt8(a.degree.rawValue),
-            UInt8(modeOrder.firstIndex(of: a.joystickMode) ?? 0),
-            UInt8(directionOrder.firstIndex(of: a.joystickDirection) ?? 0),
-            UInt8(inversionOrder.firstIndex(of: a.inversion) ?? 0),
+            index(a.key.scale, in: scaleOrder),
+            index(a.degree, in: degreeOrder) + 1,
+            index(a.joystickMode, in: modeOrder),
+            index(a.joystickDirection, in: directionOrder),
+            index(a.inversion, in: inversionOrder),
             UInt8(clamping7Bit: a.octave),
             a.voiceLeading ? 1 : 0,
             a.voicing.bassNote == nil ? 0 : 1,
@@ -134,15 +147,18 @@ public enum ChordWire {
 
         guard let pitch = PitchClass(rawValue: root),
               scaleIdx < scaleOrder.count,
-              let degree = Degree(rawValue: degreeRaw),
+              (1...degreeOrder.count).contains(degreeRaw),
               modeIdx < modeOrder.count,
               dirIdx < directionOrder.count,
               invIdx < inversionOrder.count,
+              octaveRange.contains(octave),
               vlFlag <= 1, bassFlag <= 1,
               bytes.count == 17 + count + 1
         else { return nil }
 
         let notes = (0..<count).map { Int(bytes[17 + $0]) }
+        guard zip(notes, notes.dropFirst()).allSatisfy({ $0 < $1 }) else { return nil }   // ascending
+        let degree = degreeOrder[degreeRaw - 1]
         return .chord(ChordAnnouncement(
             key: Key(root: pitch, scale: scaleOrder[scaleIdx]),
             degree: degree,

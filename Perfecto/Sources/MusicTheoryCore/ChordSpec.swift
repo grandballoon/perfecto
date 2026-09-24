@@ -3,7 +3,7 @@
 /// octave, inversion and voice leading are voicing choices applied afterwards
 /// by `computeVoicing`. A sequencer step stores one of these, and a live
 /// press builds one from the current input surface.
-public struct ChordSpec: Hashable, Sendable {
+public struct ChordSpec: Hashable, Codable, Sendable {
     public let degree: Degree
     public let color: ChordColor
 
@@ -16,10 +16,20 @@ public struct ChordSpec: Hashable, Sendable {
 /// How a degree's base triad is transformed into the chord that sounds.
 /// Each input surface contributes a case, so the rest of the app depends on
 /// "a color" rather than on any one surface's coordinates.
-public enum ChordColor: Hashable, Sendable {
+///
+/// Codable by case name, so stored colors survive reordering; an unknown case
+/// fails to decode rather than silently becoming another color.
+public enum ChordColor: Hashable, Codable, Sendable {
     /// A direction on the joystick in one of its three modes (JoystickMap).
     case joystick(JoystickMode, JoystickDirection)
 
     /// The unmodified base triad.
     public static let base = ChordColor.joystick(.default, .center)
+
+    /// Whether the color leaves the base triad unchanged.
+    public var isBase: Bool {
+        switch self {
+        case let .joystick(_, direction): return direction == .center
+        }
+    }
 }

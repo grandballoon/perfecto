@@ -1,14 +1,13 @@
 import Foundation
 
-struct SequencerStep {
+struct SequencerStep: Codable, Equatable {
     var degree: Degree = .I
-    var joystickMode: JoystickMode = .default
-    var joystickDirection: JoystickDirection = .center
+    var color: ChordColor = .base
     var gate: Double = 0.75     // fraction of step to hold chord (0...1)
     var isRest: Bool = false
 
     /// The chord this step plays.
-    var spec: ChordSpec { ChordSpec(degree: degree, color: .joystick(joystickMode, joystickDirection)) }
+    var spec: ChordSpec { ChordSpec(degree: degree, color: color) }
 
     func label(in key: Key) -> String { isRest ? "—" : degreeNumeral(key: key, degree: degree) }
 
@@ -69,7 +68,9 @@ final class SequencerState {
     var canUndo: Bool { !undoStack.isEmpty }
 
     private let defaults: UserDefaults
-    private static let storageKey = "seqSteps.v2"
+    /// Earlier formats ("seqSteps.v1", "seqSteps.v2") stored joystick fields
+    /// by array position; they are not read (no saved patterns needed keeping).
+    private static let storageKey = "sequencer.pattern.v3"
 
     /// `defaults` is injectable so tests can use an isolated store instead of
     /// reading and writing the user's saved pattern.
@@ -209,63 +210,31 @@ final class SequencerState {
     // MARK: – Persistence
 
     func save() {
-        let encoded = steps.map(encode)
-        defaults.set(["bars": bars, "chain": chain, "steps": encoded],
-                     forKey: Self.storageKey)
+        let pattern = SavedPattern(bars: bars, chain: chain, steps: steps)
+        guard let data = try? JSONEncoder().encode(pattern) else { return }
+        defaults.set(data, forKey: Self.storageKey)
     }
 
+    /// Restores the saved pattern. Data that doesn't decode (for example a
+    /// color case this build doesn't know) leaves the default empty pattern
+    /// rather than being partly interpreted.
     func load() {
-        // v2: bars + chain + steps
-        if let dict = defaults.dictionary(forKey: Self.storageKey),
-           let stepData = dict["steps"] as? [[String: Any]] {
-            bars  = (dict["bars"]  as? Int)  ?? 1
-            chain = (dict["chain"] as? Bool) ?? true
-            steps = stepData.map(decode)
-            applyBars(bars)   // reconcile any length mismatch
-            return
-        }
-        // v1 migration: a bare 16-step array → one bar
-        if let data = defaults.array(forKey: "seqSteps.v1") as? [[String: Any]],
-           data.count == 16 {
-            bars = 1
-            steps = data.map(decode)
-        }
+        guard let data = defaults.data(forKey: Self.storageKey),
+              let pattern = try? JSONDecoder().decode(SavedPattern.self, from: data),
+              Self.barOptions.contains(pattern.bars)
+        else { return }
+        bars  = pattern.bars
+        chain = pattern.chain
+        steps = pattern.steps
+        applyBars(bars)   // reconcile any length mismatch
     }
 
-    // MARK: – Encoding helpers
-
-    private func encode(_ s: SequencerStep) -> [String: Any] {
-        ["degree": s.degree.rawValue,
-         "jmIdx": jmIndex(s.joystickMode),
-         "jdIdx": jdIndex(s.joystickDirection),
-         "gate": s.gate,
-         "isRest": s.isRest]
-    }
-
-    private func decode(_ d: [String: Any]) -> SequencerStep {
-        var s = SequencerStep()
-        if let v = d["degree"]  as? Int    { s.degree           = Degree(rawValue: v) ?? .I }
-        if let v = d["jmIdx"]   as? Int    { s.joystickMode      = jmFromIndex(v) }
-        if let v = d["jdIdx"]   as? Int    { s.joystickDirection = jdFromIndex(v) }
-        if let v = d["gate"]    as? Double { s.gate              = v }
-        if let v = d["isRest"]  as? Bool   { s.isRest            = v }
-        return s
-    }
-
-    private func jmIndex(_ m: JoystickMode) -> Int {
-        switch m { case .default: return 0; case .extended: return 1; case .chromatic: return 2 }
-    }
-    private func jmFromIndex(_ i: Int) -> JoystickMode {
-        switch i { case 1: return .extended; case 2: return .chromatic; default: return .default }
-    }
-    private let allDirections: [JoystickDirection] = [
-        .center, .up, .upRight, .right, .downRight, .down, .downLeft, .left, .upLeft
-    ]
-    private func jdIndex(_ d: JoystickDirection) -> Int {
-        allDirections.firstIndex(of: d) ?? 0
-    }
-    private func jdFromIndex(_ i: Int) -> JoystickDirection {
-        guard i >= 0, i < allDirections.count else { return .center }
-        return allDirections[i]
+    /// The stored form of a pattern. Enum cases are encoded by name (and
+    /// `Degree` by its explicit raw value), so reordering a Swift enum never
+    /// changes what a saved pattern means.
+    private struct SavedPattern: Codable {
+        var bars: Int
+        var chain: Bool
+        var steps: [SequencerStep]
     }
 }
