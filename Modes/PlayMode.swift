@@ -1,6 +1,6 @@
 @MainActor
 final class PlayMode: PerformanceMode {
-    var name: String { "Play" }
+    var kind: ModeKind { .play }
     var requiresClock: Bool { false }
 
     func onButtonDown(degree: Degree, state: PerformanceState) {

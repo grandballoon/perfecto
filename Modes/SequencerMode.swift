@@ -1,6 +1,6 @@
 @MainActor
 final class SequencerMode: PerformanceMode {
-    var name: String { "Sequencer" }
+    var kind: ModeKind { .sequencer }
     var requiresClock: Bool { true }
 
     private let seqState: SequencerState

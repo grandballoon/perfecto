@@ -4,9 +4,12 @@ import SwiftUI
 /// and the Sequencer step editor.
 ///
 /// It renders the joystick directions as a vertical or horizontal bar and
-/// reports selection changes through closures — it owns no state of its own,
-/// so callers decide what "selected" means (global performance direction in
-/// Play mode; the selected step's direction in the sequencer).
+/// reports selection changes through closures. Callers decide what "selected"
+/// means (global performance direction in Play mode; the selected step's
+/// direction in the sequencer). The only state it keeps is the section under
+/// the finger during a drag, so `onChange` fires once per section crossed
+/// whether or not the caller changes `selected` (same contract as
+/// `DegreeRingView`).
 struct ChordColorBar: View {
 
     let axis: Axis
@@ -20,6 +23,7 @@ struct ChordColorBar: View {
     /// leaves the chosen direction in place, so it passes `nil`.
     var onEnd: (() -> Void)? = nil
 
+    @State private var lastDirection: JoystickDirection? = nil
     private let haptic = UIImpactFeedbackGenerator(style: .rigid)
 
     private let directions: [JoystickDirection] = [
@@ -41,11 +45,15 @@ struct ChordColorBar: View {
                     .onChanged { value in
                         let index = sectionIndex(at: value.location, in: geo.size)
                         let direction = directions[index]
-                        guard selected != direction else { return }
+                        guard direction != lastDirection else { return }
+                        lastDirection = direction
                         haptic.impactOccurred()
                         onChange(direction)
                     }
-                    .onEnded { _ in onEnd?() }
+                    .onEnded { _ in
+                        lastDirection = nil
+                        onEnd?()
+                    }
             )
         }
         .clipShape(RoundedRectangle(cornerRadius: 6))

@@ -87,17 +87,10 @@ struct CircleChordGridView: View {
         }
         .aspectRatio(1, contentMode: .fit)
         .onChange(of: pressingDegree) { oldDegree, newDegree in
-            if let new = newDegree {
-                // Sinks replace the sounding chord on playChord (the ChordEventSink
-                // contract), so no explicit release is needed when sliding between
-                // degrees — avoiding a double-stop that races with voice release
-                // envelopes and silences the new chord.
-                haptic.impactOccurred()
-                state.press(degree: new)
-            } else if let old = oldDegree {
-                // All fingers lifted — release cleanly.
-                state.release(degree: old)
-            }
+            // Sliding presses the new degree before releasing the old, so the
+            // chord changes without a gap (PerformanceState.movePointer).
+            if newDegree != nil { haptic.impactOccurred() }
+            state.movePointer(from: oldDegree, to: newDegree)
         }
     }
 

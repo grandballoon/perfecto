@@ -6,7 +6,7 @@
 /// Chord buttons remain active — the player can perform over the loop.
 @MainActor
 final class LooperMode: PerformanceMode {
-    var name: String { "Looper" }
+    var kind: ModeKind { .looper }
     var requiresClock: Bool { true }
 
     private let looperState: LooperState

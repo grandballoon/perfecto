@@ -46,6 +46,8 @@ final class PerformanceState {
     /// The live chord color, from whichever input surface is active.
     var color: ChordColor { .joystick(joystickMode, joystickDirection) }
     private(set) var activeDegree: Degree? = nil
+    /// Degrees whose buttons are down, oldest first; the last is the active press.
+    private(set) var heldDegrees: [Degree] = []
     private(set) var currentVoicing: Voicing? = nil
     /// The context `currentVoicing` was built from; single notes of the active
     /// chord (lead, arpeggio) are sent with it.
@@ -89,8 +91,19 @@ final class PerformanceState {
 
     // MARK: – Mode / preset switching
 
+    /// Switches to the mode of `kind`. Choosing the mode that is already
+    /// active does nothing, so a toggle can be tapped again without resetting
+    /// the mode (for example, stopping the sequencer).
+    func selectMode(_ kind: ModeKind) {
+        guard kind != mode.kind else { return }
+        setMode(makeMode(kind))
+    }
+
+    /// Replaces the active mode unconditionally. Views use `selectMode`; this
+    /// is for callers that supply a configured instance (tests).
     func setMode(_ newMode: any PerformanceMode) {
         logger?.log(.mode_changed(from: mode.name, to: newMode.name))
+        heldDegrees = []
         mode.deactivate(state: self)
         clock.stop()
         mode = newMode
@@ -117,12 +130,30 @@ final class PerformanceState {
 
     // MARK: – Chord button (delegates to mode)
 
+    // The pointer contract lives here, so every mode gets it (see
+    // PerformanceMode): presses stack, and a mode hears a release only for the
+    // degree pressed most recently.
+
     func press(degree: Degree) {
+        heldDegrees.append(degree)
         mode.onButtonDown(degree: degree, state: self)
     }
 
     func release(degree: Degree) {
-        mode.onButtonUp(degree: degree, state: self)
+        guard let index = heldDegrees.lastIndex(of: degree) else { return }
+        let wasActive = index == heldDegrees.count - 1
+        heldDegrees.remove(at: index)
+        if wasActive { mode.onButtonUp(degree: degree, state: self) }
+    }
+
+    /// One pointer moved from `old` to `new` (either may be nil: touch down,
+    /// lift). The new degree is pressed before the old one is released, so a
+    /// finger sliding across chords never leaves a gap: the new chord replaces
+    /// the old, and the old release is superseded.
+    func movePointer(from old: Degree?, to new: Degree?) {
+        guard old != new else { return }
+        if let new { press(degree: new) }
+        if let old { release(degree: old) }
     }
 
     // MARK: – Joystick (delegates to mode)
@@ -208,10 +239,18 @@ final class PerformanceState {
         micSampleState.hasContent  = sampler.hasContent
     }
 
-    func makeMicSampleMode() -> MicSampleMode {
-        MicSampleMode(micSampleState,
-                      sampler: engine?.micSampler,
-                      gate:    micGate)
+    private func makeMode(_ kind: ModeKind) -> any PerformanceMode {
+        switch kind {
+        case .play:      return PlayMode()
+        case .strum:     return StrumMode()
+        case .lead:      return LeadMode()
+        case .drone:     return DroneMode()
+        case .arpeggio:  return ArpeggioMode()
+        case .repeat:    return RepeatMode()
+        case .sequencer: return SequencerMode(sequencerState)
+        case .looper:    return LooperMode(looperState)
+        case .micSample: return MicSampleMode(micSampleState, sampler: engine?.micSampler, gate: micGate)
+        }
     }
 
     /// The sequencer pattern exactly as playback runs through it, in the

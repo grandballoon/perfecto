@@ -13,7 +13,7 @@ enum ArpeggioPattern: String, CaseIterable, Identifiable, Sendable {
 
 @MainActor
 final class ArpeggioMode: PerformanceMode {
-    var name: String { "Arpeggio" }
+    var kind: ModeKind { .arpeggio }
     var requiresClock: Bool { true }
 
     var pattern: ArpeggioPattern = .up

@@ -1,24 +1,5 @@
 import SwiftUI
 
-private struct ModeEntry: Identifiable {
-    let id: String
-    let description: String
-    let makeMode: ((PerformanceState) -> any PerformanceMode)?
-}
-
-@MainActor
-private let modeEntries: [ModeEntry] = [
-    ModeEntry(id: "Play",       description: "Chord sustains while held",           makeMode: { _ in PlayMode() }),
-    ModeEntry(id: "Strum",      description: "Notes arpeggiate on button press",    makeMode: { _ in StrumMode() }),
-    ModeEntry(id: "Lead",       description: "Single melody note per button",       makeMode: { _ in LeadMode() }),
-    ModeEntry(id: "Drone",      description: "Press to latch; press again to stop", makeMode: { _ in DroneMode() }),
-    ModeEntry(id: "Arpeggio",   description: "Sequential notes at tempo",           makeMode: { _ in ArpeggioMode() }),
-    ModeEntry(id: "Repeat",     description: "Chord retriggers at tempo",           makeMode: { _ in RepeatMode() }),
-    ModeEntry(id: "Sequencer",  description: "16-step chord sequence",              makeMode: { SequencerMode($0.sequencerState) }),
-    ModeEntry(id: "Looper",     description: "2-track audio looper",               makeMode: { LooperMode($0.looperState) }),
-    ModeEntry(id: "Mic Sample", description: "Record a clip; play it via buttons", makeMode: { $0.makeMicSampleMode() }),
-]
-
 struct ModeSheet: View {
     @Environment(PerformanceState.self) private var state
     @Environment(\.dismiss) private var dismiss
@@ -27,8 +8,8 @@ struct ModeSheet: View {
         NavigationStack {
             List {
                 Section {
-                    ForEach(modeEntries) { entry in
-                        modeRow(entry)
+                    ForEach(ModeKind.allCases, id: \.self) { kind in
+                        modeRow(kind)
                     }
                 }
 
@@ -57,39 +38,29 @@ struct ModeSheet: View {
 
     // MARK: – Mode row
 
-    @ViewBuilder
-    private func modeRow(_ entry: ModeEntry) -> some View {
-        let isActive    = state.mode.name == entry.id
-        let isAvailable = entry.makeMode != nil
-
+    private func modeRow(_ kind: ModeKind) -> some View {
         Button {
-            guard let make = entry.makeMode else { return }
-            state.setMode(make(state))
+            state.selectMode(kind)
             dismiss()
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(entry.id)
+                    Text(kind.displayName)
                         .font(.system(size: 15, design: .monospaced))
-                        .foregroundStyle(isAvailable ? .white : Color(white: 0.35))
-                    Text(entry.description)
+                        .foregroundStyle(.white)
+                    Text(kind.summary)
                         .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(isAvailable ? Color(white: 0.45) : Color(white: 0.22))
+                        .foregroundStyle(Color(white: 0.45))
                 }
                 Spacer()
-                if isActive {
+                if state.mode.kind == kind {
                     Image(systemName: "checkmark")
                         .foregroundStyle(.orange)
                         .fontWeight(.semibold)
-                } else if !isAvailable {
-                    Image(systemName: "clock")
-                        .foregroundStyle(Color(white: 0.28))
-                        .font(.system(size: 13))
                 }
             }
         }
-        .disabled(!isAvailable)
-        .listRowBackground(Color(white: isAvailable ? 0.10 : 0.07))
+        .listRowBackground(Color(white: 0.10))
     }
 
     // MARK: – BPM row

@@ -1,6 +1,6 @@
 @MainActor
 final class MicSampleMode: PerformanceMode {
-    var name: String { "Mic Sample" }
+    var kind: ModeKind { .micSample }
     var requiresClock: Bool { false }
 
     private let micSampler: MicSampler?

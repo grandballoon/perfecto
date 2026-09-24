@@ -1,6 +1,6 @@
 @MainActor
 final class DroneMode: PerformanceMode {
-    var name: String { "Drone" }
+    var kind: ModeKind { .drone }
     var requiresClock: Bool { false }
 
     private var dronedDegree: Degree?

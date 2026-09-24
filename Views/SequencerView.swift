@@ -212,11 +212,11 @@ struct SequencerView: View {
 
     private var playSeqToggle: some View {
         HStack(spacing: 0) {
-            modeSegButton("PLAY", active: perfState.mode.name == "Play") {
-                perfState.setMode(PlayMode())
+            modeSegButton("PLAY", active: perfState.mode.kind == .play) {
+                perfState.selectMode(.play)
             }
-            modeSegButton("SEQ", active: perfState.mode.name == "Sequencer") {
-                perfState.setMode(SequencerMode(perfState.sequencerState))
+            modeSegButton("SEQ", active: perfState.mode.kind == .sequencer) {
+                perfState.selectMode(.sequencer)
             }
         }
         .padding(3)

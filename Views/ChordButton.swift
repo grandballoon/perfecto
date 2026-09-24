@@ -32,11 +32,11 @@ struct ChordButton: View {
                     guard !isPressed else { return }
                     isPressed = true
                     haptic.impactOccurred()
-                    state.press(degree: degree)
+                    state.movePointer(from: nil, to: degree)
                 }
                 .onEnded { _ in
                     isPressed = false
-                    state.release(degree: degree)
+                    state.movePointer(from: degree, to: nil)
                 }
         )
     }

@@ -1,6 +1,6 @@
 @MainActor
 final class LeadMode: PerformanceMode {
-    var name: String { "Lead" }
+    var kind: ModeKind { .lead }
     var requiresClock: Bool { false }
 
     func onButtonDown(degree: Degree, state: PerformanceState) {

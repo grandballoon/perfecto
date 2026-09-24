@@ -1,6 +1,6 @@
 @MainActor
 final class RepeatMode: PerformanceMode {
-    var name: String { "Repeat" }
+    var kind: ModeKind { .repeat }
     var requiresClock: Bool { true }
 
     private var heldDegree: Degree?

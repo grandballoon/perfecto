@@ -1,6 +1,6 @@
 @MainActor
 final class StrumMode: PerformanceMode {
-    var name: String { "Strum" }
+    var kind: ModeKind { .strum }
     var requiresClock: Bool { false }
 
     /// Seconds between successive notes of the strum, low to high.

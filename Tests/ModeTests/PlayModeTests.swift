@@ -61,4 +61,49 @@ struct PlayModeTests {
 
         #expect(sink.playCalls.last?.notes == [65, 69, 72])
     }
+
+    // MARK: – Two fingers
+
+    /// Holding I, then IV, then lifting I (e.g. two fingers on the grid layout's
+    /// buttons) must leave IV sounding: the release belongs to a press that
+    /// IV already replaced.
+    @Test func liftingAnEarlierFingerKeepsTheLaterChord() {
+        let (state, sink) = makeState()
+        state.press(degree: .I)
+        state.press(degree: .IV)
+        state.release(degree: .I)
+
+        #expect(sink.stopCount == 0)
+        #expect(sink.lastPlay?.notes == [65, 69, 72])
+        #expect(state.activeDegree == .IV)
+    }
+
+    /// A finger sliding I → IV → V and lifting: each chord replaces the last
+    /// with no stop in between, and one stop at the end.
+    @Test func slidingAcrossChordsNeverLeavesAGap() {
+        let (state, sink) = makeState()
+        state.movePointer(from: nil, to: .I)
+        state.movePointer(from: .I, to: .IV)
+        state.movePointer(from: .IV, to: .V)
+        state.movePointer(from: .V, to: nil)
+
+        #expect(sink.calls.map { $0 == .stop } == [false, false, false, true])
+        #expect(state.heldDegrees.isEmpty)
+    }
+
+    /// The pointer contract holds for every mode, because PerformanceState
+    /// enforces it: a superseded release never reaches the mode.
+    @Test func noModeHearsASupersededRelease() {
+        for kind in ModeKind.allCases where kind.surface == .chords {
+            let (state, sink) = makeState()
+            state.selectMode(kind)
+            state.press(degree: .I)
+            state.press(degree: .IV)
+            sink.reset()
+            state.release(degree: .I)
+
+            #expect(sink.calls.isEmpty, "\(kind)")
+            #expect(state.heldDegrees == [.IV], "\(kind)")
+        }
+    }
 }

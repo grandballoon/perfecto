@@ -57,4 +57,15 @@ struct SequencerPlaybackTests {
         #expect(seq.currentStep == -1)
         withExtendedLifetime(state) {}
     }
+
+    /// The landscape sequencer's SEQ button, tapped while already in the
+    /// sequencer, used to re-enter the mode and stop playback.
+    @Test func tappingSeqInTheSequencerKeepsItPlaying() {
+        let (seq, clock, state) = start(bars: 1, chain: true)
+        clock.tick()
+        state.selectMode(.sequencer)   // what the SEQ button calls
+
+        #expect(seq.isPlaying)
+        withExtendedLifetime(state) {}
+    }
 }

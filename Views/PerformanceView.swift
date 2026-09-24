@@ -86,17 +86,17 @@ struct PerformanceView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 12)
 
-            if state.mode.name == "Sequencer" {
+            if state.mode.kind.surface == .sequencer {
                 SequencerView()
                     .environment(state.sequencerState)
                     .padding(.top, 8)
                     .padding(.bottom, 40)
-            } else if state.mode.name == "Looper" {
+            } else if state.mode.kind.surface == .looper {
                 LooperView()
                     .environment(state.looperState)
                     .padding(.top, 8)
             } else {
-                if state.mode.name == "Mic Sample" {
+                if state.mode.kind.surface == .micSample {
                     MicSampleView()
                         .environment(state)
                         .padding(.horizontal, 20)
@@ -131,7 +131,7 @@ struct PerformanceView: View {
 
     @ViewBuilder
     private func landscapeLayout(geo: GeometryProxy) -> some View {
-        if state.mode.name == "Sequencer" {
+        if state.mode.kind.surface == .sequencer {
             // Sequencer owns the whole screen in landscape and lays out its own
             // two-column editor/grid. No split panel.
             SequencerView()
@@ -146,7 +146,7 @@ struct PerformanceView: View {
                 // horizontal here (as in portrait) and keeps the same 88pt
                 // height. It sits at the bottom so its lower margin lines up
                 // with the function buttons in the right panel.
-                let isFullScreenMode = state.mode.name == "Looper"
+                let isFullScreenMode = state.mode.kind.surface == .looper
                 VStack(spacing: 8) {
                     Spacer(minLength: 0)
                     if !isFullScreenMode {
@@ -162,13 +162,13 @@ struct PerformanceView: View {
 
                 // Right panel: OLED + chord grid + function buttons
                 VStack(spacing: 0) {
-                    if state.mode.name == "Looper" {
+                    if state.mode.kind.surface == .looper {
                         LooperView()
                             .environment(state.looperState)
                     } else {
                         oledDisplay
                             .padding(.bottom, 8)
-                        if state.mode.name == "Mic Sample" {
+                        if state.mode.kind.surface == .micSample {
                             MicSampleView()
                                 .environment(state)
                                 .padding(.horizontal, 16)
@@ -243,11 +243,11 @@ struct PerformanceView: View {
 
     private var modeSegToggle: some View {
         HStack(spacing: 3) {
-            modeSegButton(label: "PLAY", active: state.mode.name == "Play") {
-                if state.mode.name != "Play" { state.setMode(PlayMode()) }
+            modeSegButton(label: "PLAY", active: state.mode.kind == .play) {
+                state.selectMode(.play)
             }
-            modeSegButton(label: "SEQ", active: state.mode.name == "Sequencer") {
-                if state.mode.name != "Sequencer" { state.setMode(SequencerMode(state.sequencerState)) }
+            modeSegButton(label: "SEQ", active: state.mode.kind == .sequencer) {
+                state.selectMode(.sequencer)
             }
         }
         .padding(3)

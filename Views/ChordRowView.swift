@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The seven scale-degree chord buttons laid out in a single tall, uniform-width
 /// horizontal row. A single container-level drag gesture lets the player slide a
-/// finger across buttons — releasing the previous chord and pressing the next —
+/// finger across buttons — the next chord replaces the previous without a gap —
 /// instead of having to lift and re-tap. Used in landscape when the horizontal
 /// chord-row layout is enabled in Settings.
 struct ChordRowView: View {
@@ -35,17 +35,13 @@ struct ChordRowView: View {
                     .onChanged { value in
                         let index = buttonIndex(at: value.location.x, in: geo.size.width)
                         guard pressedIndex != index else { return }
-                        if let prev = pressedIndex {
-                            state.release(degree: chords[prev].degree)
-                        }
-                        pressedIndex = index
                         haptic.impactOccurred()
-                        state.press(degree: chords[index].degree)
+                        state.movePointer(from: pressedIndex.map { chords[$0].degree },
+                                          to: chords[index].degree)
+                        pressedIndex = index
                     }
                     .onEnded { _ in
-                        if let prev = pressedIndex {
-                            state.release(degree: chords[prev].degree)
-                        }
+                        state.movePointer(from: pressedIndex.map { chords[$0].degree }, to: nil)
                         pressedIndex = nil
                     }
             )

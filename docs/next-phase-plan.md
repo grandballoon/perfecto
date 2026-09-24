@@ -1,6 +1,6 @@
 # Next Phase Plan: Chord Grid, Tonnetz, Audio
 
-> **Status (2026-09-24):** Phase 0b steps 1–2 done; see "Updated plan" for what remains.
+> **Status (2026-09-24):** Phase 0b steps 1–3 done; see "Updated plan" for what remains.
 > This document supersedes the feature list in the chat that produced it.
 
 ## Goals
@@ -212,8 +212,9 @@ Each fix starts with an end-to-end repro, as CLAUDE.md requires.
 1. ~~Strum sends no MIDI/ChordLink (A).~~ Fixed in Phase 0b step 2. Not reachable from the UI (nothing presents the mode sheet), so it was confirmed by code reading, with a regression test through `StrumMode`.
 2. ~~MIDI notes above 127 go out as status bytes (A).~~ Fixed in Phase 0b step 2. Reproduced first: B major, octave 7, vii with ↘ sent note 132 (0x84).
 3. ~~ChordLink announces the live joystick instead of the sequencer step's color (A).~~ Fixed in Phase 0b step 2. Reproduced first: a G7 step was announced as `.center` with G7's notes.
-4. Tapping SEQ in the landscape sequencer stops playback (D).
-5. `ChordColorBar` fires haptics on every move with no steps selected (E).
+4. ~~Tapping SEQ in the landscape sequencer stops playback (D).~~ Fixed in Phase 0b step 3 (`selectMode` ignores the active mode). Reproduced first through the call the button makes.
+5. ~~`ChordColorBar` fires haptics on every move with no steps selected (E).~~ Fixed in Phase 0b step 3: the bar dedupes by the section under the finger, like `DegreeRingView`. SwiftUI gestures aren't unit-testable here, so this one was confirmed by code reading.
+5a. ~~With two fingers down, lifting the earlier one ends the later chord (E).~~ Found and fixed in Phase 0b step 3; reachable with the grid layout's buttons. Reproduced first: hold I, hold IV, lift I stopped IV.
 6. ~~Lead mode octave error in pentatonic scales (C).~~ No longer reachable now that pentatonic scales are hidden; `leadNote` uses `ScaleType.offset(of:)` since Phase 0b step 1.
 7. ~~Degree buttons show major-key numerals in every scale (C).~~ Fixed in Phase 0b step 1 (`degreeNumeral`).
 8. Route change restarts the engine in External Synth mode (G).
@@ -238,6 +239,10 @@ Several of these disappear naturally with Phase 0b; fix them there if the interf
    Lead and arpeggio notes still announce the chord they belong to with a one-note voicing; ChordLink v2 (step 4) should decide whether single notes get their own frame kind.
    Strum timing still uses `Task.sleep` (group F).
 3. **Pointer contract + shared gesture adapter** (E), and **mode kind + mode-to-surface mapping** (D). Together these make the secondary UI swappable.
+   *Done (2026-09-24).* `ModeKind` identifies modes (display name, summary, `ModeSurface`); views route by surface and toggle with `selectMode`, which ignores the active mode.
+   `PerformanceMode`'s doc states the button contract, and `PerformanceState` enforces it: it tracks `heldDegrees`, and a mode hears `onButtonUp` only for the most recent press.
+   All chord surfaces (button, circle, row) report through `movePointer(from:to:)`, which presses the new degree before releasing the old, so slides have no gap and no double stop.
+   The mode sheet is still never presented (Open decision 4).
 4. **Versioned persistence and ChordLink v2** (B), coordinated with Harmonicland through `chordlink.md`. Explicit numbering tables for every enum on the wire, failing loudly on unknown cases.
 5. **Musical time** (F). Clock owns tempo; multi-subscriber ticks; one scheduling function for live and export.
 6. **Audio graph owner** (G). Named insertion points and one session owner. Only needed before goals 4–6, so it can move later.
