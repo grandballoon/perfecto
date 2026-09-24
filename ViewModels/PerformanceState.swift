@@ -1,5 +1,27 @@
 import Observation
 
+enum ChordGridLayout: CaseIterable {
+    case grid
+    case circle
+    case horizontalBar
+
+    var displayName: String {
+        switch self {
+        case .grid:          return "Grid"
+        case .circle:        return "Circle"
+        case .horizontalBar: return "Horizontal bar"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .grid:          return "Default staggered Nashville grid."
+        case .circle:        return "Root chord in the centre, six chords arranged clockwise around the edge."
+        case .horizontalBar: return "In landscape, one tall row of all seven chords. Portrait uses the grid."
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class PerformanceState {
@@ -9,9 +31,7 @@ final class PerformanceState {
     var synthPreset: SynthPreset = .sinePad
     var bpm: Double = 120
 
-    /// When enabled, landscape shows the seven chord buttons in one tall,
-    /// uniform-width horizontal row on the right instead of the staggered grid.
-    var horizontalLandscapeChords = false
+    var chordGridLayout: ChordGridLayout = .circle
 
     /// Which press-and-hold key quick-selector is wired to the KEY button.
     /// Two candidates ship side by side for on-device comparison; see `KeyQuickSelect`.
@@ -80,6 +100,11 @@ final class PerformanceState {
         clock.bpm = value
     }
 
+    /// Clock resolution (ticks per quarter-note beat), surfaced for tempo-aware
+    /// modes that schedule musical durations. Sourced from the injected clock so
+    /// a change to the clock's resolution propagates to every mode automatically.
+    var ticksPerBeat: Int { clock.ticksPerBeat }
+
     func setSynthPreset(_ preset: SynthPreset) {
         synthPreset = preset
         engine?.setPreset(preset)
@@ -109,7 +134,7 @@ final class PerformanceState {
         activeDegree = degree
         let voicing = makeVoicing(for: degree)
         currentVoicing = voicing
-        activeVoicingText = displayText(degree: degree, voicing: voicing)
+        activeVoicingText = displayText(degree: degree)
         logger?.log(.chord_button_pressed(
             degree: degree.rawValue,
             key: "\(key.root.name) \(key.scale.displayName)",
@@ -125,11 +150,16 @@ final class PerformanceState {
         activeDegree = degree
         let voicing = makeVoicing(for: degree)
         currentVoicing = voicing
-        activeVoicingText = displayText(degree: degree, voicing: voicing)
+        activeVoicingText = displayText(degree: degree)
     }
 
-    /// Stop audio without touching the OLED display — for rhythmic retriggering.
-    func stopAudioOnly() {
+    /// Stop the sounding chord on *every* sink — audio note-off, MIDI note-off,
+    /// and a ChordLink release all fire — while leaving the OLED display and the
+    /// active-gesture state (`activeDegree`, `currentVoicing`) untouched, so a
+    /// tempo-aware mode can retrigger. Contrast `endChord()`, which also clears
+    /// the display and ends the gesture. (The old name "stopAudioOnly" hid that
+    /// this reaches MIDI and ChordLink, not just audio.)
+    func stopSounding() {
         sink.stopChord()
     }
 
@@ -151,7 +181,7 @@ final class PerformanceState {
         let voicing = makeVoicing(for: degree)
         activeDegree = degree
         currentVoicing = voicing
-        activeVoicingText = displayText(degree: degree, voicing: voicing)
+        activeVoicingText = displayText(degree: degree)
         if let engine {
             engine.strumChord(voicing)
         } else {
@@ -167,7 +197,7 @@ final class PerformanceState {
         let voicing = Voicing(notes: [midiNote])
         activeDegree = degree
         currentVoicing = voicing
-        activeVoicingText = displayText(degree: degree, voicing: voicing)
+        activeVoicingText = displayText(degree: degree)
         sink.playChord(voicing)
         logger?.log(.chord_played(notes: voicing.notes, source: .button))
     }
@@ -203,7 +233,7 @@ final class PerformanceState {
         activeDegree = degree
         let voicing = makeVoicing(for: degree, joystickMode: joystickMode, joystickDirection: joystickDirection)
         currentVoicing = voicing
-        activeVoicingText = displayText(degree: degree, voicing: voicing)
+        activeVoicingText = displayText(degree: degree, mode: joystickMode, direction: joystickDirection)
         sink.playChord(voicing)
         logger?.log(.chord_played(notes: voicing.notes, source: .sequencer))
     }
@@ -225,61 +255,17 @@ final class PerformanceState {
         )
     }
 
-    private func displayText(degree: Degree, voicing: Voicing) -> String {
-        let intervals = key.scale.intervals
-        let degreeOffset = intervals[degree.index % intervals.count]
-        let root = PitchClass(rawValue: (key.root.rawValue + degreeOffset) % 12)!
-        let quality = qualityLabel(for: degree, direction: joystickDirection, mode: joystickMode)
-        return "\(root.name) \(quality)"
-    }
-
-    private func qualityLabel(for degree: Degree,
-                               direction: JoystickDirection,
-                               mode: JoystickMode) -> String {
-        guard direction != .center else {
-            switch degree {
-            case .I, .IV, .V:    return "maj"
-            case .ii, .iii, .vi: return "min"
-            case .viiDim:        return "dim"
-            }
-        }
-        switch mode {
-        case .default:
-            switch direction {
-            case .up:        return "flip 3rd"
-            case .upRight:   return "dom7"
-            case .right:     return "maj7"
-            case .downRight: return "add9"
-            case .down:      return "sus4"
-            case .downLeft:  return "6/sus2"
-            case .left:      return "dim"
-            case .upLeft:    return "aug"
-            case .center:    return "maj"
-            }
-        case .extended:
-            switch direction {
-            case .up:        return "flip 3rd"
-            case .upRight:   return "dom9"
-            case .right:     return "add11"
-            case .downRight: return "min11"
-            case .down:      return "7♯9"
-            case .downLeft:  return "add9"
-            case .left:      return "sus4 7"
-            case .upLeft:    return "½dim7"
-            case .center:    return "maj"
-            }
-        case .chromatic:
-            switch direction {
-            case .up:        return "minmaj7"
-            case .upRight:   return "dom13"
-            case .right:     return "6/9"
-            case .downRight: return "7alt"
-            case .down:      return "maj13"
-            case .downLeft:  return "7♭9"
-            case .left:      return "½dim7"
-            case .upLeft:    return "maj7♯11"
-            case .center:    return "maj"
-            }
-        }
+    /// The chord name shown on the OLED display. Derived entirely from the core
+    /// (`chordLabel`), which reads the same base quality and JoystickMap entry
+    /// that produce the notes — so the label can never disagree with what sounds.
+    /// `mode`/`direction` default to the live joystick but are passed explicitly
+    /// for sequencer steps, which carry their own per-step joystick selection.
+    private func displayText(degree: Degree,
+                             mode: JoystickMode? = nil,
+                             direction: JoystickDirection? = nil) -> String {
+        chordLabel(key: key,
+                   degree: degree,
+                   joystickMode: mode ?? joystickMode,
+                   joystickDirection: direction ?? joystickDirection)
     }
 }

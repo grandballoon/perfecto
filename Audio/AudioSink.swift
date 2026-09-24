@@ -27,7 +27,7 @@ final class AudioSink: ChordEventSink {
         // play back ~1.5 semitones flat. configureSession() below keeps this in sync
         // across engine restarts as well.
         try? AVAudioSession.sharedInstance().setCategory(
-            .playAndRecord, mode: .default, options: [.mixWithOthers, .defaultToSpeaker])
+            .playAndRecord, mode: .default, options: Self.sessionOptions)
         try? AVAudioSession.sharedInstance().setActive(true)
         Settings.sampleRate = AVAudioSession.sharedInstance().sampleRate
 
@@ -95,11 +95,18 @@ final class AudioSink: ChordEventSink {
         }
     }
 
+    // .playAndRecord blocks AirPlay and A2DP Bluetooth unless explicitly allowed.
+    // Allowing them lets the user route output to a Mac (AirPlay Receiver) or a
+    // Bluetooth speaker/headphones while the mic stays on the built-in input.
+    private static let sessionOptions: AVAudioSession.CategoryOptions = [
+        .mixWithOthers, .defaultToSpeaker, .allowAirPlay, .allowBluetoothA2DP,
+    ]
+
     private func configureSession() throws {
         try AVAudioSession.sharedInstance().setCategory(
             .playAndRecord,
             mode: .default,
-            options: [.mixWithOthers, .defaultToSpeaker]
+            options: Self.sessionOptions
         )
         try AVAudioSession.sharedInstance().setActive(true)
         // Re-sync Settings.sampleRate in case engine.start() reset it.

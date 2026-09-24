@@ -1,8 +1,10 @@
+import AVKit
 import SwiftUI
 
 struct SoundSheet: View {
     @Environment(PerformanceState.self) private var state
     @Environment(\.dismiss) private var dismiss
+    @State private var outputName = SoundSheet.currentOutputName()
 
     var body: some View {
         NavigationStack {
@@ -28,6 +30,25 @@ struct SoundSheet: View {
                     }
                 } header: {
                     sectionLabel("SYNTH")
+                }
+
+                Section {
+                    HStack {
+                        Text(outputName)
+                            .font(.system(size: 15, design: .monospaced))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Spacer()
+                        RoutePicker()
+                            .frame(width: 32, height: 32)
+                    }
+                    .listRowBackground(Color(white: 0.1))
+                } header: {
+                    sectionLabel("OUTPUT")
+                } footer: {
+                    Text("Send audio to a Mac via AirPlay, or to Bluetooth speakers.")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(Color(white: 0.3))
                 }
 
                 Section {
@@ -60,6 +81,15 @@ struct SoundSheet: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onReceive(NotificationCenter.default.publisher(
+            for: AVAudioSession.routeChangeNotification
+        ).receive(on: RunLoop.main)) { _ in
+            outputName = Self.currentOutputName()
+        }
+    }
+
+    private static func currentOutputName() -> String {
+        AVAudioSession.sharedInstance().currentRoute.outputs.first?.portName ?? "No output"
     }
 
     private func sectionLabel(_ text: String) -> some View {
@@ -68,4 +98,17 @@ struct SoundSheet: View {
             .foregroundStyle(Color(white: 0.4))
             .kerning(2)
     }
+}
+
+/// System AirPlay/Bluetooth output picker.
+private struct RoutePicker: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let picker = AVRoutePickerView()
+        picker.tintColor = UIColor(white: 0.6, alpha: 1)
+        picker.activeTintColor = .systemOrange
+        picker.prioritizesVideoDevices = false
+        return picker
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
