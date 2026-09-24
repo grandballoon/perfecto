@@ -1,7 +1,7 @@
 @testable import Perfecto
 
 /// Test double for ClockTickable. Exposes tick() so tests control timing precisely.
-/// Does not use any Timemmr — ticks only when the test calls tick().
+/// Does not use any Timer — ticks only when the test calls tick().
 @MainActor
 final class ManualClock: ClockTickable {
     var bpm: Double = 120
