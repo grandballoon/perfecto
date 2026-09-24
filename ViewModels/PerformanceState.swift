@@ -229,6 +229,21 @@ final class PerformanceState {
                       gate:    micGate)
     }
 
+    /// The sequencer pattern exactly as playback runs through it, in the
+    /// current key, octave and tempo — ready to share as a MIDI file.
+    var sequencerMidiExport: SequencerMidiExport {
+        let pattern = SequencerPattern(steps: sequencerState.playedSteps,
+                                       key: key,
+                                       octave: octave,
+                                       bpm: bpm,
+                                       stepsPerBeat: ticksPerBeat)
+        return SequencerMidiExport(pattern: pattern) { [weak self] noteCount, byteCount in
+            self?.logger?.log(.sequencer_midi_exported(stepCount: pattern.steps.count,
+                                                       noteCount: noteCount,
+                                                       byteCount: byteCount))
+        }
+    }
+
     func playSequencerStep(degree: Degree, joystickMode: JoystickMode, joystickDirection: JoystickDirection) {
         activeDegree = degree
         let voicing = makeVoicing(for: degree, joystickMode: joystickMode, joystickDirection: joystickDirection)
@@ -243,14 +258,12 @@ final class PerformanceState {
     private func makeVoicing(for degree: Degree,
                               joystickMode: JoystickMode? = nil,
                               joystickDirection: JoystickDirection? = nil) -> Voicing {
-        computeVoicing(
+        performanceVoicing(
             key: key,
+            octave: octave,
             degree: degree,
             joystickMode: joystickMode ?? self.joystickMode,
             joystickDirection: joystickDirection ?? self.joystickDirection,
-            inversion: .root,
-            octave: octave,
-            voiceLeading: false,
             previousVoicing: currentVoicing
         )
     }

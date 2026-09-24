@@ -55,6 +55,18 @@ struct SequencerBarsTests {
         #expect(state.bars == 4)
     }
 
+    @Test func playedStepsFollowChainMode() {
+        let state = makeState()
+        state.setBars(2)
+        state.steps[20].degree = .V
+        #expect(state.playedSteps.count == 32)
+
+        state.chain = false
+        state.currentPage = 1
+        #expect(state.playedSteps.count == 16)
+        #expect(state.playedSteps[4].degree == .V)
+    }
+
     @Test func settingTheSameBarCountIsNotUndoable() {
         let state = makeState()
         state.setBars(1)

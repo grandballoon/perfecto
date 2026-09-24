@@ -288,7 +288,7 @@ The mode-facing API on `PerformanceState` â€” what modes are permitted to call â
 |---|---|
 | `startChord(degree:)` | Compute voicing + play + update display |
 | `armChord(degree:)` | Compute voicing + update display, no audio (for clock-driven modes) |
-| `stopAudioOnly()` | Stop audio without clearing OLED display (rhythmic retriggering) |
+| `stopSounding()` | Stop the chord on every sink (audio + MIDI + ChordLink note-off/release) without clearing the OLED display or active gesture (rhythmic retriggering) |
 | `playNote(_:)` | Play a single MIDI note (arpeggiator) |
 | `strumChord(degree:)` | Play chord with strum timing |
 | `leadNote(degree:)` | Play single scale note for Lead mode |

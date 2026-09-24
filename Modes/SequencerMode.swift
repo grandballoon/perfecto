@@ -52,7 +52,7 @@ final class SequencerMode: PerformanceMode {
         //    the clearly-audible top of the range.
         //  • otherwise → release after `gate` fraction of the step (staccato as
         //    the value drops).
-        guard step.gate < 0.98 else { return }
+        guard !step.isTied else { return }
         // One sequencer step spans one clock tick; derive its length from the
         // clock's own resolution rather than re-hardcoding the 1/16-note divisor.
         let stepSecs = 60.0 / state.bpm / Double(state.ticksPerBeat)

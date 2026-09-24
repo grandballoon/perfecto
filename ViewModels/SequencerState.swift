@@ -8,6 +8,11 @@ struct SequencerStep {
     var isRest: Bool = false
 
     var label: String { isRest ? "—" : degree.numeralLabel }
+
+    /// Gates this close to 100% tie: the chord rings into the next step
+    /// instead of being released, the clearly-audible top of the gate range.
+    static let tieThreshold = 0.98
+    var isTied: Bool { gate >= Self.tieThreshold }
 }
 
 extension Degree {
@@ -50,6 +55,14 @@ final class SequencerState {
     /// The bar counts the UI offers, in order — also drives the "add bar" step.
     static let barOptions = [1, 2, 4]
     static let stepsPerBar = 16
+
+    /// The steps playback runs through, in order: every bar in chain mode,
+    /// otherwise just the visible bar, which is the one that loops.
+    var playedSteps: [SequencerStep] {
+        guard !chain else { return steps }
+        let base = currentPage * Self.stepsPerBar
+        return Array(steps[base ..< min(base + Self.stepsPerBar, steps.count)])
+    }
 
     /// One undoable state: the pattern, its length, and the step selection, so
     /// Undo rewinds selection changes the same way it rewinds chord edits.

@@ -12,6 +12,7 @@ Tests/
 │   └── Expect+Voicing.swift      — #expect helpers for Voicing assertions
 ├── ModeTests/          — per-mode tests using recording doubles
 │   └── PlayModeTests.swift
+├── ExportTests/        — sequencer → Standard MIDI File rendering
 ├── SinkTests/          — (Phase 2) MidiSinkTests
 ├── LoggingTests/       — (Phase 3) LoggerTests
 └── PermissionTests/    — (Phase 4) MicrophonePermissionTests

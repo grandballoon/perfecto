@@ -74,6 +74,7 @@ struct SequencerView: View {
                     HStack(spacing: 12) {
                         Spacer(minLength: 0)
                         bpmControl
+                        exportButton
                         clearButton
                         deselectButton
                     }
@@ -99,11 +100,14 @@ struct SequencerView: View {
     // Play now lives in the lower-right, above the coloration bar (see the
     // overlay in `stepEditorPanel`), so the top row carries only BPM and Clear.
     private var transportBar: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             bpmControl
             Spacer(minLength: 0)
-            clearButton
-            deselectButton
+            HStack(spacing: 8) {
+                exportButton
+                clearButton
+                deselectButton
+            }
         }
     }
 
@@ -153,6 +157,25 @@ struct SequencerView: View {
                 )
         }
         .buttonStyle(.plain)
+    }
+
+    /// Shares the pattern as it plays (current key, octave and tempo) as a
+    /// `.mid` file. Disabled when every played step is a rest — there would be
+    /// nothing in the file.
+    private var exportButton: some View {
+        let isEmpty = seqState.playedSteps.allSatisfy(\.isRest)
+        return ShareLink(item: perfState.sequencerMidiExport,
+                         preview: SharePreview("Perfecto MIDI pattern",
+                                               image: Image(systemName: "pianokeys"))) {
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(isEmpty ? Color(white: 0.3) : Color(white: 0.6))
+                .frame(width: 34, height: 29)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color(white: 0.12)))
+        }
+        .buttonStyle(.plain)
+        .disabled(isEmpty)
+        .accessibilityLabel("Export MIDI")
     }
 
     private var clearButton: some View {
@@ -612,7 +635,7 @@ struct SequencerView: View {
     /// crisp at the bottom, tied/legato at the very top.
     private func gateLabel(_ gate: Double) -> String {
         let pct = Int(gate * 100)
-        if gate >= 0.98 { return "Gate \(pct)% · tie" }
+        if gate >= SequencerStep.tieThreshold { return "Gate \(pct)% · tie" }
         if gate <= 0.30 { return "Gate \(pct)% · staccato" }
         return "Gate \(pct)%"
     }

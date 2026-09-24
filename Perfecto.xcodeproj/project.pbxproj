@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E7A000000000000000000002 /* MidiFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000001 /* MidiFile.swift */; };
+		E7A000000000000000000004 /* PerformanceVoicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000003 /* PerformanceVoicing.swift */; };
+		E7A000000000000000000006 /* SequencerMidiRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000005 /* SequencerMidiRenderer.swift */; };
+		E7A000000000000000000008 /* SequencerMidiExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000007 /* SequencerMidiExport.swift */; };
+		E7A00000000000000000000A /* SequencerMidiRendererTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000009 /* SequencerMidiRendererTests.swift */; };
 		05B00B09A2EC9FA4D40A43F0 /* JoystickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A005FBDBD201E0E82068BD1 /* JoystickView.swift */; };
 		127D4567FB6CAA5C37D09E0A /* PerformanceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F62B3A63EFEA69395677B0 /* PerformanceState.swift */; };
 		132354CBD3FCEB8F5BBBDBEC /* Key.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */; };
@@ -89,6 +94,11 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		E7A000000000000000000001 /* MidiFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiFile.swift; sourceTree = "<group>"; };
+		E7A000000000000000000003 /* PerformanceVoicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceVoicing.swift; sourceTree = "<group>"; };
+		E7A000000000000000000005 /* SequencerMidiRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerMidiRenderer.swift; sourceTree = "<group>"; };
+		E7A000000000000000000007 /* SequencerMidiExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerMidiExport.swift; sourceTree = "<group>"; };
+		E7A000000000000000000009 /* SequencerMidiRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerMidiRendererTests.swift; sourceTree = "<group>"; };
 		044A454352EB036A9EF35C95 /* PerformanceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMode.swift; sourceTree = "<group>"; };
 		065803FA05F0D5336C0F3AD3 /* ArpeggioMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArpeggioMode.swift; sourceTree = "<group>"; };
 		0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Key.swift; sourceTree = "<group>"; };
@@ -209,6 +219,23 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		E7A00000000000000000000B /* Export */ = {
+			isa = PBXGroup;
+			children = (
+				E7A000000000000000000007 /* SequencerMidiExport.swift */,
+				E7A000000000000000000005 /* SequencerMidiRenderer.swift */,
+			);
+			path = Export;
+			sourceTree = "<group>";
+		};
+		E7A00000000000000000000C /* ExportTests */ = {
+			isa = PBXGroup;
+			children = (
+				E7A000000000000000000009 /* SequencerMidiRendererTests.swift */,
+			);
+			path = ExportTests;
+			sourceTree = "<group>";
+		};
 		1803DCC66A2D550A4C56D4E9 /* Audio */ = {
 			isa = PBXGroup;
 			children = (
@@ -272,6 +299,7 @@
 		8D2F0BCFA958B2C26A3CA55E /* MusicTheoryCore */ = {
 			isa = PBXGroup;
 			children = (
+				E7A000000000000000000001 /* MidiFile.swift */,
 				C1B000000000000000000001 /* ChordWire.swift */,
 				6FBA429F85D9C4510F59C804 /* ComputeVoicing.swift */,
 				9D166369984572EF3023797E /* Degree.swift */,
@@ -312,6 +340,7 @@
 				944B624F5339E9F9EFB40021 /* App */,
 				1803DCC66A2D550A4C56D4E9 /* Audio */,
 				B2B6A3C109C5BC5EF6E6FD8C /* Core */,
+				E7A00000000000000000000B /* Export */,
 				910EE5F73843C83A6A1D9112 /* MIDI */,
 				A66B7480B3BE49079FBD26FB /* Modes */,
 				61713468985FC25437200DCC /* Perfecto */,
@@ -325,6 +354,7 @@
 		A66B7480B3BE49079FBD26FB /* Modes */ = {
 			isa = PBXGroup;
 			children = (
+				E7A000000000000000000003 /* PerformanceVoicing.swift */,
 				065803FA05F0D5336C0F3AD3 /* ArpeggioMode.swift */,
 				B4215305547173D822A94E9E /* DroneMode.swift */,
 				DC5092B5C48527A4CDE2ADA0 /* LeadMode.swift */,
@@ -412,6 +442,7 @@
 			isa = PBXGroup;
 			children = (
 				CCDD000000000000000000A2 /* Helpers */,
+				E7A00000000000000000000C /* ExportTests */,
 				CCDD000000000000000000A3 /* ModeTests */,
 				CCDD000000000000000000D3 /* SinkTests */,
 				CCDD0000000000000000330A /* LoggingTests */,
@@ -578,6 +609,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E7A000000000000000000008 /* SequencerMidiExport.swift in Sources */,
+				E7A000000000000000000006 /* SequencerMidiRenderer.swift in Sources */,
+				E7A000000000000000000004 /* PerformanceVoicing.swift in Sources */,
+				E7A000000000000000000002 /* MidiFile.swift in Sources */,
 				CCDD00000000000000003302 /* Logger.swift in Sources */,
 				CCDD00000000000000003304 /* LogEvent.swift in Sources */,
 				CCDD00000000000000003306 /* FileLogger.swift in Sources */,
@@ -644,6 +679,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E7A00000000000000000000A /* SequencerMidiRendererTests.swift in Sources */,
 				CCDD000000000000000000B2 /* RecordingSink.swift in Sources */,
 				CCDD000000000000000000B4 /* ManualClock.swift in Sources */,
 				D5E9A2000000000000000B01 /* IsolatedDefaults.swift in Sources */,

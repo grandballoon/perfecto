@@ -69,22 +69,19 @@ struct PerformanceView: View {
 
     private var portraitLayout: some View {
         VStack(spacing: 0) {
-            statusColumn(label: "KEY",
-                         value: "\(state.key.root.name) \(state.key.scale.displayName)")
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // The OLED shares the top row with the settings gear, inset past
+            // it and top-aligned with it. The current key lives in the KEY
+            // chit below rather than in a separate status label.
+            oledDisplay
                 .padding(.leading, 66)
                 .padding(.trailing, 24)
-                .padding(.top, 16)
-
-            oledDisplay
-                .padding(.horizontal, 24)
-                .padding(.top, 16)
+                .padding(.top, 12)
 
             // The chits sit a uniform distance below the note display in every
             // mode: play/lead/etc. anchor them here (a single Spacer below pushes
             // the input strip to the bottom), and the full-screen modes get the
             // same gap instead of butting straight against the OLED.
-            functionButtons
+            portraitFunctionButtons
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .padding(.bottom, 12)
@@ -225,8 +222,19 @@ struct PerformanceView: View {
     private var functionButtons: some View {
         @Bindable var state = state
         return HStack(spacing: 10) {
-            keyQuickButton
+            keyQuickButton(label: "KEY")
             modeSegToggle
+            toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
+        }
+    }
+
+    /// Portrait puts the KEY chit in the center and labels it with the
+    /// current key (e.g. "C Major"), replacing the old top-left status label.
+    private var portraitFunctionButtons: some View {
+        @Bindable var state = state
+        return HStack(spacing: 10) {
+            modeSegToggle
+            keyQuickButton(label: "\(state.key.root.name) \(state.key.scale.displayName)")
             toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
         }
     }
@@ -265,8 +273,8 @@ struct PerformanceView: View {
 
     // MARK: – KEY button: tap opens the sheet, press-and-hold quick-selects
 
-    private var keyQuickButton: some View {
-        functionButton(label: "KEY") { showKeySheet = true }
+    private func keyQuickButton(label: String) -> some View {
+        functionButton(label: label) { showKeySheet = true }
             .background(
                 GeometryReader { g in
                     Color.clear
@@ -405,20 +413,6 @@ struct PerformanceView: View {
 
     // MARK: – Helpers
 
-    private func statusColumn(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                .foregroundStyle(Color(white: 0.32))
-                .kerning(1.5)
-            Text(value)
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundStyle(Color(white: 0.6))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-        }
-    }
-
     private func toggleButton(label: String, isOn: Binding<Bool>) -> some View {
         Button { isOn.wrappedValue.toggle() } label: {
             Text(label)
@@ -444,6 +438,9 @@ struct PerformanceView: View {
             Text(label)
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color(white: 0.85))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .padding(.horizontal, 6)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
                 .background(

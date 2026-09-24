@@ -52,6 +52,9 @@ enum LogEvent {
     case chord_played(notes: [Int], source: ChordSource)
     case chord_stopped(notes: [Int], source: ChordSource)
 
+    // Export
+    case sequencer_midi_exported(stepCount: Int, noteCount: Int, byteCount: Int)
+
     // Permissions
     case permission_state_observed(permission: String, state: String)
     case permission_pre_prompt_shown(permission: String, feature: String)
@@ -156,6 +159,11 @@ extension LogEvent: Encodable {
             try c.encode("chord_stopped", forKey: Key("type"))
             try c.encode(notes,  forKey: Key("notes"))
             try c.encode(source, forKey: Key("source"))
+        case let .sequencer_midi_exported(stepCount, noteCount, byteCount):
+            try c.encode("sequencer_midi_exported", forKey: Key("type"))
+            try c.encode(stepCount, forKey: Key("stepCount"))
+            try c.encode(noteCount, forKey: Key("noteCount"))
+            try c.encode(byteCount, forKey: Key("byteCount"))
         case let .permission_state_observed(permission, state):
             try c.encode("permission_state_observed", forKey: Key("type"))
             try c.encode(permission, forKey: Key("permission"))
