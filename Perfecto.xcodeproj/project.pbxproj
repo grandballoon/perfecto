@@ -18,6 +18,7 @@
 		4208FE1C625C18BCAA7F3F4E /* ModeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 159DFDCE7DED7B73D8692A21 /* ModeSheet.swift */; };
 		460B3ADC3A68D1D3CFC48460 /* ChordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A16BDCF64F055622DF991C /* ChordButton.swift */; };
 		AA9900112233445566778800 /* ChordBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9900112233445566778811 /* ChordBarView.swift */; };
+		AA9900112233445566779900 /* ChordColorBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9900112233445566779911 /* ChordColorBar.swift */; };
 		BB9900112233445566778800 /* RingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB9900112233445566778811 /* RingView.swift */; };
 		CC9900112233445566778800 /* ChordRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9900112233445566778811 /* ChordRowView.swift */; };
 		DD9900112233445566778800 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9900112233445566778811 /* SettingsSheet.swift */; };
@@ -131,6 +132,7 @@
 		EE1122334455667788990011 /* Looper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Looper.swift; sourceTree = "<group>"; };
 		EE1122334455667788993300 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA9900112233445566778811 /* ChordBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordBarView.swift; sourceTree = "<group>"; };
+		AA9900112233445566779911 /* ChordColorBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordColorBar.swift; sourceTree = "<group>"; };
 		BB9900112233445566778811 /* RingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingView.swift; sourceTree = "<group>"; };
 		CC9900112233445566778811 /* ChordRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordRowView.swift; sourceTree = "<group>"; };
 		DD9900112233445566778811 /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
@@ -332,6 +334,7 @@
 			children = (
 				6B997445A9C3FF55AD7DB863 /* Sheets */,
 				AA9900112233445566778811 /* ChordBarView.swift */,
+				AA9900112233445566779911 /* ChordColorBar.swift */,
 				BB9900112233445566778811 /* RingView.swift */,
 				CC9900112233445566778811 /* ChordRowView.swift */,
 				F8A16BDCF64F055622DF991C /* ChordButton.swift */,
@@ -569,6 +572,7 @@
 				B39DB497530034E802D3B1D6 /* ArpeggioMode.swift in Sources */,
 				E5C2BA39D35F583002D6FC8B /* AudioSink.swift in Sources */,
 				AA9900112233445566778800 /* ChordBarView.swift in Sources */,
+				AA9900112233445566779900 /* ChordColorBar.swift in Sources */,
 				BB9900112233445566778800 /* RingView.swift in Sources */,
 				CC9900112233445566778800 /* ChordRowView.swift in Sources */,
 				DD9900112233445566778800 /* SettingsSheet.swift in Sources */,
