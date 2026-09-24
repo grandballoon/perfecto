@@ -12,12 +12,12 @@ struct ChordRowView: View {
 
     private let chords: [(degree: Degree, label: String, color: Color)] = [
         (.I,      "I",    .orange),
-        (.ii,     "ii",   .blue),
-        (.iii,    "iii",  .indigo),
+        (.ii,     "ii",   .orange),
+        (.iii,    "iii",  .orange),
         (.IV,     "IV",   .orange),
         (.V,      "V",    .orange),
-        (.vi,     "vi",   .blue),
-        (.viiDim, "vii°", .purple),
+        (.vi,     "vi",   .orange),
+        (.viiDim, "vii°", .orange),
     ]
 
     @State private var pressedIndex: Int? = nil
