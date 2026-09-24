@@ -5,15 +5,11 @@
 /// exported pattern always contains exactly the notes that were heard.
 func performanceVoicing(key: Key,
                         octave: Int,
-                        degree: Degree,
-                        joystickMode: JoystickMode,
-                        joystickDirection: JoystickDirection,
+                        spec: ChordSpec,
                         previousVoicing: Voicing?) -> Voicing {
     computeVoicing(
         key: key,
-        degree: degree,
-        joystickMode: joystickMode,
-        joystickDirection: joystickDirection,
+        spec: spec,
         inversion: .root,
         octave: octave,
         voiceLeading: false,

@@ -43,6 +43,8 @@ final class PerformanceState {
 
     private(set) var mode: any PerformanceMode = PlayMode()
     private(set) var joystickDirection: JoystickDirection = .center
+    /// The live chord color, from whichever input surface is active.
+    var color: ChordColor { .joystick(joystickMode, joystickDirection) }
     private(set) var activeDegree: Degree? = nil
     private(set) var currentVoicing: Voicing? = nil
     private(set) var activeVoicingText = "—"
@@ -131,10 +133,11 @@ final class PerformanceState {
     // MARK: – Mode-facing API
 
     func startChord(degree: Degree) {
+        let spec = ChordSpec(degree: degree, color: color)
         activeDegree = degree
-        let voicing = makeVoicing(for: degree)
+        let voicing = makeVoicing(for: spec)
         currentVoicing = voicing
-        activeVoicingText = displayText(degree: degree)
+        activeVoicingText = chordLabel(key: key, spec: spec)
         logger?.log(.chord_button_pressed(
             degree: degree.rawValue,
             key: "\(key.root.name) \(key.scale.displayName)",
@@ -147,10 +150,11 @@ final class PerformanceState {
 
     /// Sets up voicing state without triggering audio — for clock-driven modes.
     func armChord(degree: Degree) {
+        let spec = ChordSpec(degree: degree, color: color)
         activeDegree = degree
-        let voicing = makeVoicing(for: degree)
+        let voicing = makeVoicing(for: spec)
         currentVoicing = voicing
-        activeVoicingText = displayText(degree: degree)
+        activeVoicingText = chordLabel(key: key, spec: spec)
     }
 
     /// Stop the sounding chord on *every* sink — audio note-off, MIDI note-off,
@@ -178,10 +182,11 @@ final class PerformanceState {
     }
 
     func strumChord(degree: Degree) {
-        let voicing = makeVoicing(for: degree)
+        let spec = ChordSpec(degree: degree, color: color)
+        let voicing = makeVoicing(for: spec)
         activeDegree = degree
         currentVoicing = voicing
-        activeVoicingText = displayText(degree: degree)
+        activeVoicingText = chordLabel(key: key, spec: spec)
         if let engine {
             engine.strumChord(voicing)
         } else {
@@ -191,13 +196,11 @@ final class PerformanceState {
     }
 
     func leadNote(degree: Degree) {
-        let intervals = key.scale.intervals
-        let offset = intervals[degree.index % intervals.count]
-        let midiNote = key.root.rawValue + (octave + 1) * 12 + offset
+        let midiNote = key.root.rawValue + (octave + 1) * 12 + key.scale.offset(of: degree)
         let voicing = Voicing(notes: [midiNote])
         activeDegree = degree
         currentVoicing = voicing
-        activeVoicingText = displayText(degree: degree)
+        activeVoicingText = chordLabel(key: key, spec: ChordSpec(degree: degree, color: color))
         sink.playChord(voicing)
         logger?.log(.chord_played(notes: voicing.notes, source: .button))
     }
@@ -244,41 +247,23 @@ final class PerformanceState {
         }
     }
 
-    func playSequencerStep(degree: Degree, joystickMode: JoystickMode, joystickDirection: JoystickDirection) {
-        activeDegree = degree
-        let voicing = makeVoicing(for: degree, joystickMode: joystickMode, joystickDirection: joystickDirection)
+    /// Plays a sequencer step, which carries its own chord color rather than
+    /// the live one.
+    func playSequencerStep(_ spec: ChordSpec) {
+        activeDegree = spec.degree
+        let voicing = makeVoicing(for: spec)
         currentVoicing = voicing
-        activeVoicingText = displayText(degree: degree, mode: joystickMode, direction: joystickDirection)
+        activeVoicingText = chordLabel(key: key, spec: spec)
         sink.playChord(voicing)
         logger?.log(.chord_played(notes: voicing.notes, source: .sequencer))
     }
 
     // MARK: – Private
 
-    private func makeVoicing(for degree: Degree,
-                              joystickMode: JoystickMode? = nil,
-                              joystickDirection: JoystickDirection? = nil) -> Voicing {
-        performanceVoicing(
-            key: key,
-            octave: octave,
-            degree: degree,
-            joystickMode: joystickMode ?? self.joystickMode,
-            joystickDirection: joystickDirection ?? self.joystickDirection,
-            previousVoicing: currentVoicing
-        )
-    }
-
-    /// The chord name shown on the OLED display. Derived entirely from the core
-    /// (`chordLabel`), which reads the same base quality and JoystickMap entry
-    /// that produce the notes — so the label can never disagree with what sounds.
-    /// `mode`/`direction` default to the live joystick but are passed explicitly
-    /// for sequencer steps, which carry their own per-step joystick selection.
-    private func displayText(degree: Degree,
-                             mode: JoystickMode? = nil,
-                             direction: JoystickDirection? = nil) -> String {
-        chordLabel(key: key,
-                   degree: degree,
-                   joystickMode: mode ?? joystickMode,
-                   joystickDirection: direction ?? joystickDirection)
+    /// Voices `spec` for playback. The OLED text is always `chordLabel` of the
+    /// same spec, which reads the shape that produces these notes, so the label
+    /// can never disagree with what sounds.
+    private func makeVoicing(for spec: ChordSpec) -> Voicing {
+        performanceVoicing(key: key, octave: octave, spec: spec, previousVoicing: currentVoicing)
     }
 }

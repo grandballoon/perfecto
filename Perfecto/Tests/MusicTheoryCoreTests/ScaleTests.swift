@@ -40,6 +40,15 @@ struct ScaleTests {
                                .dorian, .mixolydian, .lydian])
     }
 
+    @Test func stepsContinueIntoHigherOctaves() {
+        let major = ScaleType.major
+        #expect((0..<9).map(major.semitones(atStep:)) == [0, 2, 4, 5, 7, 9, 11, 12, 14])
+    }
+
+    @Test func degreeOffsetIsTheDegreesStep() {
+        #expect(Degree.allCases.map(ScaleType.naturalMinor.offset(of:)) == [0, 2, 3, 5, 7, 8, 10])
+    }
+
     @Test func dorianIntervals() {
         #expect(ScaleType.dorian.intervals == [0, 2, 3, 5, 7, 9, 10])
     }
@@ -82,8 +91,7 @@ struct ScaleTests {
         ]
         for (degree, expected) in cases {
             let result = computeVoicing(
-                key: key, degree: degree,
-                joystickMode: .default, joystickDirection: .center,
+                key: key, spec: ChordSpec(degree: degree, color: .joystick(.default, .center)),
                 inversion: .root, octave: 4, voiceLeading: false, previousVoicing: nil
             )
             #expect(result.notes == expected, "C major \(degree) base triad mismatch")
@@ -104,8 +112,7 @@ struct ScaleTests {
         ]
         for (degree, expected) in cases {
             let result = computeVoicing(
-                key: key, degree: degree,
-                joystickMode: .default, joystickDirection: .center,
+                key: key, spec: ChordSpec(degree: degree, color: .joystick(.default, .center)),
                 inversion: .root, octave: 4, voiceLeading: false, previousVoicing: nil
             )
             #expect(result.notes == expected, "A natural minor \(degree) mismatch")

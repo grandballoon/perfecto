@@ -30,6 +30,18 @@ public enum ScaleType: CaseIterable, Hashable, Identifiable, Sendable {
     /// scale step, which only yields tertian chords on a seven-note scale.
     public var isHeptatonic: Bool { intervals.count == 7 }
 
+    /// Semitones above the tonic of the note `step` scale steps up, continuing
+    /// into higher octaves (step 7 of a seven-note scale is the octave).
+    public func semitones(atStep step: Int) -> Int {
+        let n = intervals.count
+        return intervals[step % n] + (step / n) * 12
+    }
+
+    /// Semitones above the tonic of `degree`'s root.
+    public func offset(of degree: Degree) -> Int {
+        semitones(atStep: degree.index)
+    }
+
     public var intervals: [Int] {
         switch self {
         case .major:           return [0, 2, 4, 5, 7, 9, 11]

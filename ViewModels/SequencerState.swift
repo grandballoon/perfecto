@@ -7,26 +7,15 @@ struct SequencerStep {
     var gate: Double = 0.75     // fraction of step to hold chord (0...1)
     var isRest: Bool = false
 
-    var label: String { isRest ? "—" : degree.numeralLabel }
+    /// The chord this step plays.
+    var spec: ChordSpec { ChordSpec(degree: degree, color: .joystick(joystickMode, joystickDirection)) }
+
+    func label(in key: Key) -> String { isRest ? "—" : degreeNumeral(key: key, degree: degree) }
 
     /// Gates this close to 100% tie: the chord rings into the next step
     /// instead of being released, the clearly-audible top of the gate range.
     static let tieThreshold = 0.98
     var isTied: Bool { gate >= Self.tieThreshold }
-}
-
-extension Degree {
-    var numeralLabel: String {
-        switch self {
-        case .I:      return "I"
-        case .ii:     return "ii"
-        case .iii:    return "iii"
-        case .IV:     return "IV"
-        case .V:      return "V"
-        case .vi:     return "vi"
-        case .viiDim: return "vii°"
-        }
-    }
 }
 
 @Observable

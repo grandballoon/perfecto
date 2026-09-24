@@ -21,19 +21,18 @@ struct CircleChordGridView: View {
 
     private struct RingChord: Identifiable {
         let degree: Degree
-        let label: String
         let color: Color
         let angleDeg: Double
         var id: Int { degree.rawValue }
     }
 
     private let ringChords: [RingChord] = [
-        RingChord(degree: .ii,     label: "ii",   color: .orange, angleDeg: 30),
-        RingChord(degree: .iii,    label: "iii",  color: .orange, angleDeg: 90),
-        RingChord(degree: .IV,     label: "IV",   color: .orange, angleDeg: 150),
-        RingChord(degree: .V,      label: "V",    color: .orange, angleDeg: 210),
-        RingChord(degree: .vi,     label: "vi",   color: .orange, angleDeg: 270),
-        RingChord(degree: .viiDim, label: "vii°", color: .orange, angleDeg: 330),
+        RingChord(degree: .ii,     color: .orange, angleDeg: 30),
+        RingChord(degree: .iii,    color: .orange, angleDeg: 90),
+        RingChord(degree: .IV,     color: .orange, angleDeg: 150),
+        RingChord(degree: .V,      color: .orange, angleDeg: 210),
+        RingChord(degree: .vi,     color: .orange, angleDeg: 270),
+        RingChord(degree: .viiDim, color: .orange, angleDeg: 330),
     ]
 
     var body: some View {
@@ -56,7 +55,7 @@ struct CircleChordGridView: View {
                 ForEach(ringChords) { chord in
                     let rad = chord.angleDeg * .pi / 180
                     CircleChordButton(
-                        label:     chord.label,
+                        label:     degreeNumeral(key: state.key, degree: chord.degree),
                         color:     chord.color,
                         isPressed: pressingDegree == chord.degree,
                         fontSize:  outerSz * 0.30
@@ -70,7 +69,7 @@ struct CircleChordGridView: View {
 
                 // Centre: root chord I (visual only)
                 CircleChordButton(
-                    label:     "I",
+                    label:     degreeNumeral(key: state.key, degree: .I),
                     color:     .orange,
                     isPressed: pressingDegree == .I,
                     fontSize:  centerSz * 0.34

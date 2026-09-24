@@ -10,9 +10,7 @@ struct ComputeVoicingTests {
         // From spec §4.4: C-E-G-B = Cmaj7
         let result = computeVoicing(
             key: Key(root: .C, scale: .major),
-            degree: .I,
-            joystickMode: .default,
-            joystickDirection: .right,
+            spec: ChordSpec(degree: .I, color: .joystick(.default, .right)),
             inversion: .root,
             octave: 4,
             voiceLeading: false,
@@ -25,13 +23,11 @@ struct ComputeVoicingTests {
 
     @Test func octave3ShiftsAllNotesDown12() {
         let oct4 = computeVoicing(
-            key: Key(root: .C, scale: .major), degree: .I,
-            joystickMode: .default, joystickDirection: .center,
+            key: Key(root: .C, scale: .major), spec: ChordSpec(degree: .I, color: .joystick(.default, .center)),
             inversion: .root, octave: 4, voiceLeading: false, previousVoicing: nil
         )
         let oct3 = computeVoicing(
-            key: Key(root: .C, scale: .major), degree: .I,
-            joystickMode: .default, joystickDirection: .center,
+            key: Key(root: .C, scale: .major), spec: ChordSpec(degree: .I, color: .joystick(.default, .center)),
             inversion: .root, octave: 3, voiceLeading: false, previousVoicing: nil
         )
         #expect(oct3.notes == oct4.notes.map { $0 - 12 })
@@ -42,8 +38,7 @@ struct ComputeVoicingTests {
         // G.rawValue=7, octave=4, degreeOffset=7 (G major V).
         // chordRoot = 7 + (4+1)*12 + 7 = 74 (D5)
         let result = computeVoicing(
-            key: Key(root: .G, scale: .major), degree: .V,
-            joystickMode: .default, joystickDirection: .center,
+            key: Key(root: .G, scale: .major), spec: ChordSpec(degree: .V, color: .joystick(.default, .center)),
             inversion: .root, octave: 4, voiceLeading: false, previousVoicing: nil
         )
         #expect(result.notes.first == 74)  // D5 is the chord root
@@ -54,8 +49,7 @@ struct ComputeVoicingTests {
     @Test func firstInversion() {
         // C major [60,64,67] → first inversion: C moves up → [64,67,72]
         let result = computeVoicing(
-            key: Key(root: .C, scale: .major), degree: .I,
-            joystickMode: .default, joystickDirection: .center,
+            key: Key(root: .C, scale: .major), spec: ChordSpec(degree: .I, color: .joystick(.default, .center)),
             inversion: .first, octave: 4, voiceLeading: false, previousVoicing: nil
         )
         #expect(result.notes == [64, 67, 72])
@@ -64,8 +58,7 @@ struct ComputeVoicingTests {
     @Test func secondInversion() {
         // C major [60,64,67] → second inversion: C and E move up → [67,72,76]
         let result = computeVoicing(
-            key: Key(root: .C, scale: .major), degree: .I,
-            joystickMode: .default, joystickDirection: .center,
+            key: Key(root: .C, scale: .major), spec: ChordSpec(degree: .I, color: .joystick(.default, .center)),
             inversion: .second, octave: 4, voiceLeading: false, previousVoicing: nil
         )
         #expect(result.notes == [67, 72, 76])
@@ -74,8 +67,7 @@ struct ComputeVoicingTests {
     @Test func secondInversionOnFourNoteChord() {
         // Cmaj7 [60,64,67,71] → second inversion → [67,71,72,76]
         let result = computeVoicing(
-            key: Key(root: .C, scale: .major), degree: .I,
-            joystickMode: .default, joystickDirection: .right,
+            key: Key(root: .C, scale: .major), spec: ChordSpec(degree: .I, color: .joystick(.default, .right)),
             inversion: .second, octave: 4, voiceLeading: false, previousVoicing: nil
         )
         #expect(result.notes == [67, 71, 72, 76])
@@ -89,8 +81,7 @@ struct ComputeVoicingTests {
         // which retains the common tone C. Root position [65,69,72] costs 8.
         let prev = Voicing(notes: [60, 64, 67])
         let result = computeVoicing(
-            key: Key(root: .C, scale: .major), degree: .IV,
-            joystickMode: .default, joystickDirection: .center,
+            key: Key(root: .C, scale: .major), spec: ChordSpec(degree: .IV, color: .joystick(.default, .center)),
             inversion: .root, octave: 4, voiceLeading: true, previousVoicing: prev
         )
         #expect(result.notes == [60, 65, 69])
@@ -98,13 +89,11 @@ struct ComputeVoicingTests {
 
     @Test func voiceLeadingWithNilPreviousMatchesNoVoiceLeading() {
         let a = computeVoicing(
-            key: Key(root: .C, scale: .major), degree: .I,
-            joystickMode: .default, joystickDirection: .center,
+            key: Key(root: .C, scale: .major), spec: ChordSpec(degree: .I, color: .joystick(.default, .center)),
             inversion: .root, octave: 4, voiceLeading: true, previousVoicing: nil
         )
         let b = computeVoicing(
-            key: Key(root: .C, scale: .major), degree: .I,
-            joystickMode: .default, joystickDirection: .center,
+            key: Key(root: .C, scale: .major), spec: ChordSpec(degree: .I, color: .joystick(.default, .center)),
             inversion: .root, octave: 4, voiceLeading: false, previousVoicing: nil
         )
         #expect(a.notes == b.notes)
@@ -115,8 +104,7 @@ struct ComputeVoicingTests {
     @Test func harmonicMinorVIIisDim() {
         // C harmonic minor vii = B dim triad = B-D-F
         let result = computeVoicing(
-            key: Key(root: .C, scale: .harmonicMinor), degree: .viiDim,
-            joystickMode: .default, joystickDirection: .center,
+            key: Key(root: .C, scale: .harmonicMinor), spec: ChordSpec(degree: .viiDim, color: .joystick(.default, .center)),
             inversion: .root, octave: 4, voiceLeading: false, previousVoicing: nil
         )
         #expect(result.notes == [71, 74, 77])
@@ -126,8 +114,7 @@ struct ComputeVoicingTests {
         // G Mixolydian I = G major; joystick right → Gmaj7 = G-B-D-F#
         // G=67, B=71, D=74, F#=78
         let result = computeVoicing(
-            key: Key(root: .G, scale: .mixolydian), degree: .I,
-            joystickMode: .default, joystickDirection: .right,
+            key: Key(root: .G, scale: .mixolydian), spec: ChordSpec(degree: .I, color: .joystick(.default, .right)),
             inversion: .root, octave: 4, voiceLeading: false, previousVoicing: nil
         )
         #expect(result.notes == [67, 71, 74, 78])
@@ -140,8 +127,7 @@ struct ComputeVoicingTests {
             for degree in Degree.allCases {
                 for dir in [JoystickDirection.center, .up, .right, .down, .upLeft] {
                     let result = computeVoicing(
-                        key: Key(root: .C, scale: scale), degree: degree,
-                        joystickMode: .default, joystickDirection: dir,
+                        key: Key(root: .C, scale: scale), spec: ChordSpec(degree: degree, color: .joystick(.default, dir)),
                         inversion: .root, octave: 4, voiceLeading: false, previousVoicing: nil
                     )
                     #expect(result.notes == result.notes.sorted(),
@@ -155,8 +141,7 @@ struct ComputeVoicingTests {
         for scale in ScaleType.allCases {
             for degree in Degree.allCases {
                 let result = computeVoicing(
-                    key: Key(root: .C, scale: scale), degree: degree,
-                    joystickMode: .default, joystickDirection: .center,
+                    key: Key(root: .C, scale: scale), spec: ChordSpec(degree: degree, color: .joystick(.default, .center)),
                     inversion: .root, octave: 4, voiceLeading: false, previousVoicing: nil
                 )
                 #expect(result.notes.count >= 2, "\(scale) \(degree) has too few notes")

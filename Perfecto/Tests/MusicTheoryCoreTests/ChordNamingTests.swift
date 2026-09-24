@@ -35,37 +35,29 @@ struct ChordNamingTests {
 
     @Test func rightOnMinorDegreeIsMin7NotMaj7() {
         // ii of C major is D minor; ↗right yields Dm7. The old label said "maj7".
-        #expect(chordLabel(key: cMajor, degree: .ii,
-                           joystickMode: .default, joystickDirection: .right) == "D min7")
+        #expect(chordLabel(key: cMajor, spec: ChordSpec(degree: .ii, color: .joystick(.default, .right))) == "D min7")
     }
 
     @Test func leftOnMajorDegreeIsMinNotDim() {
         // ↖left lowers the 3rd: I major → C minor. The old label said "dim".
-        #expect(chordLabel(key: cMajor, degree: .I,
-                           joystickMode: .default, joystickDirection: .left) == "C min")
+        #expect(chordLabel(key: cMajor, spec: ChordSpec(degree: .I, color: .joystick(.default, .left))) == "C min")
     }
 
     @Test func labelIsCorrectOnNonMajorScale() {
         // The old center label keyed off degree number, so a natural-minor I read
         // "maj". It is actually minor.
-        #expect(chordLabel(key: cMinor, degree: .I,
-                           joystickMode: .default, joystickDirection: .center) == "C min")
-        #expect(chordLabel(key: cMinor, degree: .ii,
-                           joystickMode: .default, joystickDirection: .center) == "D dim")
+        #expect(chordLabel(key: cMinor, spec: ChordSpec(degree: .I, color: .joystick(.default, .center))) == "C min")
+        #expect(chordLabel(key: cMinor, spec: ChordSpec(degree: .ii, color: .joystick(.default, .center))) == "D dim")
     }
 
     // MARK: – Representative labels
 
     @Test func defaultLabels() {
-        #expect(chordLabel(key: cMajor, degree: .I,
-                           joystickMode: .default, joystickDirection: .center) == "C maj")
-        #expect(chordLabel(key: cMajor, degree: .I,
-                           joystickMode: .default, joystickDirection: .right) == "C maj7")
-        #expect(chordLabel(key: cMajor, degree: .viiDim,
-                           joystickMode: .default, joystickDirection: .center) == "B dim")
+        #expect(chordLabel(key: cMajor, spec: ChordSpec(degree: .I, color: .joystick(.default, .center))) == "C maj")
+        #expect(chordLabel(key: cMajor, spec: ChordSpec(degree: .I, color: .joystick(.default, .right))) == "C maj7")
+        #expect(chordLabel(key: cMajor, spec: ChordSpec(degree: .viiDim, color: .joystick(.default, .center))) == "B dim")
         // vi (Am) flipped to major
-        #expect(chordLabel(key: cMajor, degree: .vi,
-                           joystickMode: .default, joystickDirection: .up) == "A maj")
+        #expect(chordLabel(key: cMajor, spec: ChordSpec(degree: .vi, color: .joystick(.default, .up))) == "A maj")
     }
 
     // MARK: – The label never disagrees with the notes
@@ -80,11 +72,10 @@ struct ChordNamingTests {
         ]
         for mode in [JoystickMode.default, .extended, .chromatic] {
             for dir in directions {
-                let name = chordQualityName(key: cMajor, degree: .ii,   // ii = minor base
-                                            joystickMode: mode, joystickDirection: dir)
+                let spec = ChordSpec(degree: .ii, color: .joystick(mode, dir))  // ii = minor base
+                let name = chordQualityName(key: cMajor, spec: spec)
                 guard name.hasPrefix("min") else { continue }
-                let notes = computeVoicing(key: cMajor, degree: .ii,
-                                           joystickMode: mode, joystickDirection: dir,
+                let notes = computeVoicing(key: cMajor, spec: spec,
                                            inversion: .root, octave: 4,
                                            voiceLeading: false, previousVoicing: nil).notes
                 let root = notes.min()!
@@ -92,6 +83,56 @@ struct ChordNamingTests {
                 #expect(intervals.contains(3), "\(mode)/\(dir) named \(name) but has no minor third")
                 #expect(!intervals.contains(4), "\(mode)/\(dir) named \(name) but has a major third")
             }
+        }
+    }
+
+    // MARK: – Degree numerals follow the key's triad qualities
+
+    private func numerals(_ key: Key) -> [String] {
+        Degree.allCases.map { degreeNumeral(key: key, degree: $0) }
+    }
+
+    @Test func majorKeyNumerals() {
+        #expect(numerals(cMajor) == ["I", "ii", "iii", "IV", "V", "vi", "vii°"])
+    }
+
+    @Test func naturalMinorNumeralsAgreeWithChordLabels() {
+        // The buttons used to read "ii" and "vii°" here while the display said
+        // "D dim" and "B♭ maj".
+        #expect(numerals(cMinor) == ["i", "ii°", "III", "iv", "v", "VI", "VII"])
+    }
+
+    @Test func numeralCaseMatchesTheSoundingTriad() {
+        for scale in ScaleType.allCases where scale.isHeptatonic {
+            let key = Key(root: .C, scale: scale)
+            for degree in Degree.allCases {
+                let numeral = degreeNumeral(key: key, degree: degree)
+                let label = chordLabel(key: key, spec: ChordSpec(degree: degree, color: .base))
+                if label.hasSuffix(" maj") {
+                    #expect(numeral == numeral.uppercased(), "\(scale) \(degree): \(numeral) vs \(label)")
+                } else {
+                    #expect(numeral == numeral.lowercased(), "\(scale) \(degree): \(numeral) vs \(label)")
+                    #expect(numeral.hasSuffix("°") == label.hasSuffix(" dim"),
+                            "\(scale) \(degree): \(numeral) vs \(label)")
+                }
+            }
+        }
+    }
+
+    // MARK: – Key quality
+
+    @Test func keyQuality() {
+        let minor: Set<ScaleType> = [.naturalMinor, .harmonicMinor, .melodicMinor, .dorian,
+                                     .minorPentatonic, .blues]
+        for scale in ScaleType.allCases {
+            #expect(Key(root: .D, scale: scale).isMinor == minor.contains(scale), "\(scale)")
+        }
+    }
+
+    @Test func keyQualityMatchesTheTonicTriadOnSevenNoteScales() {
+        for scale in ScaleType.allCases where scale.isHeptatonic {
+            let key = Key(root: .D, scale: scale)
+            #expect(key.isMinor == (triadBase(key: key, degree: .I) != .major), "\(scale)")
         }
     }
 

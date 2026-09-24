@@ -1,34 +1,21 @@
-/// Compute the MIDI notes for a chord given key, scale degree, joystick state, and voice settings.
+/// Compute the MIDI notes for the chord `spec` in `key`, voiced by the given settings.
 ///
 /// MIDI convention: middle C = C4 = note 60.
 /// Formula: chordRootMIDI = pitchClass.rawValue + (octave + 1) * 12 + degreeOffset
 public func computeVoicing(
     key: Key,
-    degree: Degree,
-    joystickMode: JoystickMode,
-    joystickDirection: JoystickDirection,
+    spec: ChordSpec,
     inversion: Inversion,
     octave: Int,
     voiceLeading: Bool,
     previousVoicing: Voicing?
 ) -> Voicing {
-    let scaleIntervals = key.scale.intervals
-    let n = scaleIntervals.count
-    let degIdx = degree.index
-
-    // Semitone offset of the chord root above the key root
-    let degreeOffset = scaleIntervals[degIdx % n] + (degIdx / n) * 12
-
-    // Base triad quality (major/minor/dim) — shared with the on-screen label so
-    // the notes and the displayed name can never disagree (see ChordNaming.swift).
-    let base = triadBase(key: key, degree: degree)
-
-    // Resolve chord intervals from the joystick map
-    let outcome = JoystickMap.outcome(mode: joystickMode, direction: joystickDirection)
-    let intervals: [Int] = outcome.shape(for: base).intervals
+    // Same shape the on-screen label is read from, so the notes and the
+    // displayed name can never disagree (see ChordNaming.swift).
+    let intervals = chordShape(key: key, spec: spec).intervals
 
     // MIDI note of the chord root
-    let chordRoot = key.root.rawValue + (octave + 1) * 12 + degreeOffset
+    let chordRoot = key.root.rawValue + (octave + 1) * 12 + key.scale.offset(of: spec.degree)
 
     func build(_ ivls: [Int], octaveShift: Int) -> [Int] {
         ivls.map { chordRoot + $0 + octaveShift * 12 }.sorted()

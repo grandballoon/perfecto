@@ -153,11 +153,10 @@ public struct MidiKeySignature: Equatable, Sendable {
 extension Key {
     /// The key signature a DAW should adopt for this key. SMF (like
     /// GarageBand) only knows major and minor keys, so every scale maps to the
-    /// major or minor key on the same tonic, decided by its third: D Dorian →
+    /// major or minor key on the same tonic, decided by `isMinor`: D Dorian →
     /// D minor, G Mixolydian → G major. Flat spellings are used for the black
     /// keys except F# (six sharps), matching common usage.
     public var midiKeySignature: MidiKeySignature {
-        let isMinor = scale.intervals.contains(3)
         // A minor key shares its signature with the major key a minor third up.
         let relativeMajor = (root.rawValue + (isMinor ? 3 : 0)) % 12
         // Position on the circle of fifths: C=0, G=1, D=2 … F=11.

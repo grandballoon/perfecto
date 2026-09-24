@@ -42,9 +42,7 @@ final class SequencerMode: PerformanceMode {
             return
         }
 
-        state.playSequencerStep(degree: step.degree,
-                                joystickMode: step.joystickMode,
-                                joystickDirection: step.joystickDirection)
+        state.playSequencerStep(step.spec)
 
         // Gate shapes note length within the 1/16th step:
         //  • ≥ 98% → legato/tie: skip the note-off so the chord rings into the

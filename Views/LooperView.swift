@@ -4,11 +4,11 @@ struct LooperView: View {
     @Environment(PerformanceState.self) private var perfState
     @Environment(LooperState.self)      private var looperState
 
-    private let topRow: [(Degree, String, Color)] = [
-        (.I, "I", .orange), (.ii, "ii", .blue), (.iii, "iii", .indigo), (.IV, "IV", .orange),
+    private let topRow: [(Degree, Color)] = [
+        (.I, .orange), (.ii, .blue), (.iii, .indigo), (.IV, .orange),
     ]
-    private let bottomRow: [(Degree, String, Color)] = [
-        (.V, "V", .orange), (.vi, "vi", .blue), (.viiDim, "vii°", .purple),
+    private let bottomRow: [(Degree, Color)] = [
+        (.V, .orange), (.vi, .blue), (.viiDim, .purple),
     ]
 
     var body: some View {
@@ -175,13 +175,13 @@ struct LooperView: View {
     private var chordButtons: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
-                ForEach(topRow, id: \.0) { degree, label, color in
-                    ChordButton(degree: degree, label: label, color: color)
+                ForEach(topRow, id: \.0) { degree, color in
+                    ChordButton(degree: degree, label: degreeNumeral(key: perfState.key, degree: degree), color: color)
                 }
             }
             HStack(spacing: 10) {
-                ForEach(bottomRow, id: \.0) { degree, label, color in
-                    ChordButton(degree: degree, label: label, color: color)
+                ForEach(bottomRow, id: \.0) { degree, color in
+                    ChordButton(degree: degree, label: degreeNumeral(key: perfState.key, degree: degree), color: color)
                 }
                 Spacer()
             }

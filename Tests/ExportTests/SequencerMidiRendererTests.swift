@@ -91,10 +91,8 @@ struct SequencerMidiRendererTests {
 
     @Test func tiedStepRingsUntilTheNextChordOrRest() {
         let file = render([step(.I, gate: 1), step(.V), step(.IV, gate: 1), rest])
-        let v = performanceVoicing(key: cMajor, octave: 4, degree: .V, joystickMode: .default,
-                                   joystickDirection: .center, previousVoicing: nil).notes
-        let iv = performanceVoicing(key: cMajor, octave: 4, degree: .IV, joystickMode: .default,
-                                    joystickDirection: .center, previousVoicing: nil).notes
+        let v = performanceVoicing(key: cMajor, octave: 4, spec: ChordSpec(degree: .V, color: .joystick(.default, .center)), previousVoicing: nil).notes
+        let iv = performanceVoicing(key: cMajor, octave: 4, spec: ChordSpec(degree: .IV, color: .joystick(.default, .center)), previousVoicing: nil).notes
         let expected = chord([60, 64, 67], 0, stepTicks)
                      + chord(v, stepTicks, stepTicks + 60)
                      + chord(iv, 2 * stepTicks, 3 * stepTicks)
@@ -157,8 +155,8 @@ struct SequencerMidiRendererTests {
         let file = render([step(.I, gate: 0.5), step(.I, gate: 0.5), rest,
                            step(.I), step(.V, direction: .right)])
         #expect(markers(file) == [
-            chordLabel(key: cMajor, degree: .I, joystickMode: .default, joystickDirection: .center),
-            chordLabel(key: cMajor, degree: .V, joystickMode: .default, joystickDirection: .right),
+            chordLabel(key: cMajor, spec: ChordSpec(degree: .I, color: .joystick(.default, .center))),
+            chordLabel(key: cMajor, spec: ChordSpec(degree: .V, color: .joystick(.default, .right))),
         ])
     }
 
@@ -171,7 +169,8 @@ struct SequencerMidiRendererTests {
         state.setBPM(90)
 
         let export = state.sequencerMidiExport
-        #expect(export.pattern.steps.map(\.label) == state.sequencerState.playedSteps.map(\.label))
+        #expect(export.pattern.steps.map(\.spec) == state.sequencerState.playedSteps.map(\.spec))
+        #expect(export.pattern.steps.map(\.isRest) == state.sequencerState.playedSteps.map(\.isRest))
         #expect(export.pattern.key == state.key)
         #expect(export.pattern.octave == 3)
         #expect(export.pattern.bpm == 90)

@@ -58,9 +58,7 @@ enum SequencerMidiRenderer {
 
             let voicing = performanceVoicing(key: pattern.key,
                                              octave: pattern.octave,
-                                             degree: step.degree,
-                                             joystickMode: step.joystickMode,
-                                             joystickDirection: step.joystickDirection,
+                                             spec: step.spec,
                                              previousVoicing: previousVoicing)
             previousVoicing = voicing
 
@@ -76,9 +74,7 @@ enum SequencerMidiRenderer {
                 sounding = (voicing.notes, step.isTied)
 
                 let label = chordLabel(key: pattern.key,
-                                       degree: step.degree,
-                                       joystickMode: step.joystickMode,
-                                       joystickDirection: step.joystickDirection)
+                                       spec: step.spec)
                 if label != lastMarker {
                     events.append(MidiEvent(tick: start, .marker(label)))
                     lastMarker = label

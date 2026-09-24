@@ -14,9 +14,7 @@ struct JoystickMapTests {
     ) -> [Int] {
         computeVoicing(
             key: key ?? Key(root: .C, scale: .major),
-            degree: degree,
-            joystickMode: mode,
-            joystickDirection: dir,
+            spec: ChordSpec(degree: degree, color: .joystick(mode, dir)),
             inversion: .root,
             octave: 4,
             voiceLeading: false,

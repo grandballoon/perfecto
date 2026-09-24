@@ -10,14 +10,14 @@ struct ChordRowView: View {
 
     private let haptic = UIImpactFeedbackGenerator(style: .medium)
 
-    private let chords: [(degree: Degree, label: String, color: Color)] = [
-        (.I,      "I",    .orange),
-        (.ii,     "ii",   .orange),
-        (.iii,    "iii",  .orange),
-        (.IV,     "IV",   .orange),
-        (.V,      "V",    .orange),
-        (.vi,     "vi",   .orange),
-        (.viiDim, "vii°", .orange),
+    private let chords: [(degree: Degree, color: Color)] = [
+        (.I, .orange),
+        (.ii, .orange),
+        (.iii, .orange),
+        (.IV, .orange),
+        (.V, .orange),
+        (.vi, .orange),
+        (.viiDim, .orange),
     ]
 
     @State private var pressedIndex: Int? = nil
@@ -52,7 +52,7 @@ struct ChordRowView: View {
         }
     }
 
-    private func button(_ chord: (degree: Degree, label: String, color: Color),
+    private func button(_ chord: (degree: Degree, color: Color),
                         active: Bool) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 12)
@@ -61,7 +61,7 @@ struct ChordRowView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(chord.color, lineWidth: 2)
                 )
-            Text(chord.label)
+            Text(degreeNumeral(key: state.key, degree: chord.degree))
                 .font(.system(size: 18, weight: .bold, design: .monospaced))
                 .foregroundStyle(.white)
         }

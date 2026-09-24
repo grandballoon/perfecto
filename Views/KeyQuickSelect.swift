@@ -56,7 +56,7 @@ final class KeyQuickController {
         self.anchor     = anchor
         self.style      = style
         self.root       = key.root
-        self.major      = Self.isMajorish(key.scale)
+        self.major      = !key.isMinor
         self.inDeadzone = (style == .wheel)   // swipe has no cancel zone
         self.isActive   = true
         bump.prepare(); soft.prepare()
@@ -123,15 +123,6 @@ final class KeyQuickController {
         if newRoot != root || newMajor != major {
             root = newRoot; major = newMajor
             bump.impactOccurred()
-        }
-    }
-
-    static func isMajorish(_ scale: ScaleType) -> Bool {
-        switch scale {
-        case .naturalMinor, .harmonicMinor, .melodicMinor, .minorPentatonic:
-            return false
-        default:
-            return true
         }
     }
 }

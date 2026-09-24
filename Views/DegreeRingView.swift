@@ -10,6 +10,8 @@ import SwiftUI
 /// "selected" means and records undo. A drag slides the highlight between
 /// degrees (a plain tap is included, since `minimumDistance` is 0).
 struct DegreeRingView: View {
+    /// The key, which decides each degree's numeral (e.g. "ii" vs "ii°").
+    let key: Key
     /// The highlighted degree, or `nil` when the step is a rest (nothing lit).
     let selected: Degree?
     /// Called as the finger crosses into a new degree.
@@ -22,18 +24,17 @@ struct DegreeRingView: View {
 
     private struct RingChord: Identifiable {
         let degree: Degree
-        let label: String
         let angleDeg: Double
         var id: Int { degree.rawValue }
     }
 
     private let ringChords: [RingChord] = [
-        RingChord(degree: .ii,     label: "ii",   angleDeg: 30),
-        RingChord(degree: .iii,    label: "iii",  angleDeg: 90),
-        RingChord(degree: .IV,     label: "IV",   angleDeg: 150),
-        RingChord(degree: .V,      label: "V",    angleDeg: 210),
-        RingChord(degree: .vi,     label: "vi",   angleDeg: 270),
-        RingChord(degree: .viiDim, label: "vii°", angleDeg: 330),
+        RingChord(degree: .ii,     angleDeg: 30),
+        RingChord(degree: .iii,    angleDeg: 90),
+        RingChord(degree: .IV,     angleDeg: 150),
+        RingChord(degree: .V,      angleDeg: 210),
+        RingChord(degree: .vi,     angleDeg: 270),
+        RingChord(degree: .viiDim, angleDeg: 330),
     ]
 
     var body: some View {
@@ -56,7 +57,7 @@ struct DegreeRingView: View {
                 ForEach(ringChords) { chord in
                     let rad = chord.angleDeg * .pi / 180
                     CircleChordButton(
-                        label:     chord.label,
+                        label:     degreeNumeral(key: key, degree: chord.degree),
                         color:     .orange,
                         isPressed: selected == chord.degree,
                         fontSize:  outerSz * 0.30
@@ -70,7 +71,7 @@ struct DegreeRingView: View {
 
                 // Centre: root degree I
                 CircleChordButton(
-                    label:     "I",
+                    label:     degreeNumeral(key: key, degree: .I),
                     color:     .orange,
                     isPressed: selected == .I,
                     fontSize:  centerSz * 0.34

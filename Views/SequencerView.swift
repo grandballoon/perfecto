@@ -456,7 +456,7 @@ struct SequencerView: View {
             Text("\(idx + 1)")
                 .font(.system(size: 9, design: .monospaced))
                 .foregroundStyle(Color(white: 0.35))
-            Text(step.label)
+            Text(step.label(in: perfState.key))
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundStyle(step.isRest ? Color(white: 0.3) : .white)
         }
@@ -512,6 +512,7 @@ struct SequencerView: View {
             // bar. It edits the selected step's `degree`; nothing is highlighted
             // while the step is a rest.
             DegreeRingView(
+                key: perfState.key,
                 selected: (primary?.isRest ?? true) ? nil : primary?.degree,
                 onChange: { degree in
                     guard !seqState.selectedSteps.isEmpty else { return }

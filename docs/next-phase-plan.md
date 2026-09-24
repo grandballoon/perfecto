@@ -100,6 +100,10 @@ The core is pure and well tested, but callers repeat its math instead of asking 
   In major pentatonic, degree ii stacks D–F♯–A, and F♯ is not in the scale.
 - `MicSampleMode` transposes by `degree.index - 3` semitones, which depends on `Degree` declaration order and ignores the key.
 - `KeyQuickController.isMajorish` puts theory in a view file.
+- `TriadBase` has no augmented case, so the augmented triads of harmonic and melodic minor play as major triads with a perfect fifth.
+  In C harmonic minor, III plays E♭–G–B♭, and B♭ is not in the scale (it should be E♭–G–B).
+  Found while doing Phase 0b step 1; not fixed, because every `JoystickMap` entry would need an augmented shape.
+  The grid function must handle this: its melodic- and harmonic-minor rows produce these chords directly.
 
 **Interface to add:** core functions for degree offset, degree label (key-aware roman numeral), and key quality, used everywhere those facts are needed.
 A written definition of what "height" and "brightness" mean for non-heptatonic scales (see Open decisions).
@@ -210,8 +214,8 @@ Each fix starts with an end-to-end repro, as CLAUDE.md requires.
 3. ChordLink announces the live joystick instead of the sequencer step's color (A).
 4. Tapping SEQ in the landscape sequencer stops playback (D).
 5. `ChordColorBar` fires haptics on every move with no steps selected (E).
-6. Lead mode octave error in pentatonic scales (C).
-7. Degree buttons show major-key numerals in every scale (C).
+6. ~~Lead mode octave error in pentatonic scales (C).~~ No longer reachable now that pentatonic scales are hidden; `leadNote` uses `ScaleType.offset(of:)` since Phase 0b step 1.
+7. ~~Degree buttons show major-key numerals in every scale (C).~~ Fixed in Phase 0b step 1 (`degreeNumeral`).
 8. Route change restarts the engine in External Synth mode (G).
 9. Initial synth envelope doesn't match the shown preset (G).
 10. Two loopers can tap the same bus (G), after a device repro.
@@ -221,6 +225,10 @@ Several of these disappear naturally with Phase 0b; fix them there if the interf
 ### Phase 0b: interfaces, in dependency order
 
 1. **`ChordSpec` + core scale functions** (B, C). Pure, in the core, with rule-based tests. `computeVoicing` takes a `ChordSpec`. The current joystick becomes one way to build a `ChordSpec`, so behaviour is unchanged.
+   *Done (2026-09-24).* Added `ChordSpec` (degree + `ChordColor`), `ScaleType.semitones(atStep:)`/`offset(of:)`, `degreeNumeral`, and `Key.isMinor` (now used by the MIDI key signature and the key quick-select).
+   One shape lookup (`chordShape`) feeds both the notes and the label.
+   Modifiers are deferred to goal 2, which adds them to `ChordSpec`.
+   Still joystick-shaped, left for later steps: `PerformanceState.joystickMode`/`joystickDirection`, `SequencerStep`'s stored fields and persistence (step 4), `ChordAnnouncement` (steps 2 and 4), and `MicSampleMode`'s `degree.index - 3` transpose (a behaviour decision; the mode is unreachable today).
 2. **`ChordEvent` + sink contract** (A). Range-checked MIDI notes, articulation, semantic spec carried to sinks. Deletes the context provider and the strum bypass. Voice count sized from the event.
 3. **Pointer contract + shared gesture adapter** (E), and **mode kind + mode-to-surface mapping** (D). Together these make the secondary UI swappable.
 4. **Versioned persistence and ChordLink v2** (B), coordinated with Harmonicland through `chordlink.md`. Explicit numbering tables for every enum on the wire, failing loudly on unknown cases.
