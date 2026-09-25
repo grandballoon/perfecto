@@ -22,6 +22,20 @@ enum ChordGridLayout: CaseIterable {
     }
 }
 
+/// Which input surface colors the chords. The two ship side by side for
+/// on-device comparison; only one is on screen at a time.
+enum ColorSurface: CaseIterable {
+    case joystick
+    case grid
+
+    var displayName: String {
+        switch self {
+        case .joystick: return "Joystick"
+        case .grid:     return "Grid"
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class PerformanceState {
@@ -43,9 +57,31 @@ final class PerformanceState {
     }
 
     private(set) var mode: any PerformanceMode = PlayMode()
+    /// The surface on screen. Switching resets both surfaces to neutral.
+    var colorSurface: ColorSurface = .joystick {
+        didSet {
+            guard colorSurface != oldValue else { return }
+            joystickDirection = .center
+            gridPosition = nil
+        }
+    }
     private(set) var joystickDirection: JoystickDirection = .center
-    /// The live chord color, from whichever input surface is active.
-    var color: ChordColor { .joystick(joystickMode, joystickDirection) }
+    /// Where a finger is on the chord grid; nil when none is.
+    private(set) var gridPosition: GridPosition? = nil
+
+    /// The live chord color for `degree`, from the surface on screen. A grid
+    /// position means a different mode for each degree, so the color is
+    /// resolved against the degree that plays. No finger on the grid plays
+    /// the diatonic triad, as the joystick's centre does.
+    func color(for degree: Degree) -> ChordColor {
+        switch colorSurface {
+        case .joystick:
+            return .joystick(joystickMode, joystickDirection)
+        case .grid:
+            guard let gridPosition else { return .grid(.triad, nil) }
+            return ChordGrid.color(at: gridPosition, key: key, degree: degree)
+        }
+    }
     private(set) var activeDegree: Degree? = nil
     /// Degrees whose buttons are down, oldest first; the last is the active press.
     private(set) var heldDegrees: [Degree] = []
@@ -157,22 +193,30 @@ final class PerformanceState {
         if let old { release(degree: old) }
     }
 
-    // MARK: – Joystick (delegates to mode)
+    // MARK: – Color surfaces (delegate to mode)
 
     func joystickMoved(to direction: JoystickDirection) {
         guard direction != joystickDirection else { return }
         joystickDirection = direction
-        mode.onJoystickChange(direction: direction, state: self)
+        mode.onColorChange(state: self)
+    }
+
+    /// A finger moved on the chord grid (nil: lifted).
+    func gridMoved(to position: GridPosition?) {
+        guard position != gridPosition else { return }
+        gridPosition = position
+        mode.onColorChange(state: self)
     }
 
     // MARK: – Mode-facing API
 
     func startChord(degree: Degree) {
-        let voicing = select(ChordSpec(degree: degree, color: color))
+        let spec = ChordSpec(degree: degree, color: color(for: degree))
+        let voicing = select(spec)
         logger?.log(.chord_button_pressed(
             degree: degree.rawValue,
             key: "\(key.root.name) \(key.scale.displayName)",
-            joystick: "\(joystickMode)/\(joystickDirection)",
+            color: colorActionLabel(spec.color),
             resultingNotes: voicing.notes
         ))
         sound(voicing, .block, source: .button)
@@ -180,7 +224,7 @@ final class PerformanceState {
 
     /// Sets up voicing state without triggering audio — for clock-driven modes.
     func armChord(degree: Degree) {
-        select(ChordSpec(degree: degree, color: color))
+        select(ChordSpec(degree: degree, color: color(for: degree)))
     }
 
     /// Stop the sounding chord on *every* sink — audio note-off, MIDI note-off,
@@ -207,12 +251,12 @@ final class PerformanceState {
     }
 
     func strumChord(degree: Degree, interval: Double) {
-        let voicing = select(ChordSpec(degree: degree, color: color))
+        let voicing = select(ChordSpec(degree: degree, color: color(for: degree)))
         sound(voicing, .strum(interval: interval), source: .button)
     }
 
     func leadNote(degree: Degree) {
-        select(ChordSpec(degree: degree, color: color))
+        select(ChordSpec(degree: degree, color: color(for: degree)))
         let midiNote = key.root.rawValue + (octave + 1) * 12 + key.scale.offset(of: degree)
         let voicing = Voicing(notes: [midiNote])
         currentVoicing = voicing

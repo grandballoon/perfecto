@@ -12,5 +12,5 @@ final class StrumMode: PerformanceMode {
 
     func onButtonUp(degree: Degree, state: PerformanceState) { }
 
-    func onJoystickChange(direction: JoystickDirection, state: PerformanceState) { }
+    func onColorChange(state: PerformanceState) { }
 }

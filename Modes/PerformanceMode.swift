@@ -68,7 +68,9 @@ protocol PerformanceMode: AnyObject {
     var requiresClock: Bool { get }
     func onButtonDown(degree: Degree, state: PerformanceState)
     func onButtonUp(degree: Degree, state: PerformanceState)
-    func onJoystickChange(direction: JoystickDirection, state: PerformanceState)
+    /// The live chord color changed (joystick or grid moved); modes that
+    /// are sounding a chord re-voice it with `state.color(for:)`.
+    func onColorChange(state: PerformanceState)
     func onClockTick(state: PerformanceState)
     func deactivate(state: PerformanceState)
 }

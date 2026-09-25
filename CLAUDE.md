@@ -44,6 +44,9 @@ ChordEventSink protocol (receives ChordEvent)
 PitchClass, ScaleType (10 scales; the Key sheet offers the 7 heptatonic ones), Key, Degree (I–vii°)
 ChordSpec { degree, color: ChordColor }   // which chord, independent of key and voicing
 ChordColor .joystick(JoystickMode, JoystickDirection)  — 3 modes × 9 directions; shapes live in JoystickMap
+           .grid(StackHeight, HeptatonicMode?)          — thirds stacked through a mode; nil = the degree's own
+HeptatonicMode  // the 21 modes of major / melodic minor / harmonic minor; byBrightness orders the grid's rows
+ChordGrid, GridPosition  // a finger's cell → ChordColor, resolved against the degree that plays
 Voicing { notes: [Int], bassNote: Int? }  // MIDI notes: sorted, unique, always within 0...127
 
 // The central function
@@ -75,7 +78,7 @@ Implement in this sequence — each step is independently testable:
 
 ## Testing
 
-The `JoystickMap` table and `computeVoicing` are the core testable surfaces. Every entry in the joystick transformation table becomes a test assertion on `Voicing.notes`. Full combinatorial space is ~68K; test structural rules + representative samples, not exhaustive coverage.
+The `JoystickMap` table, the chord grid (`stackThirds`, `tertianChordName`, `ChordGrid`) and `computeVoicing` are the core testable surfaces. Every entry in the joystick transformation table becomes a test assertion on `Voicing.notes`. Full combinatorial space is ~68K; test structural rules + representative samples, not exhaustive coverage.
 
 Swift Testing (`@Test`, `#expect`) is the default for all new test files.
 

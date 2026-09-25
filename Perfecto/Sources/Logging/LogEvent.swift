@@ -49,7 +49,7 @@ enum LogEvent {
     // Performance
     case mode_changed(from: String, to: String)
     case mode_clock_required(mode: String, clockRunning: Bool)
-    case chord_button_pressed(degree: Int, key: String, joystick: String, resultingNotes: [Int])
+    case chord_button_pressed(degree: Int, key: String, color: String, resultingNotes: [Int])
     case chord_played(notes: [Int], source: ChordSource)
     case chord_stopped(notes: [Int], source: ChordSource)
 
@@ -150,11 +150,11 @@ extension LogEvent: Encodable {
             try c.encode("mode_clock_required", forKey: Key("type"))
             try c.encode(mode,         forKey: Key("mode"))
             try c.encode(clockRunning, forKey: Key("clockRunning"))
-        case let .chord_button_pressed(degree, key, joystick, resultingNotes):
+        case let .chord_button_pressed(degree, key, color, resultingNotes):
             try c.encode("chord_button_pressed", forKey: Key("type"))
             try c.encode(degree,        forKey: Key("degree"))
             try c.encode(key,           forKey: Key("key"))
-            try c.encode(joystick,      forKey: Key("joystick"))
+            try c.encode(color,         forKey: Key("color"))
             try c.encode(resultingNotes,forKey: Key("resultingNotes"))
         case let .chord_played(notes, source):
             try c.encode("chord_played", forKey: Key("type"))

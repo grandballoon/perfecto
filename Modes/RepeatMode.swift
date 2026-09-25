@@ -20,7 +20,7 @@ final class RepeatMode: PerformanceMode {
         state.endChord()
     }
 
-    func onJoystickChange(direction: JoystickDirection, state: PerformanceState) {
+    func onColorChange(state: PerformanceState) {
         guard let degree = heldDegree else { return }
         state.startChord(degree: degree)
     }

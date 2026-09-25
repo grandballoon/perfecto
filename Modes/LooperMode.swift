@@ -30,7 +30,7 @@ final class LooperMode: PerformanceMode {
         state.endChord()
     }
 
-    func onJoystickChange(direction: JoystickDirection, state: PerformanceState) {}
+    func onColorChange(state: PerformanceState) {}
 
     func onClockTick(state: PerformanceState) {
         consumePendingActions(state: state)

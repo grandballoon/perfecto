@@ -38,6 +38,24 @@ struct SettingsSheet: View {
 
                 Section {
                     VStack(alignment: .leading, spacing: 10) {
+                        Text("How a second finger colors the chord: the joystick strip, or the grid of stacked thirds (columns) through brighter and darker modes (rows).")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(Color(white: 0.45))
+                        Picker("Surface", selection: $state.colorSurface) {
+                            ForEach(ColorSurface.allCases, id: \.self) { surface in
+                                Text(surface.displayName).tag(surface)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    .padding(.vertical, 4)
+                    .listRowBackground(Color(white: 0.10))
+                } header: {
+                    sectionLabel("CHORD COLOR")
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 10) {
                         Text("Press and hold the KEY button to quick-pick a key without opening this menu.")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(Color(white: 0.45))

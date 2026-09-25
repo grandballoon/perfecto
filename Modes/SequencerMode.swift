@@ -15,7 +15,7 @@ final class SequencerMode: PerformanceMode {
     // Sequencer handles its own step progression — chord buttons do nothing during playback.
     func onButtonDown(degree: Degree, state: PerformanceState) { }
     func onButtonUp(degree: Degree, state: PerformanceState) { }
-    func onJoystickChange(direction: JoystickDirection, state: PerformanceState) { }
+    func onColorChange(state: PerformanceState) { }
 
     func onClockTick(state: PerformanceState) {
         guard seqState.isPlaying else { return }

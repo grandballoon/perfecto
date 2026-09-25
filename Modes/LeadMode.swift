@@ -11,7 +11,7 @@ final class LeadMode: PerformanceMode {
         state.endChord()
     }
 
-    func onJoystickChange(direction: JoystickDirection, state: PerformanceState) {
+    func onColorChange(state: PerformanceState) {
         guard let degree = state.activeDegree else { return }
         state.leadNote(degree: degree)
     }

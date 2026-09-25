@@ -278,7 +278,11 @@ Sorting ties by intervals alone put three pairs of neighbours three notes apart;
 The grid shows `rows(around:count:)`, a window of 7 rows centred on the degree's own mode and shifted inward at the ends.
 `ChordColor.grid(StackHeight, HeptatonicMode?)` is the grid's color: a nil mode means the degree's own diatonic mode, so the chord follows key changes, while a named mode is the same quality in every key.
 `tertianChordName` names each cell from its stacked tones in lead-sheet form ("13♯11", "7♭9♭13", "min(maj9)"); a test proves two cells share a name exactly when they sound the same chord.
-**Next:** ChordLink v2, since v1 has no field for a grid color (until then the announcer sends a release for grid chords), and the grid UI replacing the joystick.
+**ChordLink stays at v1 for now (decided 2026-09-24):** the desktop link's function and design are being revamped, so a v2 for grid colors waits for that; until then the announcer sends a release for grid chords.
+**The grid UI ships beside the joystick (decided 2026-09-24).** Settings → Chord Color switches between them; only one is on screen at a time, in Play mode and in the sequencer step editor.
+The surface stores the finger's `GridPosition`, and `PerformanceState.color(for:)` resolves it against the degree that plays, since the same cell is a different mode for each degree.
+Modes hear `onColorChange(state:)` from either surface.
+**Next:** device comparison of the two surfaces, then removing the joystick and `JoystickMap`.
 
 ## Open decisions
 

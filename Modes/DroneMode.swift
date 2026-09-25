@@ -17,7 +17,7 @@ final class DroneMode: PerformanceMode {
 
     func onButtonUp(degree: Degree, state: PerformanceState) { }
 
-    func onJoystickChange(direction: JoystickDirection, state: PerformanceState) {
+    func onColorChange(state: PerformanceState) {
         guard let degree = dronedDegree else { return }
         state.startChord(degree: degree)
     }

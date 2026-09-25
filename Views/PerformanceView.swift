@@ -116,10 +116,10 @@ struct PerformanceView: View {
                         .padding(.horizontal, 20)
                 }
 
-                // Bottom input strip
-                ChordBarView(axis: .horizontal)
+                // Bottom input: the joystick strip or the chord grid
+                ColorSurfaceView()
                     .environment(state)
-                    .frame(height: 88)
+                    .frame(height: ColorSurfaceView.portraitHeight(state.colorSurface))
                     .padding(.horizontal, 20)
                     .padding(.top, 24)
                     .padding(.bottom, 40)
@@ -144,16 +144,17 @@ struct PerformanceView: View {
 
                 // Left panel: input control. The coloration bar stays
                 // horizontal here (as in portrait) and keeps the same 88pt
-                // height. It sits at the bottom so its lower margin lines up
-                // with the function buttons in the right panel.
+                // height; the chord grid fills the panel. Both sit at the
+                // bottom so their lower margin lines up with the function
+                // buttons in the right panel.
                 let isFullScreenMode = state.mode.kind.surface == .looper
                 VStack(spacing: 8) {
                     Spacer(minLength: 0)
                     if !isFullScreenMode {
-                        ChordBarView(axis: .horizontal)
+                        ColorSurfaceView()
                             .environment(state)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 88)
+                            .frame(maxHeight: state.colorSurface == .grid ? .infinity : 88)
                     }
                 }
                 .padding(.horizontal, 16)

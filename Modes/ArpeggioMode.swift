@@ -31,7 +31,7 @@ final class ArpeggioMode: PerformanceMode {
         state.endChord()
     }
 
-    func onJoystickChange(direction: JoystickDirection, state: PerformanceState) {
+    func onColorChange(state: PerformanceState) {
         guard let degree = state.activeDegree else { return }
         state.armChord(degree: degree)
         resetCursor(noteCount: state.currentVoicing?.notes.count ?? 1)

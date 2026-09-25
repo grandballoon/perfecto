@@ -26,7 +26,7 @@ final class MicSampleMode: PerformanceMode {
         // Sample plays through to end — do not stop on release
     }
 
-    func onJoystickChange(direction: JoystickDirection, state: PerformanceState) {}
+    func onColorChange(state: PerformanceState) {}
     func onClockTick(state: PerformanceState) {}
 
     func deactivate(state: PerformanceState) {

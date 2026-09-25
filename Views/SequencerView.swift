@@ -12,6 +12,8 @@ struct SequencerView: View {
     /// while actively dragged and clears (`.center`) on release, so no button
     /// stays lit by default.
     @State private var stepColorTransient: JoystickDirection = .center
+    /// The chord grid's equivalent: a cell lights only while dragged.
+    @State private var stepGridTransient: GridPosition? = nil
     /// Drives the KEY sheet for the landscape transport row, which owns the
     /// whole screen and so needs its own copy of the KEY control.
     @State private var showKeySheet = false
@@ -499,6 +501,10 @@ struct SequencerView: View {
         // The editor displays the most recently touched step and applies every
         // edit to all selected steps at once.
         let primary = seqState.primaryStep.map { seqState.steps[$0] }
+        // The grid needs a row per mode, so it is taller than the strip.
+        let surfaceHeight: CGFloat = perfState.colorSurface == .grid
+            ? (boxed ? 168 : ColorSurfaceView.portraitHeight(.grid))
+            : colorBarHeight
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 12) {
@@ -533,39 +539,21 @@ struct SequencerView: View {
             .scaleEffect(1.1)
             .padding(.vertical, 4)
 
-            // Chord-coloration bar — the same strip used in Play mode. It edits
-            // the selected step's color instead of the live performance
-            // direction. In portrait (no box) it bleeds past the
-            // panel's 12pt inset on the sides and bottom so it spans the full
-            // width and drops to the same 40pt-from-bottom position as Play
-            // mode's bar, keeping the bar visually identical across modes.
-            ChordColorBar(
-                axis: .horizontal,
-                mode: perfState.joystickMode,
-                selected: stepColorTransient,
-                onChange: { direction in
-                    guard !seqState.selectedSteps.isEmpty else { return }
-                    // One undo snapshot per drag: take it on the first change,
-                    // clear the flag when the gesture ends.
-                    if !stepColorEditActive {
-                        seqState.snapshot()
-                        stepColorEditActive = true
-                    }
-                    stepColorTransient = direction
-                    seqState.editSelectedSteps {
-                        // Use the mode the labels were drawn from, so playback
-                        // and the step's coloration indicator match what the bar
-                        // showed.
-                        $0.color = .joystick(perfState.joystickMode, direction)
-                        $0.isRest = false
-                    }
-                },
-                onEnd: {
-                    stepColorTransient = .center
-                    stepColorEditActive = false
+            // Chord-coloration input — the same surface Play mode shows (the
+            // joystick strip or the chord grid). It edits the selected steps'
+            // color instead of the live one. In portrait (no box) it bleeds
+            // past the panel's 12pt inset on the sides and bottom so it spans
+            // the full width and drops to the same 40pt-from-bottom position
+            // as Play mode's, keeping the surface visually identical across modes.
+            Group {
+                switch perfState.colorSurface {
+                case .joystick:
+                    stepColorBar
+                case .grid:
+                    stepColorGrid(degree: primary.flatMap { $0.isRest ? nil : $0.degree } ?? .I)
                 }
-            )
-            .frame(height: colorBarHeight)
+            }
+            .frame(height: surfaceHeight)
             .padding(.horizontal, boxed ? 0 : -12)
             .padding(.bottom, boxed ? 0 : -12)
         }
@@ -584,9 +572,67 @@ struct SequencerView: View {
         .overlay(alignment: .bottomTrailing) {
             if !boxed {
                 playCornerButton
-                    .padding(.bottom, colorBarHeight + 12)
+                    .padding(.bottom, surfaceHeight + 12)
             }
         }
+    }
+
+    // MARK: – Step color surfaces
+
+    private var stepColorBar: some View {
+        ChordColorBar(
+            axis: .horizontal,
+            mode: perfState.joystickMode,
+            selected: stepColorTransient,
+            onChange: { direction in
+                guard !seqState.selectedSteps.isEmpty else { return }
+                // One undo snapshot per drag: take it on the first change,
+                // clear the flag when the gesture ends.
+                if !stepColorEditActive {
+                    seqState.snapshot()
+                    stepColorEditActive = true
+                }
+                stepColorTransient = direction
+                seqState.editSelectedSteps {
+                    // Use the mode the labels were drawn from, so playback
+                    // and the step's coloration indicator match what the bar
+                    // showed.
+                    $0.color = .joystick(perfState.joystickMode, direction)
+                    $0.isRest = false
+                }
+            },
+            onEnd: {
+                stepColorTransient = .center
+                stepColorEditActive = false
+            }
+        )
+    }
+
+    /// Each selected step resolves the cell against its own degree, as live
+    /// playback resolves it against the degree that plays.
+    private func stepColorGrid(degree: Degree) -> some View {
+        ChordGridPad(
+            key: perfState.key,
+            degree: degree,
+            selected: stepGridTransient,
+            onChange: { position in
+                guard !seqState.selectedSteps.isEmpty else { return }
+                if !stepColorEditActive {
+                    seqState.snapshot()
+                    stepColorEditActive = true
+                }
+                stepGridTransient = position
+                let key = perfState.key
+                seqState.editSelectedSteps {
+                    $0.color = ChordGrid.color(at: position, key: key, degree: $0.degree)
+                    $0.isRest = false
+                }
+            },
+            onEnd: {
+                stepGridTransient = nil
+                stepColorEditActive = false
+            }
+        )
     }
 
     // MARK: – Rest / Gate (apply to every selected step)

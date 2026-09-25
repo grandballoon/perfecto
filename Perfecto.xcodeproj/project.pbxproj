@@ -11,6 +11,7 @@
 		E7A00000000000000000000E /* ChordSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A00000000000000000000D /* ChordSpec.swift */; };
 		E7A000000000000000000012 /* TertianStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000011 /* TertianStack.swift */; };
 		E7A000000000000000000014 /* HeptatonicMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000013 /* HeptatonicMode.swift */; };
+		E7A000000000000000000016 /* ChordGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000015 /* ChordGrid.swift */; };
 		E7A000000000000000000004 /* PerformanceVoicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000003 /* PerformanceVoicing.swift */; };
 		E7A000000000000000000006 /* SequencerMidiRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000005 /* SequencerMidiRenderer.swift */; };
 		E7A000000000000000000008 /* SequencerMidiExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000007 /* SequencerMidiExport.swift */; };
@@ -26,6 +27,8 @@
 		4208FE1C625C18BCAA7F3F4E /* ModeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 159DFDCE7DED7B73D8692A21 /* ModeSheet.swift */; };
 		460B3ADC3A68D1D3CFC48460 /* ChordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A16BDCF64F055622DF991C /* ChordButton.swift */; };
 		AA9900112233445566778800 /* ChordBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9900112233445566778811 /* ChordBarView.swift */; };
+		E7A00000000000000000001A /* ColorSurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000019 /* ColorSurfaceView.swift */; };
+		E7A000000000000000000018 /* ChordGridPad.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000017 /* ChordGridPad.swift */; };
 		AA9900112233445566779900 /* ChordColorBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9900112233445566779911 /* ChordColorBar.swift */; };
 		CC9900112233445566778800 /* ChordRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9900112233445566778811 /* ChordRowView.swift */; };
 		FF0000112233445566778800 /* CircleChordGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0000112233445566778811 /* CircleChordGridView.swift */; };
@@ -80,6 +83,7 @@
 		CCDD000000000000000000B8 /* StubPermissionGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B7 /* StubPermissionGate.swift */; };
 		CCDD000000000000000000BA /* Expect+Voicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000B9 /* Expect+Voicing.swift */; };
 		CCDD000000000000000000BC /* PlayModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000BB /* PlayModeTests.swift */; };
+		E7A00000000000000000001C /* ColorSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A00000000000000000001B /* ColorSurfaceTests.swift */; };
 		A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */; };
 		D5E9A5000000000000000B01 /* SequencerPlaybackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */; };
 		CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000BE /* RecordingMidiBackend.swift */; };
@@ -102,6 +106,7 @@
 		E7A00000000000000000000D /* ChordSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordSpec.swift; sourceTree = "<group>"; };
 		E7A000000000000000000011 /* TertianStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TertianStack.swift; sourceTree = "<group>"; };
 		E7A000000000000000000013 /* HeptatonicMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeptatonicMode.swift; sourceTree = "<group>"; };
+		E7A000000000000000000015 /* ChordGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordGrid.swift; sourceTree = "<group>"; };
 		E7A000000000000000000003 /* PerformanceVoicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceVoicing.swift; sourceTree = "<group>"; };
 		E7A000000000000000000005 /* SequencerMidiRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerMidiRenderer.swift; sourceTree = "<group>"; };
 		E7A000000000000000000007 /* SequencerMidiExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerMidiExport.swift; sourceTree = "<group>"; };
@@ -154,6 +159,8 @@
 		EE1122334455667788990011 /* Looper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Looper.swift; sourceTree = "<group>"; };
 		EE1122334455667788993300 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA9900112233445566778811 /* ChordBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordBarView.swift; sourceTree = "<group>"; };
+		E7A000000000000000000019 /* ColorSurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSurfaceView.swift; sourceTree = "<group>"; };
+		E7A000000000000000000017 /* ChordGridPad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordGridPad.swift; sourceTree = "<group>"; };
 		AA9900112233445566779911 /* ChordColorBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordColorBar.swift; sourceTree = "<group>"; };
 		CC9900112233445566778811 /* ChordRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordRowView.swift; sourceTree = "<group>"; };
 		FF0000112233445566778811 /* CircleChordGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleChordGridView.swift; sourceTree = "<group>"; };
@@ -171,6 +178,7 @@
 		CCDD000000000000000000B7 /* StubPermissionGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubPermissionGate.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B9 /* Expect+Voicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Expect+Voicing.swift"; sourceTree = "<group>"; };
 		CCDD000000000000000000BB /* PlayModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayModeTests.swift; sourceTree = "<group>"; };
+		E7A00000000000000000001B /* ColorSurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSurfaceTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockResolutionTests.swift; sourceTree = "<group>"; };
 		D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerPlaybackTests.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000BE /* RecordingMidiBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMidiBackend.swift; sourceTree = "<group>"; };
@@ -311,6 +319,7 @@
 				E7A00000000000000000000D /* ChordSpec.swift */,
 				E7A000000000000000000011 /* TertianStack.swift */,
 				E7A000000000000000000013 /* HeptatonicMode.swift */,
+				E7A000000000000000000015 /* ChordGrid.swift */,
 				C1B000000000000000000001 /* ChordWire.swift */,
 				6FBA429F85D9C4510F59C804 /* ComputeVoicing.swift */,
 				9D166369984572EF3023797E /* Degree.swift */,
@@ -385,6 +394,8 @@
 			children = (
 				6B997445A9C3FF55AD7DB863 /* Sheets */,
 				AA9900112233445566778811 /* ChordBarView.swift */,
+				E7A000000000000000000019 /* ColorSurfaceView.swift */,
+				E7A000000000000000000017 /* ChordGridPad.swift */,
 				AA9900112233445566779911 /* ChordColorBar.swift */,
 				CC9900112233445566778811 /* ChordRowView.swift */,
 				FF0000112233445566778811 /* CircleChordGridView.swift */,
@@ -498,6 +509,7 @@
 			isa = PBXGroup;
 			children = (
 				CCDD000000000000000000BB /* PlayModeTests.swift */,
+				E7A00000000000000000001B /* ColorSurfaceTests.swift */,
 				A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */,
 				D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */,
 			);
@@ -628,6 +640,7 @@
 				E7A00000000000000000000E /* ChordSpec.swift in Sources */,
 				E7A000000000000000000012 /* TertianStack.swift in Sources */,
 				E7A000000000000000000014 /* HeptatonicMode.swift in Sources */,
+				E7A000000000000000000016 /* ChordGrid.swift in Sources */,
 				CCDD00000000000000003302 /* Logger.swift in Sources */,
 				CCDD00000000000000003304 /* LogEvent.swift in Sources */,
 				CCDD00000000000000003306 /* FileLogger.swift in Sources */,
@@ -637,6 +650,8 @@
 				B39DB497530034E802D3B1D6 /* ArpeggioMode.swift in Sources */,
 				E5C2BA39D35F583002D6FC8B /* AudioSink.swift in Sources */,
 				AA9900112233445566778800 /* ChordBarView.swift in Sources */,
+				E7A00000000000000000001A /* ColorSurfaceView.swift in Sources */,
+				E7A000000000000000000018 /* ChordGridPad.swift in Sources */,
 				AA9900112233445566779900 /* ChordColorBar.swift in Sources */,
 				CC9900112233445566778800 /* ChordRowView.swift in Sources */,
 				FF0000112233445566778800 /* CircleChordGridView.swift in Sources */,
@@ -703,6 +718,7 @@
 				CCDD000000000000000000B8 /* StubPermissionGate.swift in Sources */,
 				CCDD000000000000000000BA /* Expect+Voicing.swift in Sources */,
 				CCDD000000000000000000BC /* PlayModeTests.swift in Sources */,
+				E7A00000000000000000001C /* ColorSurfaceTests.swift in Sources */,
 				A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */,
 				D5E9A5000000000000000B01 /* SequencerPlaybackTests.swift in Sources */,
 				CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */,
