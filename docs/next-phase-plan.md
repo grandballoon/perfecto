@@ -271,9 +271,14 @@ Goal 1 starts by checking that the grid function reproduces today's 38 qualities
 **Goal 1 progress (2026-09-24).** The X axis is built: `diatonicMode(key:degree:)` reads a degree's seven-note mode, and `stackThirds(_:height:)` stacks triad → 7 → 9 → 11 → 13 through any mode ([TertianStack.swift](../Perfecto/Sources/MusicTheoryCore/TertianStack.swift)).
 A perfect 11 over a major 3rd drops the 3rd in the 11 column (C11) and the 11 in the 13 column (C13), so no two columns repeat.
 Stacking through the diatonic mode already fixes the augmented-III problem and reaches dim7, maj9, min13 and 9sus4-style 11 chords.
-**Open: the Y axis.** A single one-note-per-step brightness ladder (Lydian → Locrian, continuing to Lydian augmented and the altered scale at the ends) can't reach Lydian dominant, melodic minor, harmonic minor or Phrygian dominant, because those change notes out of the ladder's order.
-Covering them means either rows sorted by brightness with some two-note jumps, or a second brightness dimension.
-This needs a decision before `ChordColor` gets a grid case and before any UI.
+**The Y axis (decided 2026-09-24: rows sorted by brightness).** A single one-note-per-step ladder can't reach Lydian dominant, melodic minor, harmonic minor or Phrygian dominant, so the rows are all 21 modes of major, melodic minor and harmonic minor ([HeptatonicMode.swift](../Perfecto/Sources/MusicTheoryCore/HeptatonicMode.swift)).
+Brightness is the sum of the mode's intervals, which gives the familiar Lydian → Locrian order along the major modes.
+Several modes share each sum; within a sum, the next row is the mode changing the fewest notes from the row above.
+Sorting ties by intervals alone put three pairs of neighbours three notes apart; with this rule every step down the grid moves one or two notes, and a test holds it there.
+The grid shows `rows(around:count:)`, a window of 7 rows centred on the degree's own mode and shifted inward at the ends.
+`ChordColor.grid(StackHeight, HeptatonicMode?)` is the grid's color: a nil mode means the degree's own diatonic mode, so the chord follows key changes, while a named mode is the same quality in every key.
+`tertianChordName` names each cell from its stacked tones in lead-sheet form ("13♯11", "7♭9♭13", "min(maj9)"); a test proves two cells share a name exactly when they sound the same chord.
+**Next:** ChordLink v2, since v1 has no field for a grid color (until then the announcer sends a release for grid chords), and the grid UI replacing the joystick.
 
 ## Open decisions
 

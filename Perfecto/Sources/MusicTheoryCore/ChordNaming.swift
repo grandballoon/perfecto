@@ -59,6 +59,23 @@ func chordShape(key: Key, spec: ChordSpec) -> ChordShape {
     switch spec.color {
     case let .joystick(mode, direction):
         return JoystickMap.outcome(mode: mode, direction: direction).shape(for: base)
+    case let .grid(height, mode):
+        let stackMode = mode ?? gridMode(key: key, degree: spec.degree, base: base)
+        return ChordShape(stackThirds(stackMode.intervals, height: height),
+                          tertianChordName(stackMode, height: height))
+    }
+}
+
+/// The mode a grid chord with no named mode stacks through: the degree's own.
+/// Scales without seven notes have no diatonic mode (the Key sheet doesn't
+/// offer them; see docs/next-phase-plan.md, Open decision 1), so they stack
+/// through the major-scale mode with the degree's triad quality.
+private func gridMode(key: Key, degree: Degree, base: TriadBase) -> HeptatonicMode {
+    if let mode = HeptatonicMode(key: key, degree: degree) { return mode }
+    switch base {
+    case .major: return .ionian
+    case .minor: return .aeolian
+    case .dim:   return .locrian
     }
 }
 
@@ -78,6 +95,9 @@ public func chordLabel(key: Key, spec: ChordSpec) -> String {
 public func colorActionLabel(_ color: ChordColor) -> String {
     switch color {
     case let .joystick(mode, direction): return joystickActionLabel(mode: mode, direction: direction)
+    case let .grid(height, mode):
+        guard let mode else { return height.displayName }
+        return "\(height.displayName) · \(mode.displayName)"
     }
 }
 

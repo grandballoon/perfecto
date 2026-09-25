@@ -47,6 +47,21 @@ struct MidiAnnouncerSinkTests {
         #expect(transport.frames == [ChordWire.encodeRelease()])
     }
 
+    /// ChordLink v1 cannot describe a grid color, so the announcer releases
+    /// instead of leaving receivers on the previous chord.
+    @Test func gridChordAnnouncesARelease() {
+        let transport = RecordingSysExTransport()
+        let sink = MidiAnnouncerSink(transport: transport)
+        let grid = performanceContext(key: Key(root: .C, scale: .major), octave: 4,
+                                      spec: ChordSpec(degree: .V, color: .grid(.ninth, .lydianDominant)))
+
+        sink.playChord(.block([60, 64, 67], context: Self.context))
+        sink.playChord(.block([67, 71, 74, 77, 81], context: grid))
+
+        #expect(transport.frames.count == 2)
+        #expect(transport.frames.last == ChordWire.encodeRelease())
+    }
+
     // MARK: – Through sequencer playback
 
     /// A sequencer step plays its own color; the frame must announce that

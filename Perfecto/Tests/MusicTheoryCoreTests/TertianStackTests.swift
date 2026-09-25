@@ -103,4 +103,84 @@ struct TertianStackTests {
             }
         }
     }
+
+    // MARK: – Names
+
+    private func name(_ mode: HeptatonicMode, _ height: StackHeight) -> String {
+        tertianChordName(mode, height: height)
+    }
+
+    @Test func triadAndSeventhNames() {
+        #expect(name(.ionian, .triad) == "maj")
+        #expect(name(.dorian, .triad) == "min")
+        #expect(name(.locrian, .triad) == "dim")
+        #expect(name(.lydianAugmented, .triad) == "aug")
+        #expect(name(.ionian, .seventh) == "maj7")
+        #expect(name(.mixolydian, .seventh) == "7")
+        #expect(name(.dorian, .seventh) == "min7")
+        #expect(name(.melodicMinor, .seventh) == "min(maj7)")
+        #expect(name(.locrian, .seventh) == "min7♭5")
+        #expect(name(.ultralocrian, .seventh) == "dim7")
+        #expect(name(.ionianSharp5, .seventh) == "maj7♯5")
+    }
+
+    @Test func extendedNames() {
+        #expect(name(.ionian, .ninth) == "maj9")
+        #expect(name(.dorian, .thirteenth) == "min13")
+        #expect(name(.mixolydian, .eleventh) == "11")
+        #expect(name(.mixolydian, .thirteenth) == "13")
+        #expect(name(.lydian, .eleventh) == "maj9♯11")
+        #expect(name(.lydianDominant, .thirteenth) == "13♯11")
+        #expect(name(.phrygianDominant, .thirteenth) == "7♭9♭13")
+        #expect(name(.mixolydianFlat6, .thirteenth) == "9♭13")
+        #expect(name(.aeolian, .thirteenth) == "min11♭13")
+        #expect(name(.locrianNatural2, .ninth) == "min9♭5")
+        #expect(name(.harmonicMinor, .ninth) == "min(maj9)")
+    }
+
+    /// Names are read from the stacked tones alone: two cells share a name
+    /// exactly when they sound the same chord.
+    @Test func sameNameExactlyWhenSameChord() {
+        for height in StackHeight.allCases {
+            var chordForName: [String: [Int]] = [:]
+            for mode in HeptatonicMode.allCases {
+                let chord = stackThirds(mode.intervals, height: height)
+                let label = name(mode, height)
+                if let other = chordForName[label] {
+                    #expect(other == chord, "\(label) names two chords at \(height)")
+                }
+                chordForName[label] = chord
+            }
+            let chords = Set(HeptatonicMode.allCases.map { stackThirds($0.intervals, height: height) })
+            #expect(chords.count == chordForName.count, "\(height): one chord has two names")
+        }
+    }
+
+    // MARK: – The grid color
+
+    private func grid(_ key: Key, _ degree: Degree, _ height: StackHeight,
+                      _ mode: HeptatonicMode? = nil) -> (notes: [Int], label: String) {
+        let spec = ChordSpec(degree: degree, color: .grid(height, mode))
+        let notes = computeVoicing(key: key, spec: spec, inversion: .root, octave: 4,
+                                   voiceLeading: false, previousVoicing: nil).notes
+        return (notes, chordLabel(key: key, spec: spec))
+    }
+
+    @Test func diatonicGridChordFollowsTheKey() {
+        #expect(grid(cMajor, .ii, .seventh) == ([62, 65, 69, 72], "D min7"))
+        #expect(grid(Key(root: .C, scale: .naturalMinor), .ii, .seventh) == ([62, 65, 68, 72], "D min7♭5"))
+    }
+
+    @Test func namedModeIsTheSameQualityInEveryKey() {
+        let inMajor = grid(cMajor, .V, .ninth, .altered)
+        let inMinor = grid(Key(root: .C, scale: .harmonicMinor), .V, .ninth, .altered)
+        #expect(inMajor == ([67, 70, 73, 77, 80], "G min7♭5♭9"))
+        #expect(inMinor == inMajor)
+    }
+
+    @Test func baseGridColorIsTheDiatonicTriad() {
+        #expect(ChordColor.grid(.triad, nil).isBase)
+        #expect(!ChordColor.grid(.triad, .ionian).isBase)
+        #expect(!ChordColor.grid(.seventh, nil).isBase)
+    }
 }

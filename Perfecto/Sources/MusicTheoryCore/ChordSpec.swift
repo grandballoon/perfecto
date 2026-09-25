@@ -22,6 +22,11 @@ public struct ChordSpec: Hashable, Codable, Sendable {
 public enum ChordColor: Hashable, Codable, Sendable {
     /// A direction on the joystick in one of its three modes (JoystickMap).
     case joystick(JoystickMode, JoystickDirection)
+    /// A cell of the chord grid: thirds stacked to `height` through `mode`.
+    /// A nil mode is the degree's own diatonic mode, so the chord follows the
+    /// key (C major ii stacks through Dorian, C minor ii through Locrian); a
+    /// named mode is the same chord quality in every key.
+    case grid(StackHeight, HeptatonicMode?)
 
     /// The unmodified base triad.
     public static let base = ChordColor.joystick(.default, .center)
@@ -30,6 +35,7 @@ public enum ChordColor: Hashable, Codable, Sendable {
     public var isBase: Bool {
         switch self {
         case let .joystick(_, direction): return direction == .center
+        case let .grid(height, mode):     return height == .triad && mode == nil
         }
     }
 }
