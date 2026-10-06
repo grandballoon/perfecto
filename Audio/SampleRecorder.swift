@@ -56,6 +56,13 @@ final class SampleRecorder {
         }
     }
 
+    /// The sample there is to play, if there is one and it is not being
+    /// recorded over.
+    var recording: Recording? {
+        guard phase == .idle, duration > 0 else { return nil }
+        return unit.captured(capture)
+    }
+
     /// Seconds of sound there are to play.
     var duration: TimeInterval { unit.captureDuration(capture) }
 

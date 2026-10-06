@@ -409,6 +409,17 @@ final class PerformanceState {
         }
     }
 
+    /// Everything the timeline plays, the loops and the sequence together,
+    /// as it sounds in the current key, sound and tempo: ready to share as
+    /// an audio file.
+    var timelineAudioExport: TimelineAudioExport {
+        let timeline = sequencerState.timeline
+        return TimelineAudioExport(timeline: timeline, live: liveSettings, bpm: bpm,
+                                   sample: output?.sampleRecorder.recording) { [weak self] seconds in
+            self?.logger?.log(.timeline_audio_exported(seconds: seconds, layerCount: timeline.layers.count))
+        }
+    }
+
     // MARK: – The timeline
 
     /// What a timeline's notes follow where they have no settings of their own.

@@ -7,7 +7,7 @@ Tests/
 ├── Helpers/            — recording doubles shared across all test suites
 │   ├── RecordingSink.swift       — ChordEventSink double; records play/stop calls
 │   ├── RecordingNoteSink.swift   — NoteSink double; records the notes started and ended
-│   ├── ManualClock.swift         — ClockTickable double; tick() and advance(beats:/seconds:) move time manually
+│   ├── ManualClock.swift         — the app's SteppedClock under its test name; tick() and advance(beats:/seconds:) move time manually
 │   ├── WaitUntil.swift           — waits for a condition instead of sleeping a fixed time
 │   ├── KernelOfflineRig.swift    — the kernel's Audio Unit in an engine that renders offline
 │   ├── Tone.swift                — a sine for an engine to hear at its input, and for measuring what was recorded
@@ -18,7 +18,7 @@ Tests/
 ├── ModeTests/          — per-mode tests using recording doubles
 │   └── PlayModeTests.swift
 ├── TimelineTests/      — the timeline: its edits, compile, and the player against a manual clock
-├── ExportTests/        — sequencer → Standard MIDI File rendering
+├── ExportTests/        — the timeline as a Standard MIDI File, and as an audio file rendered through the kernel
 ├── ViewTests/          — real screens hosted in a window, redrawn while their state changes
 ├── SinkTests/          — NotePlayerTests (chords into notes), MidiSinkTests
 ├── LoggingTests/       — (Phase 3) LoggerTests

@@ -157,14 +157,22 @@ struct SequencerView: View {
         .buttonStyle(.plain)
     }
 
-    /// Shares the pattern as it plays (current key, octave and tempo) as a
-    /// `.mid` file. Disabled when every played step is a rest — there would be
-    /// nothing in the file.
+    /// Shares what the timeline plays (in the current key, octave, sound
+    /// and tempo): as sound, a `.wav` file of every layer as it is heard, or
+    /// as notes, a `.mid` file. Disabled when every played step is a rest —
+    /// there would be nothing in the file.
     private var exportButton: some View {
         let isEmpty = seqState.timeline.playsNothing
-        return ShareLink(item: perfState.sequencerMidiExport,
-                         preview: SharePreview("Perfecto MIDI pattern",
-                                               image: Image(systemName: "pianokeys"))) {
+        return Menu {
+            ShareLink(item: perfState.timelineAudioExport,
+                      preview: SharePreview("Perfecto audio", image: Image(systemName: "waveform"))) {
+                Label("Audio (WAV)", systemImage: "waveform")
+            }
+            ShareLink(item: perfState.sequencerMidiExport,
+                      preview: SharePreview("Perfecto MIDI pattern", image: Image(systemName: "pianokeys"))) {
+                Label("MIDI", systemImage: "pianokeys")
+            }
+        } label: {
             Image(systemName: "square.and.arrow.up")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(isEmpty ? Color(white: 0.3) : Color(white: 0.6))
@@ -173,7 +181,7 @@ struct SequencerView: View {
         }
         .buttonStyle(.plain)
         .disabled(isEmpty)
-        .accessibilityLabel("Export MIDI")
+        .accessibilityLabel("Export audio or MIDI")
     }
 
     private var clearButton: some View {

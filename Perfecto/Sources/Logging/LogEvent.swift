@@ -82,6 +82,7 @@ enum LogEvent {
 
     // Export
     case sequencer_midi_exported(stepCount: Int, noteCount: Int, byteCount: Int)
+    case timeline_audio_exported(seconds: Double, layerCount: Int)
 
     // Permissions
     case permission_state_observed(permission: String, state: String)
@@ -226,6 +227,10 @@ extension LogEvent: Encodable {
         case let .loop_cleared(track):
             try c.encode("loop_cleared", forKey: Key("type"))
             try c.encode(track, forKey: Key("track"))
+        case let .timeline_audio_exported(seconds, layerCount):
+            try c.encode("timeline_audio_exported", forKey: Key("type"))
+            try c.encode(seconds, forKey: Key("seconds"))
+            try c.encode(layerCount, forKey: Key("layerCount"))
         case let .sequencer_midi_exported(stepCount, noteCount, byteCount):
             try c.encode("sequencer_midi_exported", forKey: Key("type"))
             try c.encode(stepCount, forKey: Key("stepCount"))
