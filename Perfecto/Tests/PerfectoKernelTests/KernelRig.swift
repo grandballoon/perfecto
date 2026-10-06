@@ -1,3 +1,4 @@
+import Foundation
 import PerfectoKernel
 
 /// A kernel rendering into memory: events go in, and every frame it has
@@ -23,16 +24,31 @@ final class KernelRig {
     var time: Int { Int(perfecto_kernel_time(kernel)) }
 
     @discardableResult
-    func noteOn(_ id: UInt64, note: Int = 69, velocity: Float = 1, at frame: Int = 0) -> Bool {
+    func noteOn(_ id: UInt64, note: Int = 69, velocity: Float = 1, sound: Int = 0, brightness: Float = 1,
+                at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteOn,
-                                  note: Int32(note), velocity: velocity)
+                                  note: Int32(note), velocity: velocity, sound: Int32(sound), brightness: brightness)
         return perfecto_kernel_send(kernel, &event)
+    }
+
+    /// Changes the brightness of a sounding note.
+    @discardableResult
+    func noteChange(_ id: UInt64, brightness: Float, at frame: Int = 0) -> Bool {
+        var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteChange,
+                                  note: 0, velocity: 0, sound: 0, brightness: brightness)
+        return perfecto_kernel_send(kernel, &event)
+    }
+
+    /// Makes `patch` sound number `sound`.
+    func setSound(_ sound: Int, _ patch: PerfectoPatch) {
+        var patch = patch
+        perfecto_kernel_set_sound(kernel, Int32(sound), &patch)
     }
 
     @discardableResult
     func noteOff(_ id: UInt64, at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteOff,
-                                  note: 0, velocity: 0)
+                                  note: 0, velocity: 0, sound: 0, brightness: 1)
         return perfecto_kernel_send(kernel, &event)
     }
 
@@ -69,6 +85,105 @@ final class KernelRig {
     /// a step far bigger than the sound's own slope.
     func biggestStep(_ range: Range<Int>) -> Float {
         zip(output[range], output[range].dropFirst()).map { abs($1 - $0) }.max() ?? 0
+    }
+}
+
+extension KernelRig {
+    /// How strong the sine at `hz` is in `range`: its amplitude, found by
+    /// laying a sine and a cosine of that pitch over the sound.
+    func strength(of hz: Double, in range: Range<Int>) -> Double {
+        var (sine, cosine) = (0.0, 0.0)
+        for frame in range {
+            let angle = 2 * Double.pi * hz * Double(frame) / Self.sampleRate
+            sine += Double(output[frame]) * sin(angle)
+            cosine += Double(output[frame]) * cos(angle)
+        }
+        return 2 * (sine * sine + cosine * cosine).squareRoot() / Double(range.count)
+    }
+
+    /// The root mean square of `range`.
+    func power(_ range: Range<Int>) -> Double {
+        (output[range].reduce(0.0) { $0 + Double($1) * Double($1) } / Double(range.count)).squareRoot()
+    }
+
+    /// What is left of `range`, as a root mean square, once every sine in
+    /// `pitches` has been taken out of it: for a wave of one pitch, whatever
+    /// is not one of its partials.
+    func remainder(without pitches: [Double], in range: Range<Int>) -> Double {
+        var rest = range.map { Double(output[$0]) }
+        for hz in pitches {
+            var (sine, cosine) = (0.0, 0.0)
+            for (index, frame) in range.enumerated() {
+                let angle = 2 * Double.pi * hz * Double(frame) / Self.sampleRate
+                sine += rest[index] * sin(angle)
+                cosine += rest[index] * cos(angle)
+            }
+            sine *= 2 / Double(range.count)
+            cosine *= 2 / Double(range.count)
+            for (index, frame) in range.enumerated() {
+                let angle = 2 * Double.pi * hz * Double(frame) / Self.sampleRate
+                rest[index] -= sine * sin(angle) + cosine * cos(angle)
+            }
+        }
+        return (rest.reduce(0) { $0 + $1 * $1 } / Double(rest.count)).squareRoot()
+    }
+}
+
+/// The frequency of a MIDI note.
+func hz(_ note: Int) -> Double {
+    440 * pow(2, Double(note - 69) / 12)
+}
+
+/// Patches for tests: one operator held at full level unless said otherwise.
+extension PerfectoPatch {
+    static func wave(_ wave: PerfectoWave, pulseWidth: Float = 0.5, partials: [Float] = [],
+                     level: Float = 0.5) -> PerfectoPatch {
+        var patch = PerfectoPatch()
+        patch.operators.0.wave = wave
+        patch.operators.0.pulse_width = pulseWidth
+        withUnsafeMutableBytes(of: &patch.operators.0.partials) { bytes in
+            let slots = bytes.bindMemory(to: Float.self)
+            for (index, partial) in partials.enumerated() where index < slots.count { slots[index] = partial }
+        }
+        patch.operators.0.ratio = 1
+        patch.operators.0.level = 1
+        patch.attack = 0.003
+        patch.decay = 0.05
+        patch.sustain = 1
+        patch.release = 0.006
+        patch.level = level
+        return patch
+    }
+
+    /// A sine bent by a second sine at `ratio` times its pitch.
+    static func modulated(ratio: Float, index: PerfectoSweep) -> PerfectoPatch {
+        var patch = wave(PerfectoWaveSine)
+        patch.operators.1.wave = PerfectoWaveSine
+        patch.operators.1.ratio = ratio
+        patch.operators.1.level = 1
+        patch.modulates = true
+        patch.index = index
+        return patch
+    }
+
+    func filtered(cutoff: PerfectoSweep, resonance: Float = 0) -> PerfectoPatch {
+        var patch = self
+        patch.filtered = true
+        patch.cutoff = cutoff
+        patch.resonance = resonance
+        return patch
+    }
+
+    func envelope(attack: Float, decay: Float, sustain: Float, release: Float) -> PerfectoPatch {
+        var patch = self
+        (patch.attack, patch.decay, patch.sustain, patch.release) = (attack, decay, sustain, release)
+        return patch
+    }
+}
+
+extension PerfectoSweep {
+    static func steady(_ value: Float) -> PerfectoSweep {
+        PerfectoSweep(from: value, to: value, time: 0)
     }
 }
 

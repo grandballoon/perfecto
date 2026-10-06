@@ -86,13 +86,14 @@ final class KernelAudioUnit: AUAudioUnit {
     @discardableResult
     func noteOn(_ id: UInt64, note: Int, velocity: Float, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOn,
-                           note: Int32(note), velocity: velocity))
+                           note: Int32(note), velocity: velocity, sound: 0, brightness: 1))
     }
 
     /// Ends the note `id` on frame `time`.
     @discardableResult
     func noteOff(_ id: UInt64, at time: UInt64 = 0) -> Bool {
-        send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOff, note: 0, velocity: 0))
+        send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOff, note: 0, velocity: 0,
+                           sound: 0, brightness: 1))
     }
 
     private func send(_ event: PerfectoEvent) -> Bool {

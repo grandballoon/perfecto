@@ -29,11 +29,88 @@ extern "C" {
 
 typedef struct PerfectoKernel PerfectoKernel;
 
+// MARK: Sounds
+
+/// A value that moves from `from` to `to` over `time` seconds after a note
+/// starts, then stays there.
+typedef struct {
+    float from;
+    float to;
+    float time;
+} PerfectoSweep;
+
+typedef enum {
+    PerfectoWaveSine = 0,
+    PerfectoWaveTriangle,
+    PerfectoWaveSquare,
+    PerfectoWaveSawtooth,
+    /// High for `pulse_width` of each cycle.
+    PerfectoWavePulse,
+    /// The sine partials in `partials`.
+    PerfectoWavePartials,
+} PerfectoWave;
+
+enum {
+    /// The operators in a patch.
+    PerfectoOperatorCount = 2,
+    /// The most partials a `PerfectoWavePartials` wave can name.
+    PerfectoPartialCount = 16,
+};
+
+/// One of a patch's two sources: a wave at a multiple of the note's pitch.
+typedef struct {
+    PerfectoWave wave;
+    /// For `PerfectoWavePulse`: 0...1.
+    float pulse_width;
+    /// For `PerfectoWavePartials`: each partial's strength, the fundamental
+    /// first. The wave is scaled to peak at 1, as the others do.
+    float partials[PerfectoPartialCount];
+    /// Its frequency as a multiple of the note's.
+    float ratio;
+    /// Its strength beside the other operator's. 0 is an operator not used.
+    float level;
+} PerfectoOperator;
+
+/// What one sound is made of. Every voice has the same path, and a patch
+/// says which parts sound and how:
+///
+///     operator 2 ──(modulates, or is mixed with)──→ operator 1
+///         → low-pass filter → amplitude envelope → the note's brightness
+typedef struct {
+    PerfectoOperator operators[PerfectoOperatorCount];
+    /// The second operator bends the first one's phase by `index` (in
+    /// radians, as an FM index) and is not heard itself. Otherwise the two
+    /// are mixed, sharing `level` by their own levels.
+    bool modulates;
+    PerfectoSweep index;
+    bool filtered;
+    /// The filter's cutoff as a multiple of the note's frequency, so a
+    /// patch is as bright in every octave.
+    PerfectoSweep cutoff;
+    /// 0 (none) up to 1 (ringing).
+    float resonance;
+    /// Seconds to reach full level.
+    float attack;
+    /// Seconds in which the level covers 63% of the way to `sustain`, and
+    /// after the note ends to silence (time constants: a struck sound with
+    /// no sustain is 60 dB down after seven of them).
+    float decay;
+    float sustain;
+    float release;
+    /// One note's level at full velocity. Notes add.
+    float level;
+} PerfectoPatch;
+
+// MARK: Events
+
 typedef enum {
     /// Starts a note under `note_id`, which no sounding note has.
     PerfectoEventNoteOn = 1,
     /// Ends the note `note_id`. Unknown ids are ignored.
     PerfectoEventNoteOff = 2,
+    /// Changes how the note `note_id` is played while it sounds: its
+    /// `brightness`. The change is glided to, not jumped to.
+    PerfectoEventNoteChange = 3,
 } PerfectoEventType;
 
 typedef struct {
@@ -46,6 +123,11 @@ typedef struct {
     int32_t note;
     /// Note on: how hard it was struck, 0...1.
     float velocity;
+    /// Note on: which sound, as numbered by `perfecto_kernel_set_sound`.
+    int32_t sound;
+    /// Note on and note change: the note's own low-pass, from 0 (dark) to 1
+    /// (open: the sound as its patch makes it).
+    float brightness;
 } PerfectoEvent;
 
 /// The most notes that can be held at once. A note past this takes over a
@@ -61,6 +143,14 @@ void perfecto_kernel_destroy(PerfectoKernel *kernel);
 /// Makes the kernel ready to render at `sample_rate`: silent, nothing
 /// waiting, time 0.
 void perfecto_kernel_prepare(PerfectoKernel *kernel, double sample_rate);
+
+/// The most sounds the kernel holds, numbered from 0.
+int32_t perfecto_kernel_sound_count(void);
+
+/// Makes `patch` sound number `sound`. Its waves are built here, so this
+/// takes a moment and allocates: it is for loading sounds before playing,
+/// while nothing is rendering. A number never set plays a plain sine.
+void perfecto_kernel_set_sound(PerfectoKernel *kernel, int32_t sound, const PerfectoPatch *patch);
 
 /// Hands the kernel an event. Returns false, and drops the event, if as
 /// many as it can hold are already waiting for their frames.

@@ -28,6 +28,7 @@
 		E7F000000000000000000006 /* EffectsChain.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000005 /* EffectsChain.swift */; };
 		E8B1BE3336A652BE1C722000 /* RenderGuard.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8F1BE3336A652BE1C722000 /* RenderGuard.cpp */; };
 		E8B58284663B94235A3982C9 /* Kernel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8F58284663B94235A3982C9 /* Kernel.cpp */; };
+		E8B197FA1D57ABB822959484 /* Sound.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8F197FA1D57ABB822959484 /* Sound.cpp */; };
 		E8B5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm in Sources */ = {isa = PBXBuildFile; fileRef = E8F5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm */; };
 		E8BE8A78251193D9BD0E142D /* KernelAudioUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FE8A78251193D9BD0E142D /* KernelAudioUnit.swift */; };
 		E8B2A0AE0A179D25589B20F1 /* VoiceAllocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F2A0AE0A179D25589B20F1 /* VoiceAllocator.swift */; };
@@ -177,6 +178,7 @@
 		E7F000000000000000000005 /* EffectsChain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsChain.swift; sourceTree = "<group>"; };
 		E8F1BE3336A652BE1C722000 /* RenderGuard.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = RenderGuard.cpp; path = "../Perfecto/Sources/PerfectoKernel/RenderGuard.cpp"; sourceTree = "<group>"; };
 		E8F58284663B94235A3982C9 /* Kernel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Kernel.cpp; path = "../Perfecto/Sources/PerfectoKernel/Kernel.cpp"; sourceTree = "<group>"; };
+		E8F197FA1D57ABB822959484 /* Sound.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Sound.cpp; path = "../Perfecto/Sources/PerfectoKernel/Sound.cpp"; sourceTree = "<group>"; };
 		E8F5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = PerfectoKernelHost.mm; path = "Kernel/PerfectoKernelHost.mm"; sourceTree = "<group>"; };
 		E8FE8A78251193D9BD0E142D /* KernelAudioUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KernelAudioUnit.swift; path = "Kernel/KernelAudioUnit.swift"; sourceTree = "<group>"; };
 		E8F2A0AE0A179D25589B20F1 /* VoiceAllocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceAllocator.swift; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 				E7F000000000000000000005 /* EffectsChain.swift */,
 				E8F1BE3336A652BE1C722000 /* RenderGuard.cpp */,
 				E8F58284663B94235A3982C9 /* Kernel.cpp */,
+				E8F197FA1D57ABB822959484 /* Sound.cpp */,
 				E8F5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm */,
 				E8FE8A78251193D9BD0E142D /* KernelAudioUnit.swift */,
 				E8F2A0AE0A179D25589B20F1 /* VoiceAllocator.swift */,
@@ -904,6 +907,7 @@
 				E7F000000000000000000006 /* EffectsChain.swift in Sources */,
 				E8B1BE3336A652BE1C722000 /* RenderGuard.cpp in Sources */,
 				E8B58284663B94235A3982C9 /* Kernel.cpp in Sources */,
+				E8B197FA1D57ABB822959484 /* Sound.cpp in Sources */,
 				E8B5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm in Sources */,
 				E8BE8A78251193D9BD0E142D /* KernelAudioUnit.swift in Sources */,
 				E8B2A0AE0A179D25589B20F1 /* VoiceAllocator.swift in Sources */,

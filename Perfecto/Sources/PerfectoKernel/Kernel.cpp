@@ -14,19 +14,42 @@ namespace {
 
 constexpr std::size_t voiceCount = 64;
 constexpr std::size_t eventCapacity = 1024;
+constexpr std::size_t soundCount = 64;
 
-/// One note's loudness at full velocity. Notes simply add; holding the sum
-/// under full scale is the master limiter's job, which the skeleton does
-/// not have yet.
-constexpr float noteLevel = 0.2f;
-
-/// Seconds a note takes to reach its level, die away after it ends, and be
-/// faded out when its voice is taken. None is short enough to click.
-constexpr double attackSeconds = 0.003;
-constexpr double releaseSeconds = 0.05;
+/// Seconds a voice takes to fade out when its note is taken. Short, but
+/// not short enough to click.
 constexpr double stealSeconds = 0.003;
+/// The shortest an attack, decay or release may be, so none clicks.
+constexpr double shortestSeconds = 0.002;
+/// The level a note dying away is counted as silent at: 80 dB down.
+constexpr float silent = 1e-4f;
+
+/// A voice works out its slow-moving values (sweeps, filter tunings, the
+/// glide of its brightness) once every this many frames of its note.
+constexpr uint32_t controlFrames = 16;
+/// Seconds in which a change of brightness covers 63% of the way: long
+/// enough that a sliding finger is heard as a sweep and not as steps.
+constexpr double brightnessGlide = 0.01;
+
+/// The patch filter's working range, and the brightness filter's from dark
+/// to open, in Hz. Both stay under the sample rate's own limit.
+constexpr double lowestCutoff = 60;
+constexpr double highestCutoff = 18000;
+constexpr double darkest = 300;
+constexpr double brightest = 20000;
 
 constexpr double twoPi = 6.283185307179586;
+
+double valueOf(const PerfectoSweep &sweep, double seconds) {
+    if (sweep.time <= 0 || seconds >= sweep.time) return sweep.to;
+    return sweep.from + (sweep.to - sweep.from) * seconds / sweep.time;
+}
+
+/// The share of the way to its goal a level moves each frame, to cover 63%
+/// of it in `seconds`.
+float rate(double seconds, double sampleRate) {
+    return static_cast<float>(1 - std::exp(-1 / (std::max(seconds, shortestSeconds) * sampleRate)));
+}
 
 }
 
@@ -42,20 +65,54 @@ struct PerfectoKernel {
     std::array<perfecto::Voice, voiceCount> voices{};
     uint64_t notesStarted = 0;
 
-    // MARK: Notes
+    /// The sounds notes name, and the one a number never set plays.
+    std::array<perfecto::Sound, soundCount> sounds{};
+    std::array<bool, soundCount> isSet{};
+    perfecto::Sound plain;
 
-    float step(double seconds) const {
-        return static_cast<float>(noteLevel / (seconds * sampleRate));
+    PerfectoKernel() {
+        plain.load(perfecto::Sound::plainSine());
     }
 
-    void start(perfecto::Voice &voice, uint64_t id, int32_t note, float velocity) {
-        voice.stage = perfecto::Voice::Stage::held;
-        voice.id = id;
+    const perfecto::Sound &sound(int32_t number) const {
+        const bool known = number >= 0 && static_cast<std::size_t>(number) < soundCount && isSet[number];
+        return known ? sounds[number] : plain;
+    }
+
+    // MARK: Notes
+
+    void start(perfecto::Voice &voice, const perfecto::Voice::Waiting &note) {
+        using namespace perfecto;
+        const Sound &sound = this->sound(note.sound);
+        const PerfectoPatch &patch = sound.patch;
+        voice.stage = Voice::Stage::held;
+        voice.id = note.id;
         voice.startedAt = ++notesStarted;
-        voice.phase = 0;
-        voice.phaseStep = 440.0 * std::pow(2.0, (note - 69) / 12.0) / sampleRate;
-        voice.target = noteLevel * std::clamp(velocity, 0.0f, 1.0f);
-        voice.levelStep = step(attackSeconds);
+        voice.sound = &sound;
+        voice.hz = 440.0 * std::pow(2.0, (note.note - 69) / 12.0);
+        voice.age = 0;
+        voice.velocity = std::clamp(note.velocity, 0.0f, 1.0f);
+        for (int i = 0; i < PerfectoOperatorCount; ++i) {
+            voice.phase[i] = 0;
+            voice.phaseStep[i] = voice.hz * patch.operators[i].ratio / sampleRate;
+            voice.tableLevel[i] = Wavetable::level(voice.phaseStep[i]);
+        }
+        voice.envelope = Voice::Envelope::attack;
+        voice.level = 0;
+        // The attack heads past full level and stops there, so it arrives
+        // on time and does not creep up to it.
+        voice.attackRate = static_cast<float>(
+            1 - std::exp(-std::log(attackGoal / (attackGoal - 1))
+                         / (std::max<double>(patch.attack, shortestSeconds) * sampleRate)));
+        voice.decayRate = rate(patch.decay, sampleRate);
+        voice.releaseRate = rate(patch.release, sampleRate);
+        voice.fade = 1;
+        voice.fadeStep = 0;
+        voice.filter.clear();
+        voice.brightener.clear();
+        // A note starts at the brightness it was played with, not on the
+        // way to it.
+        voice.brightness = voice.brightnessGoal = std::clamp(note.brightness, 0.0f, 1.0f);
     }
 
     /// The voice a new note takes: a free one, else the quietest of those
@@ -66,7 +123,7 @@ struct PerfectoKernel {
         perfecto::Voice *oldest = nullptr;
         for (auto &voice : voices) {
             if (voice.stage == Stage::free) return voice;
-            if (voice.stage == Stage::released && (!quietest || voice.level < quietest->level)) quietest = &voice;
+            if (voice.stage == Stage::released && (!quietest || voice.loudness() < quietest->loudness())) quietest = &voice;
             if (voice.stage == Stage::held && (!oldest || voice.startedAt < oldest->startedAt)) oldest = &voice;
         }
         if (quietest) return *quietest;
@@ -79,18 +136,18 @@ struct PerfectoKernel {
 
     void noteOn(const PerfectoEvent &event) {
         using Stage = perfecto::Voice::Stage;
+        const perfecto::Voice::Waiting note{event.note_id, event.note, event.velocity, event.sound, event.brightness};
         auto &voice = voiceForNewNote();
         if (voice.stage == Stage::free) {
-            start(voice, event.note_id, event.note, event.velocity);
+            start(voice, note);
             return;
         }
         // Whatever the voice is sounding is faded out first, so taking it
         // never clicks; the new note starts when that is done.
         voice.stage = Stage::stolen;
         voice.startedAt = ++notesStarted;
-        voice.waiting = {event.note_id, event.note, event.velocity};
-        voice.target = 0;
-        voice.levelStep = step(stealSeconds);
+        voice.waiting = note;
+        voice.fadeStep = static_cast<float>(1 / (stealSeconds * sampleRate));
     }
 
     void noteOff(const PerfectoEvent &event) {
@@ -98,8 +155,7 @@ struct PerfectoKernel {
         for (auto &voice : voices) {
             if (voice.stage == Stage::held && voice.id == event.note_id) {
                 voice.stage = Stage::released;
-                voice.target = 0;
-                voice.levelStep = step(releaseSeconds);
+                voice.envelope = perfecto::Voice::Envelope::release;
             } else if (voice.stage == Stage::stolen && voice.waiting.id == event.note_id) {
                 // Ended before it began: the voice just finishes fading.
                 voice.stage = Stage::released;
@@ -107,35 +163,117 @@ struct PerfectoKernel {
         }
     }
 
+    void noteChange(const PerfectoEvent &event) {
+        using Stage = perfecto::Voice::Stage;
+        const float brightness = std::clamp(event.brightness, 0.0f, 1.0f);
+        for (auto &voice : voices) {
+            if (voice.stage == Stage::held && voice.id == event.note_id) {
+                voice.brightnessGoal = brightness;
+            } else if (voice.stage == Stage::stolen && voice.waiting.id == event.note_id) {
+                voice.waiting.brightness = brightness;
+            }
+        }
+    }
+
     void apply(const PerfectoEvent &event) {
         switch (event.type) {
-        case PerfectoEventNoteOn:  noteOn(event); break;
-        case PerfectoEventNoteOff: noteOff(event); break;
+        case PerfectoEventNoteOn:     noteOn(event); break;
+        case PerfectoEventNoteOff:    noteOff(event); break;
+        case PerfectoEventNoteChange: noteChange(event); break;
         }
     }
 
     // MARK: Rendering
+
+    /// Works out the values of `voice` that move slowly, for its next
+    /// `controlFrames` frames.
+    void control(perfecto::Voice &voice) {
+        const PerfectoPatch &patch = voice.sound->patch;
+        const double seconds = voice.age / sampleRate;
+        const double ceiling = 0.45 * sampleRate;
+        if (patch.modulates) {
+            voice.bend = static_cast<float>(valueOf(patch.index, seconds) / twoPi);
+        }
+        if (patch.filtered) {
+            const double cutoff = std::clamp(valueOf(patch.cutoff, seconds) * voice.hz,
+                                             lowestCutoff, std::min(highestCutoff, ceiling));
+            // Resonance 0 is flat; 1 rings.
+            voice.filter.tune(cutoff, sampleRate, 0.7071 * std::pow(25.0, patch.resonance));
+        }
+        voice.brightness += (voice.brightnessGoal - voice.brightness) * brightnessRate;
+        voice.brightener.tune(std::min(darkest * std::pow(brightest / darkest, voice.brightness), ceiling),
+                              sampleRate, 0.7071);
+    }
+
+    /// One frame of `voice`'s sources.
+    float source(perfecto::Voice &voice) {
+        const perfecto::Sound &sound = *voice.sound;
+        float sample = 0;
+        if (sound.patch.modulates) {
+            const float modulator = sound.waves[1].read(voice.tableLevel[1], voice.phase[1]);
+            double bent = voice.phase[0] + voice.bend * modulator;
+            bent -= std::floor(bent);
+            sample = sound.gains[0] * sound.waves[0].read(voice.tableLevel[0], bent);
+        } else {
+            for (int i = 0; i < PerfectoOperatorCount; ++i) {
+                if (sound.gains[i] == 0) continue;
+                sample += sound.gains[i] * sound.waves[i].read(voice.tableLevel[i], voice.phase[i]);
+            }
+        }
+        for (int i = 0; i < PerfectoOperatorCount; ++i) {
+            voice.phase[i] += voice.phaseStep[i];
+            voice.phase[i] -= std::floor(voice.phase[i]);
+        }
+        return sample;
+    }
+
+    /// Moves `voice`'s envelope on a frame. False once a note dying away
+    /// has reached silence.
+    bool advance(perfecto::Voice &voice) {
+        using Envelope = perfecto::Voice::Envelope;
+        switch (voice.envelope) {
+        case Envelope::attack:
+            voice.level += (attackGoal - voice.level) * voice.attackRate;
+            if (voice.level >= 1) {
+                voice.level = 1;
+                voice.envelope = Envelope::decay;
+            }
+            return true;
+        case Envelope::decay:
+            voice.level += (voice.sound->patch.sustain - voice.level) * voice.decayRate;
+            return true;
+        case Envelope::release:
+            voice.level -= voice.level * voice.releaseRate;
+            return voice.level >= silent;
+        }
+        return true;
+    }
 
     /// Adds `voice`'s next `frames` frames to `out`.
     void render(perfecto::Voice &voice, float *out, int32_t frames) {
         using Stage = perfecto::Voice::Stage;
         for (int32_t i = 0; i < frames; ++i) {
             if (voice.stage == Stage::free) return;
-            out[i] += voice.level * static_cast<float>(std::sin(twoPi * voice.phase));
-            voice.phase += voice.phaseStep;
-            if (voice.phase >= 1) voice.phase -= 1;
+            if (voice.age % controlFrames == 0) control(voice);
 
-            if (voice.level < voice.target) {
-                voice.level = std::min(voice.level + voice.levelStep, voice.target);
-            } else if (voice.level > voice.target) {
-                voice.level = std::max(voice.level - voice.levelStep, voice.target);
-            }
-            if (voice.level == 0 && voice.target == 0) {
-                if (voice.stage == Stage::stolen) {
-                    start(voice, voice.waiting.id, voice.waiting.note, voice.waiting.velocity);
-                } else if (voice.stage == Stage::released) {
-                    voice.stage = Stage::free;
+            float sample = source(voice);
+            if (voice.sound->patch.filtered) sample = voice.filter.run(sample);
+            sample = voice.brightener.run(sample * voice.level * voice.velocity);
+            out[i] += sample * voice.fade;
+            ++voice.age;
+
+            const bool sounding = advance(voice);
+            if (voice.fadeStep > 0) {
+                voice.fade -= voice.fadeStep;
+                if (voice.fade <= 0) {
+                    if (voice.stage == Stage::stolen) {
+                        start(voice, voice.waiting);
+                    } else {
+                        voice.stage = Stage::free;
+                    }
                 }
+            } else if (!sounding) {
+                voice.stage = Stage::free;
             }
         }
     }
@@ -173,6 +311,23 @@ struct PerfectoKernel {
         }
         time.store(start + static_cast<uint64_t>(frames), std::memory_order_release);
     }
+
+    /// The level an attack heads for, past full, so it gets there on time.
+    static constexpr float attackGoal = 1.3f;
+    /// The share of the way to its goal a note's brightness glides each
+    /// time its slow values are worked out.
+    float brightnessRate = 0;
+
+    void prepare(double rate) {
+        sampleRate = rate;
+        brightnessRate = static_cast<float>(1 - std::exp(-(controlFrames / rate) / brightnessGlide));
+        time.store(0);
+        mailbox.clear();
+        agenda.clear();
+        waiting.store(0);
+        voices.fill(perfecto::Voice{});
+        notesStarted = 0;
+    }
 };
 
 // MARK: The C interface
@@ -190,13 +345,15 @@ void perfecto_kernel_destroy(PerfectoKernel *kernel) {
 }
 
 void perfecto_kernel_prepare(PerfectoKernel *kernel, double sampleRate) {
-    kernel->sampleRate = sampleRate;
-    kernel->time.store(0);
-    kernel->mailbox.clear();
-    kernel->agenda.clear();
-    kernel->waiting.store(0);
-    kernel->voices.fill(perfecto::Voice{});
-    kernel->notesStarted = 0;
+    kernel->prepare(sampleRate);
+}
+
+int32_t perfecto_kernel_sound_count(void) { return static_cast<int32_t>(soundCount); }
+
+void perfecto_kernel_set_sound(PerfectoKernel *kernel, int32_t sound, const PerfectoPatch *patch) {
+    if (sound < 0 || static_cast<std::size_t>(sound) >= soundCount) return;
+    kernel->sounds[sound].load(*patch);
+    kernel->isSet[sound] = true;
 }
 
 bool perfecto_kernel_send(PerfectoKernel *kernel, const PerfectoEvent *event) {
@@ -217,5 +374,6 @@ void perfecto_kernel_render(PerfectoKernel *kernel,
     (void)in;
     (void)inChannels;
     perfecto::RenderGuard guard;
+    perfecto::FlushToZero flush;
     kernel->render(out, outChannels, frames);
 }
