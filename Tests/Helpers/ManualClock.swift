@@ -22,6 +22,8 @@ final class ManualClock: ClockTickable {
 
     private(set) var isRunning = false
 
+    var beats: Double { schedule.beats }
+
     /// Calls waiting to be made (repeats not cancelled, one-off calls not
     /// yet made), ticks apart.
     var pendingCount: Int { schedule.pendingCount }

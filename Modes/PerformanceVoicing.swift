@@ -8,6 +8,12 @@ func performanceContext(key: Key, octave: Int, spec: ChordSpec) -> ChordContext 
     ChordContext(key: key, spec: spec, octave: octave, inversion: .root, voiceLeading: false)
 }
 
+/// The single note Lead mode plays for `degree`: the scale degree itself, in
+/// the octave the chords are built from.
+func leadPitch(key: Key, octave: Int, degree: Degree) -> Int {
+    key.root.rawValue + (octave + 1) * 12 + key.scale.offset(of: degree)
+}
+
 func performanceVoicing(key: Key,
                         octave: Int,
                         spec: ChordSpec,

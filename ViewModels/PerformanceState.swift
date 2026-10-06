@@ -310,8 +310,7 @@ final class PerformanceState {
 
     func leadNote(degree: Degree) {
         select(ChordSpec(degree: degree, color: color(for: degree)))
-        let midiNote = key.root.rawValue + (octave + 1) * 12 + key.scale.offset(of: degree)
-        let voicing = Voicing(notes: [midiNote])
+        let voicing = Voicing(notes: [leadPitch(key: key, octave: octave, degree: degree)])
         currentVoicing = voicing
         sound(voicing, .block, source: .button)
     }

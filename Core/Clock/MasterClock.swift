@@ -56,6 +56,11 @@ protocol ClockTickable: AnyObject {
     /// such length from now, until the returned call is cancelled. For
     /// timing finer than a tick, or not on the tick grid at all; it runs
     /// whether or not the clock is ticking.
+    /// How far the music has got, in beats since the clock was made. It
+    /// moves at the tempo, so it is where a playhead is: a timeline playing
+    /// from beat `b` is `beats - b` beats into itself, whatever the tempo
+    /// has done since.
+    var beats: Double { get }
     func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall
     /// Calls `handler` once, `beats` beats from now. A change of tempo before
     /// then moves it, so it stays that many beats away.
@@ -95,6 +100,11 @@ final class MasterClock: ClockTickable {
     }
 
     var isRunning: Bool { schedule.isTicking }
+
+    var beats: Double {
+        settle()
+        return schedule.beats
+    }
 
     func onTick(_ handler: @escaping @MainActor () -> Void) {
         schedule.onTick(handler)

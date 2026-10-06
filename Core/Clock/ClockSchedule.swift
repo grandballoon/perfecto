@@ -34,6 +34,8 @@ final class ClockSchedule {
     var bpm: Double {
         didSet {
             guard bpm != oldValue else { return }
+            beatsAtTempoChange += (now - tempoChanged) * oldValue / 60
+            tempoChanged = now
             // A call so many beats away stays that many beats away.
             for id in calls.keys where calls[id]!.followsTempo {
                 calls[id]!.due = now + (calls[id]!.due - now) * oldValue / bpm
@@ -42,6 +44,10 @@ final class ClockSchedule {
         }
     }
 
+    /// How far the music has got, in beats since the schedule was made: time
+    /// as the tempo has counted it, so a slower tempo covers fewer beats.
+    var beats: Double { beatsAtTempoChange + (now - tempoChanged) * bpm / 60 }
+
     /// Ticks per beat: one per sequencer step unless its owner says
     /// otherwise. A change takes effect from the tick after next.
     var ticksPerBeat = MusicalTime.stepsPerBeat
@@ -49,6 +55,10 @@ final class ClockSchedule {
     /// Called when what is due next may have changed, other than by `run`
     /// itself getting through its calls.
     var onChange: (() -> Void)?
+
+    /// The moment of the last tempo change, and the beats counted by then.
+    private var tempoChanged = 0.0
+    private var beatsAtTempoChange = 0.0
 
     private var calls: [Int: Call] = [:]
     private var nextOrder = 0

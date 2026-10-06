@@ -83,6 +83,10 @@
 		6D3AE0E68E83D67BD96CEDB7 /* JoystickTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DFFCC7F4B78811B16D415F1 /* JoystickTypes.swift */; };
 		7ED6D2137A9E03627C7F0B77 /* PerfectoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE680B23C261DFD9FCD510C /* PerfectoApp.swift */; };
 		A4ED9A745159C7720684F4B5 /* MasterClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 692368EB486831FC11EB6DB6 /* MasterClock.swift */; };
+		E8B685223BDA89CF220270F3 /* TimelineCompile.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F685223BDA89CF220270F3 /* TimelineCompile.swift */; };
+		E8B54BC70D008788E76436BD /* TimelineEdits.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F54BC70D008788E76436BD /* TimelineEdits.swift */; };
+		E8BB095590EB6B20F9F07836 /* Timeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FB095590EB6B20F9F07836 /* Timeline.swift */; };
+		E8BA63F038BAC8C746621FEC /* TimelineTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FA63F038BAC8C746621FEC /* TimelineTime.swift */; };
 		E8BD17E5F1BA786921BB086C /* ClockSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FD17E5F1BA786921BB086C /* ClockSchedule.swift */; };
 		AA1122334455667788990022 /* SequencerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788990011 /* SequencerState.swift */; };
 		AA1122334455667788992222 /* MicSampleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788992211 /* MicSampleState.swift */; };
@@ -128,6 +132,8 @@
 		E7A00000000000000000001C /* ColorSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A00000000000000000001B /* ColorSurfaceTests.swift */; };
 		E7B000000000000000000006 /* ChordKeyTouchesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B000000000000000000005 /* ChordKeyTouchesTests.swift */; };
 		A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */; };
+		E8BB4174768E14BD91A0F29B /* TimelineCompileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FB4174768E14BD91A0F29B /* TimelineCompileTests.swift */; };
+		E8BCDA3CAD39673580869D5E /* TimelineEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FCDA3CAD39673580869D5E /* TimelineEditTests.swift */; };
 		E8BA89D640A0D3F5C6ADE741 /* ClockScheduleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FA89D640A0D3F5C6ADE741 /* ClockScheduleTests.swift */; };
 		D5E9A5000000000000000B01 /* SequencerPlaybackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */; };
 		CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000BE /* RecordingMidiBackend.swift */; };
@@ -208,6 +214,10 @@
 		49E7E18D6B5C5F39FF60569A /* Scale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scale.swift; sourceTree = "<group>"; };
 		690CA02E32600E0361B28339 /* RepeatMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepeatMode.swift; sourceTree = "<group>"; };
 		692368EB486831FC11EB6DB6 /* MasterClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterClock.swift; sourceTree = "<group>"; };
+		E8F685223BDA89CF220270F3 /* TimelineCompile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineCompile.swift; path = "../Timeline/TimelineCompile.swift"; sourceTree = "<group>"; };
+		E8F54BC70D008788E76436BD /* TimelineEdits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineEdits.swift; path = "../Timeline/TimelineEdits.swift"; sourceTree = "<group>"; };
+		E8FB095590EB6B20F9F07836 /* Timeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Timeline.swift; path = "../Timeline/Timeline.swift"; sourceTree = "<group>"; };
+		E8FA63F038BAC8C746621FEC /* TimelineTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineTime.swift; path = "../Timeline/TimelineTime.swift"; sourceTree = "<group>"; };
 		E8FD17E5F1BA786921BB086C /* ClockSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockSchedule.swift; sourceTree = "<group>"; };
 		6FBA429F85D9C4510F59C804 /* ComputeVoicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComputeVoicing.swift; sourceTree = "<group>"; };
 		76228ABDE6E483844EF9B900 /* PlayMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayMode.swift; sourceTree = "<group>"; };
@@ -269,6 +279,8 @@
 		E7A00000000000000000001B /* ColorSurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSurfaceTests.swift; sourceTree = "<group>"; };
 		E7B000000000000000000005 /* ChordKeyTouchesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKeyTouchesTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockResolutionTests.swift; sourceTree = "<group>"; };
+		E8FB4174768E14BD91A0F29B /* TimelineCompileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineCompileTests.swift; path = "../TimelineTests/TimelineCompileTests.swift"; sourceTree = "<group>"; };
+		E8FCDA3CAD39673580869D5E /* TimelineEditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineEditTests.swift; path = "../TimelineTests/TimelineEditTests.swift"; sourceTree = "<group>"; };
 		E8FA89D640A0D3F5C6ADE741 /* ClockScheduleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockScheduleTests.swift; sourceTree = "<group>"; };
 		D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerPlaybackTests.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000BE /* RecordingMidiBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMidiBackend.swift; sourceTree = "<group>"; };
@@ -431,6 +443,10 @@
 			isa = PBXGroup;
 			children = (
 				692368EB486831FC11EB6DB6 /* MasterClock.swift */,
+				E8F685223BDA89CF220270F3 /* TimelineCompile.swift */,
+				E8F54BC70D008788E76436BD /* TimelineEdits.swift */,
+				E8FB095590EB6B20F9F07836 /* Timeline.swift */,
+				E8FA63F038BAC8C746621FEC /* TimelineTime.swift */,
 				E8FD17E5F1BA786921BB086C /* ClockSchedule.swift */,
 			);
 			path = Clock;
@@ -673,6 +689,8 @@
 				E7A00000000000000000001B /* ColorSurfaceTests.swift */,
 				E7B000000000000000000005 /* ChordKeyTouchesTests.swift */,
 				A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */,
+				E8FB4174768E14BD91A0F29B /* TimelineCompileTests.swift */,
+				E8FCDA3CAD39673580869D5E /* TimelineEditTests.swift */,
 				E8FA89D640A0D3F5C6ADE741 /* ClockScheduleTests.swift */,
 				D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */,
 			);
@@ -839,6 +857,10 @@
 				132354CBD3FCEB8F5BBBDBEC /* Key.swift in Sources */,
 				C7BEEEEA9E863927E630C205 /* LeadMode.swift in Sources */,
 				A4ED9A745159C7720684F4B5 /* MasterClock.swift in Sources */,
+				E8B685223BDA89CF220270F3 /* TimelineCompile.swift in Sources */,
+				E8B54BC70D008788E76436BD /* TimelineEdits.swift in Sources */,
+				E8BB095590EB6B20F9F07836 /* Timeline.swift in Sources */,
+				E8BA63F038BAC8C746621FEC /* TimelineTime.swift in Sources */,
 				E8BD17E5F1BA786921BB086C /* ClockSchedule.swift in Sources */,
 				C1B000000000000000000004 /* MidiAnnouncerSink.swift in Sources */,
 				C1B000000000000000000006 /* MidiNetwork.swift in Sources */,
@@ -917,6 +939,8 @@
 				E7A00000000000000000001C /* ColorSurfaceTests.swift in Sources */,
 				E7B000000000000000000006 /* ChordKeyTouchesTests.swift in Sources */,
 				A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */,
+				E8BB4174768E14BD91A0F29B /* TimelineCompileTests.swift in Sources */,
+				E8BCDA3CAD39673580869D5E /* TimelineEditTests.swift in Sources */,
 				E8BA89D640A0D3F5C6ADE741 /* ClockScheduleTests.swift in Sources */,
 				D5E9A5000000000000000B01 /* SequencerPlaybackTests.swift in Sources */,
 				CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */,

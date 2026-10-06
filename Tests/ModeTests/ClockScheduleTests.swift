@@ -150,4 +150,21 @@ struct ClockScheduleTests {
         #expect(made == 1)
         #expect(abs(second - 0.4) < 1e-9)
     }
+
+    /// Where a playhead is: time as the tempo has counted it.
+    @Test func theMusicalPositionMovesAtTheTempo() {
+        schedule.run(until: 1)                                      // 120 BPM: two beats
+        #expect(abs(schedule.beats - 2) < 1e-9)
+        schedule.bpm = 60
+        schedule.run(until: 3)                                      // two more seconds, two more beats
+        #expect(abs(schedule.beats - 4) < 1e-9)
+    }
+
+    /// Inside a call the position is the call's own, like the time.
+    @Test func insideACallThePositionIsTheCallsOwn() {
+        var position = 0.0
+        _ = schedule.after(beats: 1.5) { position = schedule.beats }
+        schedule.run(until: 10)
+        #expect(abs(position - 1.5) < 1e-9)
+    }
 }
