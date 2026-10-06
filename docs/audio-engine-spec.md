@@ -222,7 +222,7 @@ D and E numbers refer to [audio-engine-findings.md](audio-engine-findings.md).
 
 | # | Step | What is built | Needs | Done when |
 |---|---|---|---|---|
-| 1 | Level and shared effects, in the current engine | A limiter on the output; one reverb fed by a send from the live mix and from each loop track. | — | Offline test: every voice and loop track at once stays under full scale; one reverb node in the graph. |
+| 1 | ~~Level and shared effects, in the current engine~~ (done 2026-10-06: `MasterBus`, `SharedReverb`) | A limiter on the output; one reverb fed by a send from the live mix and from each loop track. | — | Offline test: every voice and loop track at once stays under full scale; one reverb node in the graph. |
 | 2 | Sound as data | `Sound` list in place of the `SynthPreset` switches (D6); two-operator `SynthPatch` (D5). | — | The 14 presets render as before in the current voices. |
 | 3 | The note seam | `NoteSound`, the note-level sink, and `NotePlayer` expanding chords into notes with ids (D1, D2). MIDI and the AudioKit voices sit behind it; the voices get a simple allocator, so release tails stop being cut now. | — | `strumTask` ×2, `gateTask`, `retriggerTask` and `startNotes` are gone; existing mode tests pass against a recording note sink. |
 | 4 | Musical time as a value | `Transport`, the scheduler, and the pure "notes due in this beat range" functions for strum, gate, Repeat and the arpeggiator (D4, E4). Until the kernel exists the audio sink starts each note when its time arrives; MIDI already gets host-time stamps. | 3 | `MasterClock`'s timers, `ClockRepeat` and `Task.sleep` are gone from the note path; timing rules are tested as functions with no fake clock. |

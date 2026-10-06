@@ -18,7 +18,7 @@ struct LooperTests {
     }
 
     /// An offline engine: the source feeds a mixer (the capture point), and
-    /// the output is that mixer plus the looper.
+    /// the output is that mixer plus the looper and the reverb it sends to.
     @MainActor
     private final class Rig {
         static let lead = 0.05
@@ -37,13 +37,15 @@ struct LooperTests {
         /// Everything rendered so far, first channel.
         private(set) var output: [Float] = []
         private let capture: LoopCapture
+        private let reverb: SharedReverb
 
         init() {
             let captureMixer = Mixer(source)
             capture = LoopCapture(source: captureMixer)
             looper = Looper(capture: capture, trackCount: 2, logger: logger,
                             scheduleLead: { Rig.lead })
-            engine.output = Mixer(captureMixer, looper.outputMixer)
+            reverb = SharedReverb([looper.reverbSend])
+            engine.output = Mixer(captureMixer, looper.outputMixer, reverb.output)
             _ = engine.startTest(totalDuration: Rig.seconds)
             rate = engine.avEngine.manualRenderingFormat.sampleRate
 

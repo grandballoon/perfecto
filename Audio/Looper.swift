@@ -11,17 +11,21 @@ import AVFoundation
 ///
 /// A loop keeps the effects it was closed with. Each track plays through its
 /// own `EffectsChain`, set from `liveEffects` when its take ends and left
-/// alone after that, so a loop sounds the same whatever is chosen later,
-/// whether it plays on or is stopped and started again.
+/// alone after that, so a loop keeps its chorus and its share of the reverb
+/// whatever is chosen later, whether it plays on or is stopped and started
+/// again. The reverb's size is not a loop's own: there is one `SharedReverb`.
 ///
 /// All timing is in sample times on the capture point's clock (`LoopCapture`
 /// stamps takes with it): loop cycles begin at `anchor`, every `period`
-/// frames. Players and their effects are pre-wired into `outputMixer` at
-/// init, so the audio graph never changes at runtime.
+/// frames. Players and their effects are pre-wired into `outputMixer` and
+/// `reverbSend` at init, so the audio graph never changes at runtime.
 @MainActor
 final class Looper: LoopTracks {
 
+    /// Every track's sound, less what goes to the reverb.
     let outputMixer = Mixer()
+    /// What every track sends to the reverb.
+    let reverbSend = Mixer()
     let trackCount: Int
 
     /// The effects on what is being played now: what the next take to end
@@ -82,7 +86,10 @@ final class Looper: LoopTracks {
         tracks = Array(repeating: Track(), count: trackCount)
         players = (0..<trackCount).map { _ in LoopPlayer() }
         effects = players.map { EffectsChain($0) }
-        for chain in effects { outputMixer.addInput(chain.output) }
+        for chain in effects {
+            outputMixer.addInput(chain.dry)
+            reverbSend.addInput(chain.reverbSend)
+        }
     }
 
     // MARK: – Recording

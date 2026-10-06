@@ -3,8 +3,13 @@ import AVFoundation
 import SoundpipeAudioKit
 
 /// Drives a pool of `polyphony` SynthVoices from chord events.
-/// Signal chain: SynthVoices → synthMixer → BrightnessFilter → liveMixer → EffectsChain → AudioEngine output
-///               Looper players → each track's EffectsChain → looper.outputMixer ↗
+/// Signal chain:
+///
+///     SynthVoices → synthMixer → BrightnessFilter ─┬→ EffectsChain ─┬→ dry ────────────┐
+///     MicSampler ──────────────────────────────────┘                └→ send ─┐         │
+///     Looper players → each track's EffectsChain ─┬→ dry ───────────────────────────────┼→ MasterBus → output
+///                                                 └→ send ───────────────────┴→ Reverb ─┘
+///
 /// The loopers record the filter's output (through one shared `LoopCapture`),
 /// so a loop holds what was played, as bright as it was played, and never the
 /// other loops. They record it
@@ -12,7 +17,9 @@ import SoundpipeAudioKit
 /// set as the live ones were set when it was closed (not as they were being
 /// played): later changes to the
 /// effects reach only what is played next, and a loop's reverb tail carries
-/// on across its seam.
+/// on across its seam. Everything shares one `SharedReverb`, so the room's size is
+/// the one set now, for loops too, and everything ends in the `MasterBus`,
+/// whose limiter keeps the sum from clipping.
 @MainActor
 final class AudioSink: ChordEventSink, AudioEffects {
 
@@ -28,6 +35,8 @@ final class AudioSink: ChordEventSink, AudioEffects {
     private let synthMixer = Mixer()
     private var filter:    BrightnessFilter!
     private var effects:   EffectsChain!
+    private var reverb:    SharedReverb!
+    private var master:    MasterBus!
     private var strumTask: Task<Void, Never>?
     private let logger: (any Logger)?
 
@@ -59,7 +68,9 @@ final class AudioSink: ChordEventSink, AudioEffects {
         quickLooper  = Looper(capture: capture, trackCount: Self.quickLoopTrackCount, logger: logger)
         micSampler   = MicSampler(engine: engine)
         effects = EffectsChain(Mixer([filter.output, micSampler.outputMixer]))
-        engine.output = Mixer([effects.output, looper.outputMixer, quickLooper.outputMixer])
+        reverb = SharedReverb([effects.reverbSend, looper.reverbSend, quickLooper.reverbSend])
+        master = MasterBus([effects.dry, looper.outputMixer, quickLooper.outputMixer, reverb.output])
+        engine.output = master.output
 
         do {
             try configureSession()
@@ -201,6 +212,7 @@ final class AudioSink: ChordEventSink, AudioEffects {
 
     func setReverb(_ settings: ReverbSettings) {
         effects.apply(settings)
+        reverb.apply(settings)
     }
 
     func setLoopEffects(_ effects: SoundEffects) {

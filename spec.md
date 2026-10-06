@@ -221,17 +221,23 @@ Voices → ADSR → BassOsc → Filter → Chorus → Flanger → Delay → Reve
 
 All effects implemented as AudioKit nodes (`Reverb`, `Delay`, `Chorus`, `Flanger`, `LowPassFilter`). Wet/dry per effect exposed to user.
 
-**Built so far (2026-10-05):** chorus and reverb, in `EffectsChain`, one for what is being played and one for each loop track:
+**Built so far (2026-10-06):** chorus and reverb.
+What is being played has an `EffectsChain` (its chorus, and how much of it goes to the reverb), and so has each loop track; they all send into one `SharedReverb`, and everything ends in the `MasterBus`:
 
 ```
-Voices ─→ synth mix ─→ Chorus ─┬────────────→ dry ─┬─→ Output
-                               └─→ send ─→ Reverb ─┘
-Each loop track ─→ the same chain of its own ──────→ Output
+Voices ─→ synth mix ─→ Chorus ─┬────────────────────→ dry ─┬─→ limiter ─→ Output
+                               └─→ send ─┬─→ Reverb ───────┤
+Each loop track ─→ Chorus ─┬─────────────│──────────→ dry ─┘
+                           └─→ send ─────┘
 ```
+
+One reverb costs the same however many loops play, and there is one room: its size is the size set now, also for loops closed earlier.
+The `MasterBus` adds everything together and limits it, so a dense chord over several loops is turned down for as long as it would clip, not clipped; quieter sound passes untouched, 1 ms late (the limiter's look-ahead).
 
 The loopers record the synth mix, before the effects.
 When a take ends, its track's effects are set as the live ones are at that moment and then left alone.
-So a finished loop keeps its effects, as it keeps its key, octave and sound: choosing new ones changes only what is played next, whether the loop is playing or is stopped and started again later.
+So a finished loop keeps its chorus and its share of the reverb, as it keeps its key, octave and sound: choosing new ones changes only what is played next, whether the loop is playing or is stopped and started again later.
+The reverb's size is the exception, because the room is shared.
 Each effect has an on/off switch and two controls (chorus: amount, rate; reverb: mix, size), on the side panel's Effects page, behind the FX chit.
 An effect that is off keeps running with none of the sound reaching it, so the graph is never rewired while the engine runs.
 The reverb's mix is how much of the sound is sent into the reverb, not how much of the reverb is let out, so what is already ringing always dies away in its own time: a mix that is being played, or a reverb switched off, never cuts a tail short.
@@ -253,7 +259,7 @@ Off, it is bypassed.
 **Played by the slide.** Every effect has a "slide plays" switch beside the one control the slide (8.4) can play: the filter's brightness (on by default), the chorus's amount, the reverb's mix and the arpeggiator's cycle (off by default).
 While a chord key is held, the slide stands in for that control on every effect that is on and follows it, so one finger can play several at once; lifting the key returns each to its set value.
 The cycle is played in steps, each with an equal share of the key's height: a bar at the bottom, then 2 beats, 1 beat, and half a beat at the top.
-A loop keeps the chorus and reverb as they were set when it was closed, not as they were being played; only the filter's movement is recorded.
+A loop keeps the chorus and the reverb's mix as they were set when it was closed, not as they were being played; only the filter's movement is recorded.
 The settings a slide can play are `SlidePlayed`; `EffectsState` holds the set values and the slide and passes each effect on as played, so the audio, the arpeggiator and MIDI only ever see that.
 
 **Key zones.** Every chord key can be divided into 2 to 4 zones, stacked from the bottom of the key to the top, each with an equal share of the slide (8.4).

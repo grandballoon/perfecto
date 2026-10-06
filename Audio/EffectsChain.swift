@@ -1,15 +1,16 @@
 import AudioKit
 import Darwin
 import DunneAudioKit
-import SoundpipeAudioKit
 
-/// The effects one sound passes through on its way to the speaker:
+/// The effects one sound has to itself, on its way to the speaker:
 ///
-///     input ─→ chorus ─┬─────────────→ dry ─┬─→ output
-///                      └─→ send ─→ reverb ──┘
+///     input ─→ chorus ─┬─→ dry          (to the output)
+///                      └─→ reverbSend   (to the shared `SharedReverb`)
 ///
 /// What is being played has one, and so has every loop track, so a loop
-/// keeps its own effects whatever is played over it.
+/// keeps its own chorus, and its own share of the reverb, whatever is played
+/// over it. The reverb itself is shared: there is one room, and each chain
+/// says how much of its sound goes into it.
 ///
 /// The path is fixed. An effect that is off still runs, with none of the
 /// sound reaching it, so switching one on or off never rewires the graph
@@ -21,13 +22,14 @@ import SoundpipeAudioKit
 /// a tail short.
 final class EffectsChain {
 
-    /// The node to send on to the engine's output.
-    let output: Node
+    /// The sound that goes straight on: send it to the output.
+    var dry: Node { dryMixer }
+    /// The sound that goes into the reverb: send it to the shared `SharedReverb`.
+    var reverbSend: Node { sendMixer }
 
     private let chorus: Chorus
-    private let dry: Mixer
-    private let send: Mixer
-    private let reverb: ZitaReverb
+    private let dryMixer: Mixer
+    private let sendMixer: Mixer
 
     /// A chorus at full amount is equal parts dry and wavering sound; past
     /// that the dry sound thins out and it turns into vibrato.
@@ -35,15 +37,11 @@ final class EffectsChain {
     private static let chorusDepth: AUValue = 0.3
     /// Modulation speeds from a slow drift to a fast shimmer, in Hz.
     private static let chorusRates: ClosedRange<AUValue> = 0.2...5
-    /// Reverb tails, in seconds to fall 60 dB.
-    private static let reverbTails: ClosedRange<AUValue> = 1...8
 
     init(_ input: Node) {
         chorus = Chorus(input, depth: Self.chorusDepth, feedback: 0)
-        dry = Mixer(chorus)
-        send = Mixer(chorus)
-        reverb = ZitaReverb(send, dryWetMix: 1)
-        output = Mixer([dry, reverb])
+        dryMixer = Mixer(chorus)
+        sendMixer = Mixer(chorus)
         apply(ChorusSettings())
         apply(ReverbSettings())
     }
@@ -58,13 +56,12 @@ final class EffectsChain {
         chorus.dryWetMix = settings.isOn ? settings.amount.clamped(to: 0...1) * Self.chorusFullMix : 0
     }
 
+    /// Sets how much of the sound goes to the reverb. The room's size is
+    /// the shared `SharedReverb`'s, not this chain's.
     func apply(_ settings: ReverbSettings) {
-        let tail = Self.reverbTails.exponential(at: settings.size)
-        reverb.midReleaseTime = tail
-        reverb.lowReleaseTime = tail
         let mix = settings.isOn ? settings.mix.clamped(to: 0...1) : 0
-        send.volume = mix
-        dry.volume = 1 - mix
+        sendMixer.volume = mix
+        dryMixer.volume = 1 - mix
     }
 }
 

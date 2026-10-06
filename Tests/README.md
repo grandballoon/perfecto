@@ -12,7 +12,7 @@ Tests/
 │   ├── RecordingLogger.swift     — Logger double (TODO Phase 3)
 │   ├── StubPermissionGate.swift  — PermissionGate double (TODO Phase 4)
 │   └── Expect+Voicing.swift      — #expect helpers for Voicing assertions
-├── AudioTests/         — synth presets, loop arithmetic, and the looper, filter and effects chain in an offline engine
+├── AudioTests/         — synth presets, loop arithmetic, and the looper, filter, effects chain, shared reverb and master bus in an offline engine
 ├── ModeTests/          — per-mode tests using recording doubles
 │   └── PlayModeTests.swift
 ├── ExportTests/        — sequencer → Standard MIDI File rendering
@@ -27,7 +27,7 @@ The Music Theory Core has its own test suite under `Perfecto/Tests/MusicTheoryCo
 ## Recording-double pattern
 
 Tests never touch the audio hardware, CoreMIDI, or AVAudioSession.
-`LooperTests`, `EffectsChainTests` and `BrightnessFilterTests` are the suites that run AudioKit nodes, in an engine that renders offline.
+`LooperTests`, `EffectsChainTests`, `MasterBusTests` and `BrightnessFilterTests` are the suites that run AudioKit nodes, in an engine that renders offline.
 Everything else injects doubles:
 
 ```swift

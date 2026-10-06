@@ -18,11 +18,14 @@
 		E7F0000000000000000000A6 /* OfflineTone.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F0000000000000000000A5 /* OfflineTone.swift */; };
 		E7F000000000000000000093 /* DunneAudioKit in Frameworks */ = {isa = PBXBuildFile; productRef = E7F000000000000000000092 /* DunneAudioKit */; };
 		E7F000000000000000000016 /* EffectsChainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000015 /* EffectsChainTests.swift */; };
+		E8BCF9DFD4C0DABB8BB27994 /* MasterBusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FCF9DFD4C0DABB8BB27994 /* MasterBusTests.swift */; };
 		E7F0000000000000000000A4 /* BrightnessFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F0000000000000000000A3 /* BrightnessFilterTests.swift */; };
 		E7F000000000000000000014 /* EffectsStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000013 /* EffectsStateTests.swift */; };
 		E7F000000000000000000012 /* ArpeggiatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000011 /* ArpeggiatorTests.swift */; };
 		E7F000000000000000000008 /* EffectsState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000007 /* EffectsState.swift */; };
 		E7F000000000000000000006 /* EffectsChain.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000005 /* EffectsChain.swift */; };
+		E8BF0267B2CE4205D25359B1 /* MasterBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FF0267B2CE4205D25359B1 /* MasterBus.swift */; };
+		E8BDB07604A24044BB230946 /* SharedReverb.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FDB07604A24044BB230946 /* SharedReverb.swift */; };
 		E7F0000000000000000000A2 /* BrightnessFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F0000000000000000000A1 /* BrightnessFilter.swift */; };
 		E7F000000000000000000004 /* AudioEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000003 /* AudioEffects.swift */; };
 		E7F000000000000000000002 /* Arpeggiator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000001 /* Arpeggiator.swift */; };
@@ -143,11 +146,14 @@
 		E7F000000000000000000081 /* WaitUntil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaitUntil.swift; sourceTree = "<group>"; };
 		E7F0000000000000000000A5 /* OfflineTone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineTone.swift; sourceTree = "<group>"; };
 		E7F000000000000000000015 /* EffectsChainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsChainTests.swift; sourceTree = "<group>"; };
+		E8FCF9DFD4C0DABB8BB27994 /* MasterBusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterBusTests.swift; sourceTree = "<group>"; };
 		E7F0000000000000000000A3 /* BrightnessFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrightnessFilterTests.swift; sourceTree = "<group>"; };
 		E7F000000000000000000013 /* EffectsStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsStateTests.swift; sourceTree = "<group>"; };
 		E7F000000000000000000011 /* ArpeggiatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArpeggiatorTests.swift; sourceTree = "<group>"; };
 		E7F000000000000000000007 /* EffectsState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsState.swift; sourceTree = "<group>"; };
 		E7F000000000000000000005 /* EffectsChain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsChain.swift; sourceTree = "<group>"; };
+		E8FF0267B2CE4205D25359B1 /* MasterBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterBus.swift; sourceTree = "<group>"; };
+		E8FDB07604A24044BB230946 /* SharedReverb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedReverb.swift; sourceTree = "<group>"; };
 		E7F0000000000000000000A1 /* BrightnessFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrightnessFilter.swift; sourceTree = "<group>"; };
 		E7F000000000000000000003 /* AudioEffects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEffects.swift; sourceTree = "<group>"; };
 		E7F000000000000000000001 /* Arpeggiator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Arpeggiator.swift; sourceTree = "<group>"; };
@@ -318,6 +324,8 @@
 			isa = PBXGroup;
 			children = (
 				E7F000000000000000000005 /* EffectsChain.swift */,
+				E8FF0267B2CE4205D25359B1 /* MasterBus.swift */,
+				E8FDB07604A24044BB230946 /* SharedReverb.swift */,
 				E7F0000000000000000000A1 /* BrightnessFilter.swift */,
 				E7F000000000000000000003 /* AudioEffects.swift */,
 				AC8D5F00AFB5D9E9D9BD5F4A /* AudioSink.swift */,
@@ -541,6 +549,7 @@
 			isa = PBXGroup;
 			children = (
 				E7F000000000000000000015 /* EffectsChainTests.swift */,
+				E8FCF9DFD4C0DABB8BB27994 /* MasterBusTests.swift */,
 				E7F0000000000000000000A3 /* BrightnessFilterTests.swift */,
 				E7D000000000000000000B01 /* LoopMathTests.swift */,
 				E7D000000000000000000B11 /* SynthPresetTests.swift */,
@@ -822,6 +831,8 @@
 				E7D000000000000000000A32 /* LoopBar.swift in Sources */,
 				E7F000000000000000000008 /* EffectsState.swift in Sources */,
 				E7F000000000000000000006 /* EffectsChain.swift in Sources */,
+				E8BF0267B2CE4205D25359B1 /* MasterBus.swift in Sources */,
+				E8BDB07604A24044BB230946 /* SharedReverb.swift in Sources */,
 				E7F0000000000000000000A2 /* BrightnessFilter.swift in Sources */,
 				E7F000000000000000000004 /* AudioEffects.swift in Sources */,
 				E7F000000000000000000002 /* Arpeggiator.swift in Sources */,
@@ -867,6 +878,7 @@
 				QQVT0000000000000000EEFF /* QuickLoopStateTests.swift in Sources */,
 				E7D000000000000000000B02 /* LoopMathTests.swift in Sources */,
 				E7F000000000000000000016 /* EffectsChainTests.swift in Sources */,
+				E8BCF9DFD4C0DABB8BB27994 /* MasterBusTests.swift in Sources */,
 				E7F0000000000000000000A4 /* BrightnessFilterTests.swift in Sources */,
 				E7F000000000000000000014 /* EffectsStateTests.swift in Sources */,
 				E7E000000000000000000010 /* SidePanelStateTests.swift in Sources */,
