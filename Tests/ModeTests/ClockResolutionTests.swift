@@ -57,6 +57,93 @@ struct ClockResolutionTests {
         #expect(sink.calls.contains(.stop))
     }
 
+    /// Each repeat is a new strike: the chord stops on the beat and comes
+    /// back after the gap, timed by the clock.
+    @Test func repeatStrikesAgainAfterItsGap() {
+        let clock = ManualClock()
+        let (state, sink) = makeState(clock: clock)
+        state.setMode(RepeatMode())
+        state.press(degree: .I)
+        for _ in 0..<4 { clock.tick() }
+        sink.reset()
+
+        clock.advance(seconds: RepeatMode.gap - 0.001)
+        #expect(sink.calls.isEmpty)
+        clock.advance(seconds: 0.002)
+        #expect(sink.playCalls.count == 1)
+    }
+
+    /// Lifting the key inside the gap leaves it silent.
+    @Test func aKeyLiftedInTheGapIsNotStruckAgain() {
+        let clock = ManualClock()
+        let (state, sink) = makeState(clock: clock)
+        state.setMode(RepeatMode())
+        state.press(degree: .I)
+        for _ in 0..<4 { clock.tick() }
+        state.release(degree: .I)
+        sink.reset()
+
+        clock.advance(seconds: 1)
+        #expect(sink.playCalls.isEmpty)
+        #expect(clock.pendingCount == 0)
+    }
+
+    /// A step's gate is a share of the step, so it is timed in beats: the
+    /// chord ends that far through the step at any tempo.
+    @Test func aSequencerStepEndsAtItsGate() {
+        for bpm in [120.0, 60.0] {
+            let clock = ManualClock()
+            clock.bpm = bpm
+            let (state, sink) = makeState(clock: clock)
+            let seq = SequencerState(defaults: isolatedDefaults())
+            seq.steps[0].gate = 0.5
+            state.setMode(SequencerMode(seq))
+            seq.isPlaying = true
+            sink.reset()
+
+            clock.tick()                                        // step 1 starts
+            #expect(sink.playCalls.count == 1)
+            let step = 1.0 / Double(MusicalTime.stepsPerBeat)
+            clock.advance(beats: 0.49 * step)
+            #expect(sink.stopCount == 0, "\(bpm) BPM")
+            clock.advance(beats: 0.02 * step)
+            #expect(sink.stopCount == 1, "\(bpm) BPM")
+        }
+    }
+
+    /// A tied step is not ended: it rings into the next one.
+    @Test func aTiedSequencerStepRingsIntoTheNext() {
+        let clock = ManualClock()
+        let (state, sink) = makeState(clock: clock)
+        let seq = SequencerState(defaults: isolatedDefaults())
+        seq.steps[0].gate = 1
+        seq.steps[1].degree = .IV
+        state.setMode(SequencerMode(seq))
+        seq.isPlaying = true
+        sink.reset()
+
+        clock.tick()
+        clock.tick()
+        #expect(sink.playCalls.count == 2)
+        #expect(sink.stopCount == 0)
+    }
+
+    /// Stopping the sequencer inside a step leaves no gate waiting to fire.
+    @Test func leavingTheSequencerCancelsTheGate() {
+        let clock = ManualClock()
+        let (state, sink) = makeState(clock: clock)
+        let seq = SequencerState(defaults: isolatedDefaults())
+        state.setMode(SequencerMode(seq))
+        seq.isPlaying = true
+        clock.tick()
+        state.selectMode(.play)
+        sink.reset()
+
+        clock.advance(beats: 4)
+        #expect(sink.calls.isEmpty)
+        #expect(clock.pendingCount == 0)
+    }
+
     /// Sequencer steps stay sixteenth notes on a finer clock: at 8 ticks per
     /// beat the playhead moves every second tick.
     @Test func sequencerStepsStaySixteenthsOnAFinerClock() {

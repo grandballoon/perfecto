@@ -8,11 +8,13 @@ struct PerfectoApp: App {
         let midi      = MidiSink(logger: logger)
         let announcer = MidiAnnouncerSink(logger: logger)
         let micGate   = MicrophonePermissionGate(logger: logger)
+        let clock     = MasterClock()
         let state = PerformanceState(
-            sink:    NotePlayer([audio, midi]),
+            sink:    NotePlayer([audio, midi], clock: clock),
             chordListener: announcer,
             engine:  audio,
             effectsListener: midi,
+            clock:   clock,
             logger:  logger,
             micGate: micGate
         )

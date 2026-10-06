@@ -106,7 +106,7 @@ final class PerformanceState {
     let micGate: any PermissionGate
 
     /// Designated initializer. Sinks, clock, logger, and micGate are always injected.
-    /// Production: pass NotePlayer([audio, midi]) + the announcer + audio engine + FileLogger + MicrophonePermissionGate.
+    /// Production: pass NotePlayer([audio, midi], clock:) and the same clock + the announcer + audio engine + FileLogger + MicrophonePermissionGate.
     /// Tests: pass RecordingSink + ManualClock + RecordingLogger + StubPermissionGate; omit engine.
     ///
     /// `sink` sounds the notes, so it sits behind the arpeggiator and hears
@@ -170,6 +170,17 @@ final class PerformanceState {
     /// modes that schedule musical durations. Sourced from the injected clock so
     /// a change to the clock's resolution propagates to every mode automatically.
     var ticksPerBeat: Int { clock.ticksPerBeat }
+
+    /// Calls `handler` once, `beats` beats from now on the clock, unless the
+    /// returned call is cancelled first. For modes that time what they play.
+    func after(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+        clock.after(beats: beats, handler)
+    }
+
+    /// Calls `handler` once, `seconds` from now on the clock.
+    func after(seconds: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+        clock.after(seconds: seconds, handler)
+    }
 
     /// Switches the synth sound. It is heard on the next chord played.
     func setSynthPreset(_ preset: SynthPreset) {

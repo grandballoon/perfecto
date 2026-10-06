@@ -32,7 +32,7 @@ struct ArpeggiatorTests {
         state.press(degree: .I)
         clock.advance(beats: 4)
         #expect(notes(sink) == [[60, 64, 67]])
-        #expect(clock.repeatCount == 0)
+        #expect(clock.pendingCount == 0)
     }
 
     // MARK: – Timing
@@ -133,7 +133,7 @@ struct ArpeggiatorTests {
         state.press(degree: .I)
         state.release(degree: .I)
         #expect(sink.calls.last == .stop)
-        #expect(clock.repeatCount == 0)
+        #expect(clock.pendingCount == 0)
         sink.reset()
         clock.advance(beats: 2)
         #expect(sink.calls.isEmpty)
@@ -146,7 +146,7 @@ struct ArpeggiatorTests {
         state.movePointer(from: .I, to: .IV)
         clock.advance(beats: 1.0 / 3)
         #expect(notes(sink) == [[60], [64], [65], [69]])
-        #expect(clock.repeatCount == 1)
+        #expect(clock.pendingCount == 1)
     }
 
     @Test func everyNoteCarriesItsChordsContext() {
@@ -165,7 +165,7 @@ struct ArpeggiatorTests {
         state.effects.arpeggiator.isOn = false
         clock.advance(beats: 2)
         #expect(notes(sink) == [[60, 64, 67], [60], [64], [60, 64, 67]])
-        #expect(clock.repeatCount == 0)
+        #expect(clock.pendingCount == 0)
     }
 
     /// A new cycle changes the speed without starting the pattern again:
@@ -303,7 +303,7 @@ struct ArpeggiatorTests {
 
         for _ in 0..<5 { clock.tick() }              // one beat of I, then IV begins
         #expect(notes(sink) == [[60], [64], [67], [65]])
-        #expect(clock.repeatCount == 1)
+        #expect(clock.pendingCount == 1)
     }
 
     // MARK: – The chord listener

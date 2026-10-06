@@ -120,7 +120,7 @@ final class Arpeggiator: ChordEventSink {
     /// The note positions still to play in the current pass, in order.
     private var pass: [Int] = []
     /// The clock's calls for the notes after the first.
-    private var noteRepeat: ClockRepeat?
+    private var noteRepeat: ClockCall?
     /// The spacing `noteRepeat` calls at, in beats.
     private var repeatSpacing = 0.0
 

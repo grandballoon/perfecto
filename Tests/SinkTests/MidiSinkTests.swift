@@ -14,7 +14,7 @@ struct MidiSinkTests {
     /// A MIDI sink playing chords, as it does in the app: behind a `NotePlayer`.
     private func makePlayer() -> (NotePlayer, RecordingMidiBackend) {
         let (midi, backend) = makeSubject()
-        return (NotePlayer([midi]), backend)
+        return (NotePlayer([midi], clock: ManualClock()), backend)
     }
 
     @Test func playChordSendsNoteOnForEachNote() {
@@ -89,7 +89,8 @@ struct MidiSinkTests {
     /// on the wire must be a valid 7-bit data byte.
     @Test func chordsNearTheTopOfTheRangeStayValidMidi() {
         let backend = RecordingMidiBackend()
-        let state = PerformanceState(sink: NotePlayer([MidiSink(backend: backend)]), clock: ManualClock())
+        let clock = ManualClock()
+        let state = PerformanceState(sink: NotePlayer([MidiSink(backend: backend)], clock: clock), clock: clock)
         state.key = Key(root: .B, scale: .major)
         state.octave = 7
         state.joystickMoved(to: .downRight)
@@ -103,29 +104,31 @@ struct MidiSinkTests {
     // MARK: – Strum
 
     /// Strum mode used to call the audio engine directly, so MIDI got nothing.
-    @Test func strumReachesMidiLowToHigh() async throws {
+    @Test func strumReachesMidiLowToHigh() {
         let backend = RecordingMidiBackend()
-        let state = PerformanceState(sink: NotePlayer([MidiSink(backend: backend)]), clock: ManualClock())
+        let clock = ManualClock()
+        let state = PerformanceState(sink: NotePlayer([MidiSink(backend: backend)], clock: clock), clock: clock)
         state.setMode(StrumMode())
         state.press(degree: .I)
 
-        _ = try await waitUntil { backend.noteOnCalls.count == 3 }
+        clock.advance(seconds: 3 * StrumMode.noteInterval)
         #expect(backend.noteOnCalls.map(\.note) == [60, 64, 67])
     }
 
     /// Stopping mid-strum ends the notes already started and cancels the rest.
-    @Test func stoppingMidStrumLeavesNothingHanging() async throws {
+    @Test func stoppingMidStrumLeavesNothingHanging() {
         let backend = RecordingMidiBackend()
-        let sink = NotePlayer([MidiSink(backend: backend)])
+        let clock = ManualClock()
+        let sink = NotePlayer([MidiSink(backend: backend)], clock: clock)
         sink.playChord(ChordEvent(voicing: Voicing(notes: [60, 64, 67]),
                                   articulation: .strum(interval: 0.05),
                                   context: .cMajorI))
-        try await Task.sleep(for: .milliseconds(20))
+        clock.advance(seconds: 0.06)
         sink.stopChord()
-        let startedAtStop = backend.noteOnCalls.count
+        #expect(backend.noteOnCalls.count == 2)
 
-        try await Task.sleep(for: .milliseconds(200))
-        #expect(backend.noteOnCalls.count == startedAtStop)
+        clock.advance(seconds: 1)
+        #expect(backend.noteOnCalls.count == 2)
         #expect(backend.noteOffCalls.map(\.note) == backend.noteOnCalls.map(\.note))
     }
 
@@ -193,7 +196,8 @@ struct MidiSinkTests {
     @Test func theSlideIsSentBeforeTheChordItStarts() {
         let backend = RecordingMidiBackend()
         let midi = MidiSink(backend: backend)
-        let state = PerformanceState(sink: NotePlayer([midi]), effectsListener: midi, clock: ManualClock())
+        let clock = ManualClock()
+        let state = PerformanceState(sink: NotePlayer([midi], clock: clock), effectsListener: midi, clock: clock)
         state.effects.filter.isOn = true
         backend.reset()
 

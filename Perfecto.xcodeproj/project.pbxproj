@@ -78,6 +78,7 @@
 		6D3AE0E68E83D67BD96CEDB7 /* JoystickTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DFFCC7F4B78811B16D415F1 /* JoystickTypes.swift */; };
 		7ED6D2137A9E03627C7F0B77 /* PerfectoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE680B23C261DFD9FCD510C /* PerfectoApp.swift */; };
 		A4ED9A745159C7720684F4B5 /* MasterClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 692368EB486831FC11EB6DB6 /* MasterClock.swift */; };
+		E8BD17E5F1BA786921BB086C /* ClockSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FD17E5F1BA786921BB086C /* ClockSchedule.swift */; };
 		AA1122334455667788990022 /* SequencerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788990011 /* SequencerState.swift */; };
 		AA1122334455667788992222 /* MicSampleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788992211 /* MicSampleState.swift */; };
 		B17AC0436D40104FDE716EB7 /* DroneMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4215305547173D822A94E9E /* DroneMode.swift */; };
@@ -122,6 +123,7 @@
 		E7A00000000000000000001C /* ColorSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A00000000000000000001B /* ColorSurfaceTests.swift */; };
 		E7B000000000000000000006 /* ChordKeyTouchesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B000000000000000000005 /* ChordKeyTouchesTests.swift */; };
 		A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */; };
+		E8BA89D640A0D3F5C6ADE741 /* ClockScheduleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FA89D640A0D3F5C6ADE741 /* ClockScheduleTests.swift */; };
 		D5E9A5000000000000000B01 /* SequencerPlaybackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */; };
 		CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000BE /* RecordingMidiBackend.swift */; };
 		CCDD000000000000000000D2 /* MidiSinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD000000000000000000D1 /* MidiSinkTests.swift */; };
@@ -196,6 +198,7 @@
 		49E7E18D6B5C5F39FF60569A /* Scale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scale.swift; sourceTree = "<group>"; };
 		690CA02E32600E0361B28339 /* RepeatMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepeatMode.swift; sourceTree = "<group>"; };
 		692368EB486831FC11EB6DB6 /* MasterClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterClock.swift; sourceTree = "<group>"; };
+		E8FD17E5F1BA786921BB086C /* ClockSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockSchedule.swift; sourceTree = "<group>"; };
 		6FBA429F85D9C4510F59C804 /* ComputeVoicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComputeVoicing.swift; sourceTree = "<group>"; };
 		76228ABDE6E483844EF9B900 /* PlayMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayMode.swift; sourceTree = "<group>"; };
 		7858F81F5DD8E46E3CC2DEAB /* Voicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Voicing.swift; sourceTree = "<group>"; };
@@ -256,6 +259,7 @@
 		E7A00000000000000000001B /* ColorSurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSurfaceTests.swift; sourceTree = "<group>"; };
 		E7B000000000000000000005 /* ChordKeyTouchesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKeyTouchesTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockResolutionTests.swift; sourceTree = "<group>"; };
+		E8FA89D640A0D3F5C6ADE741 /* ClockScheduleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockScheduleTests.swift; sourceTree = "<group>"; };
 		D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerPlaybackTests.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000BE /* RecordingMidiBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMidiBackend.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000D1 /* MidiSinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiSinkTests.swift; sourceTree = "<group>"; };
@@ -413,6 +417,7 @@
 			isa = PBXGroup;
 			children = (
 				692368EB486831FC11EB6DB6 /* MasterClock.swift */,
+				E8FD17E5F1BA786921BB086C /* ClockSchedule.swift */,
 			);
 			path = Clock;
 			sourceTree = "<group>";
@@ -653,6 +658,7 @@
 				E7A00000000000000000001B /* ColorSurfaceTests.swift */,
 				E7B000000000000000000005 /* ChordKeyTouchesTests.swift */,
 				A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */,
+				E8FA89D640A0D3F5C6ADE741 /* ClockScheduleTests.swift */,
 				D5E9A5000000000000000F01 /* SequencerPlaybackTests.swift */,
 			);
 			path = ModeTests;
@@ -818,6 +824,7 @@
 				132354CBD3FCEB8F5BBBDBEC /* Key.swift in Sources */,
 				C7BEEEEA9E863927E630C205 /* LeadMode.swift in Sources */,
 				A4ED9A745159C7720684F4B5 /* MasterClock.swift in Sources */,
+				E8BD17E5F1BA786921BB086C /* ClockSchedule.swift in Sources */,
 				C1B000000000000000000004 /* MidiAnnouncerSink.swift in Sources */,
 				C1B000000000000000000006 /* MidiNetwork.swift in Sources */,
 				54162D074B2BE4D64E2E8ABA /* MidiSink.swift in Sources */,
@@ -891,6 +898,7 @@
 				E7A00000000000000000001C /* ColorSurfaceTests.swift in Sources */,
 				E7B000000000000000000006 /* ChordKeyTouchesTests.swift in Sources */,
 				A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */,
+				E8BA89D640A0D3F5C6ADE741 /* ClockScheduleTests.swift in Sources */,
 				D5E9A5000000000000000B01 /* SequencerPlaybackTests.swift in Sources */,
 				CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */,
 				C1B000000000000000000008 /* MidiAnnouncerSinkTests.swift in Sources */,

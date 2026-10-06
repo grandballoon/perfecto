@@ -1,79 +1,67 @@
 @testable import Perfecto
 
 /// Test double for ClockTickable. Time moves only when the test says so:
-/// `tick()` steps to the next tick, `advance(beats:)` moves any distance.
-/// Ticks and repeats falling inside a move are called in time order.
+/// `tick()` steps to the next tick, `advance(beats:)` and `advance(seconds:)`
+/// move any distance. Everything falling due inside a move is called in time
+/// order, by the same `ClockSchedule` the real clock uses.
 @MainActor
 final class ManualClock: ClockTickable {
-    var bpm: Double = 120
+    var bpm: Double = 120 {
+        didSet { schedule.bpm = bpm }
+    }
 
     /// Overridable so tests can prove tempo-aware modes read the clock's
     /// resolution rather than assuming the production default of 4.
-    var ticksPerBeat: Int = 4
+    var ticksPerBeat: Int = MusicalTime.stepsPerBeat {
+        didSet {
+            schedule.ticksPerBeat = ticksPerBeat
+            schedule.stopTicks()
+            schedule.startTicks()
+        }
+    }
 
     private(set) var isRunning = false
 
-    /// Repeats that have not been cancelled.
-    var repeatCount: Int { repeats.count }
+    /// Calls waiting to be made (repeats not cancelled, one-off calls not
+    /// yet made), ticks apart.
+    var pendingCount: Int { schedule.pendingCount }
 
-    private struct Repeat {
-        let beats: Double
-        var due: Double
-        let handler: @MainActor () -> Void
+    private let schedule = ClockSchedule(bpm: 120)
+
+    init() {
+        // It ticks whether or not it was started.
+        schedule.startTicks()
     }
-
-    private var tickHandler: (@MainActor () -> Void)?
-    private var repeats: [Int: Repeat] = [:]
-    private var nextRepeatID = 0
-    /// Now, in beats since the clock was made.
-    private var position = 0.0
-    private var ticksFired = 0
-
-    /// Two times closer than this are the same moment.
-    private static let sameMoment = 1e-9
 
     func start()  { isRunning = true  }
     func stop()   { isRunning = false }
 
     func onTick(_ handler: @escaping @MainActor () -> Void) {
-        tickHandler = handler
+        schedule.onTick(handler)
     }
 
-    func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockRepeat {
-        let id = nextRepeatID
-        nextRepeatID += 1
-        repeats[id] = Repeat(beats: beats, due: position + beats, handler: handler)
-        return ClockRepeat { [weak self] in self?.repeats[id] = nil }
+    func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+        schedule.every(beats: beats, handler)
     }
 
-    /// Advance the clock to its next tick. It ticks whether or not it was started.
+    func after(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+        schedule.after(beats: beats, handler)
+    }
+
+    func after(seconds: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+        schedule.after(seconds: seconds, handler)
+    }
+
+    /// Advance the clock to its next tick.
     func tick() {
-        advance(to: nextTick)
+        schedule.run(until: schedule.nextTick ?? schedule.now)
     }
 
     func advance(beats: Double) {
-        advance(to: position + beats)
+        advance(seconds: beats * 60 / bpm)
     }
 
-    private var nextTick: Double { Double(ticksFired + 1) / Double(ticksPerBeat) }
-
-    private func advance(to target: Double) {
-        while true {
-            let nextRepeat = repeats.min { $0.value.due < $1.value.due }
-            // A tick comes before a repeat due at the same moment.
-            if nextTick <= target + Self.sameMoment,
-               nextTick <= (nextRepeat?.value.due ?? .infinity) + Self.sameMoment {
-                position = nextTick
-                ticksFired += 1
-                tickHandler?()
-            } else if let (id, next) = nextRepeat, next.due <= target + Self.sameMoment {
-                position = next.due
-                repeats[id]?.due += next.beats
-                next.handler()
-            } else {
-                break
-            }
-        }
-        position = max(position, target)
+    func advance(seconds: Double) {
+        schedule.run(until: schedule.now + seconds)
     }
 }

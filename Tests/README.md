@@ -7,7 +7,7 @@ Tests/
 ├── Helpers/            — recording doubles shared across all test suites
 │   ├── RecordingSink.swift       — ChordEventSink double; records play/stop calls
 │   ├── RecordingNoteSink.swift   — NoteSink double; records the notes started and ended
-│   ├── ManualClock.swift         — ClockTickable double; tick() advances time manually
+│   ├── ManualClock.swift         — ClockTickable double; tick() and advance(beats:/seconds:) move time manually
 │   ├── WaitUntil.swift           — waits for a condition instead of sleeping a fixed time
 │   ├── OfflineTone.swift         — renders a tone through real AudioKit nodes in an offline engine
 │   ├── RecordingLogger.swift     — Logger double (TODO Phase 3)

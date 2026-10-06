@@ -4,7 +4,11 @@ final class RepeatMode: PerformanceMode {
     var requiresClock: Bool { true }
 
     private var heldDegree: Degree?
-    private var retriggerTask: Task<Void, Never>?
+    /// The clock's call to strike the chord again, after the gap.
+    private var retrigger: ClockCall?
+
+    /// Seconds of silence before each repeat, so it is heard as a new strike.
+    static let gap = 0.08
     private var tickCount = 0   // retrigger once per beat (ticksPerBeat ticks)
 
     func onButtonDown(degree: Degree, state: PerformanceState) {
@@ -32,10 +36,9 @@ final class RepeatMode: PerformanceMode {
         guard let degree = heldDegree else { return }
         cancelRetrigger()
         state.stopSounding()        // silence without clearing OLED display
-        retriggerTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 80_000_000)  // 80 ms silent gap
-            guard let self, !Task.isCancelled, self.heldDegree != nil else { return }
-            state.startChord(degree: degree)
+        retrigger = state.after(seconds: Self.gap) { [weak self, weak state] in
+            guard self?.heldDegree != nil else { return }
+            state?.startChord(degree: degree)
         }
     }
 
@@ -46,7 +49,7 @@ final class RepeatMode: PerformanceMode {
     }
 
     private func cancelRetrigger() {
-        retriggerTask?.cancel()
-        retriggerTask = nil
+        retrigger?.cancel()
+        retrigger = nil
     }
 }

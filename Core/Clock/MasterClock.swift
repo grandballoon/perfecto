@@ -11,9 +11,11 @@ enum MusicalTime {
     static let tempoRange = 20.0...300.0
 }
 
-/// A call a clock makes over and over until `cancel()`.
+/// A call a clock has been asked to make, once or over and over. It is made
+/// until `cancel()`; cancelling one that has already been made, or cancelled,
+/// does nothing.
 @MainActor
-final class ClockRepeat {
+final class ClockCall {
     private var onCancel: (() -> Void)?
 
     init(onCancel: @escaping () -> Void) {
@@ -28,11 +30,20 @@ final class ClockRepeat {
 
 /// Protocol that both MasterClock (production) and ManualClock (tests) conform to.
 /// Callers register a tick handler via onTick(_:) rather than conforming to a delegate.
+///
+/// Everything a clock calls, it calls in the order it falls due (`ClockSchedule`
+/// keeps that order for both clocks):
+/// - A call that falls due at the same moment as a tick is made after the
+///   tick's handler, so whatever the tick starts (a sequencer step) can
+///   cancel a call before it acts on what the tick replaced.
+/// - Inside a call, "now" is the moment the call was due, not the moment the
+///   clock got round to it. A call that asks for another one a beat later
+///   gets it exactly a beat after its own time, so nothing drifts.
 @MainActor
 protocol ClockTickable: AnyObject {
     var bpm: Double { get set }
     /// How many ticks the clock fires per quarter-note beat. This is the one
-    /// place the clock's resolution is stated: MasterClock derives its timer
+    /// place the clock's resolution is stated: MasterClock derives its tick
     /// interval from it, and tempo-aware modes divide by it to schedule musical
     /// durations. Without it, every mode hardcoded "4" and silently depended on
     /// a resolution the protocol never exposed. Must be a multiple of
@@ -42,117 +53,109 @@ protocol ClockTickable: AnyObject {
     func stop()
     func onTick(_ handler: @escaping @MainActor () -> Void)
     /// Calls `handler` every `beats` beats at the current tempo, first one
-    /// such length from now, until the returned repeat is cancelled. For
+    /// such length from now, until the returned call is cancelled. For
     /// timing finer than a tick, or not on the tick grid at all; it runs
     /// whether or not the clock is ticking.
-    ///
-    /// A call that falls due at the same moment as a tick is made after the
-    /// tick's handler, so whatever the tick starts (a sequencer step) can
-    /// cancel a repeat before it acts on what the tick replaced.
-    func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockRepeat
+    func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall
+    /// Calls `handler` once, `beats` beats from now. A change of tempo before
+    /// then moves it, so it stays that many beats away.
+    func after(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall
+    /// Calls `handler` once, `seconds` from now, whatever the tempo does.
+    func after(seconds: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall
 }
 
 extension ClockTickable {
-    /// Default resolution: 1/16-note ticks (four per beat). Shared by every
-    /// clock so production and test doubles agree.
-    var ticksPerBeat: Int { 4 }
+    /// Default resolution: 1/16-note ticks, one per sequencer step. Shared by
+    /// every clock so production and test doubles agree.
+    var ticksPerBeat: Int { MusicalTime.stepsPerBeat }
 }
 
-/// Fires at 1/16th-note resolution. iOS implementation using Timer.
-/// The interface (bpm/start/stop/onTick) is intentionally simple so alternative
-/// implementations (e.g. `ManualClock` in tests) can drop in without changing callers.
+/// The real clock: a `ClockSchedule` run against the time since the app
+/// started, by one timer set for whatever is due next.
+/// The interface is intentionally simple so alternative implementations
+/// (e.g. `ManualClock` in tests) can drop in without changing callers.
 @MainActor
 final class MasterClock: ClockTickable {
-    var bpm: Double = 120 {
-        didSet {
-            bpm = bpm.clamped(to: MusicalTime.tempoRange)
-            if isRunning { schedule() }
-            for id in repeats.keys { scheduleRepeat(id) }
+    var bpm: Double {
+        get { schedule.bpm }
+        set {
+            settle()
+            schedule.bpm = newValue.clamped(to: MusicalTime.tempoRange)
         }
     }
 
-    private struct Repeat {
-        let beats: Double
-        let handler: @MainActor () -> Void
-        var timer: Timer?
+    private let schedule = ClockSchedule(bpm: 120)
+    private var timer: Timer?
+    /// The moment the schedule's time is counted from.
+    private let origin = ProcessInfo.processInfo.systemUptime
+
+    init() {
+        schedule.ticksPerBeat = ticksPerBeat
+        schedule.onChange = { [weak self] in self?.arm() }
     }
 
-    private var timer: Timer?
-    private var tickHandler: (@MainActor () -> Void)?
-    private var repeats: [Int: Repeat] = [:]
-    private var nextRepeatID = 0
-    /// Repeats that fell due with a tick about to fire; called after it.
-    private var repeatsAfterTick: [Int] = []
-
-    /// How close to a tick a repeat's call counts as the same moment. Two
-    /// timers set for one instant fire within a few milliseconds of each
-    /// other, in either order.
-    private static let sameMoment: TimeInterval = 0.005
-
-    var isRunning: Bool { timer != nil }
+    var isRunning: Bool { schedule.isTicking }
 
     func onTick(_ handler: @escaping @MainActor () -> Void) {
-        tickHandler = handler
+        schedule.onTick(handler)
     }
 
     func start() {
-        schedule()
+        settle()
+        schedule.startTicks()
     }
 
     func stop() {
+        schedule.stopTicks()
+    }
+
+    func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+        settle()
+        return schedule.every(beats: beats, handler)
+    }
+
+    func after(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+        settle()
+        return schedule.after(beats: beats, handler)
+    }
+
+    func after(seconds: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+        settle()
+        return schedule.after(seconds: seconds, handler)
+    }
+
+    /// Seconds since the schedule's time began.
+    private var elapsed: Double { ProcessInfo.processInfo.systemUptime - origin }
+
+    /// Brings the schedule's "now" up to the real one, so a call asked for
+    /// from outside the schedule (a finger, not another call) is timed from
+    /// the moment it was asked for.
+    private func settle() {
+        schedule.settle(at: elapsed)
+    }
+
+    /// Sets the one timer for whatever is due next.
+    private func arm() {
         timer?.invalidate()
         timer = nil
-    }
-
-    func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockRepeat {
-        let id = nextRepeatID
-        nextRepeatID += 1
-        repeats[id] = Repeat(beats: beats, handler: handler)
-        scheduleRepeat(id)
-        return ClockRepeat { [weak self] in
-            self?.repeats.removeValue(forKey: id)?.timer?.invalidate()
-        }
-    }
-
-    private func schedule() {
-        timer?.invalidate()
-        let interval = 60.0 / bpm / Double(ticksPerBeat)  // one tick per 1/16th note
+        guard let due = schedule.nextDue else { return }
         // .common mode keeps the timer firing during UIKit touch-tracking; .default pauses it,
         // which causes missed ticks (and a half-second gap at the loop boundary) when the user
         // is pressing chord buttons while the sequencer is running.
         // The timer is on the main run loop, so it fires on the main actor.
-        // Ticking right there, rather than in a task queued from it, means a
-        // tick can never arrive after the clock was stopped or restarted.
-        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
+        // Calling right there, rather than in a task queued from it, means a
+        // call can never arrive after it was cancelled or the clock stopped.
+        let t = Timer(fire: Date(timeIntervalSinceNow: max(0, due - elapsed)), interval: 0, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.fire() }
         }
         RunLoop.main.add(t, forMode: .common)
         timer = t
     }
 
-    private func tick() {
-        tickHandler?()
-        let due = repeatsAfterTick
-        repeatsAfterTick = []
-        for id in due { repeats[id]?.handler() }
-    }
-
-    private func scheduleRepeat(_ id: Int) {
-        guard let beats = repeats[id]?.beats else { return }
-        repeats[id]?.timer?.invalidate()
-        let t = Timer(timeInterval: 60.0 / bpm * beats, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.repeatFired(id) }
-        }
-        RunLoop.main.add(t, forMode: .common)
-        repeats[id]?.timer = t
-    }
-
-    private func repeatFired(_ id: Int) {
-        if let nextTick = timer?.fireDate, nextTick.timeIntervalSinceNow < Self.sameMoment {
-            repeatsAfterTick.append(id)
-        } else {
-            repeats[id]?.handler()
-        }
+    private func fire() {
+        // The app may have been held up (or suspended) for many ticks'
+        // worth of time; those are skipped, not played in a burst.
+        schedule.run(until: elapsed, skippingMissed: true)
     }
 }
 

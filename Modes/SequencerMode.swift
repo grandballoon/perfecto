@@ -4,7 +4,8 @@ final class SequencerMode: PerformanceMode {
     var requiresClock: Bool { true }
 
     private let seqState: SequencerState
-    private var gateTask: Task<Void, Never>?
+    /// The clock's call to end the step that is sounding, at its gate.
+    private var gate: ClockCall?
     /// Ticks elapsed within the current step (0 = the step starts on this tick).
     private var tickInStep = 0
 
@@ -34,7 +35,7 @@ final class SequencerMode: PerformanceMode {
 
         let step = seqState.steps[idx]
         let previous = seqState.steps.indices.contains(previousIdx) ? seqState.steps[previousIdx] : nil
-        gateTask?.cancel()
+        gate?.cancel()
 
         if step.isRest {
             state.stopSounding()
@@ -53,18 +54,14 @@ final class SequencerMode: PerformanceMode {
         //  • otherwise → release after `gate` fraction of the step (staccato as
         //    the value drops).
         guard !step.isTied else { return }
-        let stepSecs = 60.0 / state.bpm / Double(MusicalTime.stepsPerBeat)
-        let gateNs   = UInt64(step.gate * stepSecs * 1_000_000_000)
-        gateTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: gateNs)
-            guard !Task.isCancelled else { return }
-            state.stopSounding()
+        gate = state.after(beats: step.gate / Double(MusicalTime.stepsPerBeat)) { [weak state] in
+            state?.stopSounding()
         }
     }
 
     func deactivate(state: PerformanceState) {
-        gateTask?.cancel()
-        gateTask = nil
+        gate?.cancel()
+        gate = nil
         seqState.isPlaying = false
         seqState.currentStep = -1
         state.endChord()
