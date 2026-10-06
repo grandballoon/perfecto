@@ -1,4 +1,4 @@
-/// The chorus's controls, as plain data: `EffectsChain` realizes them.
+/// The chorus's controls, as plain data: the kernel realizes them.
 /// Both amounts run 0...1.
 struct ChorusSettings: Equatable, Codable, Sendable, SlidePlayed {
     static var kind: EffectKind { .chorus }
@@ -18,7 +18,7 @@ struct ChorusSettings: Equatable, Codable, Sendable, SlidePlayed {
     }
 }
 
-/// The reverb's controls, as plain data: `EffectsChain` realizes them.
+/// The reverb's controls, as plain data: the kernel realizes them.
 /// Both amounts run 0...1.
 struct ReverbSettings: Equatable, Codable, Sendable, SlidePlayed {
     static var kind: EffectKind { .reverb }
@@ -39,7 +39,27 @@ struct ReverbSettings: Equatable, Codable, Sendable, SlidePlayed {
     }
 }
 
-/// The filter's controls, as plain data: `BrightnessFilter` realizes them.
+/// The vocoder's controls, as plain data. While it is on, the mic is open:
+/// the notes sent to it are heard as the voice there shapes them.
+struct VocoderSettings: Equatable, Codable, Sendable, SlidePlayed {
+    static var kind: EffectKind { .vocoder }
+
+    var isOn = false
+    /// How much of each note goes to the vocoder and is not heard itself:
+    /// 0 is none, 1 is all of it, so the notes are silent until the voice
+    /// speaks.
+    var amount: Float = 1
+    /// The slide plays the amount.
+    var followsSlide = false
+
+    func playing(_ slide: Float) -> VocoderSettings {
+        var played = self
+        played.amount = slide
+        return played
+    }
+}
+
+/// The filter's controls, as plain data: the kernel realizes them.
 struct FilterSettings: Equatable, Codable, Sendable, SlidePlayed {
     static var kind: EffectKind { .filter }
 
@@ -59,10 +79,12 @@ struct FilterSettings: Equatable, Codable, Sendable, SlidePlayed {
 /// Something that follows the sound effects as they are played: each call
 /// carries an effect as it sounds now, the slide and the key zones already
 /// applied.
-/// `AudioSink` makes the sound; `MidiSink` sends the amounts on as controllers.
+/// The keys' `NotePlayer` makes them its notes' sound; `MidiSink` sends the
+/// amounts on as controllers.
 @MainActor
 protocol EffectsControl: AnyObject {
     func setFilter(_ played: FilterSettings)
     func setChorus(_ played: ChorusSettings)
     func setReverb(_ played: ReverbSettings)
+    func setVocoder(_ played: VocoderSettings)
 }

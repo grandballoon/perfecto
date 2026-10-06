@@ -125,6 +125,19 @@ struct NoteEffects: Equatable, Codable, Sendable {
     var filter = FilterSettings()
     var chorus = ChorusSettings()
     var reverb = ReverbSettings()
+    var vocoder = VocoderSettings()
+}
+
+extension NoteEffects {
+    /// A timeline saved before there was a vocoder has none.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        arpeggiator = try container.decode(ArpeggiatorSettings.self, forKey: .arpeggiator)
+        filter = try container.decode(FilterSettings.self, forKey: .filter)
+        chorus = try container.decode(ChorusSettings.self, forKey: .chorus)
+        reverb = try container.decode(ReverbSettings.self, forKey: .reverb)
+        vocoder = try container.decodeIfPresent(VocoderSettings.self, forKey: .vocoder) ?? VocoderSettings()
+    }
 }
 
 /// The effects as they became at a moment inside a held note: one point of

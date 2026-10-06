@@ -113,4 +113,5 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
     func setFilter(_ played: FilterSettings) { sound.filter = played }
     func setChorus(_ played: ChorusSettings) { sound.chorus = played }
     func setReverb(_ played: ReverbSettings) { sound.reverb = played }
+    func setVocoder(_ played: VocoderSettings) { sound.vocoder = played }
 }

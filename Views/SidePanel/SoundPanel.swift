@@ -142,7 +142,7 @@ private struct MicSampleRecorderRow: View {
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(Color(white: 0.3))
                 .fixedSize(horizontal: false, vertical: true)
-            if sample.isRefused, let settings = URL(string: UIApplication.openSettingsURLString) {
+            if sample.access.isRefused, let settings = URL(string: UIApplication.openSettingsURLString) {
                 Link("Open Settings", destination: settings)
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .foregroundStyle(.orange)
@@ -164,7 +164,7 @@ private struct MicSampleRecorderRow: View {
     }
 
     private var hint: String {
-        if sample.isRefused { return "Perfecto is not allowed to use the microphone." }
+        if sample.access.isRefused { return "Perfecto is not allowed to use the microphone." }
         if sample.heardNothing { return "Nothing was heard. Record again, closer or louder." }
         return "Record a sound, then play it on the keys at any pitch."
     }

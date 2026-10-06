@@ -29,7 +29,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Perfecto connects to MIDI hosts on your local network so you can play into a DAW wirelessly.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Perfecto records a short sound from the microphone for you to play on the chord keys.</string>
+	<string>Perfecto uses the microphone to record a sound for you to play on the chord keys, and for the vocoder, where your voice shapes the notes.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

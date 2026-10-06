@@ -13,7 +13,7 @@ enum ChordSource: String, Codable {
 }
 
 enum EffectKind: String, Codable, CaseIterable {
-    case arpeggiator, filter, chorus, reverb
+    case arpeggiator, filter, chorus, reverb, vocoder
 }
 
 enum ChordLinkFrameKind: String, Codable {

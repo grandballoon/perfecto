@@ -46,8 +46,8 @@ struct Lowpass {
 
 struct Voice {
     /// The paths a voice's sound takes: straight to the output, and into
-    /// the chorus and the reverb.
-    enum Path { dry = 0, toChorus, toReverb, pathCount };
+    /// the chorus, the reverb and the vocoder.
+    enum Path { dry = 0, toChorus, toReverb, toVocoder, pathCount };
 
     enum class Stage : uint8_t {
         /// Silent and free to take a note.
@@ -73,6 +73,7 @@ struct Voice {
         float pan = 0;
         float chorus = 0;
         float reverb = 0;
+        float vocoder = 0;
     };
 
     Stage stage = Stage::free;
@@ -135,17 +136,24 @@ struct Voice {
     float chorusGoal = 0;
     float reverb = 0;
     float reverbGoal = 0;
+    /// How much of the note is for the vocoder, now and where it is going.
+    float vocoder = 0;
+    float vocoderGoal = 0;
     /// What that makes the voice's share of each path, and how far each
     /// moves a frame.
-    float share[pathCount] = {1, 0, 0};
-    float shareStep[pathCount] = {0, 0, 0};
+    float share[pathCount] = {1, 0, 0, 0};
+    float shareStep[pathCount] = {0, 0, 0, 0};
 
-    /// The shares of each path for `chorus` and `reverb`. Chorus at its
-    /// fullest is as much copy as sound; reverb takes from both.
-    void shares(float out[pathCount]) const {
-        out[dry] = (1 - reverb) * (1 - 0.5f * chorus);
-        out[toChorus] = (1 - reverb) * 0.5f * chorus;
-        out[toReverb] = reverb;
+    /// The shares of each path for `chorus`, `reverb` and `vocoder`. Chorus
+    /// at its fullest is as much copy as sound; reverb takes from both; and
+    /// what goes to the vocoder, while it is on (`vocoding`), is taken from
+    /// all three, since it is heard only as the vocoder shapes it.
+    void shares(float out[pathCount], bool vocoding) const {
+        const float sent = vocoding ? vocoder : 0;
+        out[dry] = (1 - sent) * (1 - reverb) * (1 - 0.5f * chorus);
+        out[toChorus] = (1 - sent) * (1 - reverb) * 0.5f * chorus;
+        out[toReverb] = (1 - sent) * reverb;
+        out[toVocoder] = sent;
     }
 
     /// How loud the voice is now, for choosing which to give up.

@@ -9,7 +9,7 @@
 //  - `perfecto_kernel_render` is the render thread's. It never allocates,
 //    locks or waits.
 //  - `perfecto_kernel_send` is for one other thread at a time.
-//  - `perfecto_kernel_time`, the chorus's and reverb's settings, and what
+//  - `perfecto_kernel_time`, the chorus's, reverb's and vocoder's settings, and what
 //    says how a capture is getting on are for any thread.
 //  - Everything else is called while nothing is rendering.
 //
@@ -79,8 +79,8 @@ typedef struct {
 ///         → low-pass filter → amplitude envelope → the note's brightness
 ///
 /// From there a note goes where it says (its pan, and how much of it to the
-/// chorus and the reverb), and everything is added and held under full
-/// scale by a limiter.
+/// chorus, the reverb and the vocoder), and everything is added and held
+/// under full scale by a limiter.
 typedef struct {
     PerfectoOperator operators[PerfectoOperatorCount];
     /// The second operator bends the first one's phase by `index` (in
@@ -124,17 +124,26 @@ typedef enum {
     /// Ends the note `note_id`. Unknown ids are ignored.
     PerfectoEventNoteOff = 2,
     /// Changes how the note `note_id` is played while it sounds: its
-    /// `brightness`, `chorus` and `reverb`, all three. The change is glided
-    /// to, not jumped to.
+    /// `brightness`, `chorus`, `reverb` and `vocoder`, all four. The change
+    /// is glided to, not jumped to.
     PerfectoEventNoteChange = 3,
-    /// Starts recording the input into the capture numbered `note`, from
-    /// this frame, in place of what it held; notes playing it end. One
-    /// capture is recorded at a time: starting another ends the first.
+    /// Starts recording into the capture numbered `note`, from this frame,
+    /// in place of what it held; notes playing it end. What is recorded is
+    /// the source numbered `sound` (a `PerfectoCaptureSource`). One capture
+    /// is recorded at a time: starting another ends the first.
     PerfectoEventCaptureStart = 4,
     /// Ends the recording at this frame (it ends by itself when the capture
     /// is full), and makes it playable.
     PerfectoEventCaptureStop = 5,
 } PerfectoEventType;
+
+/// What a capture records.
+typedef enum {
+    /// The audio input.
+    PerfectoCaptureInput = 0,
+    /// What the vocoder puts out.
+    PerfectoCaptureVocoder = 1,
+} PerfectoCaptureSource;
 
 typedef struct {
     /// The frame the event takes effect on.
@@ -147,6 +156,7 @@ typedef struct {
     /// Note on: how hard it was struck, 0...1.
     float velocity;
     /// Note on: which sound, as numbered by `perfecto_kernel_set_sound`.
+    /// Capture start: what to record.
     int32_t sound;
     /// Note on and note change: the note's own low-pass, from 0 (dark) to 1
     /// (open: the sound as its patch makes it).
@@ -160,6 +170,10 @@ typedef struct {
     /// and not straight out, from 0 (dry) to 1 (the room alone). It is a
     /// send: turning it down never cuts what is already ringing.
     float reverb;
+    /// Note on and note change: how much of the note goes to the vocoder,
+    /// to be shaped by the voice at the input, and is not heard itself:
+    /// from 0 (none) to 1 (all of it). While the vocoder is off, none does.
+    float vocoder;
 } PerfectoEvent;
 
 /// The most notes that can be held at once. A note past this takes over a
@@ -230,6 +244,11 @@ void perfecto_kernel_set_chorus_rate(PerfectoKernel *kernel, float hz);
 void perfecto_kernel_set_reverb_tail(PerfectoKernel *kernel, float seconds);
 void perfecto_kernel_set_reverb_predelay(PerfectoKernel *kernel, float seconds);
 void perfecto_kernel_set_reverb_damping(PerfectoKernel *kernel, float hz);
+
+/// Switches the vocoder on or off. On, the share of each note sent to it
+/// is shaped by the audio input (a voice) and heard that way in place of
+/// the note; off, every note is heard whole, as if none were sent.
+void perfecto_kernel_set_vocoder(PerfectoKernel *kernel, bool on);
 
 /// Frames between an event's frame and its sound coming out: the limiter
 /// has to see a peak coming to turn it down in time. Fixed by `prepare`.

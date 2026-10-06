@@ -1,7 +1,8 @@
 import Observation
 
 /// The effects' controls: the arpeggiator, which changes which notes play
-/// and when, and the filter, chorus and reverb, which change how they sound.
+/// and when, and the filter, chorus, reverb and vocoder, which change how
+/// they sound.
 /// Views edit the settings here; each change is passed straight on to the
 /// part that realizes it.
 ///
@@ -61,6 +62,16 @@ final class EffectsState {
         }
     }
 
+    var vocoder = VocoderSettings() {
+        didSet {
+            guard vocoder != oldValue else { return }
+            onSetChange?()
+            onPlayedChange?()
+            sendVocoder()
+            logSwitch(.vocoder, from: oldValue.isOn, to: vocoder.isOn)
+        }
+    }
+
     /// The bands every chord key is divided into, and the effect each plays.
     var zones = KeyZoneSettings() {
         didSet {
@@ -70,6 +81,7 @@ final class EffectsState {
                 send(effect)
             }
             if zones.isOn != oldValue.isOn { logger?.log(.key_zones_switched(isOn: zones.isOn)) }
+            onSetChange?()
         }
     }
 
@@ -97,16 +109,22 @@ final class EffectsState {
     /// what a chord played now is played with.
     var asPlayed: NoteEffects {
         NoteEffects(arpeggiator: played(arpeggiator), filter: played(filter),
-                    chorus: played(chorus), reverb: played(reverb))
+                    chorus: played(chorus), reverb: played(reverb), vocoder: played(vocoder))
     }
 
     /// Every effect as set, whatever is being played: what a note of a
     /// timeline follows when it has no effects of its own.
     var asSet: NoteEffects {
-        NoteEffects(arpeggiator: arpeggiator, filter: filter, chorus: chorus, reverb: reverb)
+        NoteEffects(arpeggiator: arpeggiator, filter: filter, chorus: chorus, reverb: reverb, vocoder: vocoder)
     }
 
-    var isAnyOn: Bool { arpeggiator.isOn || filter.isOn || chorus.isOn || reverb.isOn || zones.isOn }
+    /// Whether anything set here needs the mic: the vocoder switched on,
+    /// or a key zone that switches it on.
+    var hearsTheMic: Bool {
+        vocoder.isOn || (zones.isOn && zones.zones.contains { $0.effect == .vocoder })
+    }
+
+    var isAnyOn: Bool { arpeggiator.isOn || filter.isOn || chorus.isOn || reverb.isOn || vocoder.isOn || zones.isOn }
 
     private let arpeggiatorSink: Arpeggiator
     private let controls: [any EffectsControl]
@@ -141,6 +159,7 @@ final class EffectsState {
         case .filter:      return filter.isPlayed
         case .chorus:      return chorus.isPlayed
         case .reverb:      return reverb.isPlayed
+        case .vocoder:     return vocoder.isPlayed
         }
     }
 
@@ -150,6 +169,7 @@ final class EffectsState {
         case .filter:      sendFilter()
         case .chorus:      sendChorus()
         case .reverb:      sendReverb()
+        case .vocoder:     sendVocoder()
         }
     }
 
@@ -170,6 +190,11 @@ final class EffectsState {
     private func sendReverb() {
         let played = played(reverb)
         for control in controls { control.setReverb(played) }
+    }
+
+    private func sendVocoder() {
+        let played = played(vocoder)
+        for control in controls { control.setVocoder(played) }
     }
 
     private func logSwitch(_ effect: EffectKind, from wasOn: Bool, to isOn: Bool) {

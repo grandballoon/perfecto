@@ -42,6 +42,12 @@ final class AudioSession {
     /// The rate the hardware runs at.
     var sampleRate: Double { session.sampleRate }
 
+    /// Whether the sound comes out of the device's own speaker, where its
+    /// mic hears it.
+    var isOnSpeaker: Bool {
+        session.currentRoute.outputs.contains { $0.portType == .builtInSpeaker }
+    }
+
     /// Takes the session: for playing, or for playing and `recording`.
     func activate(recording: Bool = false) throws {
         if recording {
@@ -54,6 +60,11 @@ final class AudioSession {
         }
         try session.setPreferredIOBufferDuration(Self.ioBufferDuration)
         try session.setActive(true)
+        if recording, let builtIn = session.availableInputs?.first(where: { $0.portType == .builtInMic }) {
+            // A Bluetooth headset's mic would put its headphones in call
+            // quality too: the device's own mic is used whatever is connected.
+            try? session.setPreferredInput(builtIn)
+        }
         logger?.log(.audio_session_activated(category: recording ? "playAndRecord" : "playback",
                                              mode: "default", sampleRate: session.sampleRate))
     }

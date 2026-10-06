@@ -39,20 +39,23 @@ final class KernelRig {
 
     @discardableResult
     func noteOn(_ id: UInt64, note: Int = 69, velocity: Float = 1, sound: Int = 0, brightness: Float = 1,
-                pan: Float = 0, chorus: Float = 0, reverb: Float = 0, at frame: Int = 0) -> Bool {
+                pan: Float = 0, chorus: Float = 0, reverb: Float = 0, vocoder: Float = 0,
+                at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteOn,
                                   note: Int32(note), velocity: velocity, sound: Int32(sound),
-                                  brightness: brightness, pan: pan, chorus: chorus, reverb: reverb)
+                                  brightness: brightness, pan: pan, chorus: chorus, reverb: reverb,
+                                  vocoder: vocoder)
         return perfecto_kernel_send(kernel, &event)
     }
 
     /// Changes how a sounding note is played.
     @discardableResult
     func noteChange(_ id: UInt64, brightness: Float = 1, chorus: Float = 0, reverb: Float = 0,
-                    at frame: Int = 0) -> Bool {
+                    vocoder: Float = 0, at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteChange,
                                   note: 0, velocity: 0, sound: 0,
-                                  brightness: brightness, pan: 0, chorus: chorus, reverb: reverb)
+                                  brightness: brightness, pan: 0, chorus: chorus, reverb: reverb,
+                                  vocoder: vocoder)
         return perfecto_kernel_send(kernel, &event)
     }
 
@@ -66,11 +69,12 @@ final class KernelRig {
     func setReverbTail(_ seconds: Float) { perfecto_kernel_set_reverb_tail(kernel, seconds) }
     func setReverbPredelay(_ seconds: Float) { perfecto_kernel_set_reverb_predelay(kernel, seconds) }
     func setReverbDamping(_ hz: Float) { perfecto_kernel_set_reverb_damping(kernel, hz) }
+    func setVocoder(_ on: Bool) { perfecto_kernel_set_vocoder(kernel, on) }
 
     @discardableResult
     func noteOff(_ id: UInt64, at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteOff,
-                                  note: 0, velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0)
+                                  note: 0, velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0)
         return perfecto_kernel_send(kernel, &event)
     }
 
@@ -79,16 +83,18 @@ final class KernelRig {
     static let captureCapacity = Int(perfecto_kernel_capture_capacity())
 
     @discardableResult
-    func captureStart(_ capture: Int = 0, at frame: Int = 0) -> Bool {
+    func captureStart(_ capture: Int = 0, of source: PerfectoCaptureSource = PerfectoCaptureInput,
+                      at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: 0, type: PerfectoEventCaptureStart,
-                                  note: Int32(capture), velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0)
+                                  note: Int32(capture), velocity: 0, sound: Int32(source.rawValue),
+                                  brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0)
         return perfecto_kernel_send(kernel, &event)
     }
 
     @discardableResult
     func captureStop(at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: 0, type: PerfectoEventCaptureStop,
-                                  note: 0, velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0)
+                                  note: 0, velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0)
         return perfecto_kernel_send(kernel, &event)
     }
 

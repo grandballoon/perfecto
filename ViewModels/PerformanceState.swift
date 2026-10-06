@@ -98,6 +98,8 @@ final class PerformanceState {
     let quickLoopState: QuickLoopState
     let effects: EffectsState
     let micSample: MicSampleState
+    /// Whether the app may use the mic, for the sample and the vocoder.
+    let micAccess: MicAccess
 
     private let sink:   any ChordEventSink
     /// Hears the chord that is held, whole (ChordLink).
@@ -162,7 +164,8 @@ final class PerformanceState {
                                          effectsListener: effectsListener, logger: logger)
         self.sequencerState = sequencer ?? SequencerState(logger: logger)
         self.quickLoopState = QuickLoopState(logger: logger)
-        self.micSample = MicSampleState(recorder: output?.sampleRecorder, gate: micGate)
+        self.micAccess = MicAccess(gate: micGate)
+        self.micSample = MicSampleState(recorder: output?.sampleRecorder, access: micAccess)
         self.clock.bpm = bpm
         self.timelinePlayer = TimelinePlayer(live: liveSettings, clock: clock) { [weak self] layer in
             let sink = self?.layerSink() ?? CompositeSink([])
@@ -173,6 +176,7 @@ final class PerformanceState {
         self.effects.onSetChange = { [weak self] in
             guard let self else { return }
             timelinePlayer?.live = liveSettings
+            hearTheMicIfWanted()
         }
         self.effects.onPlayedChange = { [weak self] in self?.quickLoopState.effectsChanged() }
         self.quickLoopState.host = self
@@ -227,6 +231,24 @@ final class PerformanceState {
     /// Calls `handler` once, `seconds` from now on the clock.
     func after(seconds: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
         clock.after(seconds: seconds, handler)
+    }
+
+    /// Opens the mic to the vocoder while an effect set wants it, asking
+    /// for the mic first if need be; a refusal switches the vocoder back
+    /// off, since it would have nothing to hear.
+    private func hearTheMicIfWanted() {
+        guard let output else { return }
+        guard effects.hearsTheMic else {
+            output.isVocoding = false
+            return
+        }
+        guard !output.isVocoding else { return }
+        micAccess.ask(then: { [weak self] in
+            guard let self, effects.hearsTheMic else { return }
+            output.isVocoding = true
+        }, refused: { [weak self] in
+            self?.effects.vocoder.isOn = false
+        })
     }
 
     /// Switches the synth sound. It is heard on the next chord played.

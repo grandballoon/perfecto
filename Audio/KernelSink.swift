@@ -2,7 +2,7 @@ import Foundation
 
 /// Sounds notes through the audio kernel. Each note goes to it with its own
 /// sound: its preset (one of the kernel's sounds, loaded here once) and how
-/// bright it is and how much chorus and reverb it has, so the keys and every
+/// bright it is and how much chorus, reverb and vocoder it has, so the keys and every
 /// layer of the timeline can each be heard in their own.
 ///
 /// The kernel has the voices and decides which to give up when there are
@@ -73,7 +73,8 @@ final class KernelSink: NoteSink {
         KernelAudioUnit.Playing(
             brightness: sound.filter.isOn ? sound.filter.brightness.clamped(to: 0...1) : 1,
             chorus: sound.chorus.isOn ? sound.chorus.amount.clamped(to: 0...1) : 0,
-            reverb: sound.reverb.isOn ? sound.reverb.mix.clamped(to: 0...1) : 0)
+            reverb: sound.reverb.isOn ? sound.reverb.mix.clamped(to: 0...1) : 0,
+            vocoder: sound.vocoder.isOn ? sound.vocoder.amount.clamped(to: 0...1) : 0)
     }
 
     private func setMix(for sound: NoteSound) {

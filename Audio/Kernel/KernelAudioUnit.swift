@@ -112,6 +112,9 @@ final class KernelAudioUnit: AUAudioUnit {
         /// How much of the note goes into the reverb and not straight out,
         /// from 0 (dry) to 1 (the room alone).
         var reverb: Float = 0
+        /// How much of the note goes to the vocoder and is not heard
+        /// itself, from 0 (none) to 1 (all of it).
+        var vocoder: Float = 0
     }
 
     /// Starts `note` (a MIDI note) under `id` on frame `time`, in sound
@@ -124,14 +127,14 @@ final class KernelAudioUnit: AUAudioUnit {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOn,
                            note: Int32(note), velocity: velocity, sound: Int32(sound),
                            brightness: playing.brightness, pan: pan,
-                           chorus: playing.chorus, reverb: playing.reverb))
+                           chorus: playing.chorus, reverb: playing.reverb, vocoder: playing.vocoder))
     }
 
     /// Ends the note `id` on frame `time`.
     @discardableResult
     func noteOff(_ id: UInt64, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOff, note: 0, velocity: 0,
-                           sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0))
+                           sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0))
     }
 
     /// Glides the sounding note `id` to `playing` from frame `time`.
@@ -139,10 +142,17 @@ final class KernelAudioUnit: AUAudioUnit {
     func noteChange(_ id: UInt64, to playing: Playing, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteChange, note: 0, velocity: 0,
                            sound: 0, brightness: playing.brightness, pan: 0,
-                           chorus: playing.chorus, reverb: playing.reverb))
+                           chorus: playing.chorus, reverb: playing.reverb, vocoder: playing.vocoder))
     }
 
     // MARK: – The mix
+
+    /// Switches the vocoder on or off. On, what each note sends to it is
+    /// shaped by the unit's input (a voice); off, or with nothing at the
+    /// input, every note is heard whole.
+    func setVocoder(_ isOn: Bool) {
+        perfecto_kernel_set_vocoder(host.kernel, isOn)
+    }
 
     /// How fast the chorus wavers, in Hz: one speed for every note.
     func setChorusRate(_ hz: Float) {
@@ -182,7 +192,8 @@ final class KernelAudioUnit: AUAudioUnit {
     @discardableResult
     func startCapture(_ capture: Int, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: 0, type: PerfectoEventCaptureStart, note: Int32(capture),
-                           velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0))
+                           velocity: 0, sound: Int32(PerfectoCaptureInput.rawValue), brightness: 1, pan: 0,
+                           chorus: 0, reverb: 0, vocoder: 0))
     }
 
     /// Ends the recording on frame `time`. It is playable from the render
@@ -190,7 +201,7 @@ final class KernelAudioUnit: AUAudioUnit {
     @discardableResult
     func stopCapture(at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: 0, type: PerfectoEventCaptureStop, note: 0,
-                           velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0))
+                           velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0))
     }
 
     /// The capture being recorded into, if one is. A recording ends by

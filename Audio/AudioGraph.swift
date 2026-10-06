@@ -57,4 +57,17 @@ final class AudioGraph {
     func stop() {
         engine.stop()
     }
+
+    /// Has the device take its own sound out of what the mic hears, so
+    /// that what plays from the speaker is not heard again. It dulls
+    /// everything played while it is on, so it is for when the speaker and
+    /// the mic are both in use, and is switched off again after. Only
+    /// while the engine is stopped, in a session that records.
+    func setEchoCancelling(_ isOn: Bool) throws {
+        guard isOn != cancelsEcho else { return }
+        try engine.inputNode.setVoiceProcessingEnabled(isOn)
+        cancelsEcho = isOn
+    }
+
+    private var cancelsEcho = false
 }

@@ -39,6 +39,15 @@ struct EffectsPanel: View {
                 }
             }
 
+            section("VOICE",
+                    footnote: "Your voice shapes the notes: hold a chord and speak or sing into the phone, and the chord says the words. It uses the microphone while it is on. Headphones give the clearest result; on the speaker the phone has to cancel its own sound, which dulls it. Bright sounds, such as Saw Lead and Strings, speak most clearly.") {
+                card("Vocoder", isOn: $effects.vocoder.isOn) {
+                    sliderControl("Amount", value: $effects.vocoder.amount)
+                    slideSwitch("amount", isOn: $effects.vocoder.followsSlide)
+                }
+                if state.micAccess.isRefused { micRefusal }
+            }
+
             footnote("Slide: where a finger is on a chord key plays every control whose slide switch is on, low at the bottom of the key and high at the top. Lifting the finger returns each to the value set here.")
 
             section("KEYS",
@@ -50,6 +59,18 @@ struct EffectsPanel: View {
                         zoneControl(zoneName(index, of: effects.zones.count), zone: zoneBinding(index))
                     }
                 }
+            }
+        }
+    }
+
+    /// Shown when the vocoder was asked for and the app may not use the mic.
+    private var micRefusal: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            footnote("Perfecto is not allowed to use the microphone, so the vocoder has nothing to hear.")
+            if let settings = URL(string: UIApplication.openSettingsURLString) {
+                Link("Open Settings", destination: settings)
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.orange)
             }
         }
     }
@@ -99,6 +120,8 @@ struct EffectsPanel: View {
                 sliderControl("Amount", value: zone.value)
             case .reverb:
                 sliderControl("Mix", value: zone.value)
+            case .vocoder:
+                sliderControl("Amount", value: zone.value)
             case nil:
                 EmptyView()
             }

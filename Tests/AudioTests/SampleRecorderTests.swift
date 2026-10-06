@@ -159,7 +159,7 @@ struct MicSampleStateTests {
 
     @Test func recordingAndStoppingMakesASample() throws {
         let (recorder, rig) = try recorder()
-        let state = MicSampleState(recorder: recorder, gate: StubPermissionGate(state: .granted))
+        let state = MicSampleState(recorder: recorder, access: MicAccess(gate: StubPermissionGate(state: .granted)))
         var recorded = 0
         state.onRecorded = { recorded += 1 }
         #expect(!state.hasSample)
@@ -183,19 +183,19 @@ struct MicSampleStateTests {
     @Test func theMicIsAskedForTheFirstTime() async throws {
         let (recorder, _) = try recorder()
         let gate = StubPermissionGate(state: .undetermined, nextResult: .granted)
-        let state = MicSampleState(recorder: recorder, gate: gate)
+        let state = MicSampleState(recorder: recorder, access: MicAccess(gate: gate))
         state.toggle()
         #expect(try await waitUntil { state.isRecording })
         #expect(gate.requestCallCount == 1)
-        #expect(!state.isRefused)
+        #expect(!state.access.isRefused)
     }
 
     @Test func aRefusalIsSaidAndNothingIsRecorded() async throws {
         let (recorder, _) = try recorder()
         let gate = StubPermissionGate(state: .undetermined, nextResult: .denied)
-        let state = MicSampleState(recorder: recorder, gate: gate)
+        let state = MicSampleState(recorder: recorder, access: MicAccess(gate: gate))
         state.toggle()
-        #expect(try await waitUntil { state.isRefused })
+        #expect(try await waitUntil { state.access.isRefused })
         #expect(!state.isRecording)
 
         // Refused already: it is not asked again.
@@ -208,7 +208,7 @@ struct MicSampleStateTests {
     @Test func aRecordingOfNothingIsSaid() throws {
         let rig = try KernelOfflineRig()
         let recorder = SampleRecorder(unit: rig.unit, capture: SynthPreset.micCapture)
-        let state = MicSampleState(recorder: recorder, gate: StubPermissionGate(state: .granted))
+        let state = MicSampleState(recorder: recorder, access: MicAccess(gate: StubPermissionGate(state: .granted)))
         var recorded = 0
         state.onRecorded = { recorded += 1 }
         state.toggle()

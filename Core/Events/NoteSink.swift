@@ -27,6 +27,7 @@ struct NoteSound: Equatable, Sendable {
     var filter = FilterSettings()
     var chorus = ChorusSettings()
     var reverb = ReverbSettings()
+    var vocoder = VocoderSettings()
     /// Where the note sits between left (-1) and right (1). A chord's
     /// notes are spread a little by whoever plays it (`NotePlayer`).
     var pan: Float = 0
@@ -34,7 +35,8 @@ struct NoteSound: Equatable, Sendable {
 
 extension NoteSound {
     init(preset: SynthPreset, effects: NoteEffects) {
-        self.init(preset: preset, filter: effects.filter, chorus: effects.chorus, reverb: effects.reverb, pan: 0)
+        self.init(preset: preset, filter: effects.filter, chorus: effects.chorus, reverb: effects.reverb,
+                  vocoder: effects.vocoder, pan: 0)
     }
 }
 

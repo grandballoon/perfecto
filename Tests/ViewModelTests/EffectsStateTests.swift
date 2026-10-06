@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Perfecto
 
@@ -12,8 +13,10 @@ struct EffectsStateTests {
         private(set) var filter: [FilterSettings] = []
         func setFilter(_ settings: FilterSettings) { filter.append(settings) }
         func setChorus(_ settings: ChorusSettings) { chorus.append(settings) }
+        private(set) var vocoder: [VocoderSettings] = []
         func setReverb(_ settings: ReverbSettings) { reverb.append(settings) }
-        func reset() { chorus = []; reverb = []; filter = [] }
+        func setVocoder(_ settings: VocoderSettings) { vocoder.append(settings) }
+        func reset() { chorus = []; reverb = []; filter = []; vocoder = [] }
     }
 
     private func makeState() -> (EffectsState, RecordingAudioEffects, RecordingLogger) {
@@ -352,5 +355,47 @@ struct EffectsStateTests {
         let settings = ArpeggiatorSettings(isOn: true, pattern: .down, cycle: .beat, followsSlide: true)
         #expect(settings.played(by: 0) == ArpeggiatorSettings(isOn: true, pattern: .down, cycle: .bar, followsSlide: true))
         #expect(settings.played(by: nil) == settings)
+    }
+
+    // MARK: – The vocoder
+
+    @Test func theVocoderIsPassedOnAndPlayedLikeTheOtherEffects() {
+        let (effects, audio, logger) = makeState()
+        effects.vocoder.isOn = true
+        #expect(audio.vocoder.last == VocoderSettings(isOn: true))
+        #expect(switches(logger) == ["vocoder on"])
+        #expect(effects.asSet.vocoder.isOn)
+        #expect(effects.isAnyOn)
+
+        effects.vocoder.followsSlide = true
+        effects.slide = 0.25
+        #expect(audio.vocoder.last?.amount == 0.25)
+        #expect(effects.asPlayed.vocoder.amount == 0.25)
+        #expect(effects.asSet.vocoder.amount == 1)
+    }
+
+    @Test func theMicIsWantedWhileTheVocoderOrAZoneOfItIsOn() {
+        let (effects, _, _) = makeState()
+        #expect(!effects.hearsTheMic)
+        effects.vocoder.isOn = true
+        #expect(effects.hearsTheMic)
+        effects.vocoder.isOn = false
+
+        var changes = 0
+        effects.onSetChange = { changes += 1 }
+        effects.zones.zones[0].effect = .vocoder
+        #expect(!effects.hearsTheMic)
+        effects.zones.isOn = true
+        #expect(effects.hearsTheMic)
+        // Whoever opens the mic is told each time.
+        #expect(changes == 2)
+    }
+
+    @Test func effectsSavedBeforeTheVocoderHaveNone() throws {
+        var saved = try #require(try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(NoteEffects(chorus: ChorusSettings(isOn: true)))) as? [String: Any])
+        saved["vocoder"] = nil
+        let loaded = try JSONDecoder().decode(NoteEffects.self, from: JSONSerialization.data(withJSONObject: saved))
+        #expect(loaded == NoteEffects(chorus: ChorusSettings(isOn: true)))
     }
 }

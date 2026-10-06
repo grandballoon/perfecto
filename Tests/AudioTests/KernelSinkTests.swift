@@ -133,4 +133,29 @@ struct KernelSinkTests {
         #expect(peak < 0.9, "\(preset.name) peaks at \(peak)")
         #expect(peak > 0.1, "\(preset.name) peaks at \(peak)")
     }
+
+    /// A note sent to the vocoder is heard only as the voice at the unit's
+    /// input shapes it: where the voice is, and not where it is not.
+    @Test func aNoteSentToTheVocoderIsShapedByWhatTheUnitHears() throws {
+        func heard(vocoding: Bool) throws -> ArraySlice<Float> {
+            var sink: KernelSink?
+            let rig = try KernelOfflineRig(hearing: Tone(hz: 1000, rate: KernelOfflineRig.rate)) { unit in
+                sink = KernelSink(unit: unit) { UInt64(($0 * KernelOfflineRig.rate).rounded()) }
+                unit.setVocoder(vocoding)
+            }
+            defer { rig.engine.stop() }
+            let sound = NoteSound(preset: .sawLead, vocoder: VocoderSettings(isOn: true))
+            try #require(sink).noteOn(.next(), note: 45, sound: sound, at: 0)
+            try rig.render(48_000)
+            return rig.output[24_000..<48_000]
+        }
+        // 990 Hz is the note's ninth partial, under the voice; 2970 Hz is
+        // its twenty-seventh, far from it.
+        let whole = try heard(vocoding: false)
+        let shaped = try heard(vocoding: true)
+        let before = strength(of: 990, in: whole) / strength(of: 2970, in: whole)
+        let after = strength(of: 990, in: shaped) / strength(of: 2970, in: shaped)
+        #expect(strength(of: 990, in: shaped) > 0.01)
+        #expect(after > before * 20)
+    }
 }

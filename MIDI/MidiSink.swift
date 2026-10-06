@@ -157,6 +157,10 @@ final class MidiSink: NoteSink, EffectsControl {
         send(Self.reverbController, played.isOn ? played.mix : 0, isOn: played.isOn)
     }
 
+    /// The vocoder is a voice at this device's mic: there is nothing of it
+    /// to send.
+    func setVocoder(_ played: VocoderSettings) {}
+
     /// Sends `amount` (0...1) to `controller`, unless that is the value it
     /// already has. An effect that has never been on sends nothing: there is
     /// nothing of it at the other end to undo.

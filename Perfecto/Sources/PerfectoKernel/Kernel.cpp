@@ -4,6 +4,7 @@
 #include "EventQueue.hpp"
 #include "MixBus.hpp"
 #include "RenderGuard.hpp"
+#include "Vocoder.hpp"
 #include "Voice.hpp"
 
 #include <algorithm>
@@ -85,6 +86,14 @@ struct PerfectoKernel {
     std::array<perfecto::Capture, captureCount> captures{};
     std::atomic<int32_t> capturing{-1};
     std::atomic<uint32_t> capturesEnded{0};
+    PerfectoCaptureSource captureSource = PerfectoCaptureInput;
+
+    /// The vocoder, whether it is asked for (from any thread) and in use,
+    /// and what it put out in the block being rendered.
+    perfecto::Vocoder vocoder;
+    std::atomic<bool> vocoderOn{false};
+    bool vocoding = false;
+    std::array<float, blockFrames> vocoded{};
 
     /// Where the voices' sound is added up, a block at a time: left and
     /// right of each path (see `Voice::Path`).
@@ -167,7 +176,8 @@ struct PerfectoKernel {
         voice.side[1] = std::min(1.0f, 1 + pan);
         voice.chorus = voice.chorusGoal = std::clamp(note.chorus, 0.0f, 1.0f);
         voice.reverb = voice.reverbGoal = std::clamp(note.reverb, 0.0f, 1.0f);
-        voice.shares(voice.share);
+        voice.vocoder = voice.vocoderGoal = std::clamp(note.vocoder, 0.0f, 1.0f);
+        voice.shares(voice.share, vocoding);
         std::fill(std::begin(voice.shareStep), std::end(voice.shareStep), 0.0f);
     }
 
@@ -193,7 +203,8 @@ struct PerfectoKernel {
     void noteOn(const PerfectoEvent &event) {
         using Stage = perfecto::Voice::Stage;
         const perfecto::Voice::Waiting note{event.note_id, event.note, event.velocity, event.sound,
-                                            event.brightness, event.pan, event.chorus, event.reverb};
+                                            event.brightness, event.pan, event.chorus, event.reverb,
+                                            event.vocoder};
         auto &voice = voiceForNewNote();
         if (voice.stage == Stage::free) {
             start(voice, note);
@@ -225,25 +236,29 @@ struct PerfectoKernel {
         const float brightness = std::clamp(event.brightness, 0.0f, 1.0f);
         const float chorus = std::clamp(event.chorus, 0.0f, 1.0f);
         const float reverb = std::clamp(event.reverb, 0.0f, 1.0f);
+        const float vocoder = std::clamp(event.vocoder, 0.0f, 1.0f);
         for (auto &voice : voices) {
             if (voice.stage == Stage::held && voice.id == event.note_id) {
                 voice.brightnessGoal = brightness;
                 voice.chorusGoal = chorus;
                 voice.reverbGoal = reverb;
+                voice.vocoderGoal = vocoder;
             } else if (voice.stage == Stage::stolen && voice.waiting.id == event.note_id) {
                 voice.waiting.brightness = brightness;
                 voice.waiting.chorus = chorus;
                 voice.waiting.reverb = reverb;
+                voice.waiting.vocoder = vocoder;
             }
         }
     }
 
     // MARK: Capture
 
-    void captureStart(int32_t number) {
+    void captureStart(int32_t number, int32_t source) {
         using Stage = perfecto::Voice::Stage;
         captureStop();
         if (number < 0 || static_cast<std::size_t>(number) >= captureCount) return;
+        captureSource = source == PerfectoCaptureVocoder ? PerfectoCaptureVocoder : PerfectoCaptureInput;
         captures[number].begin(sampleRate);
         capturing.store(number, std::memory_order_release);
         // What the notes playing it were reading is about to be written over.
@@ -265,16 +280,24 @@ struct PerfectoKernel {
         capturesEnded.fetch_add(1, std::memory_order_release);
     }
 
-    /// Records `frames` frames of the input, from `offset`, if a capture
-    /// is being recorded into.
-    void record(const float *const *in, int32_t inChannels, int32_t offset, int32_t frames) {
+    /// The audio input on frame `at` of the render call, its channels
+    /// averaged into one.
+    static float heard(const float *const *in, int32_t inChannels, int32_t at) {
+        if (inChannels < 1) return 0;
+        float sample = 0;
+        for (int32_t channel = 0; channel < inChannels; ++channel) sample += in[channel][at];
+        return inChannels > 1 ? sample / static_cast<float>(inChannels) : sample;
+    }
+
+    /// Records `frames` frames, from frame `from` of the block (which is
+    /// `offset` frames into the render call), if a capture is being
+    /// recorded into.
+    void record(const float *const *in, int32_t inChannels, int32_t offset, int32_t from, int32_t frames) {
         const int32_t number = capturing.load(std::memory_order_relaxed);
         if (number < 0) return;
         perfecto::Capture &capture = captures[number];
-        for (int32_t i = offset; i < offset + frames; ++i) {
-            float sample = 0;
-            for (int32_t channel = 0; channel < inChannels; ++channel) sample += in[channel][i];
-            if (inChannels > 1) sample /= static_cast<float>(inChannels);
+        for (int32_t i = from; i < from + frames; ++i) {
+            const float sample = captureSource == PerfectoCaptureVocoder ? vocoded[i] : heard(in, inChannels, offset + i);
             if (!capture.record(sample)) {
                 captureStop();
                 return;
@@ -287,7 +310,7 @@ struct PerfectoKernel {
         case PerfectoEventNoteOn:       noteOn(event); break;
         case PerfectoEventNoteOff:      noteOff(event); break;
         case PerfectoEventNoteChange:   noteChange(event); break;
-        case PerfectoEventCaptureStart: captureStart(event.note); break;
+        case PerfectoEventCaptureStart: captureStart(event.note, event.sound); break;
         case PerfectoEventCaptureStop:  captureStop(); break;
         }
     }
@@ -320,8 +343,9 @@ struct PerfectoKernel {
         // its share of each path moves there evenly over these frames.
         voice.chorus += (voice.chorusGoal - voice.chorus) * brightnessRate;
         voice.reverb += (voice.reverbGoal - voice.reverb) * brightnessRate;
+        voice.vocoder += (voice.vocoderGoal - voice.vocoder) * brightnessRate;
         float shares[perfecto::Voice::pathCount];
-        voice.shares(shares);
+        voice.shares(shares, vocoding);
         for (int path = 0; path < perfecto::Voice::pathCount; ++path) {
             voice.shareStep[path] = (shares[path] - voice.share[path]) / controlFrames;
         }
@@ -441,10 +465,42 @@ struct PerfectoKernel {
         }
     }
 
+    /// Adds up what the voices made of `frames` frames, from frame `from`
+    /// of the block, through the chorus, the reverb, the vocoder and the
+    /// limiter, into `out` (the block is `offset` frames into it).
+    void mix(const float *const *in, int32_t inChannels,
+             float *const *out, int32_t outChannels, int32_t offset, int32_t from, int32_t frames) {
+        using Voice = perfecto::Voice;
+        for (int32_t i = from; i < from + frames; ++i) {
+            float left = buses[Voice::dry * 2][i];
+            float right = buses[Voice::dry * 2 + 1][i];
+            float wetLeft, wetRight;
+            chorus.run(buses[Voice::toChorus * 2][i], buses[Voice::toChorus * 2 + 1][i], wetLeft, wetRight);
+            left += wetLeft;
+            right += wetRight;
+            reverb.run(buses[Voice::toReverb * 2][i], buses[Voice::toReverb * 2 + 1][i], wetLeft, wetRight);
+            left += wetLeft;
+            right += wetRight;
+            if (vocoding) {
+                // The notes sent to it go in as one, and it comes out in the centre.
+                const float carrier = 0.5f * (buses[Voice::toVocoder * 2][i] + buses[Voice::toVocoder * 2 + 1][i]);
+                vocoded[i] = vocoder.run(heard(in, inChannels, offset + i), carrier);
+                left += vocoded[i];
+                right += vocoded[i];
+            }
+            limiter.run(left, right);
+            if (outChannels == 1) {
+                out[0][offset + i] = 0.5f * (left + right);
+            } else {
+                out[0][offset + i] = left;
+                out[1][offset + i] = right;
+            }
+        }
+    }
+
     /// Renders the next `frames` frames, at most a block, to `out` from `offset`.
     void renderBlock(const float *const *in, int32_t inChannels,
                      float *const *out, int32_t outChannels, int32_t offset, int32_t frames) {
-        using Voice = perfecto::Voice;
         const uint64_t start = time.load(std::memory_order_relaxed);
         for (auto &bus : buses) std::fill(bus.begin(), bus.begin() + frames, 0.0f);
 
@@ -462,28 +518,11 @@ struct PerfectoKernel {
                 if (due < static_cast<uint64_t>(frames)) until = static_cast<int32_t>(due);
             }
             for (auto &voice : voices) render(voice, frame, until - frame);
-            record(in, in ? inChannels : 0, offset + frame, until - frame);
+            mix(in, inChannels, out, outChannels, offset, frame, until - frame);
+            record(in, inChannels, offset, frame, until - frame);
             frame = until;
         }
 
-        for (int32_t i = 0; i < frames; ++i) {
-            float left = buses[Voice::dry * 2][i];
-            float right = buses[Voice::dry * 2 + 1][i];
-            float wetLeft, wetRight;
-            chorus.run(buses[Voice::toChorus * 2][i], buses[Voice::toChorus * 2 + 1][i], wetLeft, wetRight);
-            left += wetLeft;
-            right += wetRight;
-            reverb.run(buses[Voice::toReverb * 2][i], buses[Voice::toReverb * 2 + 1][i], wetLeft, wetRight);
-            left += wetLeft;
-            right += wetRight;
-            limiter.run(left, right);
-            if (outChannels == 1) {
-                out[0][offset + i] = 0.5f * (left + right);
-            } else {
-                out[0][offset + i] = left;
-                out[1][offset + i] = right;
-            }
-        }
         for (int32_t channel = 2; channel < outChannels; ++channel) {
             std::fill(out[channel] + offset, out[channel] + offset + frames, 0.0f);
         }
@@ -506,6 +545,13 @@ struct PerfectoKernel {
         if (predelay != reverbPredelayInUse) reverb.setPredelay(reverbPredelayInUse = predelay);
         const float damping = reverbDamping.load(std::memory_order_relaxed);
         if (damping != reverbDampingInUse) reverb.setDamping(reverbDampingInUse = damping);
+        // With nothing to hear, the vocoder has nothing to shape notes by.
+        const bool wanted = vocoderOn.load(std::memory_order_relaxed) && in && inChannels > 0;
+        if (wanted != vocoding) {
+            vocoding = wanted;
+            vocoder.clear();
+            vocoded.fill(0);
+        }
 
         for (int32_t done = 0; done < frames; done += blockFrames) {
             renderBlock(in, inChannels, out, outChannels, done, std::min(blockFrames, frames - done));
@@ -535,6 +581,9 @@ struct PerfectoKernel {
         chorus.prepare(rate);
         reverb.prepare(rate);
         limiter.prepare(rate);
+        vocoder.prepare(rate);
+        vocoding = false;
+        vocoded.fill(0);
         chorusRateInUse = reverbTailInUse = reverbDampingInUse = 0;
         reverbPredelayInUse = -1;
     }
@@ -627,6 +676,10 @@ void perfecto_kernel_set_reverb_predelay(PerfectoKernel *kernel, float seconds) 
 
 void perfecto_kernel_set_reverb_damping(PerfectoKernel *kernel, float hz) {
     kernel->reverbDamping.store(std::clamp(hz, 500.0f, 20000.0f), std::memory_order_relaxed);
+}
+
+void perfecto_kernel_set_vocoder(PerfectoKernel *kernel, bool on) {
+    kernel->vocoderOn.store(on, std::memory_order_relaxed);
 }
 
 int32_t perfecto_kernel_latency(const PerfectoKernel *kernel) {

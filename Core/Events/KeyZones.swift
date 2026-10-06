@@ -67,6 +67,7 @@ extension EffectKind {
         case .filter:      return "Filter"
         case .chorus:      return "Chorus"
         case .reverb:      return "Reverb"
+        case .vocoder:     return "Vocoder"
         }
     }
 }
