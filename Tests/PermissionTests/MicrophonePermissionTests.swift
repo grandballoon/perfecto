@@ -27,40 +27,6 @@ struct MicrophonePermissionTests {
         #expect(gate.requestCallCount == 0)
     }
 
-    // MARK: MicSampleState permission flow
-
-    @Test func undeterminedGateSetsPrePromptFlow() {
-        let micState = MicSampleState()
-        let gate     = StubPermissionGate(state: .undetermined)
-        let sink     = RecordingSink()
-        let state    = PerformanceState(sink: sink, micGate: gate)
-
-        state.startMicRecording()
-
-        #expect(micState.permissionFlow == nil)  // state.micSampleState, not local
-        #expect(state.micSampleState.permissionFlow == .prePrompt)
-    }
-
-    @Test func deniedGateSetsSettingsRedirectFlow() {
-        let gate  = StubPermissionGate(state: .denied)
-        let sink  = RecordingSink()
-        let state = PerformanceState(sink: sink, micGate: gate)
-
-        state.startMicRecording()
-
-        #expect(state.micSampleState.permissionFlow == .settingsRedirect)
-    }
-
-    @Test func restrictedGateSetsRestrictedFlow() {
-        let gate  = StubPermissionGate(state: .restricted)
-        let sink  = RecordingSink()
-        let state = PerformanceState(sink: sink, micGate: gate)
-
-        state.startMicRecording()
-
-        #expect(state.micSampleState.permissionFlow == .restricted)
-    }
-
     // MARK: NoopPermissionGate
 
     @Test func noopGateIsAlwaysGranted() async {

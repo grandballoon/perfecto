@@ -130,4 +130,62 @@ struct NotePlayerTests {
         clock.advance(seconds: 1)
         #expect(sink.sounding == [72])
     }
+
+    // MARK: – Sound
+
+    /// Every note a player starts takes the player's sound as it is then.
+    @Test func notesTakeThePlayersSound() {
+        let sink = RecordingNoteSink()
+        let player = NotePlayer([sink], clock: clock)
+        player.sound.preset = .bell
+        player.setReverb(ReverbSettings(isOn: true, mix: 0.7))
+        player.playChord(.block([60, 64]))
+        #expect(sink.sounds.count == 2)
+        #expect(sink.sounds.allSatisfy { $0.preset == .bell && $0.reverb.mix == 0.7 && $0.reverb.isOn })
+        #expect(sink.changes.isEmpty)
+    }
+
+    /// A change of sound reaches the notes being held, and only when it is
+    /// a change.
+    @Test func aChangeOfSoundReachesTheNotesHeld() {
+        let sink = RecordingNoteSink()
+        let player = NotePlayer([sink], clock: clock)
+        player.playChord(.block([60, 64, 67]))
+        player.setFilter(FilterSettings(isOn: true, brightness: 0.3))
+        #expect(sink.changes.count == 3)
+        #expect(sink.changes.allSatisfy { $0.filter.brightness == 0.3 })
+        player.setFilter(FilterSettings(isOn: true, brightness: 0.3))     // the same again
+        #expect(sink.changes.count == 3)
+
+        player.stopChord()
+        player.setChorus(ChorusSettings(isOn: true))                      // nothing held: nothing to change
+        #expect(sink.changes.count == 3)
+    }
+
+    /// A new chord's sound is its own: the chord still sounding keeps the
+    /// one it was started with.
+    @Test func startingAfreshLeavesTheNotesHeldAsTheyWere() {
+        let sink = RecordingNoteSink()
+        let player = NotePlayer([sink], clock: clock)
+        player.playChord(.block([60]))
+        player.startNotes(in: NoteSound(preset: .bell))
+        #expect(sink.changes.isEmpty)
+        player.playChord(.block([62]))
+        #expect(sink.sounds.map(\.preset) == [.initial, .bell])
+    }
+
+    /// Two players on one sink each have their own sound: a layer keeps
+    /// its sound while the keys play another over it.
+    @Test func eachPlayerHasItsOwnSound() {
+        let sink = RecordingNoteSink()
+        let keys = NotePlayer([sink], clock: clock)
+        let layer = NotePlayer([sink], clock: clock)
+        keys.sound.preset = .sawLead
+        layer.sound.preset = .warmPad
+        layer.playChord(.block([48]))
+        keys.playChord(.block([72]))
+        keys.setFilter(FilterSettings(isOn: true, brightness: 0.1))
+        #expect(sink.sounds.map(\.preset) == [.warmPad, .sawLead])
+        #expect(sink.changes.map(\.preset) == [.sawLead])                 // the layer's note is left as it was
+    }
 }

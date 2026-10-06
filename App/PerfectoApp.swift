@@ -4,20 +4,22 @@ import SwiftUI
 struct PerfectoApp: App {
     @State private var state: PerformanceState = {
         let logger    = FileLogger()
-        let audio     = AudioSink(logger: logger)
+        let output    = AudioOutput(logger: logger)
         let midi      = MidiSink(logger: logger)
         let announcer = MidiAnnouncerSink(logger: logger)
-        let micGate   = MicrophonePermissionGate(logger: logger)
         let clock     = MasterClock()
+        // The keys' notes and each layer's go through players of their
+        // own, so each has its own sound, on the same audio and MIDI.
+        let keys = NotePlayer([output.sink, midi], clock: clock)
         let state = PerformanceState(
-            sink:    NotePlayer([audio, midi], clock: clock),
+            sink:    keys,
             chordListener: announcer,
-            layerSink: { NotePlayer([audio, midi], clock: clock) },
-            engine:  audio,
+            layerSink: { NotePlayer([output.sink, midi], clock: clock) },
+            liveSound: keys,
+            output:  output,
             effectsListener: midi,
             clock:   clock,
-            logger:  logger,
-            micGate: micGate
+            logger:  logger
         )
         MidiNetwork.enableSession(logger: logger)
         return state
@@ -28,7 +30,6 @@ struct PerfectoApp: App {
             PerformanceView()
                 .environment(state)
                 .environment(state.sequencerState)
-                .environment(state.micSampleState)
                 .onAppear { MidiSink.logTopology() }
         }
     }

@@ -77,12 +77,6 @@ struct PerformanceView: View {
                 LoopBar()
                     .padding(.horizontal, 20)
 
-                if state.mode.kind.surface == .micSample {
-                    MicSampleView()
-                        .environment(state)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
-                }
                 // Push the chord ring toward the bottom so it falls under the
                 // thumb when the phone is held normally, rather than sitting
                 // high under the function buttons.
@@ -164,12 +158,6 @@ struct PerformanceView: View {
                         .padding(.bottom, 8)
                     LoopBar()
                         .padding(.bottom, 8)
-                    if state.mode.kind.surface == .micSample {
-                        MicSampleView()
-                            .environment(state)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 8)
-                    }
                     switch state.chordGridLayout {
                     case .horizontalBar:
                         ChordRowView()

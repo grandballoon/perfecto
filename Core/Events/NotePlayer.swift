@@ -8,8 +8,30 @@
 ///
 /// One player is one line of chords. Players are independent: each ends only
 /// the notes it started, so several can sound at once through the same sinks.
+///
+/// A player has a sound, which every note it starts takes. The keys' player
+/// follows the effects as they are played (it is an `EffectsControl`); a
+/// layer's is given the sound of each of its chords.
 @MainActor
-final class NotePlayer: ChordEventSink {
+final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
+
+    var sound = NoteSound() {
+        didSet {
+            guard sound != oldValue, !isStartingAfresh else { return }
+            for id in sounding {
+                for sink in sinks { sink.noteChange(id, sound: sound) }
+            }
+        }
+    }
+
+    /// While set, a change of sound is for the notes to come only.
+    private var isStartingAfresh = false
+
+    func startNotes(in sound: NoteSound) {
+        isStartingAfresh = true
+        self.sound = sound
+        isStartingAfresh = false
+    }
 
     private let sinks: [any NoteSink]
     private let clock: any ClockTickable
@@ -47,6 +69,10 @@ final class NotePlayer: ChordEventSink {
     private func start(_ note: Int) {
         let id = NoteID.next()
         sounding.append(id)
-        for sink in sinks { sink.noteOn(id, note: note) }
+        for sink in sinks { sink.noteOn(id, note: note, sound: sound) }
     }
+
+    func setFilter(_ played: FilterSettings) { sound.filter = played }
+    func setChorus(_ played: ChorusSettings) { sound.chorus = played }
+    func setReverb(_ played: ReverbSettings) { sound.reverb = played }
 }

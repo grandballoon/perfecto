@@ -112,12 +112,16 @@ final class MidiSink: NoteSink, EffectsControl {
         self.backend = backend ?? CoreMidiBackend(logger: logger)
     }
 
-    func noteOn(_ id: NoteID, note: Int) {
+    /// MIDI carries no sound: the receiving instrument has its own. The
+    /// effects' amounts go out as controllers (see `setFilter`).
+    func noteOn(_ id: NoteID, note: Int, sound: NoteSound) {
         let pitch = UInt8(note)   // in range: the NoteSink contract
         sounding[id] = pitch
         backend.sendNoteOn(note: pitch, velocity: 100, channel: 0)
         logger?.log(.midi_note_sent(note: note, velocity: 100, channel: 0, kind: .noteOn))
     }
+
+    func noteChange(_ id: NoteID, sound: NoteSound) {}
 
     /// MIDI knows a note only by its pitch, so a pitch that two notes are
     /// sounding is sent note-off when the last of them ends.

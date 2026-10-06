@@ -53,7 +53,7 @@ final class PerformanceState {
     var chordGridLayout: ChordGridLayout = .circle
 
     var isExternalSynth: Bool = false {
-        didSet { engine?.isExternalSynth = isExternalSynth }
+        didSet { output?.isExternalSynth = isExternalSynth }
     }
 
     private(set) var mode: any PerformanceMode = PlayMode()
@@ -95,7 +95,6 @@ final class PerformanceState {
     private(set) var activeVoicingText = "—"
 
     let sequencerState: SequencerState
-    let micSampleState  = MicSampleState()
     let quickLoopState: QuickLoopState
     let effects: EffectsState
 
@@ -108,49 +107,56 @@ final class PerformanceState {
     private var playingSequencer: SequencerState?
     /// Plays the sequencer's timeline against the clock, under whatever mode is on.
     private var timelinePlayer: TimelinePlayer?
-    private let engine: AudioSink?
+    /// The sound of the notes the keys play.
+    private let liveSound: (any SoundControl)?
+    private let output: AudioOutput?
     private let clock:  any ClockTickable
     private let logger: (any Logger)?
-    let micGate: any PermissionGate
 
-    /// Designated initializer. Sinks, clock, logger, and micGate are always injected.
-    /// Production: pass NotePlayer([audio, midi], clock:) and the same clock + the announcer + audio engine + FileLogger + MicrophonePermissionGate.
-    /// Tests: pass RecordingSink + ManualClock + RecordingLogger + StubPermissionGate; omit engine.
+    /// Designated initializer. Sinks, clock and logger are always injected.
+    /// Production: pass a NotePlayer on the audio and MIDI sinks, the same
+    /// player as `liveSound`, the same clock, the announcer, the audio
+    /// output and a FileLogger.
+    /// Tests: pass RecordingSink + ManualClock + RecordingLogger; omit the output.
     ///
     /// `sink` sounds the notes, so it sits behind the arpeggiator and hears
     /// one note at a time while that is on. `chordListener` is told which
     /// chord is held, whole, however its notes are being played.
-    /// `effectsListener` follows the sound effects beside the audio (MIDI does).
+    /// `liveSound` is given the preset and the sound effects as they are
+    /// played, for the notes the keys start; `effectsListener` follows the
+    /// effects beside it (MIDI does).
     /// `layerSink` makes a sink for each layer of the timeline, so layers
     /// sound together: production passes a new `NotePlayer` on the same note
-    /// sinks each time. Without one, layers share `sink`.
+    /// sinks each time, and a sink that is a `SoundControl` is given each of
+    /// its chords' own sound. Without one, layers share `sink`.
     /// `sequencer` is the app's sequencer and its saved timeline; tests pass
     /// one with a store of its own.
     init(sink: any ChordEventSink,
          chordListener: (any ChordEventSink)? = nil,
          layerSink: (() -> any ChordEventSink)? = nil,
          sequencer: SequencerState? = nil,
-         engine: AudioSink? = nil,
+         liveSound: (any SoundControl & EffectsControl)? = nil,
+         output: AudioOutput? = nil,
          effectsListener: (any EffectsControl)? = nil,
          clock: (any ClockTickable)? = nil,
-         logger: (any Logger)? = nil,
-         micGate: (any PermissionGate)? = nil) {
+         logger: (any Logger)? = nil) {
         let clock = clock ?? MasterClock()
         let arpeggiator = Arpeggiator(downstream: sink, clock: clock)
         self.sink         = chordListener.map { CompositeSink([arpeggiator, $0]) } ?? arpeggiator
         self.chordListener = chordListener
         self.layerSink    = layerSink ?? { sink }
-        self.engine       = engine
+        self.liveSound    = liveSound
+        self.output       = output
         self.clock        = clock
         self.logger       = logger
-        self.effects      = EffectsState(arpeggiator: arpeggiator, audio: engine,
+        self.effects      = EffectsState(arpeggiator: arpeggiator, audio: liveSound,
                                          effectsListener: effectsListener, logger: logger)
         self.sequencerState = sequencer ?? SequencerState(logger: logger)
-        self.micGate      = micGate ?? NoopPermissionGate()
         self.quickLoopState = QuickLoopState(logger: logger)
         self.clock.bpm = bpm
         self.timelinePlayer = TimelinePlayer(live: liveSettings, clock: clock) { [weak self] layer in
-            LayerVoice(sink: self?.layerSink() ?? CompositeSink([]), clock: clock) { chord in
+            let sink = self?.layerSink() ?? CompositeSink([])
+            return LayerVoice(sink: sink, sound: sink as? any SoundControl, clock: clock) { chord in
                 self?.layerSounded(layer, chord)
             }
         }
@@ -214,7 +220,7 @@ final class PerformanceState {
     /// Switches the synth sound. It is heard on the next chord played.
     func setSynthPreset(_ preset: SynthPreset) {
         synthPreset = preset
-        engine?.setPreset(preset)
+        liveSound?.sound.preset = preset
         timelinePlayer?.live = liveSettings
         logger?.log(.sound_changed(preset: preset.rawValue))
     }
@@ -347,27 +353,6 @@ final class PerformanceState {
         sound(voicing, .block, pitch: .lead, source: .button)
     }
 
-    // MARK: – Mic Sample mode actions (called from MicSampleView buttons)
-
-    func startMicRecording() {
-        switch micGate.state {
-        case .undetermined: micSampleState.permissionFlow = .prePrompt
-        case .denied:       micSampleState.permissionFlow = .settingsRedirect
-        case .restricted:   micSampleState.permissionFlow = .restricted
-        case .granted:
-            guard let sampler = engine?.micSampler else { return }
-            sampler.startRecording()
-            micSampleState.isRecording = true
-        }
-    }
-
-    func stopMicRecording() {
-        guard let sampler = engine?.micSampler else { return }
-        sampler.stopRecording()
-        micSampleState.isRecording = false
-        micSampleState.hasContent  = sampler.hasContent
-    }
-
     private func makeMode(_ kind: ModeKind) -> any PerformanceMode {
         switch kind {
         case .play:      return PlayMode()
@@ -376,7 +361,6 @@ final class PerformanceState {
         case .drone:     return DroneMode()
         case .repeat:    return RepeatMode()
         case .sequencer: return SequencerMode(sequencerState)
-        case .micSample: return MicSampleMode(micSampleState, sampler: engine?.micSampler, gate: micGate)
         }
     }
 

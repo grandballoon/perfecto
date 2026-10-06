@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Perfecto** — an iOS chord performance instrument. The full v1 spec is in `spec.md`.
 
-Stack: iOS 17+, iPhone (portrait + landscape), Swift 6, SwiftUI, AudioKit 5.x, MVVM with `@Observable`, CoreMIDI.
+Stack: iOS 17+, iPhone (portrait + landscape), Swift 6, SwiftUI, an audio kernel of our own in C++ (no audio library), MVVM with `@Observable`, CoreMIDI.
 
 ## Architecture
 
@@ -24,7 +24,7 @@ Music Theory Core  ← PURE Swift only (Int/Array, no UIKit/AudioKit/Foundation)
 ChordEventSink protocol (receives ChordEvent)
     ├── Arpeggiator        →  one note at a time while it is on
     │     └── NotePlayer   →  chords become notes with ids; NoteSink protocol
-    │           ├── AudioSink    →  AudioKit engine → BrightnessFilter → EffectsChain (chorus, reverb send) → SharedReverb → MasterBus (limiter)
+    │           ├── KernelSink   →  KernelAudioUnit: the audio kernel (voices, chorus, reverb, limiter), run by AudioOutput
     │           └── MidiSink     →  CoreMIDI ("Perfecto" note source)
     └── MidiAnnouncerSink  →  ChordLink SysEx ("Perfecto Link"; see chordlink.md)
 ```
@@ -33,15 +33,15 @@ ChordEventSink protocol (receives ChordEvent)
 
 **ChordEventSink decouples event generation from consumption.** Every sink receives the same `ChordEvent`s independently — neither knows about the others or reads app state. A `ChordEvent` carries the voicing, its `Articulation` (block or strum), and the `ChordContext` that produced it; the protocol's doc states the contract (`playChord` replaces what is sounding).
 
-**Below the chords are notes.** `NotePlayer` is the one place a chord becomes note-ons and note-offs (and where a strum is spread out), so audio and MIDI are `NoteSink`s that know nothing of chords. Every note has a `NoteID` chosen by its sender, and a sink ends only the note it is told to: one `NotePlayer` is one line of chords, and several can sound at once through the same sinks. `AudioSink` gives each note a voice through `VoiceAllocator`, which reuses the voice free longest, so a released chord rings out under the next one.
+**Below the chords are notes.** `NotePlayer` is the one place a chord becomes note-ons and note-offs (and where a strum is spread out), so audio and MIDI are `NoteSink`s that know nothing of chords. Every note has a `NoteID` chosen by its sender, and a sink ends only the note it is told to: one `NotePlayer` is one line of chords, and several can sound at once through the same sinks. Every note also carries its `NoteSound` (preset, filter, chorus, reverb), which is its player's: the keys' player follows the effects as played, and each layer's is given its chords' own, so a loop keeps the sound it was recorded with while the keys play another over it. A change to a player's sound reaches the notes it holds (`noteChange`), which is how a slide is heard; a new chord's sound leaves the last chord's notes as they were (`startNotes(in:)`).
 
-**The audio kernel is where the engine is going** (`docs/audio-engine-spec.md` has the plan and its order). It is portable C++ behind a C interface (`Perfecto/Sources/PerfectoKernel`): timed events in, samples out, and nothing in its render call allocates, locks or waits; its tests are built to stop on any allocation made while rendering. `KernelAudioUnit` hosts it as an Audio Unit, and the render block is Objective-C++ (`PerfectoKernelHost`) so the render thread never runs Swift. An event takes effect on exactly the frame it names, however rendering is divided into calls. A note names its sound, one of the patches the kernel was given (`perfecto_kernel_set_sound`, before playing: it builds the patch's wavetables), and has its own brightness, pan, and chorus and reverb sends, which a note change glides. The voices are added into one chorus and one reverb (`MixBus.hpp`) and a look-ahead limiter, whose 1.5 ms is the kernel's latency. The app does not play through it yet: `AudioSink` still drives AudioKit voices.
+**The audio kernel makes every sound** (`docs/audio-engine-spec.md` has the design and what is still to build). It is portable C++ behind a C interface (`Perfecto/Sources/PerfectoKernel`): timed events in, samples out, and nothing in its render call allocates, locks or waits; its tests are built to stop on any allocation made while rendering. An event takes effect on exactly the frame it names, however rendering is divided into calls. A note names its sound, one of the patches the kernel was given (`perfecto_kernel_set_sound`, before playing: it builds the patch's wavetables), and has its own brightness, pan, and chorus and reverb sends, which a note change glides. The kernel has the 64 voices and chooses which to give up. The voices are added into one chorus and one reverb (`MixBus.hpp`) and a look-ahead limiter, whose 1.5 ms is the kernel's latency. `KernelAudioUnit` hosts it as an Audio Unit, and the render block is Objective-C++ (`PerfectoKernelHost`) so the render thread never runs Swift. `KernelSink` is the `NoteSink` in front of it: it loads the presets as kernel sounds (`SynthPatch.kernelPatch`) and turns a `NoteSound` into the kernel's numbers. `AudioOutput` keeps the engine running across route changes, and `AudioSession` is the one place the session is configured. Until notes carry times (step 9), a note is sent to the kernel as soon as possible.
 
 **MasterClock drives everything timed.** Repeat, the timeline (sequences and loops), the arpeggiator and strums all use it; nothing between a key and its notes sleeps or keeps a timer of its own. It is behind a `ClockTickable` protocol so test doubles can replace it without changing callers. Modes count its ticks (sixteenths); anything finer or off that grid asks it for a call: over and over (`every(beats:)`, as the arpeggiator does), or once (`after(beats:)` for a step's gate, `after(seconds:)` for a strum's notes and Repeat's gap). Both clocks keep their calls in a `ClockSchedule`, which makes them in the order they fall due (a tick first) and times a call asked for inside another from that call's due time, so the real clock and `ManualClock` follow the same rules and timing tests never wait on real time.
 
-**Effects are layers, not modes**, so they work under every mode. The arpeggiator is a note effect: a `ChordEventSink` in front of the note sinks, so audio and MIDI hear the same notes, while ChordLink still hears the whole chord. One pass over a chord takes one cycle (`ArpeggioCycle`) however many notes it has. Chorus and reverb are sound effects: an `EffectsChain` (the chorus, and how much of the sound is sent to the reverb), one `SharedReverb`, and the `MasterBus`, whose limiter keeps layers from clipping. Everything the app sounds passes through the one chain: until the audio kernel gives each note its own sound, a loop's notes carry the effects they were played with but are heard through the ones set now (only its arpeggiator is its own already, since each layer has one). An effect's settings are plain data (`ArpeggiatorSettings`, `ChorusSettings`, `ReverbSettings`), edited through `EffectsState`, which can be read as set (`asSet`) or as played (`asPlayed`). Adding a sound effect = a settings struct, a node in `EffectsChain`, and a card in `EffectsPanel`. The engine this is heading for, and the order of the work, are in `docs/audio-engine-spec.md`.
+**Effects are layers, not modes**, so they work under every mode. The arpeggiator is a note effect: a `ChordEventSink` in front of the note sinks, so audio and MIDI hear the same notes, while ChordLink still hears the whole chord. One pass over a chord takes one cycle (`ArpeggioCycle`) however many notes it has. The filter, chorus and reverb are sound effects, and each note has its own amounts of them (`NoteSound`): the kernel has one chorus and one reverb that notes send into, and a limiter that keeps layers from clipping. The chorus's speed and the reverb's size are the only settings notes share; they follow the note played last. An effect's settings are plain data (`ArpeggiatorSettings`, `ChorusSettings`, `ReverbSettings`), edited through `EffectsState`, which can be read as set (`asSet`) or as played (`asPlayed`). Adding a sound effect = a settings struct, a field on `NoteSound` and its place in the kernel's mix, and a card in `EffectsPanel`.
 
-**Key gestures play effects.** What a finger does on a chord key beyond pressing it is a control, read in the same place fingers become keys (`ChordKeyTouches`) and reported by `ChordKeySurface` beside the key changes, so every layout gets it. The first is the slide: how far up its key the finger is (`ChordKeySlide`, 0 at the bottom to 1 at the top). `PerformanceState` keeps one per held key and hands the active key's to `EffectsState.slide`, by the same rule as the chord (the most recent press). Every effect's settings are `SlidePlayed`: each has a `followsSlide` switch and names the one control the slide stands in for (the filter's brightness, the chorus's amount, the reverb's mix, the arpeggiator's cycle), and lifting returns to the set value. `EffectsState` keeps the set values and passes every effect on as played, so nothing downstream knows about the slide: the `Arpeggiator` gets its settings, and each `EffectsControl` gets the sound effects (`AudioSink` makes the sound, `MidiSink` sends CC 74, 93 and 91). A loop being recorded keeps the effects as played when each chord started, and a slide inside a held chord as changes on the note (`SoundChange`). Because a played value jumps back on lifting, a played control must not cut what is already sounding: the reverb's mix is a send into the reverb, and a new arpeggiator cycle takes effect from the next note. Adding a gesture = a reading in `ChordKeyTouches` and a value on `EffectsState`; making a setting playable = conforming it to `SlidePlayed` and a switch on its card.
+**Key gestures play effects.** What a finger does on a chord key beyond pressing it is a control, read in the same place fingers become keys (`ChordKeyTouches`) and reported by `ChordKeySurface` beside the key changes, so every layout gets it. The first is the slide: how far up its key the finger is (`ChordKeySlide`, 0 at the bottom to 1 at the top). `PerformanceState` keeps one per held key and hands the active key's to `EffectsState.slide`, by the same rule as the chord (the most recent press). Every effect's settings are `SlidePlayed`: each has a `followsSlide` switch and names the one control the slide stands in for (the filter's brightness, the chorus's amount, the reverb's mix, the arpeggiator's cycle), and lifting returns to the set value. `EffectsState` keeps the set values and passes every effect on as played, so nothing downstream knows about the slide: the `Arpeggiator` gets its settings, and each `EffectsControl` gets the sound effects (the keys' `NotePlayer` makes them its notes' sound, `MidiSink` sends CC 74, 93 and 91). A loop being recorded keeps the effects as played when each chord started, and a slide inside a held chord as changes on the note (`SoundChange`). Because a played value jumps back on lifting, a played control must not cut what is already sounding: the reverb's mix is a send into the reverb, and a new arpeggiator cycle takes effect from the next note. Adding a gesture = a reading in `ChordKeyTouches` and a value on `EffectsState`; making a setting playable = conforming it to `SlidePlayed` and a switch on its card.
 
 **Key zones play effects by where a key is struck.**
 They are a second use of the slide, not a second gesture: `KeyZoneSettings` divides the slide into 2 to 4 equal zones, and each `KeyZone` names one effect (or none) and the place on the slide its played control is held at.
@@ -85,8 +85,8 @@ ChordEvent { voicing, articulation, context }             // what every sink rec
 Implement in this sequence — each step is independently testable:
 
 1. Music Theory Core + unit tests (foundation; no UI/audio)
-2. AudioKit "hello sine wave" on device
-3. SynthVoice + AudioSink + minimal PerformanceView (press button → hear chord)
+2. A sine wave on device
+3. A synth voice + audio sink + minimal PerformanceView (press button → hear chord)
 4. JoystickView wiring
 5. Key sheet + Sound sheet
 6. Non-clock modes: Play, Strum, Lead, Drone
@@ -94,7 +94,7 @@ Implement in this sequence — each step is independently testable:
 8. MidiSink (test with GarageBand)
 9. Sequencer mode + screen
 10. Loops (first built as a sample-accurate audio looper; now layers of the timeline)
-11. Mic Sample mode
+11. Mic Sample (removed with AudioKit; it returns as a sampled sound, audio engine step 11)
 12. Effects chain + controls
 13. SamplerVoice + bundled SFZ instruments
 14. Haptics, polish, edge cases
@@ -119,7 +119,7 @@ Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/` and the kernel's in `P
 ## Audio session
 
 - 48kHz, 256-sample buffer (~5.3ms latency)
-- `AVAudioSession` category: `.playAndRecord` with `mixWithOthers` — app must coexist with DAWs
+- `AVAudioSession` category: `.playback` with `mixWithOthers` — app must coexist with DAWs. Recording (the mic sample, the vocoder) will ask for the input when it returns
 - Loops playing in the background need background audio: `.playback` mode + `UIBackgroundModes` entitlement
 
 ## MIDI
@@ -128,7 +128,7 @@ App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100
 
 ## V1 scope
 
-- Modes: Play, Strum, Lead, Drone, Repeat, Sequencer, Mic Sample; loops (up to 6 layers) are recorded in Play mode and under every mode
+- Modes: Play, Strum, Lead, Drone, Repeat, Sequencer; loops (up to 6 layers) are recorded in Play mode and under every mode
 - Effects: arpeggiator, filter, chorus, reverb; each can be played by sliding on the chord keys, or switched on from a zone of them
 - Drum module deferred
 - The 7 heptatonic scales (pentatonic and blues hidden for now), all 12 keys, all 3 joystick modes (28 chord types), all 3 inversions

@@ -68,8 +68,8 @@ struct MidiSinkTests {
     @Test func aPitchTwoNotesShareEndsWithTheLastOfThem() {
         let (sink, backend) = makeSubject()
         let first = NoteID.next(), second = NoteID.next()
-        sink.noteOn(first, note: 60)
-        sink.noteOn(second, note: 60)
+        sink.noteOn(first, note: 60, sound: NoteSound())
+        sink.noteOn(second, note: 60, sound: NoteSound())
         sink.noteOff(first)
         #expect(backend.noteOffCalls.isEmpty)
         sink.noteOff(second)

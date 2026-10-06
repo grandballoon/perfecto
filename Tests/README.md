@@ -9,7 +9,7 @@ Tests/
 │   ├── RecordingNoteSink.swift   — NoteSink double; records the notes started and ended
 │   ├── ManualClock.swift         — ClockTickable double; tick() and advance(beats:/seconds:) move time manually
 │   ├── WaitUntil.swift           — waits for a condition instead of sleeping a fixed time
-│   ├── OfflineTone.swift         — renders a tone through real AudioKit nodes in an offline engine
+│   ├── KernelOfflineRig.swift    — the kernel's Audio Unit in an engine that renders offline
 │   ├── RecordingLogger.swift     — Logger double (TODO Phase 3)
 │   ├── StubPermissionGate.swift  — PermissionGate double (TODO Phase 4)
 │   └── Expect+Voicing.swift      — #expect helpers for Voicing assertions
@@ -31,7 +31,7 @@ The kernel's tests render it offline with no engine, and are built so that any m
 ## Recording-double pattern
 
 Tests never touch the audio hardware, CoreMIDI, or AVAudioSession.
-`EffectsChainTests`, `MasterBusTests` and `BrightnessFilterTests` are the suites that run AudioKit nodes, in an engine that renders offline.
+`KernelAudioUnitTests` and `KernelSinkTests` run the audio kernel as the app hears it, in an engine that renders offline. The kernel's own tests are in the Perfecto package (`swift test` in `Perfecto/`).
 Everything else injects doubles:
 
 ```swift

@@ -99,8 +99,8 @@ struct NotePlaying {
 
 What is recorded is the chord *before* the arpeggiator, with the arpeggiator's settings among its effects, so an arpeggiated loop is replayed by arpeggiating it again and its pattern and speed stay editable.
 
-Until the kernel is in (audio engine step 8), the engine has one sound and one set of effects for everything.
-A note's own preset and effects are stored and edited from the start but heard only then; key and octave are heard at once, and so is its arpeggiator, since each layer has one of its own.
+Since the kernel went in (audio engine step 8, 2026-10-06), a note's own preset and effects are heard: each layer's notes are played in the sound their chord says, and a recorded slide is replayed.
+The ◆ OWN menu still offers only key and octave; sound and effects are to be added to it.
 [../sequencer.md](../sequencer.md) accepts this.
 
 ### 3.4 Editing, as functions on the model

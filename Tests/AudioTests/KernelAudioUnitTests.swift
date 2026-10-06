@@ -10,46 +10,6 @@ import Testing
 @MainActor
 struct KernelAudioUnitTests {
 
-    /// An offline engine whose only source is the kernel's unit.
-    @MainActor
-    private final class Rig {
-        static let rate = 48_000.0
-
-        let engine = AVAudioEngine()
-        let unit: KernelAudioUnit
-        /// Everything the engine has rendered, the unit's delay included.
-        private var rendered: [Float] = []
-        /// What has been heard, by the frame it belongs to: `output[f]` is
-        /// what an event on frame `f` makes.
-        var output: [Float] { Array(rendered.dropFirst(unit.latencyFrames)) }
-        private let buffer: AVAudioPCMBuffer
-
-        /// `sounds` are loaded before the engine starts, numbered from 0.
-        init(bufferSize: AVAudioFrameCount, sounds: [SynthPatch] = []) throws {
-            let format = AVAudioFormat(standardFormatWithSampleRate: Self.rate, channels: 2)!
-            let made = KernelAudioUnit.makeNode()
-            unit = made.unit
-            for (number, patch) in sounds.enumerated() { unit.setSound(number, to: patch) }
-            engine.attach(made.node)
-            engine.connect(made.node, to: engine.outputNode, format: format)
-            try engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: bufferSize)
-            try engine.start()
-            buffer = AVAudioPCMBuffer(pcmFormat: engine.manualRenderingFormat, frameCapacity: bufferSize)!
-        }
-
-        /// Renders until `frames` frames have been heard: the unit's
-        /// delay (its limiter looks ahead) is rendered past.
-        func render(_ frames: Int) throws {
-            while rendered.count < frames + unit.latencyFrames {
-                let wanted = min(buffer.frameCapacity,
-                                 AVAudioFrameCount(frames + unit.latencyFrames - rendered.count))
-                let status = try engine.renderOffline(wanted, to: buffer)
-                #expect(status == .success)
-                rendered += UnsafeBufferPointer(start: buffer.floatChannelData![0], count: Int(buffer.frameLength))
-            }
-        }
-    }
-
     // MARK: – Sounds
 
     /// Every sound the app ships plays through the kernel: it is heard, it
@@ -59,7 +19,7 @@ struct KernelAudioUnitTests {
     func everyPresetPlaysAsAKernelSound(_ preset: SynthPreset) throws {
         #expect(SynthPreset.allCases.count <= KernelAudioUnit.soundCount)
         // On its own, so no other sound's tail is in what is measured.
-        let rig = try Rig(bufferSize: 256, sounds: [preset.patch])
+        let rig = try KernelOfflineRig(bufferSize: 256, sounds: [preset.patch])
         defer { rig.engine.stop() }
 
         // A note held for 0.4 s and given 2 s more.
@@ -125,7 +85,7 @@ struct KernelAudioUnitTests {
     /// Nothing is connected to the unit's input; it renders all the same.
     @Test(arguments: [64, 256, 1024] as [AVAudioFrameCount])
     func aNoteStartsOnTheFrameItNamesAtEveryBufferSize(bufferSize: AVAudioFrameCount) throws {
-        let rig = try Rig(bufferSize: bufferSize)
+        let rig = try KernelOfflineRig(bufferSize: bufferSize)
         defer { rig.engine.stop() }
 
         rig.unit.noteOn(1, note: 69, velocity: 1, at: 1000)
@@ -138,7 +98,7 @@ struct KernelAudioUnitTests {
     }
 
     @Test func aNoteEndedDiesAway() throws {
-        let rig = try Rig(bufferSize: 256)
+        let rig = try KernelOfflineRig(bufferSize: 256)
         defer { rig.engine.stop() }
 
         rig.unit.noteOn(1, note: 69, velocity: 1)
@@ -151,7 +111,7 @@ struct KernelAudioUnitTests {
 
     /// The engine's time and the kernel's are the same count of frames.
     @Test func theUnitsTimeIsTheFramesRendered() throws {
-        let rig = try Rig(bufferSize: 256)
+        let rig = try KernelOfflineRig(bufferSize: 256)
         defer { rig.engine.stop() }
         #expect(rig.unit.time == 0)
         try rig.render(2560)
@@ -160,7 +120,7 @@ struct KernelAudioUnitTests {
 
     /// The unit says how late its sound is, so a host can line it up.
     @Test func theUnitReportsItsLimitersDelay() throws {
-        let rig = try Rig(bufferSize: 256)
+        let rig = try KernelOfflineRig(bufferSize: 256)
         defer { rig.engine.stop() }
         #expect(rig.unit.latencyFrames == 72)
         #expect(abs(rig.unit.latency - 0.0015) < 1e-9)
@@ -170,7 +130,7 @@ struct KernelAudioUnitTests {
 
     /// A chord of every voice at once stays under full scale through the unit.
     @Test func theUnitsOutputIsHeldUnderFullScale() throws {
-        let rig = try Rig(bufferSize: 256, sounds: [SynthPreset.sawLead.patch])
+        let rig = try KernelOfflineRig(bufferSize: 256, sounds: [SynthPreset.sawLead.patch])
         defer { rig.engine.stop() }
         for id in 1...64 { rig.unit.noteOn(UInt64(id), note: 36 + id % 40, velocity: 1) }
         try rig.render(24_000)
@@ -180,7 +140,7 @@ struct KernelAudioUnitTests {
 
     /// A note's reverb is heard after the note, for as long as the room is set to ring.
     @Test func aNotesReverbRingsOnInTheRoom() throws {
-        let rig = try Rig(bufferSize: 256)
+        let rig = try KernelOfflineRig(bufferSize: 256)
         defer { rig.engine.stop() }
         rig.unit.setReverbTail(4)
         rig.unit.noteOn(1, note: 57, velocity: 1, playing: .init(reverb: 0.5))

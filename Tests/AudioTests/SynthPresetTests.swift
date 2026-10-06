@@ -31,7 +31,7 @@ struct SynthPresetTests {
         #expect(SynthPreset.allCases.contains(.initial))
     }
 
-    /// The limits a `SynthVoice` can realize: at least one source, no more
+    /// The limits a kernel voice can realize: at least one source, no more
     /// oscillators than a voice has, and levels a full chord can sum without
     /// leaning on the limiter.
     @Test(arguments: SynthPreset.allCases)

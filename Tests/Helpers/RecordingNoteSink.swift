@@ -11,6 +11,9 @@ final class RecordingNoteSink: NoteSink {
     }
 
     private(set) var calls: [Call] = []
+    /// The sound each note was started with, and the changes to notes held.
+    private(set) var sounds: [NoteSound] = []
+    private(set) var changes: [NoteSound] = []
 
     /// The pitches started, in order.
     var started: [Int] { calls.compactMap { if case let .on(_, note) = $0 { note } else { nil } } }
@@ -27,13 +30,22 @@ final class RecordingNoteSink: NoteSink {
         return notes.map(\.note)
     }
 
-    func noteOn(_ id: NoteID, note: Int) {
+    func noteOn(_ id: NoteID, note: Int, sound: NoteSound) {
         calls.append(.on(id, note: note))
+        sounds.append(sound)
+    }
+
+    func noteChange(_ id: NoteID, sound: NoteSound) {
+        changes.append(sound)
     }
 
     func noteOff(_ id: NoteID) {
         calls.append(.off(id))
     }
 
-    func reset() { calls = [] }
+    func reset() {
+        calls = []
+        sounds = []
+        changes = []
+    }
 }
