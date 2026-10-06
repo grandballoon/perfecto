@@ -223,8 +223,8 @@ D and E numbers refer to [audio-engine-findings.md](audio-engine-findings.md).
 | # | Step | What is built | Needs | Done when |
 |---|---|---|---|---|
 | 1 | ~~Level and shared effects, in the current engine~~ (done 2026-10-06: `MasterBus`, `SharedReverb`) | A limiter on the output; one reverb fed by a send from the live mix and from each loop track. | — | Offline test: every voice and loop track at once stays under full scale; one reverb node in the graph. |
-| 2 | Sound as data | `Sound` list in place of the `SynthPreset` switches (D6); two-operator `SynthPatch` (D5). | — | The 14 presets render as before in the current voices. |
-| 3 | The note seam | `NoteSound`, the note-level sink, and `NotePlayer` expanding chords into notes with ids (D1, D2). MIDI and the AudioKit voices sit behind it; the voices get a simple allocator, so release tails stop being cut now. | — | `strumTask` ×2, `gateTask`, `retriggerTask` and `startNotes` are gone; existing mode tests pass against a recording note sink. |
+| 2 | Sound as data | `Sound` list in place of the `SynthPreset` switches (D6); two-operator `SynthPatch` (D5). Moved to step 8 on 2026-10-06: the AudioKit voice cannot realize a general two-operator patch, and the list earns its keep only once a sound can be something other than a synth patch. | 7 | The 14 presets render in the kernel. |
+| 3 | The note seam | The note-level sink (`NoteSink`, `NoteID`) and `NotePlayer` expanding chords into notes with ids (D1). MIDI and the AudioKit voices sit behind it; the voices get an allocator, so release tails stop being cut now. Done 2026-10-06, except `NoteSound` (D2): the current engine has one filter and one chorus for everything, so a per-note sound arrives with the kernel (step 8). `gateTask` and `retriggerTask` go in step 4, with the other timers. | — | Both `strumTask`s and `startNotes` are gone; mode tests pass unchanged; `NotePlayerTests`, `VoiceAllocatorTests`. |
 | 4 | Musical time as a value | `Transport`, the scheduler, and the pure "notes due in this beat range" functions for strum, gate, Repeat and the arpeggiator (D4, E4). Until the kernel exists the audio sink starts each note when its time arrives; MIDI already gets host-time stamps. | 3 | `MasterClock`'s timers, `ClockRepeat` and `Task.sleep` are gone from the note path; timing rules are tested as functions with no fake clock. |
 | 5 | The sequencer restructuring | The timeline, loops as layers of notes, one compile function for playback and export (D3, D10). Both audio loopers are deleted. The voice pool is raised for layers and sound is accepted as degraded, as [../sequencer.md](../sequencer.md) allows. | 3, 4 | Its own spec; from the engine's side, everything that sounds arrives as timed notes. |
 | 6 | ~~Decide the kernel's language~~ | E3. | — | Done: C++ (section 7). |
@@ -236,7 +236,7 @@ D and E numbers refer to [audio-engine-findings.md](audio-engine-findings.md).
 | 12 | Vocoder | The filter bank, the vocoder send, its page in the menu, input choice in `AudioSession`. | 11 | The vocoder tests pass; a vocoded phrase can be captured and looped. |
 | 13 | Bundled instruments | sfizz as a source, streaming, the first sampled instruments. | 8 | An SFZ piano plays through the same sends and limiter within the render budget. |
 
-Steps 1 and 2 are independent of everything and of each other.
+Step 1 is independent of everything.
 Steps 10, 11 and 13 can be done in any order after 8 and 9; 12 follows 11 because the vocoder is only loopable once capture exists.
 
 Rough size for steps 1 to 4 and 7 to 13 (the sequencer restructuring is estimated separately): 4,000 to 6,000 lines written, about a third of it tests, and about 1,800 lines of the current audio layer and its tests removed.

@@ -22,15 +22,18 @@ Performance Engine: PerformanceMode protocol + 8 per-mode implementations
 Music Theory Core  ← PURE Swift only (Int/Array, no UIKit/AudioKit/Foundation)
     ↓
 ChordEventSink protocol (receives ChordEvent)
-    ├── Arpeggiator        →  the note sinks; one note at a time while it is on
-    │     ├── AudioSink    →  AudioKit engine → BrightnessFilter → EffectsChain (chorus, reverb send) → SharedReverb → MasterBus (limiter)
-    │     └── MidiSink     →  CoreMIDI ("Perfecto" note source)
+    ├── Arpeggiator        →  one note at a time while it is on
+    │     └── NotePlayer   →  chords become notes with ids; NoteSink protocol
+    │           ├── AudioSink    →  AudioKit engine → BrightnessFilter → EffectsChain (chorus, reverb send) → SharedReverb → MasterBus (limiter)
+    │           └── MidiSink     →  CoreMIDI ("Perfecto" note source)
     └── MidiAnnouncerSink  →  ChordLink SysEx ("Perfecto Link"; see chordlink.md)
 ```
 
 **Music Theory Core purity is a hard constraint.** It is pure Swift (Int/Array only), testable in isolation as pure functions of its inputs. Never add UIKit, AudioKit, or Foundation imports to anything under `Perfecto/Sources/MusicTheoryCore/`.
 
 **ChordEventSink decouples event generation from consumption.** Every sink receives the same `ChordEvent`s independently — neither knows about the others or reads app state. A `ChordEvent` carries the voicing, its `Articulation` (block or strum), and the `ChordContext` that produced it; the protocol's doc states the contract (`playChord` replaces what is sounding).
+
+**Below the chords are notes.** `NotePlayer` is the one place a chord becomes note-ons and note-offs (and where a strum is spread out), so audio and MIDI are `NoteSink`s that know nothing of chords. Every note has a `NoteID` chosen by its sender, and a sink ends only the note it is told to: one `NotePlayer` is one line of chords, and several can sound at once through the same sinks. `AudioSink` gives each note a voice through `VoiceAllocator`, which reuses the voice free longest, so a released chord rings out under the next one.
 
 **MasterClock drives everything tempo-aware.** Repeat, Sequencer, Looper and the arpeggiator all use it. It is behind a `ClockTickable` protocol so test doubles can replace it without changing callers. Modes count its ticks (sixteenths); anything finer or off that grid asks it for a repeat (`every(beats:)`), as the arpeggiator does.
 

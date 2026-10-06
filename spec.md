@@ -289,7 +289,7 @@ ChordLink still announces the whole chord.
 
 ### 5.4 Voice allocation
 
-- Round-robin steal when polyphony exceeds 6.
+- Built (2026-10-06): 8 voices behind `VoiceAllocator`. A note takes the voice free longest, so released notes ring out; with every voice held it takes over the one held longest.
 - New chord press interrupts previous chord in Play mode unless `Sustain` is on.
 - Drone mode latches indefinitely until next press.
 

@@ -83,7 +83,7 @@ final class NoopMidiBackend: MidiBackend {
     func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8) {}
 }
 
-/// Broadcasts chord voicings as MIDI note-on/off messages via an on-device virtual source.
+/// Broadcasts notes as MIDI note-on/off messages via an on-device virtual source.
 /// GarageBand on the same device sees "Perfecto" in its MIDI input list.
 /// When the iPhone is connected to a Mac via USB, the source also appears there automatically.
 ///
@@ -93,7 +93,7 @@ final class NoopMidiBackend: MidiBackend {
 /// from, as they are played, each time one reaches a new value: the filter's
 /// brightness, the chorus's amount and the reverb's mix.
 @MainActor
-final class MidiSink: ChordEventSink, EffectsControl {
+final class MidiSink: NoteSink, EffectsControl {
 
     static let brightnessController: UInt8 = 74
     static let chorusController: UInt8 = 93
@@ -101,9 +101,8 @@ final class MidiSink: ChordEventSink, EffectsControl {
 
     private let backend: any MidiBackend
     private let logger: (any Logger)?
-    /// Notes sent note-on and not yet note-off, including the started part of a strum.
-    private var activeNotes: [UInt8] = []
-    private var strumTask: Task<Void, Never>?
+    /// The pitch of each note sent note-on and not yet ended.
+    private var sounding: [NoteID: UInt8] = [:]
     /// The value last sent to each controller. An effect that has never been
     /// switched on has none.
     private var sentControllers: [UInt8: UInt8] = [:]
@@ -113,21 +112,19 @@ final class MidiSink: ChordEventSink, EffectsControl {
         self.backend = backend ?? CoreMidiBackend(logger: logger)
     }
 
-    func playChord(_ event: ChordEvent) {
-        stopChord()
-        strumTask = startNotes(event.voicing.notes, event.articulation) { [weak self] _, note in
-            self?.noteOn(UInt8(note))   // in range: the Voicing invariant
-        }
+    func noteOn(_ id: NoteID, note: Int) {
+        let pitch = UInt8(note)   // in range: the NoteSink contract
+        sounding[id] = pitch
+        backend.sendNoteOn(note: pitch, velocity: 100, channel: 0)
+        logger?.log(.midi_note_sent(note: note, velocity: 100, channel: 0, kind: .noteOn))
     }
 
-    func stopChord() {
-        strumTask?.cancel()
-        strumTask = nil
-        for note in activeNotes {
-            backend.sendNoteOff(note: note, velocity: 0, channel: 0)
-            logger?.log(.midi_note_sent(note: Int(note), velocity: 0, channel: 0, kind: .noteOff))
-        }
-        activeNotes = []
+    /// MIDI knows a note only by its pitch, so a pitch that two notes are
+    /// sounding is sent note-off when the last of them ends.
+    func noteOff(_ id: NoteID) {
+        guard let pitch = sounding.removeValue(forKey: id), !sounding.values.contains(pitch) else { return }
+        backend.sendNoteOff(note: pitch, velocity: 0, channel: 0)
+        logger?.log(.midi_note_sent(note: Int(pitch), velocity: 0, channel: 0, kind: .noteOff))
     }
 
     func setFilter(_ played: FilterSettings) {
@@ -152,12 +149,6 @@ final class MidiSink: ChordEventSink, EffectsControl {
         guard value != sentControllers[controller] else { return }
         sentControllers[controller] = value
         backend.sendControlChange(controller: controller, value: value, channel: 0)
-    }
-
-    private func noteOn(_ note: UInt8) {
-        activeNotes.append(note)
-        backend.sendNoteOn(note: note, velocity: 100, channel: 0)
-        logger?.log(.midi_note_sent(note: Int(note), velocity: 100, channel: 0, kind: .noteOn))
     }
 
     // MARK: – Diagnostics

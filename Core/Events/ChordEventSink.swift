@@ -41,9 +41,10 @@ struct ChordEvent: Equatable {
     let context: ChordContext
 }
 
-/// Decouples chord-event producers (performance modes) from consumers (audio,
-/// MIDI, ChordLink). Every sink receives the same events and knows nothing
-/// about the others or about app state.
+/// Decouples chord-event producers (performance modes) from consumers.
+/// Every sink receives the same events and knows nothing about the others or
+/// about app state. ChordLink hears chords whole; audio and MIDI hear them
+/// as notes, through a `NotePlayer`.
 ///
 /// Contract:
 /// - `playChord` replaces whatever the sink is sounding: the sink ends its
@@ -56,25 +57,4 @@ struct ChordEvent: Equatable {
 protocol ChordEventSink: AnyObject {
     func playChord(_ event: ChordEvent)
     func stopChord()
-}
-
-/// Starts `notes` at their `articulation` onsets, calling `noteOn(index, note)`
-/// for each. Block chords start synchronously and return nil; a strum returns
-/// the task driving it, which the caller cancels when the chord is replaced or
-/// stopped. Shared by every sink that sounds notes, so they all strum alike.
-@MainActor
-func startNotes(_ notes: [Int], _ articulation: Articulation,
-                noteOn: @escaping @MainActor (Int, Int) -> Void) -> Task<Void, Never>? {
-    guard case .strum = articulation, notes.count > 1 else {
-        for (i, note) in notes.enumerated() { noteOn(i, note) }
-        return nil
-    }
-    return Task { @MainActor in
-        for (i, note) in notes.enumerated() {
-            let wait = articulation.onset(ofNote: i) - articulation.onset(ofNote: max(i - 1, 0))
-            if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
-            guard !Task.isCancelled else { return }
-            noteOn(i, note)
-        }
-    }
 }

@@ -106,7 +106,7 @@ final class PerformanceState {
     let micGate: any PermissionGate
 
     /// Designated initializer. Sinks, clock, logger, and micGate are always injected.
-    /// Production: pass CompositeSink([audio, midi]) + the announcer + audio engine + FileLogger + MicrophonePermissionGate.
+    /// Production: pass NotePlayer([audio, midi]) + the announcer + audio engine + FileLogger + MicrophonePermissionGate.
     /// Tests: pass RecordingSink + ManualClock + RecordingLogger + StubPermissionGate; omit engine.
     ///
     /// `sink` sounds the notes, so it sits behind the arpeggiator and hears

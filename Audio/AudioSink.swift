@@ -2,7 +2,7 @@ import AudioKit
 import AVFoundation
 import SoundpipeAudioKit
 
-/// Drives a pool of `polyphony` SynthVoices from chord events.
+/// Sounds notes on a pool of `polyphony` SynthVoices.
 /// Signal chain:
 ///
 ///     SynthVoices → synthMixer → BrightnessFilter ─┬→ EffectsChain ─┬→ dry ────────────┐
@@ -21,10 +21,11 @@ import SoundpipeAudioKit
 /// the one set now, for loops too, and everything ends in the `MasterBus`,
 /// whose limiter keeps the sum from clipping.
 @MainActor
-final class AudioSink: ChordEventSink, AudioEffects {
+final class AudioSink: NoteSink, AudioEffects {
 
-    /// Voices in the pool: the most notes one chord can sound. Notes past this
-    /// are dropped and logged (`audio_notes_dropped`); MIDI still sends them.
+    /// Voices in the pool: the most notes that can be held at once. A note
+    /// past this takes over the voice held longest (`audio_voice_stolen`).
+    /// Released notes ring out on whatever voices are not needed yet.
     static let polyphony = 8
 
     /// Layers the play-mode looper can hold.
@@ -32,12 +33,12 @@ final class AudioSink: ChordEventSink, AudioEffects {
 
     private let engine     = AudioEngine()
     private var voices:    [SynthVoice] = []
+    private var allocator = VoiceAllocator(voices: AudioSink.polyphony)
     private let synthMixer = Mixer()
     private var filter:    BrightnessFilter!
     private var effects:   EffectsChain!
     private var reverb:    SharedReverb!
     private var master:    MasterBus!
-    private var strumTask: Task<Void, Never>?
     private let logger: (any Logger)?
 
     private(set) var looper:       Looper!
@@ -178,27 +179,21 @@ final class AudioSink: ChordEventSink, AudioEffects {
         quickLooper.engineDidRestart()
     }
 
-    func playChord(_ event: ChordEvent) {
-        stopChord()
-        let notes = event.voicing.notes
-        if notes.count > voices.count {
-            logger?.log(.audio_notes_dropped(requested: notes.count, voices: voices.count))
-        }
+    func noteOn(_ id: NoteID, note: Int) {
+        let (voice, stolen) = allocator.start(id)
+        if stolen { logger?.log(.audio_voice_stolen(voices: voices.count)) }
         filter.settle()
-        strumTask = startNotes(Array(notes.prefix(voices.count)), event.articulation) { [weak self] i, note in
-            self?.voices[i].noteOn(midiNote: note)
-        }
+        voices[voice].noteOn(midiNote: note)
     }
 
-    func stopChord() {
-        strumTask?.cancel()
-        strumTask = nil
-        for voice in voices { voice.noteOff() }
+    func noteOff(_ id: NoteID) {
+        guard let voice = allocator.end(id) else { return }
+        voices[voice].noteOff()
     }
 
     /// Switches every voice to `preset`. Notes that are sounding are released.
     func setPreset(_ preset: SynthPreset) {
-        stopChord()
+        for voice in allocator.endAll() { voices[voice].noteOff() }
         for voice in voices { voice.apply(preset.patch) }
     }
 

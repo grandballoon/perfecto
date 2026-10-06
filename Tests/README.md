@@ -6,6 +6,7 @@
 Tests/
 ├── Helpers/            — recording doubles shared across all test suites
 │   ├── RecordingSink.swift       — ChordEventSink double; records play/stop calls
+│   ├── RecordingNoteSink.swift   — NoteSink double; records the notes started and ended
 │   ├── ManualClock.swift         — ClockTickable double; tick() advances time manually
 │   ├── WaitUntil.swift           — waits for a condition instead of sleeping a fixed time
 │   ├── OfflineTone.swift         — renders a tone through real AudioKit nodes in an offline engine
@@ -17,7 +18,7 @@ Tests/
 │   └── PlayModeTests.swift
 ├── ExportTests/        — sequencer → Standard MIDI File rendering
 ├── ViewTests/          — real screens hosted in a window, redrawn while their state changes
-├── SinkTests/          — (Phase 2) MidiSinkTests
+├── SinkTests/          — NotePlayerTests (chords into notes), MidiSinkTests
 ├── LoggingTests/       — (Phase 3) LoggerTests
 └── PermissionTests/    — (Phase 4) MicrophonePermissionTests
 ```

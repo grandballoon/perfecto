@@ -1,5 +1,6 @@
-/// Broadcasts ChordEvents to multiple sinks simultaneously.
-/// AudioSink and MidiSink operate independently — neither knows about the other.
+/// Broadcasts ChordEvents to multiple sinks simultaneously: the arpeggiator
+/// (and through it the note sinks) and whatever listens for whole chords.
+/// Neither knows about the other.
 @MainActor
 final class CompositeSink: ChordEventSink {
     private let sinks: [any ChordEventSink]
