@@ -1,10 +1,11 @@
-/// What one synth sound is made of, as plain data: `SynthVoice` realizes it,
-/// `SynthPreset` names the ones the app ships. Every voice has the same fixed
-/// signal path, and a patch only says which parts sound and how:
+/// What one sound is made of, as plain data: the kernel realizes it
+/// (`kernelPatch`), `SynthPreset` names the ones the app has. Every voice
+/// has the same fixed signal path, and a patch only says which parts sound
+/// and how:
 ///
 ///     oscillators ─┐
-///                  ├─→ low-pass filter ─→ amplitude envelope
-///     FM pair ─────┘
+///     FM pair ─────┼─→ low-pass filter ─→ amplitude envelope
+///     a recording ─┘
 struct SynthPatch: Equatable, Sendable {
 
     enum Wave: Equatable, Sendable {
@@ -65,14 +66,25 @@ struct SynthPatch: Equatable, Sendable {
         var release: Float
     }
 
+    /// A recording played as the sound, in place of oscillators: one of the
+    /// kernel's captures, heard as it was recorded at the note `root` and
+    /// faster or slower at every other.
+    struct Sample: Equatable, Sendable {
+        var capture: Int
+        var root: Int = 60
+    }
+
     /// The most oscillators a patch may use; a voice has this many.
     static let oscillatorCount = 2
 
     var oscillators: [Oscillator] = []
     var fm: FM? = nil
+    /// A recording to play. With one, the oscillators and the FM pair are
+    /// not heard.
+    var sample: Sample? = nil
     /// nil leaves the sources unfiltered.
     var filter: Filter? = nil
     var envelope: Envelope
-    /// One note's output level. Notes add, and the `MasterBus` holds the sum under full scale.
+    /// One note's output level. Notes add, and the kernel's limiter holds the sum under full scale.
     var level: Float
 }

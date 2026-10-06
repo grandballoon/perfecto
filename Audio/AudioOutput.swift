@@ -1,38 +1,45 @@
 import AVFoundation
 
-/// What the app is heard through: an engine whose one source is the audio
-/// kernel, hosted as an Audio Unit.
+/// What the app is heard through, and what it hears: the audio session
+/// and the engine (`AudioGraph`) kept running together.
 ///
-///     notes ─→ KernelSink ─→ KernelAudioUnit (voices, chorus, reverb, limiter) ─→ output
-///
-/// Everything about the sound is the kernel's; this only keeps it running:
-/// it starts the engine, and starts it again when the route changes.
+/// Everything about the sound is the kernel's; this starts the engine,
+/// starts it again when the route changes, and opens the mic while the
+/// sample is recorded.
 @MainActor
 final class AudioOutput {
 
     /// Where notes go to be heard.
     let sink: KernelSink
+    /// Records the mic sample.
+    let sampleRecorder: SampleRecorder
 
-    private let engine = AVAudioEngine()
-    private let node: AVAudioUnit
+    private let graph = AudioGraph()
     private let session: AudioSession
     private let logger: (any Logger)?
     private var observer: (any NSObjectProtocol)?
+    /// Whether the kernel hears the mic.
+    private var isListening = false
 
     init(logger: (any Logger)? = nil) {
         self.logger = logger
         session = AudioSession(logger: logger)
-        let made = KernelAudioUnit.makeNode()
-        node = made.node
-        // The sounds are loaded before the engine first renders.
-        sink = KernelSink(unit: made.unit)
-        engine.attach(node)
+        // The sounds and the sample kept from last time are loaded before
+        // the engine first renders.
+        sink = KernelSink(unit: graph.unit)
+        sampleRecorder = SampleRecorder(unit: graph.unit, capture: SynthPreset.micCapture,
+                                        url: SampleRecorder.keptSampleURL, logger: logger)
         start()
 
+        sampleRecorder.listen = { [weak self] listening in
+            guard let self, isListening != listening else { return }
+            isListening = listening
+            restart()
+        }
         session.onRouteChange = { [weak self] in self?.restart() }
         // The engine stops itself when the hardware's format changes.
         observer = NotificationCenter.default.addObserver(
-            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
+            forName: .AVAudioEngineConfigurationChange, object: graph.engine, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in self?.restart() }
         }
@@ -55,12 +62,10 @@ final class AudioOutput {
 
     private func start() {
         do {
-            try session.activate()
-            // Connected at the hardware's rate, which a new route may have changed.
-            let format = AVAudioFormat(standardFormatWithSampleRate: session.sampleRate, channels: 2)
-            engine.connect(node, to: engine.mainMixerNode, format: format)
-            try engine.start()
+            try session.activate(recording: isListening)
+            try graph.start(sampleRate: session.sampleRate, listeningTo: isListening ? graph.microphone : nil)
             logger?.log(.audio_engine_started)
+            sampleRecorder.engineStarted()
         } catch {
             logger?.log(.audio_engine_failed(message: error.localizedDescription))
             assertionFailure("[AudioOutput] could not start: \(error)")
@@ -68,7 +73,7 @@ final class AudioOutput {
     }
 
     private func stop() {
-        engine.stop()
+        graph.stop()
         logger?.log(.audio_engine_stopped)
     }
 

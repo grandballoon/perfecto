@@ -92,6 +92,7 @@ void Sound::load(const PerfectoPatch &given) {
     patch.resonance = std::clamp(patch.resonance, 0.0f, 1.0f);
     patch.sustain = std::clamp(patch.sustain, 0.0f, 1.0f);
     patch.level = std::max(patch.level, 0.0f);
+    patch.root = std::clamp(patch.root, 0.0f, 127.0f);
     float total = 0;
     for (int i = 0; i < PerfectoOperatorCount; ++i) {
         auto &op = patch.operators[i];

@@ -1,5 +1,6 @@
 #include "PerfectoKernel.h"
 
+#include "Capture.hpp"
 #include "EventQueue.hpp"
 #include "MixBus.hpp"
 #include "RenderGuard.hpp"
@@ -16,6 +17,10 @@ namespace {
 constexpr std::size_t voiceCount = 64;
 constexpr std::size_t eventCapacity = 1024;
 constexpr std::size_t soundCount = 64;
+constexpr std::size_t captureCount = 4;
+/// Seconds over which a capture is faded out at its end, so a recording
+/// stopped mid-sound does not end in a click.
+constexpr double captureFade = 0.005;
 
 /// Seconds a voice takes to fade out when its note is taken. Short, but
 /// not short enough to click.
@@ -75,6 +80,12 @@ struct PerfectoKernel {
     std::array<bool, soundCount> isSet{};
     perfecto::Sound plain;
 
+    /// What has been recorded from the input, and which one is being
+    /// recorded into now (-1: none).
+    std::array<perfecto::Capture, captureCount> captures{};
+    std::atomic<int32_t> capturing{-1};
+    std::atomic<uint32_t> capturesEnded{0};
+
     /// Where the voices' sound is added up, a block at a time: left and
     /// right of each path (see `Voice::Path`).
     std::array<std::array<float, blockFrames>, perfecto::Voice::pathCount * 2> buses{};
@@ -119,6 +130,19 @@ struct PerfectoKernel {
             voice.phase[i] = 0;
             voice.phaseStep[i] = voice.hz * patch.operators[i].ratio / sampleRate;
             voice.tableLevel[i] = Wavetable::level(voice.phaseStep[i]);
+        }
+        voice.recording = nullptr;
+        voice.capture = -1;
+        if (patch.sampled && patch.capture >= 0 && static_cast<std::size_t>(patch.capture) < captureCount) {
+            const Capture &capture = captures[patch.capture];
+            voice.capture = patch.capture;
+            voice.recording = capture.data();
+            voice.recordingStart = capture.start.load(std::memory_order_relaxed);
+            voice.recordingEnd = std::max(voice.recordingStart, capture.end.load(std::memory_order_acquire));
+            voice.recordingGain = capture.gain.load(std::memory_order_relaxed);
+            voice.position = voice.recordingStart;
+            voice.positionStep = std::pow(2.0, (note.note - patch.root) / 12.0)
+                * capture.rate.load(std::memory_order_relaxed) / sampleRate;
         }
         voice.envelope = Voice::Envelope::attack;
         voice.level = 0;
@@ -214,11 +238,57 @@ struct PerfectoKernel {
         }
     }
 
+    // MARK: Capture
+
+    void captureStart(int32_t number) {
+        using Stage = perfecto::Voice::Stage;
+        captureStop();
+        if (number < 0 || static_cast<std::size_t>(number) >= captureCount) return;
+        captures[number].begin(sampleRate);
+        capturing.store(number, std::memory_order_release);
+        // What the notes playing it were reading is about to be written over.
+        for (auto &voice : voices) {
+            if (voice.stage == Stage::free || voice.capture != number) continue;
+            if (voice.stage == Stage::stolen) {
+                start(voice, voice.waiting);
+            } else {
+                voice.stage = Stage::free;
+            }
+        }
+    }
+
+    void captureStop() {
+        const int32_t number = capturing.load(std::memory_order_relaxed);
+        if (number < 0) return;
+        captures[number].finish();
+        capturing.store(-1, std::memory_order_release);
+        capturesEnded.fetch_add(1, std::memory_order_release);
+    }
+
+    /// Records `frames` frames of the input, from `offset`, if a capture
+    /// is being recorded into.
+    void record(const float *const *in, int32_t inChannels, int32_t offset, int32_t frames) {
+        const int32_t number = capturing.load(std::memory_order_relaxed);
+        if (number < 0) return;
+        perfecto::Capture &capture = captures[number];
+        for (int32_t i = offset; i < offset + frames; ++i) {
+            float sample = 0;
+            for (int32_t channel = 0; channel < inChannels; ++channel) sample += in[channel][i];
+            if (inChannels > 1) sample /= static_cast<float>(inChannels);
+            if (!capture.record(sample)) {
+                captureStop();
+                return;
+            }
+        }
+    }
+
     void apply(const PerfectoEvent &event) {
         switch (event.type) {
-        case PerfectoEventNoteOn:     noteOn(event); break;
-        case PerfectoEventNoteOff:    noteOff(event); break;
-        case PerfectoEventNoteChange: noteChange(event); break;
+        case PerfectoEventNoteOn:       noteOn(event); break;
+        case PerfectoEventNoteOff:      noteOff(event); break;
+        case PerfectoEventNoteChange:   noteChange(event); break;
+        case PerfectoEventCaptureStart: captureStart(event.note); break;
+        case PerfectoEventCaptureStop:  captureStop(); break;
         }
     }
 
@@ -260,9 +330,33 @@ struct PerfectoKernel {
                               sampleRate, 0.7071);
     }
 
+    /// One frame of a voice playing a capture, read between the
+    /// recording's frames along a curve through the four nearest. The
+    /// voice's recording is over (`recording` is null) after its last.
+    float recorded(perfecto::Voice &voice) {
+        const int32_t at = static_cast<int32_t>(voice.position);
+        if (at >= voice.recordingEnd) {
+            voice.recording = nullptr;
+            return 0;
+        }
+        const int32_t first = voice.recordingStart;
+        const int32_t last = voice.recordingEnd - 1;
+        const float *data = voice.recording;
+        const float a = data[std::max(at - 1, first)];
+        const float b = data[at];
+        const float c = data[std::min(at + 1, last)];
+        const float d = data[std::min(at + 2, last)];
+        const float t = static_cast<float>(voice.position - at);
+        const float sample = b + 0.5f * t * (c - a + t * (2 * a - 5 * b + 4 * c - d + t * (3 * (b - c) + d - a)));
+        const float left = static_cast<float>((voice.recordingEnd - voice.position) / captureFadeFrames);
+        voice.position += voice.positionStep;
+        return sample * voice.recordingGain * std::min(left, 1.0f) * voice.sound->patch.level;
+    }
+
     /// One frame of `voice`'s sources.
     float source(perfecto::Voice &voice) {
         const perfecto::Sound &sound = *voice.sound;
+        if (sound.patch.sampled) return voice.recording ? recorded(voice) : 0;
         float sample = 0;
         if (sound.patch.modulates) {
             const float modulator = sound.waves[1].read(voice.tableLevel[1], voice.phase[1]);
@@ -313,6 +407,11 @@ struct PerfectoKernel {
             if (voice.age % controlFrames == 0) control(voice);
 
             float sample = source(voice);
+            if (voice.sound->patch.sampled && !voice.recording && voice.stage != Stage::stolen) {
+                // Its recording is over (or was never there): so is the note.
+                voice.stage = Stage::free;
+                return;
+            }
             if (voice.sound->patch.filtered) {
                 sample = voice.filter.run(sample);
                 if (voice.sound->patch.steep) sample = voice.steeper.run(sample);
@@ -343,7 +442,8 @@ struct PerfectoKernel {
     }
 
     /// Renders the next `frames` frames, at most a block, to `out` from `offset`.
-    void renderBlock(float *const *out, int32_t outChannels, int32_t offset, int32_t frames) {
+    void renderBlock(const float *const *in, int32_t inChannels,
+                     float *const *out, int32_t outChannels, int32_t offset, int32_t frames) {
         using Voice = perfecto::Voice;
         const uint64_t start = time.load(std::memory_order_relaxed);
         for (auto &bus : buses) std::fill(bus.begin(), bus.begin() + frames, 0.0f);
@@ -362,6 +462,7 @@ struct PerfectoKernel {
                 if (due < static_cast<uint64_t>(frames)) until = static_cast<int32_t>(due);
             }
             for (auto &voice : voices) render(voice, frame, until - frame);
+            record(in, in ? inChannels : 0, offset + frame, until - frame);
             frame = until;
         }
 
@@ -389,7 +490,8 @@ struct PerfectoKernel {
         time.store(start + static_cast<uint64_t>(frames), std::memory_order_release);
     }
 
-    void render(float *const *out, int32_t outChannels, int32_t frames) {
+    void render(const float *const *in, int32_t inChannels,
+                float *const *out, int32_t outChannels, int32_t frames) {
         if (outChannels < 1 || frames < 1) return;
 
         agenda.compact();
@@ -406,7 +508,7 @@ struct PerfectoKernel {
         if (damping != reverbDampingInUse) reverb.setDamping(reverbDampingInUse = damping);
 
         for (int32_t done = 0; done < frames; done += blockFrames) {
-            renderBlock(out, outChannels, done, std::min(blockFrames, frames - done));
+            renderBlock(in, inChannels, out, outChannels, done, std::min(blockFrames, frames - done));
         }
     }
 
@@ -415,9 +517,14 @@ struct PerfectoKernel {
     /// The share of the way to its goal a note's brightness glides each
     /// time its slow values are worked out.
     float brightnessRate = 0;
+    /// Frames a capture is faded out over at its end.
+    float captureFadeFrames = 1;
 
     void prepare(double rate) {
+        // A recording cut short by the engine stopping is kept as far as it got.
+        captureStop();
         sampleRate = rate;
+        captureFadeFrames = static_cast<float>(captureFade * rate);
         brightnessRate = static_cast<float>(1 - std::exp(-(controlFrames / rate) / brightnessGlide));
         time.store(0);
         mailbox.clear();
@@ -465,6 +572,47 @@ bool perfecto_kernel_send(PerfectoKernel *kernel, const PerfectoEvent *event) {
     return kernel->mailbox.push(*event);
 }
 
+int32_t perfecto_kernel_capture_count(void) { return static_cast<int32_t>(captureCount); }
+
+int32_t perfecto_kernel_capture_capacity(void) { return perfecto::Capture::capacity; }
+
+namespace {
+
+const perfecto::Capture *captureNumbered(const PerfectoKernel *kernel, int32_t capture) {
+    const bool known = capture >= 0 && static_cast<std::size_t>(capture) < captureCount;
+    return known ? &kernel->captures[capture] : nullptr;
+}
+
+}
+
+int32_t perfecto_kernel_capturing(const PerfectoKernel *kernel) {
+    return kernel->capturing.load(std::memory_order_acquire);
+}
+
+uint32_t perfecto_kernel_captures_ended(const PerfectoKernel *kernel) {
+    return kernel->capturesEnded.load(std::memory_order_acquire);
+}
+
+int32_t perfecto_kernel_capture_length(const PerfectoKernel *kernel, int32_t capture) {
+    const auto *found = captureNumbered(kernel, capture);
+    return found ? found->length() : 0;
+}
+
+double perfecto_kernel_capture_rate(const PerfectoKernel *kernel, int32_t capture) {
+    const auto *found = captureNumbered(kernel, capture);
+    return found ? found->rate.load(std::memory_order_relaxed) : 0;
+}
+
+int32_t perfecto_kernel_capture_read(const PerfectoKernel *kernel, int32_t capture, float *out, int32_t room) {
+    const auto *found = captureNumbered(kernel, capture);
+    return found ? found->read(out, room) : 0;
+}
+
+void perfecto_kernel_capture_load(PerfectoKernel *kernel, int32_t capture,
+                                  const float *samples, int32_t frames, double sampleRate) {
+    if (captureNumbered(kernel, capture)) kernel->captures[capture].load(samples, frames, sampleRate);
+}
+
 void perfecto_kernel_set_chorus_rate(PerfectoKernel *kernel, float hz) {
     kernel->chorusRate.store(std::clamp(hz, 0.05f, 10.0f), std::memory_order_relaxed);
 }
@@ -493,10 +641,7 @@ void perfecto_kernel_render(PerfectoKernel *kernel,
                             const float *const *in, int32_t inChannels,
                             float *const *out, int32_t outChannels,
                             int32_t frames) {
-    // The input is not used yet: capture and the vocoder read it.
-    (void)in;
-    (void)inChannels;
     perfecto::RenderGuard guard;
     perfecto::FlushToZero flush;
-    kernel->render(out, outChannels, frames);
+    kernel->render(in, inChannels, out, outChannels, frames);
 }

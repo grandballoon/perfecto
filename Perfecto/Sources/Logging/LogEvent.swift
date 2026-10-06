@@ -68,6 +68,11 @@ enum LogEvent {
     case effect_switched(effect: EffectKind, isOn: Bool)
     case key_zones_switched(isOn: Bool)
 
+    // Mic sample
+    case sample_record_started
+    /// `seconds` 0: nothing audible was recorded.
+    case sample_recorded(seconds: Double)
+
     // Looper
     case loop_record_started(track: Int)
     /// `setsLength`: the take that defined the loop's length; later takes are layered onto it.
@@ -191,6 +196,11 @@ extension LogEvent: Encodable {
         case let .sequencer_loop_changed(stepCount):
             try c.encode("sequencer_loop_changed", forKey: Key("type"))
             try c.encode(stepCount, forKey: Key("stepCount"))
+        case .sample_record_started:
+            try c.encode("sample_record_started", forKey: Key("type"))
+        case let .sample_recorded(seconds):
+            try c.encode("sample_recorded", forKey: Key("type"))
+            try c.encode(seconds, forKey: Key("seconds"))
         case let .sound_changed(preset):
             try c.encode("sound_changed", forKey: Key("type"))
             try c.encode(preset, forKey: Key("preset"))

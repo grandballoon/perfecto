@@ -29,7 +29,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Perfecto connects to MIDI hosts on your local network so you can play into a DAW wirelessly.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Mic Sample mode records a short audio clip that you play back via the chord buttons.</string>
+	<string>Perfecto records a short sound from the microphone for you to play on the chord keys.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

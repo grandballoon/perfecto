@@ -96,6 +96,18 @@ struct Voice {
     /// How far the second operator bends the first one's phase, in cycles.
     float bend = 0;
 
+    /// For a sound that is a capture: the recording, where the voice is in
+    /// it (in its frames) and how far it moves a frame, the frame it ends
+    /// before, and the level it is played at. `recording` is null otherwise.
+    const float *recording = nullptr;
+    double position = 0;
+    double positionStep = 0;
+    int32_t recordingStart = 0;
+    int32_t recordingEnd = 0;
+    float recordingGain = 1;
+    /// Which capture, so the voice can be ended when it is recorded over.
+    int32_t capture = -1;
+
     Envelope envelope = Envelope::attack;
     /// The envelope's level now, 0...1, and the share of the way to its
     /// goal it moves each frame in each part.

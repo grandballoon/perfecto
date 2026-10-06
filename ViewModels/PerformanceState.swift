@@ -97,6 +97,7 @@ final class PerformanceState {
     let sequencerState: SequencerState
     let quickLoopState: QuickLoopState
     let effects: EffectsState
+    let micSample: MicSampleState
 
     private let sink:   any ChordEventSink
     /// Hears the chord that is held, whole (ChordLink).
@@ -133,6 +134,7 @@ final class PerformanceState {
     /// its chords' own sound. Without one, layers share `sink`.
     /// `layerLead` is the lead those sinks were made with (see
     /// `NotePlayer`), so a loop recorded over them lands where it was heard.
+    /// `micGate` says whether the mic sample may be recorded.
     /// `sequencer` is the app's sequencer and its saved timeline; tests pass
     /// one with a store of its own.
     init(sink: any ChordEventSink,
@@ -142,6 +144,7 @@ final class PerformanceState {
          sequencer: SequencerState? = nil,
          liveSound: (any SoundControl & EffectsControl)? = nil,
          output: AudioOutput? = nil,
+         micGate: any PermissionGate = NoopPermissionGate(),
          effectsListener: (any EffectsControl)? = nil,
          clock: (any ClockTickable)? = nil,
          logger: (any Logger)? = nil) {
@@ -159,6 +162,7 @@ final class PerformanceState {
                                          effectsListener: effectsListener, logger: logger)
         self.sequencerState = sequencer ?? SequencerState(logger: logger)
         self.quickLoopState = QuickLoopState(logger: logger)
+        self.micSample = MicSampleState(recorder: output?.sampleRecorder, gate: micGate)
         self.clock.bpm = bpm
         self.timelinePlayer = TimelinePlayer(live: liveSettings, clock: clock) { [weak self] layer in
             let sink = self?.layerSink() ?? CompositeSink([])
@@ -172,6 +176,8 @@ final class PerformanceState {
         }
         self.effects.onPlayedChange = { [weak self] in self?.quickLoopState.effectsChanged() }
         self.quickLoopState.host = self
+        // A sample just recorded is what the keys play next.
+        self.micSample.onRecorded = { [weak self] in self?.setSynthPreset(.micSample) }
         attach(sequencerState)
         self.clock.onTick { [weak self] in
             guard let self else { return }

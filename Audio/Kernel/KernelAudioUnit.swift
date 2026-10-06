@@ -5,9 +5,10 @@ import PerfectoKernelHost
 /// The audio kernel as an Audio Unit, so the engine can host it, render it
 /// offline, and one day ship it as an extension.
 ///
-/// It is a music effect: it has an audio input (for the mic, when capture
-/// and the vocoder arrive) as well as its output. With nothing connected to
-/// the input it renders as an instrument does.
+/// It is a music effect: it has an audio input (the mic, for recording a
+/// sample and for the vocoder) as well as its output. An engine running in
+/// real time renders an effect only when something is connected to its
+/// input, so `AudioOutput` always connects something, silent or not.
 ///
 /// Notes are not sent as MIDI. They go to the kernel as its own timed
 /// events, which carry what MIDI cannot: an id for each note, and later its
@@ -16,7 +17,7 @@ import PerfectoKernelHost
 final class KernelAudioUnit: AUAudioUnit {
 
     static let componentDescription = AudioComponentDescription(
-        componentType: kAudioUnitType_Generator,
+        componentType: kAudioUnitType_MusicEffect,
         componentSubType: fourCharCode("pfkn"),
         componentManufacturer: fourCharCode("Pfct"),
         componentFlags: 0,
@@ -31,7 +32,7 @@ final class KernelAudioUnit: AUAudioUnit {
                                          name: "Perfecto: Kernel", version: 1)
             isRegistered = true
         }
-        let node = AVAudioUnitGenerator(audioComponentDescription: componentDescription)
+        let node = AVAudioUnitEffect(audioComponentDescription: componentDescription)
         guard let unit = node.auAudioUnit as? KernelAudioUnit else {
             preconditionFailure("the kernel's Audio Unit was registered, so the engine makes that one")
         }
@@ -169,6 +170,63 @@ final class KernelAudioUnit: AUAudioUnit {
 
     override var latency: TimeInterval {
         Double(latencyFrames) / outputBus.format.sampleRate
+    }
+
+    // MARK: – Captures
+
+    /// How many recordings the kernel holds, numbered from 0.
+    static var captureCount: Int { Int(perfecto_kernel_capture_count()) }
+
+    /// Starts recording the unit's input into `capture` on frame `time`,
+    /// in place of what it held.
+    @discardableResult
+    func startCapture(_ capture: Int, at time: UInt64 = 0) -> Bool {
+        send(PerfectoEvent(time: time, note_id: 0, type: PerfectoEventCaptureStart, note: Int32(capture),
+                           velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0))
+    }
+
+    /// Ends the recording on frame `time`. It is playable from the render
+    /// after that, which is when `capturing` is nil again.
+    @discardableResult
+    func stopCapture(at time: UInt64 = 0) -> Bool {
+        send(PerfectoEvent(time: time, note_id: 0, type: PerfectoEventCaptureStop, note: 0,
+                           velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0))
+    }
+
+    /// The capture being recorded into, if one is. A recording ends by
+    /// itself when its capture is full.
+    var capturing: Int? {
+        let number = Int(perfecto_kernel_capturing(host.kernel))
+        return number < 0 ? nil : number
+    }
+
+    /// How many recordings have ended since the unit was made (stopped,
+    /// filled up, or cut off by the engine stopping). Noted when a
+    /// recording is asked for, it tells when that recording is over.
+    var capturesEnded: Int { Int(perfecto_kernel_captures_ended(host.kernel)) }
+
+    /// How long what notes play of `capture` is, in seconds: 0 while it is
+    /// empty or being recorded.
+    func captureDuration(_ capture: Int) -> TimeInterval {
+        let rate = perfecto_kernel_capture_rate(host.kernel, Int32(capture))
+        return rate > 0 ? Double(perfecto_kernel_capture_length(host.kernel, Int32(capture))) / rate : 0
+    }
+
+    /// What notes play of `capture`, and the rate it was recorded at. Not
+    /// while it is being recorded.
+    func captured(_ capture: Int) -> Recording {
+        var samples = [Float](repeating: 0, count: Int(perfecto_kernel_capture_length(host.kernel, Int32(capture))))
+        let read = perfecto_kernel_capture_read(host.kernel, Int32(capture), &samples, Int32(samples.count))
+        return Recording(samples: Array(samples.prefix(Int(read))),
+                         sampleRate: perfecto_kernel_capture_rate(host.kernel, Int32(capture)))
+    }
+
+    /// Makes `recording` what `capture` holds. For a recording kept from
+    /// before, loaded before the engine starts, never while the unit is
+    /// rendering.
+    func load(_ recording: Recording, into capture: Int) {
+        perfecto_kernel_capture_load(host.kernel, Int32(capture), recording.samples,
+                                     Int32(recording.samples.count), recording.sampleRate)
     }
 
     private func send(_ event: PerfectoEvent) -> Bool {

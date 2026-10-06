@@ -4,9 +4,14 @@ enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
     case sinePad, warmPad, strings
     case pluck, bell, kalimba
     case sawLead, squareLead, brass, synthBass
+    /// What was last recorded from the mic, played at each note's pitch.
+    case micSample
+
+    /// The kernel's capture the mic sample is recorded into and played from.
+    static let micCapture = 0
 
     enum Category: String, CaseIterable, Identifiable, Sendable {
-        case keys, pads, plucked, synth
+        case keys, pads, plucked, synth, recorded
 
         var id: String { rawValue }
 
@@ -16,6 +21,7 @@ enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
             case .pads:    return "Pads"
             case .plucked: return "Plucked"
             case .synth:   return "Synth"
+            case .recorded: return "Recorded"
             }
         }
 
@@ -43,6 +49,7 @@ enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
         case .squareLead:    return "Square Lead"
         case .brass:         return "Brass"
         case .synthBass:     return "Synth Bass"
+        case .micSample:     return "Mic Sample"
         }
     }
 
@@ -52,6 +59,7 @@ enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
         case .sinePad, .warmPad, .strings:               return .pads
         case .pluck, .bell, .kalimba:                    return .plucked
         case .sawLead, .squareLead, .brass, .synthBass:  return .synth
+        case .micSample:                                 return .recorded
         }
     }
 
@@ -157,6 +165,15 @@ enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
                 filter: .init(cutoff: Sweep(from: 10, to: 3, time: 0.2), resonance: 0.4),
                 envelope: .init(attack: 0.005, decay: 0.2, sustain: 0.7, release: 0.15),
                 level: 0.22)
+
+        // Recorded
+
+        case .micSample:
+            // Held, it plays to its end; let go, it dies away quickly.
+            return SynthPatch(
+                sample: .init(capture: Self.micCapture),
+                envelope: .init(attack: 0.002, decay: 0.1, sustain: 1, release: 0.12),
+                level: 0.25)
         }
     }
 }

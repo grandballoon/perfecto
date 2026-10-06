@@ -3,9 +3,10 @@ import AVFoundation
 /// The app's audio session: the one place its category, buffer size and
 /// route are decided.
 ///
-/// The app only plays for now, and mixes with other apps so it can sit
-/// beside a DAW. Recording (the mic sample, the vocoder) will ask for the
-/// input when it arrives.
+/// The app plays, and mixes with other apps so it can sit beside a DAW. It
+/// asks for the mic only while something is being recorded: a session that
+/// records plays differently (and shows the system's recording mark), so
+/// the app goes back to only playing as soon as it has what it wanted.
 @MainActor
 final class AudioSession {
 
@@ -41,12 +42,20 @@ final class AudioSession {
     /// The rate the hardware runs at.
     var sampleRate: Double { session.sampleRate }
 
-    /// Takes the session for playing.
-    func activate() throws {
-        try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+    /// Takes the session: for playing, or for playing and `recording`.
+    func activate(recording: Bool = false) throws {
+        if recording {
+            // Out of the speaker, not the earpiece, and through Bluetooth
+            // headphones without switching them to their call quality.
+            try session.setCategory(.playAndRecord, mode: .default,
+                                    options: [.mixWithOthers, .defaultToSpeaker, .allowBluetoothA2DP])
+        } else {
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        }
         try session.setPreferredIOBufferDuration(Self.ioBufferDuration)
         try session.setActive(true)
-        logger?.log(.audio_session_activated(category: "playback", mode: "default", sampleRate: session.sampleRate))
+        logger?.log(.audio_session_activated(category: recording ? "playAndRecord" : "playback",
+                                             mode: "default", sampleRate: session.sampleRate))
     }
 
     /// Gives the session up, so another app can have the audio to itself.

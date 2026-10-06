@@ -17,6 +17,9 @@ final class KernelRig {
     private(set) var output: [Float] = []
     private(set) var right: [Float] = []
 
+    /// The audio input, by the kernel's frame. nil is nothing connected.
+    var input: ((Int) -> Float)?
+
     private let kernel = perfecto_kernel_create()!
     private var discarded = 0
 
@@ -71,6 +74,54 @@ final class KernelRig {
         return perfecto_kernel_send(kernel, &event)
     }
 
+    // MARK: Captures
+
+    static let captureCapacity = Int(perfecto_kernel_capture_capacity())
+
+    @discardableResult
+    func captureStart(_ capture: Int = 0, at frame: Int = 0) -> Bool {
+        var event = PerfectoEvent(time: UInt64(frame), note_id: 0, type: PerfectoEventCaptureStart,
+                                  note: Int32(capture), velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0)
+        return perfecto_kernel_send(kernel, &event)
+    }
+
+    @discardableResult
+    func captureStop(at frame: Int = 0) -> Bool {
+        var event = PerfectoEvent(time: UInt64(frame), note_id: 0, type: PerfectoEventCaptureStop,
+                                  note: 0, velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0)
+        return perfecto_kernel_send(kernel, &event)
+    }
+
+    /// The capture being recorded into, if one is.
+    var capturing: Int? {
+        let number = Int(perfecto_kernel_capturing(kernel))
+        return number < 0 ? nil : number
+    }
+
+    /// How many recordings have ended.
+    var capturesEnded: Int { Int(perfecto_kernel_captures_ended(kernel)) }
+
+    func captureLength(_ capture: Int = 0) -> Int { Int(perfecto_kernel_capture_length(kernel, Int32(capture))) }
+
+    /// What notes play of `capture`.
+    func captured(_ capture: Int = 0) -> [Float] {
+        var samples = [Float](repeating: 0, count: captureLength(capture))
+        let read = perfecto_kernel_capture_read(kernel, Int32(capture), &samples, Int32(samples.count))
+        return Array(samples.prefix(Int(read)))
+    }
+
+    func load(_ samples: [Float], into capture: Int = 0, rate: Double = KernelRig.sampleRate) {
+        perfecto_kernel_capture_load(kernel, Int32(capture), samples, Int32(samples.count), rate)
+    }
+
+    /// Readies the kernel again, as an engine does when it restarts.
+    func prepareAgain() {
+        perfecto_kernel_prepare(kernel, Self.sampleRate)
+        output = []
+        right = []
+        discarded = 0
+    }
+
     /// Renders `frames` more frames, `chunk` at a time, as an audio device
     /// with that buffer size would ask for them.
     func render(_ frames: Int, chunk: Int = 256) {
@@ -83,12 +134,24 @@ final class KernelRig {
         let chunks = time == 0 ? chunks + [latency] : chunks
         var left = [Float](repeating: 0, count: chunks.max() ?? 0)
         var right = left
+        var heard = left
         for frames in chunks {
+            if let input {
+                let start = time
+                for frame in 0..<frames { heard[frame] = input(start + frame) }
+            }
+            let hasInput = input != nil
             left.withUnsafeMutableBufferPointer { l in
                 right.withUnsafeMutableBufferPointer { r in
-                    let channels: [UnsafeMutablePointer<Float>?] = [l.baseAddress, r.baseAddress]
-                    channels.withUnsafeBufferPointer {
-                        perfecto_kernel_render(kernel, nil, 0, $0.baseAddress, 2, Int32(frames))
+                    heard.withUnsafeBufferPointer { h in
+                        let channels: [UnsafeMutablePointer<Float>?] = [l.baseAddress, r.baseAddress]
+                        let inputs: [UnsafePointer<Float>?] = [h.baseAddress]
+                        channels.withUnsafeBufferPointer { out in
+                            inputs.withUnsafeBufferPointer { ins in
+                                perfecto_kernel_render(kernel, hasInput ? ins.baseAddress : nil, hasInput ? 1 : 0,
+                                                       out.baseAddress, 2, Int32(frames))
+                            }
+                        }
                     }
                 }
             }
@@ -187,6 +250,21 @@ extension PerfectoPatch {
         patch.operators.1.level = 1
         patch.modulates = true
         patch.index = index
+        return patch
+    }
+
+    /// The capture numbered `capture`, played as recorded by the note `root`.
+    static func sampled(_ capture: Int = 0, root: Float = 69, level: Float = 0.5,
+                        release: Float = 0.006) -> PerfectoPatch {
+        var patch = PerfectoPatch()
+        patch.sampled = true
+        patch.capture = Int32(capture)
+        patch.root = root
+        patch.attack = 0.003
+        patch.decay = 0.05
+        patch.sustain = 1
+        patch.release = release
+        patch.level = level
         return patch
     }
 

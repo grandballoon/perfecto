@@ -19,7 +19,10 @@ struct KernelAudioUnitTests {
     func everyPresetPlaysAsAKernelSound(_ preset: SynthPreset) throws {
         #expect(SynthPreset.allCases.count <= KernelAudioUnit.soundCount)
         // On its own, so no other sound's tail is in what is measured.
-        let rig = try KernelOfflineRig(bufferSize: 256, sounds: [preset.patch])
+        // The mic sample has a recording to play, as it does once one is made.
+        let rig = try KernelOfflineRig(bufferSize: 256, sounds: [preset.patch]) {
+            $0.load(.tone(), into: SynthPreset.micCapture)
+        }
         defer { rig.engine.stop() }
 
         // A note held for 0.4 s and given 2 s more.

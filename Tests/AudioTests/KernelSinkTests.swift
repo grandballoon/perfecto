@@ -13,6 +13,8 @@ struct KernelSinkTests {
         // The engine renders in no real time; a moment is its count of seconds rendered.
         let rig = try KernelOfflineRig { unit in
             sink = KernelSink(unit: unit) { UInt64(($0 * KernelOfflineRig.rate).rounded()) }
+            // A mic sample to play, as there is once one has been recorded.
+            unit.load(.tone(), into: SynthPreset.micCapture)
         }
         return (try #require(sink), rig)
     }

@@ -10,6 +10,7 @@ Tests/
 │   ├── ManualClock.swift         — ClockTickable double; tick() and advance(beats:/seconds:) move time manually
 │   ├── WaitUntil.swift           — waits for a condition instead of sleeping a fixed time
 │   ├── KernelOfflineRig.swift    — the kernel's Audio Unit in an engine that renders offline
+│   ├── Tone.swift                — a sine for an engine to hear at its input, and for measuring what was recorded
 │   ├── RecordingLogger.swift     — Logger double (TODO Phase 3)
 │   ├── StubPermissionGate.swift  — PermissionGate double (TODO Phase 4)
 │   └── Expect+Voicing.swift      — #expect helpers for Voicing assertions
@@ -27,6 +28,8 @@ Tests/
 The Music Theory Core has its own test suite under `Perfecto/Tests/MusicTheoryCoreTests/`, and the audio kernel under `Perfecto/Tests/PerfectoKernelTests/` (Swift Package tests, runnable via `swift test`).
 The kernel's tests render it offline with no engine, and are built so that any memory allocated while rendering stops them.
 `KernelAudioUnitTests`, here, checks the same kernel hosted as an Audio Unit in an offline engine.
+`KernelLiveTests` runs the app's engine graph in real time on the simulator (no audio session): an engine treats a unit differently there than offline, and that difference once made the app silent.
+`SampleRecorderTests` records and plays the mic sample through an offline engine that hears a tone.
 
 ## Recording-double pattern
 

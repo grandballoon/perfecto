@@ -2,7 +2,7 @@ import Foundation
 import PerfectoKernel
 
 /// A `SynthPatch` as the kernel takes it: two operators, mixed or one
-/// bending the other.
+/// bending the other, or a recording in their place.
 ///
 /// A patch here is either oscillators or an FM pair, and each becomes the
 /// kernel's two operators: the oscillators mixed, or the pair's modulator
@@ -12,7 +12,11 @@ extension SynthPatch {
 
     var kernelPatch: PerfectoPatch {
         var patch = PerfectoPatch()
-        if let fm {
+        if let sample {
+            patch.sampled = true
+            patch.capture = Int32(sample.capture)
+            patch.root = Float(sample.root)
+        } else if let fm {
             patch.operators.0 = Self.kernelOperator(.sine, ratio: fm.carrier, level: 1)
             patch.operators.1 = Self.kernelOperator(.sine, ratio: fm.modulator, level: 1)
             patch.modulates = true

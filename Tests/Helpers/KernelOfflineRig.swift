@@ -20,7 +20,8 @@ final class KernelOfflineRig {
     /// `sounds` are loaded before the engine starts, numbered from 0, and
     /// `configure` is run then too, for whatever else must be done before
     /// the unit renders.
-    init(bufferSize: AVAudioFrameCount = 256, sounds: [SynthPatch] = [],
+    /// `hearing` is a tone for the unit to hear at its input, as it would a mic.
+    init(bufferSize: AVAudioFrameCount = 256, sounds: [SynthPatch] = [], hearing tone: Tone? = nil,
          configure: (KernelAudioUnit) -> Void = { _ in }) throws {
         let format = AVAudioFormat(standardFormatWithSampleRate: Self.rate, channels: 2)!
         let made = KernelAudioUnit.makeNode()
@@ -28,6 +29,11 @@ final class KernelOfflineRig {
         for (number, patch) in sounds.enumerated() { unit.setSound(number, to: patch) }
         configure(unit)
         engine.attach(made.node)
+        if let tone {
+            let source = tone.node(format)
+            engine.attach(source)
+            engine.connect(source, to: made.node, format: format)
+        }
         engine.connect(made.node, to: engine.outputNode, format: format)
         try engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: bufferSize)
         try engine.start()

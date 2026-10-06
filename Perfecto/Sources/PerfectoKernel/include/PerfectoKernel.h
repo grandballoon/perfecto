@@ -1,6 +1,6 @@
 // The audio kernel: everything Perfecto sounds for itself is rendered here.
 //
-// Its whole input is timed events (and, later, the mic's audio); its output
+// Its whole input is timed events and the audio input (a mic); its output
 // is samples. It is plain C++ behind this C interface, with nothing from any
 // platform in it, so the same kernel runs in the iOS app, in tests on a Mac,
 // and wherever else it is compiled.
@@ -9,8 +9,8 @@
 //  - `perfecto_kernel_render` is the render thread's. It never allocates,
 //    locks or waits.
 //  - `perfecto_kernel_send` is for one other thread at a time.
-//  - `perfecto_kernel_time` and the chorus's and reverb's settings are for
-//    any thread.
+//  - `perfecto_kernel_time`, the chorus's and reverb's settings, and what
+//    says how a capture is getting on are for any thread.
 //  - Everything else is called while nothing is rendering.
 //
 // Time is a count of frames rendered since the kernel was prepared. An event
@@ -107,6 +107,13 @@ typedef struct {
     float release;
     /// One note's level at full velocity. Notes add.
     float level;
+    /// The sound is a capture and not the operators: the recording numbered
+    /// `capture`, played as it was recorded by the note `root` and faster or
+    /// slower by every other, through the same filter and envelope. A note
+    /// ends when the recording does, if it has not been ended sooner.
+    bool sampled;
+    int32_t capture;
+    float root;
 } PerfectoPatch;
 
 // MARK: Events
@@ -120,6 +127,13 @@ typedef enum {
     /// `brightness`, `chorus` and `reverb`, all three. The change is glided
     /// to, not jumped to.
     PerfectoEventNoteChange = 3,
+    /// Starts recording the input into the capture numbered `note`, from
+    /// this frame, in place of what it held; notes playing it end. One
+    /// capture is recorded at a time: starting another ends the first.
+    PerfectoEventCaptureStart = 4,
+    /// Ends the recording at this frame (it ends by itself when the capture
+    /// is full), and makes it playable.
+    PerfectoEventCaptureStop = 5,
 } PerfectoEventType;
 
 typedef struct {
@@ -128,7 +142,7 @@ typedef struct {
     /// The sender's name for the note.
     uint64_t note_id;
     PerfectoEventType type;
-    /// Note on: the MIDI note, 0...127.
+    /// Note on: the MIDI note, 0...127. Capture start: which capture.
     int32_t note;
     /// Note on: how hard it was struck, 0...1.
     float velocity;
@@ -159,7 +173,8 @@ PerfectoKernel *perfecto_kernel_create(void);
 void perfecto_kernel_destroy(PerfectoKernel *kernel);
 
 /// Makes the kernel ready to render at `sample_rate`: silent, nothing
-/// waiting, time 0.
+/// waiting, time 0. Its sounds and captures are kept; a recording under
+/// way is ended.
 void perfecto_kernel_prepare(PerfectoKernel *kernel, double sample_rate);
 
 /// The most sounds the kernel holds, numbered from 0.
@@ -169,6 +184,43 @@ int32_t perfecto_kernel_sound_count(void);
 /// takes a moment and allocates: it is for loading sounds before playing,
 /// while nothing is rendering. A number never set plays a plain sine.
 void perfecto_kernel_set_sound(PerfectoKernel *kernel, int32_t sound, const PerfectoPatch *patch);
+
+// MARK: Captures
+
+/// How many captures the kernel holds, numbered from 0, and the most frames
+/// each can hold. Their memory is set aside when the kernel is made.
+int32_t perfecto_kernel_capture_count(void);
+int32_t perfecto_kernel_capture_capacity(void);
+
+/// The capture being recorded into, or -1.
+int32_t perfecto_kernel_capturing(const PerfectoKernel *kernel);
+
+/// How many recordings have ended since the kernel was made: by a stop, by
+/// filling up, or by the kernel being prepared again. A sender that noted
+/// the count when it asked for a recording knows it is over, and playable,
+/// when the count has moved.
+uint32_t perfecto_kernel_captures_ended(const PerfectoKernel *kernel);
+
+/// Frames of `capture` that notes play: 0 while it is empty or being
+/// recorded. What is played is the recording from just before its first
+/// sound to just after its last, with any steady offset taken out, brought
+/// up to full level.
+int32_t perfecto_kernel_capture_length(const PerfectoKernel *kernel, int32_t capture);
+
+/// The sample rate `capture` was recorded at.
+double perfecto_kernel_capture_rate(const PerfectoKernel *kernel, int32_t capture);
+
+/// Copies what notes play of `capture` into `out`, which has room for
+/// `room` frames, and returns the frames copied. Not while it is recorded.
+int32_t perfecto_kernel_capture_read(const PerfectoKernel *kernel, int32_t capture, float *out, int32_t room);
+
+/// Makes `frames` frames of `samples`, recorded at `sample_rate`, what
+/// `capture` holds, played as they are. For loading a recording kept from
+/// before, while nothing is rendering.
+void perfecto_kernel_capture_load(PerfectoKernel *kernel, int32_t capture,
+                                  const float *samples, int32_t frames, double sample_rate);
+
+// MARK: The mix
 
 /// The settings every note shares: how fast the chorus wavers, in Hz; the
 /// seconds the reverb's tail takes to fall 60 dB; the seconds before the
@@ -191,7 +243,8 @@ bool perfecto_kernel_send(PerfectoKernel *kernel, const PerfectoEvent *event);
 uint64_t perfecto_kernel_time(const PerfectoKernel *kernel);
 
 /// Renders the next `frames` frames into `out`, one array per channel.
-/// `in` is the audio input in the same layout; NULL is silence.
+/// `in` is the audio input in the same layout; NULL is silence. Its
+/// channels are averaged into one.
 void perfecto_kernel_render(PerfectoKernel *kernel,
                             const float *const *in, int32_t in_channels,
                             float *const *out, int32_t out_channels,

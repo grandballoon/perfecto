@@ -20,6 +20,7 @@ struct PerfectoApp: App {
             layerLead: NotePlayer.sequencedLead,
             liveSound: keys,
             output:  output,
+            micGate: MicrophonePermissionGate(logger: logger),
             effectsListener: midi,
             clock:   clock,
             logger:  logger

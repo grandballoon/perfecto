@@ -37,7 +37,7 @@ struct SynthPresetTests {
     @Test(arguments: SynthPreset.allCases)
     func patchFitsAVoice(_ preset: SynthPreset) {
         let patch = preset.patch
-        #expect(!patch.oscillators.isEmpty || patch.fm != nil)
+        #expect(!patch.oscillators.isEmpty || patch.fm != nil || patch.sample != nil)
         #expect(patch.oscillators.count <= SynthPatch.oscillatorCount)
         #expect(patch.oscillators.allSatisfy { $0.level > 0 })
         #expect(patch.level > 0)
