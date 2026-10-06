@@ -3,9 +3,12 @@ import SwiftUI
 /// Play mode's loop controls, in one row.
 ///
 /// LOOP starts a take and, tapped again, closes it into a loop; each further
-/// take is layered onto the first loop's length. Every layer gets a numbered
-/// chit: tap it to silence or bring back that layer. The trash chit switches
-/// the layer chits to deleting: while it is on, tapping a layer removes it.
+/// take is layered onto the first loop's length. The layers are the
+/// timeline's, so a sequence made in the sequencer is among them. The
+/// play/stop chit stops them all, and starts them again from the top. Every
+/// layer gets a numbered chit: tap it to silence or bring back that layer.
+/// The trash chit switches the layer chits to deleting: while it is on,
+/// tapping a layer removes it.
 struct LoopBar: View {
     @Environment(PerformanceState.self) private var state
 
@@ -19,7 +22,10 @@ struct LoopBar: View {
     var body: some View {
         HStack(spacing: 10) {
             loopButton
-            if !loops.loops.isEmpty { layerChits }
+            if !loops.loops.isEmpty {
+                runButton
+                layerChits
+            }
             Spacer(minLength: 0)
         }
         .onChange(of: loops.loops.isEmpty) { _, isEmpty in
@@ -49,6 +55,19 @@ struct LoopBar: View {
     private var loopLabelColor: Color {
         if isRecording { return .red }
         return canRecord ? Color(white: 0.85) : Color(white: 0.3)
+    }
+
+    /// Stops every layer, or starts them again from the top.
+    private var runButton: some View {
+        Button { loops.toggleRunning() } label: {
+            Image(systemName: loops.isRunning ? "stop.fill" : "play.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(loops.isRunning ? Color.orange : Color(white: 0.85))
+                .frame(width: Self.layerWidth, height: Self.chitHeight)
+                .background(chit(stroke: loops.isRunning ? Color.orange : Color(white: 0.25)))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(loops.isRunning ? "Stop loops" : "Play loops")
     }
 
     private var layerChits: some View {

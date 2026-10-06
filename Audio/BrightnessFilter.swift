@@ -1,9 +1,8 @@
 import AudioKit
 import SoundpipeAudioKit
 
-/// The low-pass filter every synth voice passes through, on the way to both
-/// the speaker and the loopers' capture point: a loop records the brightness
-/// it was played with.
+/// The low-pass filter every synth voice passes through on the way to the
+/// speaker.
 ///
 /// Off, it is bypassed and the sound passes through untouched.
 final class BrightnessFilter {

@@ -28,7 +28,6 @@ struct PerfectoApp: App {
             PerformanceView()
                 .environment(state)
                 .environment(state.sequencerState)
-                .environment(state.looperState)
                 .environment(state.micSampleState)
                 .onAppear { MidiSink.logTopology() }
         }

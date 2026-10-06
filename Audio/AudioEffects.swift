@@ -40,8 +40,6 @@ struct ReverbSettings: Equatable, Codable, Sendable, SlidePlayed {
 }
 
 /// The filter's controls, as plain data: `BrightnessFilter` realizes them.
-/// Unlike the chorus and reverb it shapes the sound before it is recorded,
-/// so a loop holds the brightness it was played with.
 struct FilterSettings: Equatable, Codable, Sendable, SlidePlayed {
     static var kind: EffectKind { .filter }
 
@@ -58,13 +56,6 @@ struct FilterSettings: Equatable, Codable, Sendable, SlidePlayed {
     }
 }
 
-/// The sound effects' settings together: what the player hears now, and
-/// what a loop keeps from the moment it is closed.
-struct SoundEffects: Equatable, Sendable {
-    var chorus = ChorusSettings()
-    var reverb = ReverbSettings()
-}
-
 /// Something that follows the sound effects as they are played: each call
 /// carries an effect as it sounds now, the slide and the key zones already
 /// applied.
@@ -74,13 +65,4 @@ protocol EffectsControl: AnyObject {
     func setFilter(_ played: FilterSettings)
     func setChorus(_ played: ChorusSettings)
     func setReverb(_ played: ReverbSettings)
-}
-
-/// What the effects controls need from the audio layer. `AudioSink` is the
-/// real one; tests substitute their own.
-@MainActor
-protocol AudioEffects: EffectsControl {
-    /// The chorus and reverb as set, whatever is being played: what a loop
-    /// keeps when it is closed.
-    func setLoopEffects(_ effects: SoundEffects)
 }

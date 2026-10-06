@@ -1,7 +1,7 @@
 /// Identifies a performance mode. Views, settings and logs decide by kind,
 /// never by display name, so renaming or localizing a mode changes nothing else.
 enum ModeKind: CaseIterable {
-    case play, strum, lead, drone, `repeat`, sequencer, looper, micSample
+    case play, strum, lead, drone, `repeat`, sequencer, micSample
 
     var displayName: String {
         switch self {
@@ -11,7 +11,6 @@ enum ModeKind: CaseIterable {
         case .drone:     return "Drone"
         case .repeat:    return "Repeat"
         case .sequencer: return "Sequencer"
-        case .looper:    return "Looper"
         case .micSample: return "Mic Sample"
         }
     }
@@ -24,7 +23,6 @@ enum ModeKind: CaseIterable {
         case .drone:     return "Press to latch; press again to stop"
         case .repeat:    return "Chord retriggers at tempo"
         case .sequencer: return "Chords in sequence, bar by bar"
-        case .looper:    return "2-track audio looper"
         case .micSample: return "Record a clip; play it via buttons"
         }
     }
@@ -33,7 +31,6 @@ enum ModeKind: CaseIterable {
     var surface: ModeSurface {
         switch self {
         case .sequencer: return .sequencer
-        case .looper:    return .looper
         case .micSample: return .micSample
         case .play, .strum, .lead, .drone, .repeat: return .chords
         }
@@ -46,8 +43,6 @@ enum ModeSurface {
     case chords
     /// The step sequencer, which replaces the chord buttons.
     case sequencer
-    /// The looper's track controls with its own chord buttons.
-    case looper
     /// The chord buttons with the mic recorder above them.
     case micSample
 }

@@ -8,7 +8,7 @@ A chord performance instrument for iPhone. v1 covers the eight core performance 
 
 **Goals**
 
-- All eight primary performance modes (Play, Strum, Lead, Drone, Repeat, Sequencer, Looper, Mic Sample).
+- The primary performance modes (Play, Strum, Lead, Drone, Repeat, Sequencer, Mic Sample), and loops under all of them.
 - Effects that work under every mode: an arpeggiator, chorus and reverb.
 - Clean architectural seams so the music theory core remains portable by purity (no platform dependencies, testable in isolation).
 - MIDI output for DAW integration.
@@ -222,22 +222,15 @@ Voices → ADSR → BassOsc → Filter → Chorus → Flanger → Delay → Reve
 All effects implemented as AudioKit nodes (`Reverb`, `Delay`, `Chorus`, `Flanger`, `LowPassFilter`). Wet/dry per effect exposed to user.
 
 **Built so far (2026-10-06):** chorus and reverb.
-What is being played has an `EffectsChain` (its chorus, and how much of it goes to the reverb), and so has each loop track; they all send into one `SharedReverb`, and everything ends in the `MasterBus`:
+Everything the app sounds, the keys and every loop, passes through one `EffectsChain` (the chorus, and how much of the sound goes to the reverb), into one `SharedReverb`, and ends in the `MasterBus`:
 
 ```
-Voices ─→ synth mix ─→ Chorus ─┬────────────────────→ dry ─┬─→ limiter ─→ Output
-                               └─→ send ─┬─→ Reverb ───────┤
-Each loop track ─→ Chorus ─┬─────────────│──────────→ dry ─┘
-                           └─→ send ─────┘
+Voices ─→ synth mix ─→ filter ─→ Chorus ─┬───────────────→ dry ─┬─→ limiter ─→ Output
+                                         └─→ send ─→ Reverb ────┘
 ```
 
-One reverb costs the same however many loops play, and there is one room: its size is the size set now, also for loops closed earlier.
 The `MasterBus` adds everything together and limits it, so a dense chord over several loops is turned down for as long as it would clip, not clipped; quieter sound passes untouched, 1 ms late (the limiter's look-ahead).
-
-The loopers record the synth mix, before the effects.
-When a take ends, its track's effects are set as the live ones are at that moment and then left alone.
-So a finished loop keeps its chorus and its share of the reverb, as it keeps its key, octave and sound: choosing new ones changes only what is played next, whether the loop is playing or is stopped and started again later.
-The reverb's size is the exception, because the room is shared.
+Loops are notes played again on the same voices (6.2), so they are heard through the effects set now; each note carries the effects it was played with, for the audio kernel to give it back ([docs/audio-engine-spec.md](docs/audio-engine-spec.md)).
 Each effect has an on/off switch and two controls (chorus: amount, rate; reverb: mix, size), on the side panel's Effects page, behind the FX chit.
 An effect that is off keeps running with none of the sound reaching it, so the graph is never rewired while the engine runs.
 The reverb's mix is how much of the sound is sent into the reverb, not how much of the reverb is let out, so what is already ringing always dies away in its own time: a mix that is being played, or a reverb switched off, never cuts a tail short.
@@ -253,13 +246,12 @@ Voices ─→ synth mix ─→ Filter ─┬─→ Chorus ─→ Reverb ─→ O
 It has a switch and one control, brightness, on the Effects page.
 While a chord key is held and the filter follows the slide (below), the slide plays the brightness: the bottom of the key is dark and the top lets everything through.
 Lifting the key returns it to the set brightness, which is also what the sequencer's steps sound at.
-It sits before the loopers' capture point, so unlike the chorus and reverb its movement is recorded into a loop.
 Off, it is bypassed.
 
 **Played by the slide.** Every effect has a "slide plays" switch beside the one control the slide (8.4) can play: the filter's brightness (on by default), the chorus's amount, the reverb's mix and the arpeggiator's cycle (off by default).
 While a chord key is held, the slide stands in for that control on every effect that is on and follows it, so one finger can play several at once; lifting the key returns each to its set value.
 The cycle is played in steps, each with an equal share of the key's height: a bar at the bottom, then 2 beats, 1 beat, and half a beat at the top.
-A loop keeps the chorus and the reverb's mix as they were set when it was closed, not as they were being played; only the filter's movement is recorded.
+A loop being recorded keeps every effect as it was being played when each chord started, and the slide's movement inside a held chord.
 The settings a slide can play are `SlidePlayed`; `EffectsState` holds the set values and the slide and passes each effect on as played, so the audio, the arpeggiator and MIDI only ever see that.
 
 **Key zones.** Every chord key can be divided into 2 to 4 zones, stacked from the bottom of the key to the top, each with an equal share of the slide (8.4).
@@ -271,7 +263,7 @@ The zone is read from the moment the finger lands, so where a key is struck choo
 A finger must go a little past a zone's edge (4% of the slide) to leave the zone, so one resting on an edge does not switch back and forth.
 Lifting the last key ends its chord before the zone's effect switches off, so the chord does not sound once more.
 While the zones are on, every key shows a tick at each side where one zone gives way to the next.
-A loop keeps the chorus and reverb as set, not as a zone was holding them.
+A loop being recorded keeps what a zone was holding on: a chord struck in an arpeggiated zone is arpeggiated when the loop plays.
 The zones are set on the Effects page, in a "Key zones" card: a switch, the number of zones, and for each zone its effect and value.
 They are off by default; switched on, the default is two zones, plain at the bottom and the arpeggiator at one beat at the top.
 
@@ -378,7 +370,6 @@ Modes must not call any other methods on `PerformanceState`. This list is the co
 | Drone | Press latches chord on; press again to release | No |
 | Repeat | Chord retriggers rhythmically at tempo | Yes |
 | Sequencer | Bars of 16 chord steps play back at tempo | Yes |
-| Looper | 2-track audio looper, sample-accurate | Yes |
 | Mic Sample | Record audio from mic, play back via chord buttons | No (playback timing) |
 
 Arpeggio was a mode in the original plan; it is now an effect that works under every mode (see 5.2).
@@ -388,11 +379,11 @@ Arpeggio was a mode in the original plan; it is now an effect that works under e
 The sequencer is being rebuilt on a timeline of notes in layers, shared with loops: see [docs/sequencer-spec.md](docs/sequencer-spec.md).
 As of 2026-10-06 its playback and export run on the timeline, behind the screen described here.
 
-- A pattern is any number of bars of 16 steps.
+- A pattern is any number of bars of 16 steps, and starts as one empty bar.
   There are no preset lengths: bars are added at the end and removed one at a time.
 - Each step holds: chord degree + chord color + gate + rest flag.
   Underneath, the pattern is notes of any length (`Timeline`); a step is how the editor sees them, and a tied step into the same chord is one held note.
-- Playback starts on the first step the moment Play is pressed, and an edit is heard without stopping.
+- Playback starts on the first step the moment Play is pressed, an edit is heard without stopping, and the sequence plays on under the keys when the screen is left.
 - Playback repeats either the whole pattern or a loop: the stretch from the first to the last of the steps that were selected when the loop was set.
   The loop is captured from the selection and then independent of it, so steps can be selected and edited while it plays.
   (Until 2026-10-06 a loop could be any scattered set of steps; it is now one stretch of time.)
@@ -401,34 +392,32 @@ As of 2026-10-06 its playback and export run on the timeline, behind the screen 
 - Tempo + swing controls.
 - Save/load presets to UserDefaults (in v1; SwiftData later).
 
-### 6.2 Looper (2-track v1)
+### 6.2 Loops
 
-- Sample-accurate recording at the audio buffer level.
-- Per-track: record, play, stop, clear, mute, volume.
-- Count-in: 1 bar metronome before recording starts.
-- Loop length: first track's length defines the bar; subsequent tracks must be exact multiples.
-- Quantized loop boundaries (snap record-end to nearest bar).
+Rebuilt on 2026-10-06: a loop is a layer of the same timeline the sequencer edits ([docs/sequencer-spec.md](docs/sequencer-spec.md)), recorded as notes, not as audio.
+The separate Looper mode, with its two tracks and its own screen, is gone.
 
-Architecture is designed for 6 tracks; v1 caps the UI at 2.
-
-### 6.2.1 Play-mode loop
-
-The first looping the app offers lives in Play mode: one LOOP button, no clock and no count-in.
+Looping lives in Play mode's loop bar, and plays under every mode:
 
 - Tap LOOP to start a take, tap again to close it; it loops from that moment.
-- The first take sets the loop's length.
-  Each later take (up to 6 layers) is folded onto that length at the point in the loop where it was played, so layers stay in time with each other however long they play.
-  A take longer than the loop layers over itself.
+- The first take, onto an empty timeline, sets the loop's length and the tempo.
+  It is taken to be a whole number of bars, the number that puts the tempo nearest the one that was set, and the tempo is then set to make it exactly that.
+  Nothing played is moved or cut.
+- Each later take (up to 6 layers) is folded onto that length at the point in the loop where it was played, so layers stay in time with each other however long they play.
+  A take longer than the loop becomes a layer for each time round.
+- A take with nothing played, or shorter than half a second, is dropped.
+- A loop keeps what it was played with: key, octave, sound, effects, and a slide played inside a held chord.
+  (Until the audio kernel gives each note its own sound, key and octave are heard and the rest is kept but not yet heard: every layer sounds through the sound and effects set now. A layer's arpeggiator is already its own.)
+- A play/stop chit stops every layer and starts them again from the top.
 - Each layer has a numbered chit: tap to silence it or bring it back (it rejoins in time).
   A trash chit after the layers switches them to deleting: while it is on, tapping a layer removes it.
   Holding the trash chit offers to clear every loop at once.
   Deleting every layer frees the length, so the next take sets a new one.
-- A first take shorter than half a second is dropped as an accidental double tap.
-- A loop holds the synth as it sounded when recorded, and the effects that were on when it was closed, so layers can differ in key, octave, sound and effects; loops are never re-recorded into later takes.
+- A sequence entered in the sequencer is one of the layers, and a recorded loop can be opened and edited there.
+  Recording a loop can be undone from the sequencer.
 
-How it keeps time: `LoopCapture` taps the synth mix and stamps every buffer with the engine's sample clock, so a take starts and ends at exact samples.
-`Looper` schedules every layer on one sample grid (cycles begin at an anchor, every loop-length frames) and `LoopMath` holds the arithmetic as pure functions.
-`LooperTests` runs the real looper in an offline engine and checks every rendered frame.
+How it keeps time: every layer's notes are ticks on one timeline, played by `TimelinePlayer` against the clock, each chord on its own tick.
+Layers cannot drift apart; how punctual each note is depends on the clock, which is a run-loop timer until the kernel takes sample times.
 
 ### 6.3 Mic Sample
 

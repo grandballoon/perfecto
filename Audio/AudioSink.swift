@@ -5,32 +5,21 @@ import SoundpipeAudioKit
 /// Sounds notes on a pool of `polyphony` SynthVoices.
 /// Signal chain:
 ///
-///     SynthVoices → synthMixer → BrightnessFilter ─┬→ EffectsChain ─┬→ dry ────────────┐
-///     MicSampler ──────────────────────────────────┘                └→ send ─┐         │
-///     Looper players → each track's EffectsChain ─┬→ dry ───────────────────────────────┼→ MasterBus → output
-///                                                 └→ send ───────────────────┴→ Reverb ─┘
+///     SynthVoices → synthMixer → BrightnessFilter ─┬→ EffectsChain ─┬→ dry ────────────┬→ MasterBus → output
+///     MicSampler ──────────────────────────────────┘                └→ send → Reverb ──┘
 ///
-/// The loopers record the filter's output (through one shared `LoopCapture`),
-/// so a loop holds what was played, as bright as it was played, and never the
-/// other loops. They record it
-/// before the effects, and each loop then plays through effects of its own,
-/// set as the live ones were set when it was closed (not as they were being
-/// played): later changes to the
-/// effects reach only what is played next, and a loop's reverb tail carries
-/// on across its seam. Everything shares one `SharedReverb`, so the room's size is
-/// the one set now, for loops too, and everything ends in the `MasterBus`,
-/// whose limiter keeps the sum from clipping.
+/// The keys and every layer of the timeline play on the same voices and
+/// through the same effects: a loop is notes, played again, not a recording.
+/// Everything ends in the `MasterBus`, whose limiter keeps the sum from
+/// clipping.
 @MainActor
-final class AudioSink: NoteSink, AudioEffects {
+final class AudioSink: NoteSink, EffectsControl {
 
     /// Voices in the pool: the most notes that can be held at once, by the
     /// keys and every layer of the timeline together. A note past this takes
     /// over the voice held longest (`audio_voice_stolen`). Released notes
     /// ring out on whatever voices are not needed yet.
     static let polyphony = 16
-
-    /// Layers the play-mode looper can hold.
-    static let quickLoopTrackCount = 6
 
     private let engine     = AudioEngine()
     private var voices:    [SynthVoice] = []
@@ -42,8 +31,6 @@ final class AudioSink: NoteSink, AudioEffects {
     private var master:    MasterBus!
     private let logger: (any Logger)?
 
-    private(set) var looper:       Looper!
-    private(set) var quickLooper:  Looper!
     private(set) var micSampler:   MicSampler!
 
     init(logger: (any Logger)? = nil) {
@@ -65,13 +52,10 @@ final class AudioSink: NoteSink, AudioEffects {
             synthMixer.addInput(voice.node)
         }
         filter       = BrightnessFilter(synthMixer)
-        let capture  = LoopCapture(source: filter.output)
-        looper       = Looper(capture: capture, trackCount: 2, logger: logger)
-        quickLooper  = Looper(capture: capture, trackCount: Self.quickLoopTrackCount, logger: logger)
         micSampler   = MicSampler(engine: engine)
         effects = EffectsChain(Mixer([filter.output, micSampler.outputMixer]))
-        reverb = SharedReverb([effects.reverbSend, looper.reverbSend, quickLooper.reverbSend])
-        master = MasterBus([effects.dry, looper.outputMixer, quickLooper.outputMixer, reverb.output])
+        reverb = SharedReverb([effects.reverbSend])
+        master = MasterBus([effects.dry, reverb.output])
         engine.output = master.output
 
         do {
@@ -124,7 +108,6 @@ final class AudioSink: NoteSink, AudioEffects {
                 try? configureSession()
                 try? engine.start()
                 logger?.log(.audio_engine_started)
-                loopersDidRestart()
             }
         }
     }
@@ -145,13 +128,12 @@ final class AudioSink: NoteSink, AudioEffects {
             mode: .default,
             options: Self.sessionOptions
         )
-        // Small render cycles keep the delay from touch to sound, and from
-        // closing a loop to hearing it come round, to a few milliseconds.
+        // Small render cycles keep the delay from touch to sound to a few
+        // milliseconds.
         try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(Self.ioBufferDuration)
         try AVAudioSession.sharedInstance().setActive(true)
         // Re-sync Settings.sampleRate in case engine.start() reset it.
-        // The primary sync happens before node creation in init(); this keeps
-        // NodeRecorder and AudioPlayer aligned across engine restarts too.
+        // The primary sync happens before node creation in init().
         Settings.sampleRate = AVAudioSession.sharedInstance().sampleRate
         logger?.log(.audio_session_activated(
             category: "playAndRecord",
@@ -168,16 +150,10 @@ final class AudioSink: NoteSink, AudioEffects {
             try engine.start()
             try configureSession()
             logger?.log(.audio_engine_started)
-            loopersDidRestart()
         } catch {
             logger?.log(.audio_engine_failed(message: error.localizedDescription))
             print("[AudioSink] route-change restart error: \(error)")
         }
-    }
-
-    private func loopersDidRestart() {
-        looper.engineDidRestart()
-        quickLooper.engineDidRestart()
     }
 
     func noteOn(_ id: NoteID, note: Int) {
@@ -209,10 +185,5 @@ final class AudioSink: NoteSink, AudioEffects {
     func setReverb(_ settings: ReverbSettings) {
         effects.apply(settings)
         reverb.apply(settings)
-    }
-
-    func setLoopEffects(_ effects: SoundEffects) {
-        looper.liveEffects = effects
-        quickLooper.liveEffects = effects
     }
 }

@@ -6,16 +6,14 @@ import Testing
 struct EffectsStateTests {
 
     /// Records the settings the audio layer was handed.
-    private final class RecordingAudioEffects: AudioEffects {
+    private final class RecordingAudioEffects: EffectsControl {
         private(set) var chorus: [ChorusSettings] = []
         private(set) var reverb: [ReverbSettings] = []
         private(set) var filter: [FilterSettings] = []
-        private(set) var loopEffects: [SoundEffects] = []
         func setFilter(_ settings: FilterSettings) { filter.append(settings) }
-        func setLoopEffects(_ effects: SoundEffects) { loopEffects.append(effects) }
         func setChorus(_ settings: ChorusSettings) { chorus.append(settings) }
         func setReverb(_ settings: ReverbSettings) { reverb.append(settings) }
-        func reset() { chorus = []; reverb = []; filter = []; loopEffects = [] }
+        func reset() { chorus = []; reverb = []; filter = [] }
     }
 
     private func makeState() -> (EffectsState, RecordingAudioEffects, RecordingLogger) {
@@ -174,17 +172,32 @@ struct EffectsStateTests {
         #expect(audio.reverb.last?.mix == 0.9)
     }
 
-    /// A loop keeps the chorus and reverb that were set, not the ones a
-    /// finger happened to be playing when it closed.
-    @Test func loopsAreGivenTheEffectsAsSet() {
-        let (effects, audio, _) = makeState()
+    /// The effects can be read both ways: as set, which a note of the
+    /// timeline follows, and as played, which a loop being recorded keeps.
+    @Test func theEffectsCanBeReadAsSetAndAsPlayed() {
+        let (effects, _, _) = makeState()
         effects.reverb = ReverbSettings(isOn: true, mix: 0.3, size: 0.4, followsSlide: true)
         effects.slide = 0.9
-        effects.chorus.isOn = true
 
-        #expect(audio.loopEffects.count == 2)
-        #expect(audio.loopEffects.last == SoundEffects(chorus: effects.chorus, reverb: effects.reverb))
-        #expect(audio.loopEffects.last?.reverb.mix == 0.3)
+        #expect(effects.asSet.reverb.mix == 0.3)
+        #expect(effects.asPlayed.reverb.mix == 0.9)
+        #expect(effects.asPlayed.chorus == effects.asSet.chorus)
+    }
+
+    /// Whatever follows the effects is told when they change: as set only
+    /// by a setting, as played by the slide too.
+    @Test func changesAreToldToWhoeverFollowsTheEffects() {
+        let (effects, _, _) = makeState()
+        var set = 0, played = 0
+        effects.onSetChange = { set += 1 }
+        effects.onPlayedChange = { played += 1 }
+
+        effects.filter.isOn = true
+        #expect(set == 1 && played == 1)
+        effects.slide = 0.4
+        #expect(set == 1 && played == 2)
+        effects.filter.isOn = true                   // no change
+        #expect(set == 1 && played == 2)
     }
 
     // MARK: – Key zones
@@ -304,13 +317,13 @@ struct EffectsStateTests {
         #expect(zones.edges == [0.25, 0.5, 0.75])
     }
 
-    /// A loop keeps the effects as set, not the ones a zone was holding on.
-    @Test func loopsAreNotGivenWhatAZoneHolds() {
-        let (effects, audio, _) = makeState()
+    /// What a zone holds on is how the effects are played, not how they are set.
+    @Test func whatAZoneHoldsIsPlayedNotSet() {
+        let (effects, _, _) = makeState()
         effects.zones = KeyZoneSettings(isOn: true, zones: [KeyZone(effect: .reverb, value: 1), KeyZone()])
         effects.slide = 0.1
-        effects.chorus.rate = 0.9
-        #expect(audio.loopEffects.last?.reverb == ReverbSettings())
+        #expect(effects.asSet.reverb == ReverbSettings())
+        #expect(effects.asPlayed.reverb.isOn && effects.asPlayed.reverb.mix == 1)
     }
 
     @Test func onlyTheZonesSwitchIsLogged() {

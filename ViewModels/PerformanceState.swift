@@ -95,13 +95,9 @@ final class PerformanceState {
     private(set) var activeVoicingText = "—"
 
     let sequencerState: SequencerState
-    let looperState     = LooperState()
     let micSampleState  = MicSampleState()
     let quickLoopState: QuickLoopState
     let effects: EffectsState
-
-    var looper:      Looper? { engine?.looper }
-    var quickLooper: Looper? { engine?.quickLooper }
 
     private let sink:   any ChordEventSink
     /// Hears the chord that is held, whole (ChordLink).
@@ -128,9 +124,12 @@ final class PerformanceState {
     /// `layerSink` makes a sink for each layer of the timeline, so layers
     /// sound together: production passes a new `NotePlayer` on the same note
     /// sinks each time. Without one, layers share `sink`.
+    /// `sequencer` is the app's sequencer and its saved timeline; tests pass
+    /// one with a store of its own.
     init(sink: any ChordEventSink,
          chordListener: (any ChordEventSink)? = nil,
          layerSink: (() -> any ChordEventSink)? = nil,
+         sequencer: SequencerState? = nil,
          engine: AudioSink? = nil,
          effectsListener: (any EffectsControl)? = nil,
          clock: (any ClockTickable)? = nil,
@@ -146,10 +145,9 @@ final class PerformanceState {
         self.logger       = logger
         self.effects      = EffectsState(arpeggiator: arpeggiator, audio: engine,
                                          effectsListener: effectsListener, logger: logger)
-        self.sequencerState = SequencerState(logger: logger)
+        self.sequencerState = sequencer ?? SequencerState(logger: logger)
         self.micGate      = micGate ?? NoopPermissionGate()
-        self.quickLoopState = QuickLoopState(looper: engine?.quickLooper)
-        self.quickLoopState.onWillStopRecording = { [weak self] in self?.endChord() }
+        self.quickLoopState = QuickLoopState(logger: logger)
         self.clock.bpm = bpm
         self.timelinePlayer = TimelinePlayer(live: liveSettings, clock: clock) { [weak self] layer in
             LayerVoice(sink: self?.layerSink() ?? CompositeSink([]), clock: clock) { chord in
@@ -160,6 +158,8 @@ final class PerformanceState {
             guard let self else { return }
             timelinePlayer?.live = liveSettings
         }
+        self.effects.onPlayedChange = { [weak self] in self?.quickLoopState.effectsChanged() }
+        self.quickLoopState.host = self
         attach(sequencerState)
         self.clock.onTick { [weak self] in
             guard let self else { return }
@@ -323,6 +323,7 @@ final class PerformanceState {
     /// this reaches MIDI and ChordLink, not just audio.)
     func stopSounding() {
         sink.stopChord()
+        quickLoopState.chordEnded()
     }
 
     func endChord() {
@@ -330,6 +331,7 @@ final class PerformanceState {
         activeDegree = nil
         activeVoicingText = "—"
         sink.stopChord()
+        quickLoopState.chordEnded()
         logger?.log(.chord_stopped(notes: notes, source: .button))
     }
 
@@ -342,7 +344,7 @@ final class PerformanceState {
         select(ChordSpec(degree: degree, color: color(for: degree)))
         let voicing = Voicing(notes: [leadPitch(key: key, octave: octave, degree: degree)])
         currentVoicing = voicing
-        sound(voicing, .block, source: .button)
+        sound(voicing, .block, pitch: .lead, source: .button)
     }
 
     // MARK: – Mic Sample mode actions (called from MicSampleView buttons)
@@ -374,7 +376,6 @@ final class PerformanceState {
         case .drone:     return DroneMode()
         case .repeat:    return RepeatMode()
         case .sequencer: return SequencerMode(sequencerState)
-        case .looper:    return LooperMode(looperState)
         case .micSample: return MicSampleMode(micSampleState, sampler: engine?.micSampler, gate: micGate)
         }
     }
@@ -442,10 +443,24 @@ final class PerformanceState {
         return voicing
     }
 
-    /// Sends `voicing` to every sink as part of the active chord.
-    private func sound(_ voicing: Voicing, _ articulation: Articulation, source: ChordSource) {
+    /// Sends `voicing` to every sink as part of the active chord. `pitch`
+    /// says what of the chord it is, for a loop being recorded.
+    private func sound(_ voicing: Voicing, _ articulation: Articulation, pitch: NotePitch = .chord,
+                       source: ChordSource) {
         guard let currentContext else { return }
-        sink.playChord(ChordEvent(voicing: voicing, articulation: articulation, context: currentContext))
+        let event = ChordEvent(voicing: voicing, articulation: articulation, context: currentContext)
+        sink.playChord(event)
+        quickLoopState.chordStarted(event, pitch: pitch)
         logger?.log(.chord_played(notes: voicing.notes, source: source))
+    }
+}
+
+extension PerformanceState: LoopHost {
+    var loopSequencer: SequencerState? { playingSequencer }
+
+    var clockBeats: Double { clock.beats }
+
+    var playedNow: NotePlaying {
+        NotePlaying(key: key, octave: octave, preset: synthPreset, effects: effects.asPlayed)
     }
 }

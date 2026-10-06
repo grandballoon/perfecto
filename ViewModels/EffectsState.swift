@@ -17,11 +17,15 @@ final class EffectsState {
     /// Called when an effect is set to something new (not when one is only
     /// played): whatever follows the settings as set reads them again.
     var onSetChange: (() -> Void)?
+    /// Called when how the effects are being played may have changed: a
+    /// setting, the slide, or the zone under the finger.
+    var onPlayedChange: (() -> Void)?
 
     var arpeggiator = ArpeggiatorSettings() {
         didSet {
             guard arpeggiator != oldValue else { return }
             onSetChange?()
+            onPlayedChange?()
             sendArpeggiator()
             logSwitch(.arpeggiator, from: oldValue.isOn, to: arpeggiator.isOn)
         }
@@ -31,6 +35,7 @@ final class EffectsState {
         didSet {
             guard filter != oldValue else { return }
             onSetChange?()
+            onPlayedChange?()
             sendFilter()
             logSwitch(.filter, from: oldValue.isOn, to: filter.isOn)
         }
@@ -40,8 +45,8 @@ final class EffectsState {
         didSet {
             guard chorus != oldValue else { return }
             onSetChange?()
+            onPlayedChange?()
             sendChorus()
-            sendLoopEffects()
             logSwitch(.chorus, from: oldValue.isOn, to: chorus.isOn)
         }
     }
@@ -50,8 +55,8 @@ final class EffectsState {
         didSet {
             guard reverb != oldValue else { return }
             onSetChange?()
+            onPlayedChange?()
             sendReverb()
-            sendLoopEffects()
             logSwitch(.reverb, from: oldValue.isOn, to: reverb.isOn)
         }
     }
@@ -80,12 +85,20 @@ final class EffectsState {
             for effect in EffectKind.allCases where follows(effect) || zoned.contains(effect) {
                 send(effect)
             }
+            onPlayedChange?()
         }
     }
 
     /// The key zone the finger playing the chord is in, counted from the
     /// bottom of the key; nil while the zones are off or no key is held.
     private(set) var zone: Int?
+
+    /// Every effect as it sounds now, the slide and the key zones applied:
+    /// what a chord played now is played with.
+    var asPlayed: NoteEffects {
+        NoteEffects(arpeggiator: played(arpeggiator), filter: played(filter),
+                    chorus: played(chorus), reverb: played(reverb))
+    }
 
     /// Every effect as set, whatever is being played: what a note of a
     /// timeline follows when it has no effects of its own.
@@ -96,19 +109,17 @@ final class EffectsState {
     var isAnyOn: Bool { arpeggiator.isOn || filter.isOn || chorus.isOn || reverb.isOn || zones.isOn }
 
     private let arpeggiatorSink: Arpeggiator
-    private let audio: (any AudioEffects)?
     private let controls: [any EffectsControl]
     private let logger: (any Logger)?
 
     /// Production: pass the AudioSink as `audio` and the MidiSink as
     /// `effectsListener`. Tests: omit them (nil → no audio, no MIDI).
     init(arpeggiator: Arpeggiator,
-         audio: (any AudioEffects)? = nil,
+         audio: (any EffectsControl)? = nil,
          effectsListener: (any EffectsControl)? = nil,
          logger: (any Logger)? = nil) {
         self.arpeggiatorSink = arpeggiator
-        self.audio = audio
-        self.controls = [audio as (any EffectsControl)?, effectsListener].compactMap { $0 }
+        self.controls = [audio, effectsListener].compactMap { $0 }
         self.logger = logger
     }
 
@@ -159,10 +170,6 @@ final class EffectsState {
     private func sendReverb() {
         let played = played(reverb)
         for control in controls { control.setReverb(played) }
-    }
-
-    private func sendLoopEffects() {
-        audio?.setLoopEffects(SoundEffects(chorus: chorus, reverb: reverb))
     }
 
     private func logSwitch(_ effect: EffectKind, from wasOn: Bool, to isOn: Bool) {

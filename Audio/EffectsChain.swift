@@ -7,10 +7,8 @@ import DunneAudioKit
 ///     input ─→ chorus ─┬─→ dry          (to the output)
 ///                      └─→ reverbSend   (to the shared `SharedReverb`)
 ///
-/// What is being played has one, and so has every loop track, so a loop
-/// keeps its own chorus, and its own share of the reverb, whatever is played
-/// over it. The reverb itself is shared: there is one room, and each chain
-/// says how much of its sound goes into it.
+/// Everything the app sounds passes through one. The reverb is a separate
+/// room (`SharedReverb`) that the chain sends into.
 ///
 /// The path is fixed. An effect that is off still runs, with none of the
 /// sound reaching it, so switching one on or off never rewires the graph
@@ -44,11 +42,6 @@ final class EffectsChain {
         sendMixer = Mixer(chorus)
         apply(ChorusSettings())
         apply(ReverbSettings())
-    }
-
-    func apply(_ effects: SoundEffects) {
-        apply(effects.chorus)
-        apply(effects.reverb)
     }
 
     func apply(_ settings: ChorusSettings) {

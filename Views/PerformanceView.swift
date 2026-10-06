@@ -73,10 +73,6 @@ struct PerformanceView: View {
                     .environment(state.sequencerState)
                     .padding(.top, 8)
                     .padding(.bottom, 40)
-            } else if state.mode.kind.surface == .looper {
-                LooperView()
-                    .environment(state.looperState)
-                    .padding(.top, 8)
             } else {
                 LoopBar()
                     .padding(.horizontal, 20)
@@ -124,13 +120,11 @@ struct PerformanceView: View {
                 .frame(width: geo.size.width, height: geo.size.height)
         } else {
         HStack(spacing: 0) {
-                let isFullScreenMode = state.mode.kind.surface == .looper
                 // With the horizontal chord row, the joystick bar stands
                 // upright along the leading edge so the row can take the
                 // width a half-screen bar would have used.
                 let barIsVertical = state.chordGridLayout == .horizontalBar
                     && state.colorSurface == .joystick
-                    && !isFullScreenMode
                 let leftW = barIsVertical
                     ? Self.edgeMargin + ColorSurfaceView.barThickness
                     : geo.size.width / 2
@@ -154,13 +148,11 @@ struct PerformanceView: View {
                     // function buttons in the right panel.
                     VStack(spacing: 8) {
                         Spacer(minLength: 0)
-                        if !isFullScreenMode {
-                            ColorSurfaceView()
-                                .environment(state)
-                                .frame(maxWidth: .infinity)
-                                .frame(maxHeight: state.colorSurface == .grid
-                                       ? .infinity : ColorSurfaceView.barThickness)
-                        }
+                        ColorSurfaceView()
+                            .environment(state)
+                            .frame(maxWidth: .infinity)
+                            .frame(maxHeight: state.colorSurface == .grid
+                                   ? .infinity : ColorSurfaceView.barThickness)
                     }
                     .padding(Self.edgeMargin)
                     .frame(width: leftW, height: panelH)
@@ -168,37 +160,32 @@ struct PerformanceView: View {
 
                 // Right panel: OLED + chord grid + function buttons
                 VStack(spacing: 0) {
-                    if state.mode.kind.surface == .looper {
-                        LooperView()
-                            .environment(state.looperState)
-                    } else {
-                        oledDisplay
+                    oledDisplay
+                        .padding(.bottom, 8)
+                    LoopBar()
+                        .padding(.bottom, 8)
+                    if state.mode.kind.surface == .micSample {
+                        MicSampleView()
+                            .environment(state)
+                            .padding(.horizontal, 16)
                             .padding(.bottom, 8)
-                        LoopBar()
-                            .padding(.bottom, 8)
-                        if state.mode.kind.surface == .micSample {
-                            MicSampleView()
-                                .environment(state)
-                                .padding(.horizontal, 16)
-                                .padding(.bottom, 8)
-                        }
-                        switch state.chordGridLayout {
-                        case .horizontalBar:
-                            ChordRowView()
-                                .environment(state)
-                                .frame(maxHeight: .infinity)
-                                .padding(.vertical, 8)
-                        case .circle:
-                            CircleChordGridView()
-                                .environment(state)
-                                .padding(.vertical, 8)
-                        case .grid:
-                            Spacer()
-                            chordGrid
-                            Spacer()
-                        }
-                        functionButtons
                     }
+                    switch state.chordGridLayout {
+                    case .horizontalBar:
+                        ChordRowView()
+                            .environment(state)
+                            .frame(maxHeight: .infinity)
+                            .padding(.vertical, 8)
+                    case .circle:
+                        CircleChordGridView()
+                            .environment(state)
+                            .padding(.vertical, 8)
+                    case .grid:
+                        Spacer()
+                        chordGrid
+                        Spacer()
+                    }
+                    functionButtons
                 }
                 .padding(Self.edgeMargin)
                 .frame(width: geo.size.width - leftW, height: panelH)

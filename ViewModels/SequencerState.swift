@@ -174,6 +174,7 @@ final class SequencerState {
     func undo() {
         guard let previous = undoStack.popLast() else { return }
         timeline = previous.timeline
+        showALayerThatExists()
         selectedSteps = previous.selectedSteps
         primaryStep = previous.primaryStep
         clampCursors()
@@ -248,6 +249,71 @@ final class SequencerState {
             }
         }
         return indices
+    }
+
+    // MARK: – Layers
+
+    /// Where the playhead is, in ticks from the start; nil while stopped.
+    var position: Int? { transport?.position }
+
+    /// Makes `notes` the whole sequence: one layer, `bars` long. For a first
+    /// loop recorded from the keys.
+    func startLoop(_ notes: [TimelineNote], bars: Int) {
+        snapshot()
+        var started = Timeline(signature: timeline.signature, barCount: max(bars, 1))
+        started.layers = [Layer(notes: notes)]
+        timeline = started
+        layerID = started.layers[0].id
+        selectedSteps = []
+        primaryStep = nil
+        clampCursors()
+        save()
+    }
+
+    /// Adds a layer for each of `layers`, a line of notes each. The first
+    /// of them takes the place of a layer that is still empty.
+    func addLayers(_ layers: [[TimelineNote]]) {
+        guard !layers.isEmpty else { return }
+        snapshot()
+        var edited = timeline
+        for notes in layers {
+            if let empty = edited.layers.firstIndex(where: \.notes.isEmpty) {
+                edited.layers[empty].notes = notes
+            } else {
+                edited.layers.append(Layer(notes: notes))
+            }
+        }
+        timeline = edited
+        save()
+    }
+
+    func setLayer(_ id: Layer.ID, muted: Bool) {
+        timeline.edit(layer: id) { $0.isMuted = muted }
+        save()
+    }
+
+    /// Removes a layer. The one on screen, if it goes, gives way to the first.
+    func removeLayer(_ id: Layer.ID) {
+        snapshot()
+        timeline.removeLayer(id)
+        showALayerThatExists()
+        save()
+    }
+
+    /// Empties the sequence back to one bar with nothing in it.
+    func removeAllLayers() {
+        guard !timeline.isEmpty else { return }
+        snapshot()
+        timeline = Timeline(signature: timeline.signature)
+        showALayerThatExists()
+        selectedSteps = []
+        primaryStep = nil
+        clampCursors()
+        save()
+    }
+
+    private func showALayerThatExists() {
+        if timeline.layer(layerID) == nil { layerID = timeline.layers[0].id }
     }
 
     // MARK: – Loop
