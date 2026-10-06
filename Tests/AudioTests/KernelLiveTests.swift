@@ -50,20 +50,4 @@ struct KernelLiveTests {
         sink.noteOn(NoteID.next(), note: 60, sound: NoteSound(), at: now)
         #expect(try await waitUntil(timeout: .seconds(2)) { peak.heard > 0.01 })
     }
-
-    @Test func experimentInputConnects() throws {
-        let engine = AVAudioEngine()
-        let made = KernelAudioUnit.makeNode()
-        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2)!
-        let source = AVAudioSourceNode(format: format) { _, _, _, _ in noErr }
-        engine.attach(source)
-        engine.attach(made.node)
-        print("EXPERIMENT inputs", made.node.numberOfInputs)
-        engine.connect(source, to: made.node, format: format)
-        engine.connect(made.node, to: engine.outputNode, format: format)
-        try engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: 256)
-        try engine.start()
-        let buffer = AVAudioPCMBuffer(pcmFormat: engine.manualRenderingFormat, frameCapacity: 256)!
-        print("EXPERIMENT status", try engine.renderOffline(256, to: buffer).rawValue, made.unit.time)
-    }
 }
