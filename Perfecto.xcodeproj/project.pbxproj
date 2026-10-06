@@ -18,6 +18,7 @@
 		E7F0000000000000000000A6 /* OfflineTone.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F0000000000000000000A5 /* OfflineTone.swift */; };
 		E7F000000000000000000093 /* DunneAudioKit in Frameworks */ = {isa = PBXBuildFile; productRef = E7F000000000000000000092 /* DunneAudioKit */; };
 		E7F000000000000000000016 /* EffectsChainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000015 /* EffectsChainTests.swift */; };
+		E8BB00E89A004CB877B8879F /* KernelAudioUnitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FB00E89A004CB877B8879F /* KernelAudioUnitTests.swift */; };
 		E8B28E3227FBD92ACF813DD6 /* VoiceAllocatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F28E3227FBD92ACF813DD6 /* VoiceAllocatorTests.swift */; };
 		E8BCF9DFD4C0DABB8BB27994 /* MasterBusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FCF9DFD4C0DABB8BB27994 /* MasterBusTests.swift */; };
 		E7F0000000000000000000A4 /* BrightnessFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F0000000000000000000A3 /* BrightnessFilterTests.swift */; };
@@ -25,6 +26,10 @@
 		E7F000000000000000000012 /* ArpeggiatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000011 /* ArpeggiatorTests.swift */; };
 		E7F000000000000000000008 /* EffectsState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000007 /* EffectsState.swift */; };
 		E7F000000000000000000006 /* EffectsChain.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000005 /* EffectsChain.swift */; };
+		E8B1BE3336A652BE1C722000 /* RenderGuard.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8F1BE3336A652BE1C722000 /* RenderGuard.cpp */; };
+		E8B58284663B94235A3982C9 /* Kernel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8F58284663B94235A3982C9 /* Kernel.cpp */; };
+		E8B5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm in Sources */ = {isa = PBXBuildFile; fileRef = E8F5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm */; };
+		E8BE8A78251193D9BD0E142D /* KernelAudioUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FE8A78251193D9BD0E142D /* KernelAudioUnit.swift */; };
 		E8B2A0AE0A179D25589B20F1 /* VoiceAllocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F2A0AE0A179D25589B20F1 /* VoiceAllocator.swift */; };
 		E8BF0267B2CE4205D25359B1 /* MasterBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FF0267B2CE4205D25359B1 /* MasterBus.swift */; };
 		E8BDB07604A24044BB230946 /* SharedReverb.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FDB07604A24044BB230946 /* SharedReverb.swift */; };
@@ -154,6 +159,7 @@
 		E7F000000000000000000081 /* WaitUntil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaitUntil.swift; sourceTree = "<group>"; };
 		E7F0000000000000000000A5 /* OfflineTone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineTone.swift; sourceTree = "<group>"; };
 		E7F000000000000000000015 /* EffectsChainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsChainTests.swift; sourceTree = "<group>"; };
+		E8FB00E89A004CB877B8879F /* KernelAudioUnitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KernelAudioUnitTests.swift; sourceTree = "<group>"; };
 		E8F28E3227FBD92ACF813DD6 /* VoiceAllocatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceAllocatorTests.swift; sourceTree = "<group>"; };
 		E8FCF9DFD4C0DABB8BB27994 /* MasterBusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterBusTests.swift; sourceTree = "<group>"; };
 		E7F0000000000000000000A3 /* BrightnessFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrightnessFilterTests.swift; sourceTree = "<group>"; };
@@ -161,6 +167,10 @@
 		E7F000000000000000000011 /* ArpeggiatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArpeggiatorTests.swift; sourceTree = "<group>"; };
 		E7F000000000000000000007 /* EffectsState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsState.swift; sourceTree = "<group>"; };
 		E7F000000000000000000005 /* EffectsChain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsChain.swift; sourceTree = "<group>"; };
+		E8F1BE3336A652BE1C722000 /* RenderGuard.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = RenderGuard.cpp; path = "../Perfecto/Sources/PerfectoKernel/RenderGuard.cpp"; sourceTree = "<group>"; };
+		E8F58284663B94235A3982C9 /* Kernel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Kernel.cpp; path = "../Perfecto/Sources/PerfectoKernel/Kernel.cpp"; sourceTree = "<group>"; };
+		E8F5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = PerfectoKernelHost.mm; path = "Kernel/PerfectoKernelHost.mm"; sourceTree = "<group>"; };
+		E8FE8A78251193D9BD0E142D /* KernelAudioUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KernelAudioUnit.swift; path = "Kernel/KernelAudioUnit.swift"; sourceTree = "<group>"; };
 		E8F2A0AE0A179D25589B20F1 /* VoiceAllocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceAllocator.swift; sourceTree = "<group>"; };
 		E8FF0267B2CE4205D25359B1 /* MasterBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterBus.swift; sourceTree = "<group>"; };
 		E8FDB07604A24044BB230946 /* SharedReverb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedReverb.swift; sourceTree = "<group>"; };
@@ -340,6 +350,10 @@
 			isa = PBXGroup;
 			children = (
 				E7F000000000000000000005 /* EffectsChain.swift */,
+				E8F1BE3336A652BE1C722000 /* RenderGuard.cpp */,
+				E8F58284663B94235A3982C9 /* Kernel.cpp */,
+				E8F5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm */,
+				E8FE8A78251193D9BD0E142D /* KernelAudioUnit.swift */,
 				E8F2A0AE0A179D25589B20F1 /* VoiceAllocator.swift */,
 				E8FF0267B2CE4205D25359B1 /* MasterBus.swift */,
 				E8FDB07604A24044BB230946 /* SharedReverb.swift */,
@@ -569,6 +583,7 @@
 			isa = PBXGroup;
 			children = (
 				E7F000000000000000000015 /* EffectsChainTests.swift */,
+				E8FB00E89A004CB877B8879F /* KernelAudioUnitTests.swift */,
 				E8F28E3227FBD92ACF813DD6 /* VoiceAllocatorTests.swift */,
 				E8FCF9DFD4C0DABB8BB27994 /* MasterBusTests.swift */,
 				E7F0000000000000000000A3 /* BrightnessFilterTests.swift */,
@@ -858,6 +873,10 @@
 				E7D000000000000000000A32 /* LoopBar.swift in Sources */,
 				E7F000000000000000000008 /* EffectsState.swift in Sources */,
 				E7F000000000000000000006 /* EffectsChain.swift in Sources */,
+				E8B1BE3336A652BE1C722000 /* RenderGuard.cpp in Sources */,
+				E8B58284663B94235A3982C9 /* Kernel.cpp in Sources */,
+				E8B5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm in Sources */,
+				E8BE8A78251193D9BD0E142D /* KernelAudioUnit.swift in Sources */,
 				E8B2A0AE0A179D25589B20F1 /* VoiceAllocator.swift in Sources */,
 				E8BF0267B2CE4205D25359B1 /* MasterBus.swift in Sources */,
 				E8BDB07604A24044BB230946 /* SharedReverb.swift in Sources */,
@@ -909,6 +928,7 @@
 				QQVT0000000000000000EEFF /* QuickLoopStateTests.swift in Sources */,
 				E7D000000000000000000B02 /* LoopMathTests.swift in Sources */,
 				E7F000000000000000000016 /* EffectsChainTests.swift in Sources */,
+				E8BB00E89A004CB877B8879F /* KernelAudioUnitTests.swift in Sources */,
 				E8B28E3227FBD92ACF813DD6 /* VoiceAllocatorTests.swift in Sources */,
 				E8BCF9DFD4C0DABB8BB27994 /* MasterBusTests.swift in Sources */,
 				E7F0000000000000000000A4 /* BrightnessFilterTests.swift in Sources */,
@@ -1000,6 +1020,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lukesovernconley.pocketchord;
 				SDKROOT = iphoneos;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -1086,6 +1109,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lukesovernconley.pocketchord;
 				SDKROOT = iphoneos;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -1103,6 +1129,9 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lukesovernconley.pocketchord.tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -1121,6 +1150,9 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lukesovernconley.pocketchord.tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;

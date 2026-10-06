@@ -1,0 +1,4 @@
+module PerfectoKernelHost {
+    header "PerfectoKernelHost.h"
+    export *
+}

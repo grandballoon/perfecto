@@ -17,5 +17,18 @@ let package = Package(
             dependencies: ["MusicTheoryCore"],
             path: "Tests/MusicTheoryCoreTests"
         ),
-    ]
+        // The audio kernel: portable C++ behind a C interface. Its tests are
+        // built to stop on any allocation made while rendering.
+        .target(
+            name: "PerfectoKernel",
+            path: "Sources/PerfectoKernel",
+            cxxSettings: [.define("PERFECTO_TRAP_ALLOCATIONS")]
+        ),
+        .testTarget(
+            name: "PerfectoKernelTests",
+            dependencies: ["PerfectoKernel"],
+            path: "Tests/PerfectoKernelTests"
+        ),
+    ],
+    cxxLanguageStandard: .cxx17
 )

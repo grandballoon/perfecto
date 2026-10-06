@@ -33,11 +33,12 @@ D is not rejected: hosting is goal 6 of the phase plan, and a kernel wrapped as 
 
 | Option | For | Against |
 |---|---|---|
-| **`AUAudioUnit` subclass in `AVAudioEngine`** | Apple's sample-accurate event queue and ramped parameter events; manual-rendering tests; one step from an AUv3. | More boilerplate than a render block (buses, formats, allocation hooks). |
+| **`AUAudioUnit` subclass in `AVAudioEngine`** | Manual-rendering tests; an input bus; one step from an AUv3. | More boilerplate than a render block (buses, formats, allocation hooks). |
 | `AVAudioSourceNode` render block | A dozen lines to host. | We write and own the lock-free event queue; no route to AUv3 without redoing it. |
 | Raw `AURemoteIO`, no `AVAudioEngine` | Fewest layers. | We reimplement input routing, format conversion and offline rendering for no audible gain. |
 
-**Verdict: `AUAudioUnit`.** The queue is the part most worth not writing.
+**Verdict: `AUAudioUnit`.**
+I first counted Apple's event queue in its favour; building the skeleton showed that queue carries MIDI, which has no room for a note's id or sound, so the kernel has a small lock-free queue of its own (about 80 lines, the same on every platform).
 It has an input bus from the start (E7), since a unit with an input is a different type from one without.
 
 ### E3. Kernel language
