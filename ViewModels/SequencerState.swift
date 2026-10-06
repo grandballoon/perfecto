@@ -61,15 +61,20 @@ final class SequencerState {
     /// sinks; without one the sequencer can be edited but not heard.
     private var transport: TimelinePlayer?
 
-    static let stepsPerBar = MusicalTime.stepsPerBar
+    /// Steps in a bar, which follows the time signature.
+    var stepsPerBar: Int { timeline.signature.stepsPerBar }
+    /// How the grid arranges the steps: rows of a beat, bar after bar.
+    var shape: StepGridShape { StepGridShape(timeline.signature) }
 
     var barCount: Int { timeline.barCount }
 
     /// The layer on screen.
     private var layer: Layer { timeline.layer(layerID) ?? Layer() }
 
-    /// The layer on screen, one step at a time, as the step editor sees it
-    /// (see `SequencerStep`). Setting it changes only the steps that differ.
+    /// The layer on screen, one step at a time (see `SequencerStep`): how
+    /// a pattern is written out for a test. Setting it changes only the
+    /// steps that differ. The screen edits notes instead (see "Editing the
+    /// selected notes").
     var steps: [SequencerStep] {
         get {
             let layer = layer
@@ -83,11 +88,6 @@ final class SequencerState {
                 }
             }
         }
-    }
-
-    /// One step of the layer on screen.
-    func step(_ index: Int) -> SequencerStep {
-        layer.step(index)
     }
 
     /// The steps playback repeats; empty means the whole pattern. It is
@@ -143,7 +143,7 @@ final class SequencerState {
         transport.onStep = { [weak self] step in
             guard let self, let step else { return }
             currentStep = step
-            focusedBar = step / Self.stepsPerBar
+            focusedBar = step / stepsPerBar
         }
         if isPlaying { transport.start() }
     }
@@ -222,36 +222,148 @@ final class SequencerState {
         primaryStep = primary
     }
 
-    /// Applies `edit` to every selected step and saves. The caller takes the
-    /// undo snapshot, so a continuous gesture can group many calls into one.
-    func editSelectedSteps(_ change: (inout SequencerStep) -> Void) {
+    // MARK: – Editing the selected notes
+    //
+    // An edit applies to the notes on the selected steps: every note the
+    // grid draws across one of them.
+
+    /// The selected steps as the layer's edits take them. A note played just
+    /// before the end is nearest a step line that is not there; the grid
+    /// draws it on the last step, so selecting that step selects it too.
+    private var editedSteps: Set<Int> { edited(selectedSteps) }
+
+    private func edited(_ steps: Set<Int>) -> Set<Int> {
+        let end = timeline.stepCount
+        return steps.contains(end - 1) ? steps.union([end]) : steps
+    }
+
+    /// The layer on screen as the grid draws it.
+    var chits: [NoteChit] { layer.chits(in: shape, stepCount: timeline.stepCount) }
+
+    /// The notes on the selected steps.
+    var selectedNotes: [TimelineNote] {
+        let layer = layer
+        return layer.indicesOfNotes(on: editedSteps).map { layer.notes[$0] }
+    }
+
+    /// The note the editor shows: the one on the step touched last.
+    var primaryNote: TimelineNote? {
+        guard let primaryStep else { return nil }
+        let layer = layer
+        return layer.note(on: primaryStep)
+            ?? (primaryStep == timeline.stepCount - 1 ? layer.note(on: primaryStep + 1) : nil)
+    }
+
+    /// Changes the chord of every selected note, and puts a chord on each
+    /// selected step that has none: what `change` makes of a plain I. The caller
+    /// takes the undo snapshot, so a continuous gesture is one undo step.
+    func editSelectedChords(_ change: (ChordSpec) -> ChordSpec) {
+        let steps = editedSteps
         let stepCount = timeline.stepCount
         edit { layer in
-            for index in selectedSteps.sorted() where index < stepCount {
-                var step = layer.step(index)
-                change(&step)
-                layer.setStep(index, to: step)
+            let empty = selectedSteps.filter {
+                $0 < stepCount && layer.indicesOfNotes(on: edited([$0])).isEmpty
             }
+            layer.edit(notesOn: steps) { $0.chord = change($0.chord) }
+            layer.place(change(ChordSpec(degree: .I, color: .base)), onSteps: empty)
         }
     }
 
-    /// All step indices inside the axis-aligned rectangle spanned by two
-    /// cells of the step grid. A straight drag yields a row or column run;
-    /// a diagonal drag selects the full block between its corners. Rows run on
-    /// through the bars, so global indices sweep across bar boundaries.
-    static func rectangle(from a: Int, to b: Int, columns: Int = 4) -> Set<Int> {
-        let (rowA, colA) = (a / columns, a % columns)
-        let (rowB, colB) = (b / columns, b % columns)
-        var indices = Set<Int>()
-        for row in min(rowA, rowB)...max(rowA, rowB) {
-            for col in min(colA, colB)...max(colA, colB) {
-                indices.insert(row * columns + col)
-            }
-        }
-        return indices
+    /// Makes the selected steps rests. A note held across more steps than
+    /// those keeps the rest of itself.
+    func restSelected() {
+        guard !selectedNotes.isEmpty else { return }
+        snapshot()
+        let steps = editedSteps
+        edit { $0.rest(onSteps: steps) }
+    }
+
+    /// Whether Join would change anything: two selected steps side by side
+    /// with a note to hold across them.
+    var canJoin: Bool {
+        var joined = layer
+        joined.join(steps: selectedSteps)
+        return joined != layer
+    }
+
+    /// Makes each run of selected steps one held note.
+    func joinSelected() {
+        guard canJoin else { return }
+        snapshot()
+        let steps = selectedSteps
+        edit { $0.join(steps: steps) }
+    }
+
+    /// Whether a selected note is held across more than one selected step's edge.
+    var canSplit: Bool {
+        var split = layer
+        split.split(steps: selectedSteps)
+        return split != layer
+    }
+
+    /// Cuts the selected notes at the edges of the selected steps.
+    func splitSelected() {
+        guard canSplit else { return }
+        snapshot()
+        let steps = selectedSteps
+        edit { $0.split(steps: steps) }
+    }
+
+    /// Whether a selected note was played off the grid's lines.
+    var canSnap: Bool {
+        selectedNotes.contains { !TimelineTime.isOnGrid($0.start) }
+    }
+
+    /// Moves the selected notes onto the grid's lines.
+    func snapSelected() {
+        guard canSnap else { return }
+        snapshot()
+        let (steps, limit) = (editedSteps, timeline.length)
+        edit { $0.snap(notesOn: steps, limit: limit) }
+    }
+
+    /// Makes the selected notes `steps` steps longer (shorter if negative).
+    func lengthenSelected(bySteps steps: Int) {
+        guard !selectedNotes.isEmpty else { return }
+        snapshot()
+        let (selected, limit) = (editedSteps, timeline.length)
+        edit { $0.lengthen(notesOn: selected, by: steps * TimelineTime.ticksPerStep, limit: limit) }
+    }
+
+    /// Sets how much of its last step each selected note sounds for. The
+    /// caller takes the undo snapshot, so one drag of a slider is one step.
+    func setGateOfSelected(_ gate: Double) {
+        let (selected, limit) = (editedSteps, timeline.length)
+        edit { $0.hold(notesOn: selected, forGate: gate, limit: limit) }
     }
 
     // MARK: – Layers
+
+    var layers: [Layer] { timeline.layers }
+
+    var canAddLayer: Bool { timeline.layers.count < Timeline.maxLayers }
+
+    /// Shows `id` in the grid, to be edited. The others play on.
+    func showLayer(_ id: Layer.ID) {
+        guard id != layerID, timeline.layer(id) != nil else { return }
+        layerID = id
+    }
+
+    /// Adds an empty layer and shows it.
+    func addLayer() {
+        guard canAddLayer else { return }
+        snapshot()
+        layerID = timeline.addLayer()
+        save()
+    }
+
+    /// Adds a copy of the layer on screen and shows it.
+    func duplicateLayer() {
+        guard canAddLayer else { return }
+        snapshot()
+        if let copy = timeline.duplicateLayer(layerID) { layerID = copy }
+        save()
+    }
 
     /// Where the playhead is, in ticks from the start; nil while stopped.
     var position: Int? { transport?.position }
@@ -359,7 +471,7 @@ final class SequencerState {
     func removeBar(_ bar: Int) {
         guard canRemoveBar, (0..<barCount).contains(bar) else { return }
         snapshot()
-        let removed = bar * Self.stepsPerBar ..< (bar + 1) * Self.stepsPerBar
+        let removed = shape.steps(ofBar: bar)
         /// Where a step index points after the removal; nil if it was removed.
         func moved(_ index: Int) -> Int? {
             if removed.contains(index) { return nil }
@@ -371,6 +483,57 @@ final class SequencerState {
         // A playhead inside the removed bar steps back to just before it.
         currentStep = moved(currentStep) ?? removed.lowerBound - 1
         if focusedBar > bar { focusedBar -= 1 }
+        clampCursors()
+        save()
+        logger?.log(.sequencer_bars_changed(barCount: barCount))
+    }
+
+    var canHalveBars: Bool { timeline.canHalveBars }
+
+    /// Reads the same notes as twice as many bars (see `Timeline.doubleBars`).
+    func doubleBars() {
+        changeBars { $0.doubleBars() }
+        deselectAfterScaling()
+    }
+
+    /// Reads the same notes as half as many bars.
+    func halveBars() {
+        guard canHalveBars else { return }
+        changeBars { $0.halveBars() }
+        deselectAfterScaling()
+    }
+
+    /// Doubling and halving move every note to another step, so what was
+    /// selected is no longer what the selection is on.
+    private func deselectAfterScaling() {
+        selectedSteps = []
+        primaryStep = nil
+    }
+
+    /// Whether there are empty bars at the end to drop.
+    var canTrimBars: Bool {
+        var trimmed = timeline
+        trimmed.trimEmptyBars()
+        return trimmed != timeline
+    }
+
+    /// Drops the empty bars at the end.
+    func trimEmptyBars() {
+        guard canTrimBars else { return }
+        changeBars { $0.trimEmptyBars() }
+    }
+
+    /// Changes the time signature. Every note stays where it is in time.
+    func setSignature(_ signature: TimeSignature) {
+        guard signature != timeline.signature else { return }
+        changeBars { $0.setSignature(signature) }
+        logger?.log(.sequencer_signature_changed(signature: signature.label))
+    }
+
+    /// A change to how the timeline is divided into bars.
+    private func changeBars(_ change: (inout Timeline) -> Void) {
+        snapshot()
+        change(&timeline)
         clampCursors()
         save()
         logger?.log(.sequencer_bars_changed(barCount: barCount))
@@ -419,9 +582,9 @@ final class SequencerState {
         guard let data = Self.stepStorageKeys.lazy.compactMap({ self.defaults.data(forKey: $0) }).first,
               let pattern = try? JSONDecoder().decode(SavedSteps.self, from: data),
               !pattern.steps.isEmpty,
-              pattern.steps.count.isMultiple(of: Self.stepsPerBar)
+              pattern.steps.count.isMultiple(of: MusicalTime.stepsPerBar)
         else { return nil }
-        var timeline = Timeline(barCount: pattern.steps.count / Self.stepsPerBar)
+        var timeline = Timeline(barCount: pattern.steps.count / MusicalTime.stepsPerBar)
         timeline.layers = [Layer(steps: pattern.steps)]
         timeline.setLoop(steps: Set(pattern.loopSteps ?? []).filter { $0 < pattern.steps.count })
         return timeline

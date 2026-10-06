@@ -5,25 +5,29 @@ import Foundation
 //
 // Places are steps of the grid (sixteenths, counted from the start of the
 // timeline), since that is what a finger selects. A note belongs to the step
-// its start falls in.
+// whose line its start is nearest (`TimelineNote.step`) and is on every step
+// it is drawn across (`TimelineNote.steps`), so what an edit changes is what
+// the grid shows selected.
 
 extension Layer {
 
     // MARK: – Reading
 
-    /// Where the note that starts in `step` is, if one does.
-    func indexOfNote(startingInStep step: Int) -> Int? {
-        notes.firstIndex { TimelineTime.step(at: $0.start) == step }
+    /// The notes on any of `steps`.
+    func indicesOfNotes(on steps: Set<Int>) -> [Int] {
+        notes.indices.filter { notes[$0].steps.contains(where: steps.contains) }
     }
 
-    /// Where the note sounding at `tick` is, if one is.
-    func indexOfNote(at tick: Int) -> Int? {
-        notes.firstIndex { $0.start <= tick && tick < $0.end }
+    /// The note on `step`, if there is one. Of two (both played loosely,
+    /// nearest the same line) it is the later.
+    func note(on step: Int) -> TimelineNote? {
+        notes.last { $0.steps.contains(step) }
     }
 
-    /// The notes that start in any of `steps`.
-    func indicesOfNotes(startingIn steps: Set<Int>) -> [Int] {
-        notes.indices.filter { steps.contains(TimelineTime.step(at: notes[$0].start)) }
+    /// How long the note at `index` may be: up to the next note's start, or
+    /// to `limit`, the end of the timeline.
+    private func room(for index: Int, limit: Int) -> Int {
+        max((index + 1 < notes.count ? notes[index + 1].start : limit) - notes[index].start, 1)
     }
 
     // MARK: – Notes
@@ -45,76 +49,103 @@ extension Layer {
         }
     }
 
-    /// Puts `chord` on each of `steps`, one note to a step, replacing what
-    /// was there. New notes take `playing` and sound for `gate` of the step.
+    /// Puts `chord` on each of `steps`, one note to a step, replacing the
+    /// note that was its. New notes take `playing` and sound for `gate` of
+    /// the step, or until the next note if that is sooner.
     mutating func place(_ chord: ChordSpec, onSteps steps: Set<Int>,
                         playing: NotePlaying = NotePlaying(),
                         gate: Double = TimelineNote.enteredGate) {
-        let length = max(1, Int((gate * Double(TimelineTime.ticksPerStep)).rounded()))
+        let length = min(max(1, Int((gate * Double(TimelineTime.ticksPerStep)).rounded())), TimelineTime.ticksPerStep)
         for step in steps.sorted() {
-            let ticks = TimelineTime.ticks(ofStep: step)
-            clear(ticks)
-            insert(TimelineNote(start: ticks.lowerBound, length: min(length, ticks.count),
-                                chord: chord, playing: playing))
+            let line = TimelineTime.line(ofStep: step)
+            notes.removeAll { $0.step == step }
+            let room = (notes.first { $0.start > line }?.start ?? .max) - line
+            insert(TimelineNote(start: line, length: min(length, room), chord: chord, playing: playing))
         }
     }
 
-    /// Empties `steps`.
+    /// Empties `steps`: a note drawn across more steps than these is cut at
+    /// their edges, and keeps what is outside them.
     mutating func rest(onSteps steps: Set<Int>) {
-        for step in steps { clear(TimelineTime.ticks(ofStep: step)) }
+        split(steps: steps)
+        notes.removeAll { steps.contains($0.step) }
     }
 
     /// Makes each run of neighbouring steps in `steps` one long note: the
-    /// first note in the run, held to the run's end. The run's other notes
-    /// go. A run with no note in it is left empty.
+    /// first note on the run, held to the run's end (or to the next note, if
+    /// one starts a little before that). The run's other notes go. A run
+    /// with no note on it is left empty.
     mutating func join(steps: Set<Int>) {
         for run in Self.runs(of: steps) {
-            let ticks = run.lowerBound * TimelineTime.ticksPerStep ..< run.upperBound * TimelineTime.ticksPerStep
-            guard let first = notes.first(where: { ticks.contains($0.start) }) else { continue }
-            notes.removeAll { ticks.contains($0.start) && $0.start != first.start }
-            guard let index = notes.firstIndex(where: { $0.start == first.start }) else { continue }
-            notes[index].length = ticks.upperBound - first.start
+            guard let first = notes.firstIndex(where: { $0.steps.overlaps(run) }) else { continue }
+            let start = notes[first].start
+            notes.removeAll { run.contains($0.step) && $0.start != start }
+            let held = max(TimelineTime.line(ofStep: run.upperBound) - start, notes[first].length)
+            notes[first].length = min(held, room(for: first, limit: .max))
         }
     }
 
-    /// Cuts every note sounding in `steps` at the step lines it crosses
-    /// there, so each selected step it covered has a note of its own.
+    /// Cuts every note on `steps` at the edges of each of them it is drawn
+    /// across, so each selected step it covered has a note of its own.
     mutating func split(steps: Set<Int>) {
-        for step in steps.sorted() {
-            let line = step * TimelineTime.ticksPerStep
-            guard let index = notes.firstIndex(where: { $0.start < line && $0.end > line }) else { continue }
-            var tail = notes[index]
-            tail.start = line
-            tail.length = notes[index].end - line
-            tail.changes = []
-            notes[index].length = line - notes[index].start
-            notes.insert(tail, at: index + 1)
+        for step in Set(steps.flatMap { [$0, $0 + 1] }).sorted() {
+            guard let index = notes.firstIndex(where: { $0.steps.contains(step - 1) && $0.steps.contains(step) })
+            else { continue }
+            cut(index, at: TimelineTime.line(ofStep: step))
         }
     }
 
-    /// Changes the length of the notes starting in `steps` by `ticks`
-    /// (shorter if negative). A note keeps at least one tick, and stops
-    /// where the next note starts or at `limit`, the end of the timeline.
-    mutating func lengthen(notesIn steps: Set<Int>, by ticks: Int, limit: Int) {
-        for index in indicesOfNotes(startingIn: steps) {
-            let room = (index + 1 < notes.count ? notes[index + 1].start : limit) - notes[index].start
-            notes[index].length = min(max(notes[index].length + ticks, 1), max(room, 1))
+    /// Cuts the note at `index` in two at `tick`, which is inside it. A
+    /// slide played across the cut carries on in the second note.
+    private mutating func cut(_ index: Int, at tick: Int) {
+        let offset = tick - notes[index].start
+        var tail = notes[index]
+        tail.start = tick
+        tail.length = notes[index].end - tick
+        if let before = tail.changes.last(where: { $0.offset < offset }) {
+            tail.playing.effects = before.effects
+        }
+        tail.changes = tail.changes.filter { $0.offset >= offset }.map {
+            SoundChange(offset: $0.offset - offset, effects: $0.effects)
+        }
+        notes[index].length = offset
+        notes[index].changes.removeAll { $0.offset >= offset }
+        notes.insert(tail, at: index + 1)
+    }
+
+    /// Changes the length of the notes on `steps` by `ticks` (shorter if
+    /// negative). A note keeps at least one tick, and stops where the next
+    /// note starts or at `limit`, the end of the timeline.
+    mutating func lengthen(notesOn steps: Set<Int>, by ticks: Int, limit: Int) {
+        for index in indicesOfNotes(on: steps) {
+            notes[index].length = min(max(notes[index].length + ticks, 1), room(for: index, limit: limit))
         }
     }
 
-    /// Moves the starts and ends of the notes starting in `steps` to the
-    /// nearest step lines: what tidies a loosely played loop. A note keeps
-    /// at least a step, and two notes that land on one step line keep the
-    /// later one.
-    mutating func snap(notesIn steps: Set<Int>, limit: Int) {
+    /// Sets how much of its last step each note on `steps` sounds for
+    /// (`gate`, 0 to 1), keeping the steps it is held across: what makes a
+    /// chord crisp or runs it into the next.
+    mutating func hold(notesOn steps: Set<Int>, forGate gate: Double, limit: Int) {
+        let step = TimelineTime.ticksPerStep
+        for index in indicesOfNotes(on: steps) {
+            let whole = notes[index].heldSteps - 1
+            let length = whole * step + max(1, Int((gate * Double(step)).rounded()))
+            notes[index].length = min(length, room(for: index, limit: limit))
+        }
+    }
+
+    /// Moves the starts and ends of the notes on `steps` to the nearest
+    /// step lines: what tidies a loosely played loop. A note keeps at least
+    /// a step, and two notes that land on one step line keep the later one.
+    mutating func snap(notesOn steps: Set<Int>, limit: Int) {
         let step = TimelineTime.ticksPerStep
         var snapped: [TimelineNote] = []
-        for (index, note) in notes.enumerated() {
-            guard steps.contains(TimelineTime.step(at: note.start)) else {
+        for note in notes {
+            guard note.steps.contains(where: steps.contains) else {
                 snapped.append(note)
                 continue
             }
-            var moved = notes[index]
+            var moved = note
             moved.start = min(TimelineTime.nearestStepLine(to: note.start), max(limit - step, 0))
             moved.length = max(TimelineTime.nearestStepLine(to: note.end) - moved.start, step)
             snapped.append(moved)
@@ -127,9 +158,9 @@ extension Layer {
         }
     }
 
-    /// Changes the notes starting in `steps`.
-    mutating func edit(notesIn steps: Set<Int>, _ change: (inout TimelineNote) -> Void) {
-        for index in indicesOfNotes(startingIn: steps) {
+    /// Changes the notes on `steps`.
+    mutating func edit(notesOn steps: Set<Int>, _ change: (inout TimelineNote) -> Void) {
+        for index in indicesOfNotes(on: steps) {
             let (start, length) = (notes[index].start, notes[index].length)
             change(&notes[index])
             // Where a note is and how long is for the edits above to say.

@@ -199,7 +199,7 @@ struct SequencerMidiRendererTests {
     /// A note with a key of its own is written in that key.
     @Test func aNotesOwnKeyIsExported() {
         var own = timeline([step(.I)])
-        own.layers[0].edit(notesIn: [0]) { $0.playing.key = Key(root: .D, scale: .major) }
+        own.layers[0].edit(notesOn: [0]) { $0.playing.key = Key(root: .D, scale: .major) }
         let file = SequencerMidiRenderer.render(SequencerPattern(timeline: own, live: live(cMajor), bpm: 120))
         #expect(spans(file).map(\.note) == [62, 66, 69])
     }

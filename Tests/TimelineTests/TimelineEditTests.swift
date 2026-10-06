@@ -86,12 +86,63 @@ struct TimelineEditTests {
         #expect(shape(layer) == [[0, 2, 1], [4, 1, 5]])
     }
 
-    /// A note played loosely belongs to the step its start falls in.
-    @Test func aNoteOffTheGridBelongsToTheStepItStartsIn() {
-        var layer = Layer(notes: [TimelineNote(start: 130, length: 200, chord: I)])
-        #expect(layer.indexOfNote(startingInStep: 1) == 0)
-        #expect(layer.indexOfNote(startingInStep: 2) == nil)
-        #expect(!layer.notes[0].isOnGrid)
+    /// A note held across more steps than are rested keeps the others.
+    @Test func restingTheMiddleOfALongNoteLeavesItsEnds() {
+        var layer = Layer(notes: [note(I, step: 0, steps: 4)])
+        layer.rest(onSteps: [1])
+        #expect(shape(layer) == [[0, 1, 1], [2, 2, 1]])
+    }
+
+    // MARK: – Notes off the grid
+
+    /// A chord played a little early or late is on the step it was meant
+    /// for: the one whose line its start is nearest.
+    @Test func aNoteBelongsToTheStepItsStartIsNearest() {
+        let early = TimelineNote(start: 110, length: 100, chord: I)       // just before step 1
+        let late = TimelineNote(start: 130, length: 200, chord: I)        // just after it
+        #expect(early.step == 1 && late.step == 1)
+        #expect(early.steps == 1..<2)
+        #expect(late.steps == 1..<3)                                      // ends at 330, nearest line 360
+        #expect(!late.isOnGrid)
+
+        let layer = Layer(notes: [early])
+        #expect(layer.note(on: 1) == early)
+        #expect(layer.note(on: 0) == nil)
+        #expect(layer.indicesOfNotes(on: [0]).isEmpty)
+    }
+
+    /// A long note is on every step it is drawn across, so any of them selects it.
+    @Test func aLongNoteIsOnEveryStepItIsHeldAcross() {
+        let layer = Layer(notes: [note(I, step: 2, steps: 3), note(IV, step: 6)])
+        #expect(layer.indicesOfNotes(on: [4]) == [0])
+        #expect(layer.indicesOfNotes(on: [5]).isEmpty)
+        #expect(layer.indicesOfNotes(on: [3, 6]) == [0, 1])
+    }
+
+    @Test func aChordEnteredOnAStepIsOnThatStepHoweverCrisp() {
+        var layer = Layer()
+        layer.place(I, onSteps: [3], gate: 0.1)
+        #expect(layer.notes[0].steps == 3..<4)
+        #expect(layer.notes[0].heldSteps == 1)
+        #expect(layer.notes[0].gate == 0.1)
+    }
+
+    /// Placing on a step replaces the note that is its, even one that
+    /// starts a little before the step's line, and leaves the next step's
+    /// note alone though it starts inside this step.
+    @Test func placingOnAStepLeavesTheNeighboursPlayedEarly() {
+        var layer = Layer(notes: [TimelineNote(start: 110, length: 60, chord: I),      // step 1's, early
+                                  TimelineNote(start: 200, length: 100, chord: IV)])   // step 2's, early
+        layer.place(V, onSteps: [1], gate: 1)
+        #expect(layer.notes.map(\.chord) == [V, IV])
+        #expect(layer.notes[0].start == 120 && layer.notes[0].end == 200)
+        #expect(isOrdered(layer))
+    }
+
+    @Test func restingRemovesANotePlayedOffTheGrid() {
+        var layer = Layer(notes: [TimelineNote(start: 110, length: 100, chord: I)])
+        layer.rest(onSteps: [0])
+        #expect(layer.notes.count == 1)
         layer.rest(onSteps: [1])
         #expect(layer.notes.isEmpty)
     }
@@ -124,8 +175,52 @@ struct TimelineEditTests {
 
     @Test func splittingCutsALongNoteAtTheSelectedStepLines() {
         var layer = Layer(notes: [note(I, step: 0, steps: 4)])
-        layer.split(steps: [1, 2])
+        layer.split(steps: [1])
         #expect(shape(layer) == [[0, 1, 1], [1, 1, 1], [2, 2, 1]])
+        layer.split(steps: [2, 3])
+        #expect(shape(layer) == [[0, 1, 1], [1, 1, 1], [2, 1, 1], [3, 1, 1]])
+        #expect(isOrdered(layer))
+    }
+
+    /// A note that only just sounds into the next step is not drawn on it,
+    /// and is not cut there: the cut would leave a sliver.
+    @Test func splittingLeavesANoteThatIsOnOneStepWhole() {
+        let whole = Layer(notes: [TimelineNote(start: 0, length: 150, chord: I)])
+        var layer = whole
+        layer.split(steps: [0, 1])
+        #expect(layer == whole)
+    }
+
+    /// A slide played across a cut carries on in the second note.
+    @Test func splittingKeepsASlideOnBothSidesOfTheCut() {
+        var bright = NoteEffects()
+        bright.reverb.mix = 0.9
+        var brighter = bright
+        brighter.reverb.mix = 1
+        var held = note(I, step: 0, steps: 4)
+        held.changes = [SoundChange(offset: 60, effects: bright), SoundChange(offset: 300, effects: brighter)]
+        var layer = Layer(notes: [held])
+        layer.split(steps: [2])                                           // cuts at 240 and 360
+        #expect(layer.notes.map(\.start) == [0, 240, 360])
+        #expect(layer.notes[0].changes == [SoundChange(offset: 60, effects: bright)])
+        #expect(layer.notes[1].playing.effects == bright)
+        #expect(layer.notes[1].changes == [SoundChange(offset: 60, effects: brighter)])
+        #expect(layer.notes[2].playing.effects == brighter)
+        #expect(layer.notes[2].changes.isEmpty)
+    }
+
+    /// Joining inside a note already held past the selection does not shorten it.
+    @Test func joiningNeverShortensANote() {
+        var layer = Layer(notes: [note(I, step: 0, steps: 4)])
+        layer.join(steps: [0, 1])
+        #expect(shape(layer) == [[0, 4, 1]])
+    }
+
+    /// A long note reaching into the run is the one held on.
+    @Test func joiningHoldsANoteThatReachesIntoTheRun() {
+        var layer = Layer(notes: [note(I, step: 0, steps: 3), note(IV, step: 3), note(V, step: 5)])
+        layer.join(steps: [2, 3, 4])
+        #expect(shape(layer) == [[0, 5, 1], [5, 1, 5]])
         #expect(isOrdered(layer))
     }
 
@@ -141,23 +236,35 @@ struct TimelineEditTests {
 
     @Test func aNoteIsLengthenedUpToTheNextNoteAndNoFurther() {
         var layer = Layer(notes: [note(I, step: 0), note(IV, step: 3)])
-        layer.lengthen(notesIn: [0], by: Self.step, limit: 1920)
+        layer.lengthen(notesOn: [0], by: Self.step, limit: 1920)
         #expect(layer.notes[0].length == 2 * Self.step)
-        layer.lengthen(notesIn: [0], by: 10 * Self.step, limit: 1920)
+        layer.lengthen(notesOn: [0], by: 10 * Self.step, limit: 1920)
         #expect(layer.notes[0].length == 3 * Self.step)
         #expect(isOrdered(layer))
     }
 
     @Test func theLastNoteStopsAtTheEndOfTheTimeline() {
         var layer = Layer(notes: [note(I, step: 14)])
-        layer.lengthen(notesIn: [14], by: 100 * Self.step, limit: 1920)
+        layer.lengthen(notesOn: [14], by: 100 * Self.step, limit: 1920)
         #expect(layer.notes[0].end == 1920)
     }
 
     @Test func aNoteKeepsAtLeastATick() {
         var layer = Layer(notes: [note(I, step: 0)])
-        layer.lengthen(notesIn: [0], by: -10_000, limit: 1920)
+        layer.lengthen(notesOn: [0], by: -10_000, limit: 1920)
         #expect(layer.notes[0].length == 1)
+    }
+
+    /// The gate is how much of its last step a note sounds for; setting it
+    /// keeps the steps the note is held across.
+    @Test func theGateChangesOnlyTheLastStepOfANote() {
+        var layer = Layer(notes: [note(I, step: 0, steps: 3), note(IV, step: 4)])
+        layer.hold(notesOn: [1, 4], forGate: 0.5, limit: 1920)
+        #expect(layer.notes.map(\.length) == [300, 60])
+        #expect(layer.notes.map(\.heldSteps) == [3, 1])
+        #expect(layer.notes.map(\.gate) == [0.5, 0.5])
+        layer.hold(notesOn: [0], forGate: 1, limit: 1920)
+        #expect(layer.notes[0].length == 360 && layer.notes[0].gate == 1)
     }
 
     // MARK: – Snapping
@@ -168,7 +275,7 @@ struct TimelineEditTests {
             TimelineNote(start: 10, length: 220, chord: I),          // 10...230 → 0...240
             TimelineNote(start: 470, length: 130, chord: IV),        // 470...600 → 480...600
         ])
-        layer.snap(notesIn: [0, 3], limit: 1920)
+        layer.snap(notesOn: [0, 4], limit: 1920)
         #expect(layer.notes.map(\.start) == [0, 480])
         #expect(layer.notes.map(\.length) == [240, 120])
         #expect(layer.notes.allSatisfy { $0.isOnGrid })
@@ -176,7 +283,7 @@ struct TimelineEditTests {
 
     @Test func aVeryShortNoteSnapsToAWholeStep() {
         var layer = Layer(notes: [TimelineNote(start: 125, length: 5, chord: I)])
-        layer.snap(notesIn: [1], limit: 1920)
+        layer.snap(notesOn: [1], limit: 1920)
         #expect(layer.notes[0].start == 120 && layer.notes[0].length == 120)
     }
 
@@ -186,7 +293,7 @@ struct TimelineEditTests {
             TimelineNote(start: 135, length: 60, chord: IV),          // both nearest to step line 120
             TimelineNote(start: 1900, length: 15, chord: V),          // nearest line is the very end
         ])
-        layer.snap(notesIn: [0, 1, 15], limit: 1920)
+        layer.snap(notesOn: [1, 16], limit: 1920)
         #expect(isOrdered(layer))
         #expect(layer.notes.allSatisfy { $0.end <= 1920 })
         #expect(layer.notes.map(\.chord) == [IV, V])
@@ -195,7 +302,7 @@ struct TimelineEditTests {
     @Test func notesThatAreNotSelectedAreNotSnapped() {
         var layer = Layer(notes: [TimelineNote(start: 10, length: 100, chord: I),
                                   TimelineNote(start: 490, length: 100, chord: IV)])
-        layer.snap(notesIn: [0], limit: 1920)
+        layer.snap(notesOn: [0], limit: 1920)
         #expect(layer.notes.map(\.start) == [0, 490])
     }
 
@@ -204,7 +311,7 @@ struct TimelineEditTests {
     @Test func aNotesOwnKeyIsSetWithoutMovingOrChangingItsChord() {
         var layer = Layer(notes: [note(I, step: 0), note(IV, step: 1)])
         let key = Key(root: .D, scale: .major)
-        layer.edit(notesIn: [1]) {
+        layer.edit(notesOn: [1]) {
             $0.playing.key = key
             $0.start = 999                               // not this edit's to change
         }

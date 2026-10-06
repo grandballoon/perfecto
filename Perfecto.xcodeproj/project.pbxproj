@@ -89,6 +89,7 @@
 		E8BD17E5F1BA786921BB086C /* ClockSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FD17E5F1BA786921BB086C /* ClockSchedule.swift */; };
 		AA1122334455667788990022 /* SequencerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788990011 /* SequencerState.swift */; };
 		E8BA9A025B399D56E86FF75D /* SequencerStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FA9A025B399D56E86FF75D /* SequencerStep.swift */; };
+		E8BBDC620105080C3191572C /* StepGridShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FBDC620105080C3191572C /* StepGridShape.swift */; };
 		AA1122334455667788992222 /* MicSampleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1122334455667788992211 /* MicSampleState.swift */; };
 		B17AC0436D40104FDE716EB7 /* DroneMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4215305547173D822A94E9E /* DroneMode.swift */; };
 		BB1122334455667788990022 /* SequencerMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1122334455667788990011 /* SequencerMode.swift */; };
@@ -148,7 +149,9 @@
 		EE2200000000000000001106 /* MicrophonePermissionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2200000000000000001107 /* MicrophonePermissionTests.swift */; };
 		QQVT0000000000000000EEFF /* QuickLoopStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = QQVT0000000000000000CCDD /* QuickLoopStateTests.swift */; };
 		E7C000000000000000000006 /* StepGridGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C000000000000000000005 /* StepGridGeometryTests.swift */; };
+		E8BB924ACF1DB7791C4292DA /* StepGridShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FB924ACF1DB7791C4292DA /* StepGridShapeTests.swift */; };
 		D5E9A4000000000000000B01 /* SequencerBarsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E9A4000000000000000F01 /* SequencerBarsTests.swift */; };
+		E8B2E0700B4425144A8EFD07 /* SequencerEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F2E0700B4425144A8EFD07 /* SequencerEditingTests.swift */; };
 		E80000000000000000000B01 /* SequencerViewBarRemovalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000000000000000000F01 /* SequencerViewBarRemovalTests.swift */; };
 		D5E9A3000000000000000B01 /* SequencerSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E9A3000000000000000F01 /* SequencerSelectionTests.swift */; };
 /* End PBXBuildFile section */
@@ -227,6 +230,7 @@
 		9F4140BFCA3796161814B49C /* PitchClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchClass.swift; sourceTree = "<group>"; };
 		AA1122334455667788990011 /* SequencerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerState.swift; sourceTree = "<group>"; };
 		E8FA9A025B399D56E86FF75D /* SequencerStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerStep.swift; sourceTree = "<group>"; };
+		E8FBDC620105080C3191572C /* StepGridShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepGridShape.swift; sourceTree = "<group>"; };
 		AA1122334455667788992211 /* MicSampleState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicSampleState.swift; sourceTree = "<group>"; };
 		AC8D5F00AFB5D9E9D9BD5F4A /* AudioSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSink.swift; sourceTree = "<group>"; };
 		B4215305547173D822A94E9E /* DroneMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DroneMode.swift; sourceTree = "<group>"; };
@@ -295,7 +299,9 @@
 		EE2200000000000000001107 /* MicrophonePermissionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophonePermissionTests.swift; sourceTree = "<group>"; };
 		QQVT0000000000000000CCDD /* QuickLoopStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLoopStateTests.swift; sourceTree = "<group>"; };
 		E7C000000000000000000005 /* StepGridGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepGridGeometryTests.swift; sourceTree = "<group>"; };
+		E8FB924ACF1DB7791C4292DA /* StepGridShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepGridShapeTests.swift; sourceTree = "<group>"; };
 		D5E9A4000000000000000F01 /* SequencerBarsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerBarsTests.swift; sourceTree = "<group>"; };
+		E8F2E0700B4425144A8EFD07 /* SequencerEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerEditingTests.swift; sourceTree = "<group>"; };
 		E80000000000000000000F01 /* SequencerViewBarRemovalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerViewBarRemovalTests.swift; sourceTree = "<group>"; };
 		D5E9A3000000000000000F01 /* SequencerSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerSelectionTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -387,6 +393,7 @@
 				AA1122334455667788992211 /* MicSampleState.swift */,
 				AA1122334455667788990011 /* SequencerState.swift */,
 				E8FA9A025B399D56E86FF75D /* SequencerStep.swift */,
+				E8FBDC620105080C3191572C /* StepGridShape.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -611,7 +618,9 @@
 				E7E000000000000000000009 /* SidePanelStateTests.swift */,
 				QQVT0000000000000000CCDD /* QuickLoopStateTests.swift */,
 				D5E9A4000000000000000F01 /* SequencerBarsTests.swift */,
+				E8F2E0700B4425144A8EFD07 /* SequencerEditingTests.swift */,
 				E7C000000000000000000005 /* StepGridGeometryTests.swift */,
+				E8FB924ACF1DB7791C4292DA /* StepGridShapeTests.swift */,
 				D5E9A3000000000000000F01 /* SequencerSelectionTests.swift */,
 			);
 			path = ViewModelTests;
@@ -876,6 +885,7 @@
 				CD21C8E808BBC02B7BFFD963 /* Scale.swift in Sources */,
 				AA1122334455667788990022 /* SequencerState.swift in Sources */,
 				E8BA9A025B399D56E86FF75D /* SequencerStep.swift in Sources */,
+				E8BBDC620105080C3191572C /* StepGridShape.swift in Sources */,
 				BB1122334455667788990022 /* SequencerMode.swift in Sources */,
 				CC1122334455667788990022 /* SequencerView.swift in Sources */,
 				E7C000000000000000000004 /* StepGridGeometry.swift in Sources */,
@@ -958,8 +968,10 @@
 				E7F000000000000000000012 /* ArpeggiatorTests.swift in Sources */,
 				E7D000000000000000000B12 /* SynthPresetTests.swift in Sources */,
 				D5E9A4000000000000000B01 /* SequencerBarsTests.swift in Sources */,
+				E8B2E0700B4425144A8EFD07 /* SequencerEditingTests.swift in Sources */,
 				E80000000000000000000B01 /* SequencerViewBarRemovalTests.swift in Sources */,
 				E7C000000000000000000006 /* StepGridGeometryTests.swift in Sources */,
+				E8BB924ACF1DB7791C4292DA /* StepGridShapeTests.swift in Sources */,
 				D5E9A3000000000000000B01 /* SequencerSelectionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

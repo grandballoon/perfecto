@@ -63,11 +63,39 @@ struct StepGridGeometryTests {
         #expect(column.step(at: CGPoint(x: -5, y: 60), bars: 3) == nil)
     }
 
+    /// A note's chit runs from its first cell to its last, gutters included.
+    @Test func aChitSpansItsCells() {
+        #expect(page.frame(of: 5..<6) == CGRect(x: 81, y: 51, width: 75, height: 45))
+        #expect(page.frame(of: 5..<8) == CGRect(x: 81, y: 51, width: 237, height: 45))
+        // The second bar's cells are placed from its own top.
+        #expect(page.frame(of: 16..<18) == CGRect(x: 0, y: 0, width: 156, height: 45))
+    }
+
+    /// 7/8 is rows of 4, 4, 4 and 2 steps: the bar is four rows high, and a
+    /// touch beside the short row lands on its last step.
+    @Test func aShortLastRowIsStillARow() {
+        let seven = StepGridGeometry(shape: StepGridShape(TimeSignature(beats: 7, unit: .eighth)),
+                                     width: 318, cellHeight: 45)
+        #expect(seven.barHeight == 198)
+        #expect(seven.frame(of: 12..<14) == CGRect(x: 0, y: 153, width: 156, height: 45))
+        #expect(seven.step(nearest: CGPoint(x: 310, y: 190), bars: 2) == 13)
+        #expect(seven.step(nearest: CGPoint(x: 310, y: 198 + 10), bars: 2) == 17)
+    }
+
+    /// Six steps to a row where eighths go in threes.
+    @Test func compoundTimeHasSixColumns() {
+        let six = StepGridGeometry(shape: StepGridShape(TimeSignature(beats: 6, unit: .eighth)),
+                                   width: 318, cellHeight: 45)
+        #expect(six.cellWidth == 48)
+        #expect(six.barHeight == 96)
+        #expect(six.step(nearest: CGPoint(x: 310, y: 60), bars: 1) == 11)
+    }
+
     /// A sweep's rectangle is taken between global indices, so one that
     /// crosses a bar boundary selects the rows on both sides of it.
     @Test func aSweepAcrossBarsSelectsTheRowsBetween() {
         let from = column.step(nearest: CGPoint(x: 10, y: 190), bars: 2)    // bar 0, last row
         let to = column.step(nearest: CGPoint(x: 100, y: 270), bars: 2)     // bar 1, first row
-        #expect(SequencerState.rectangle(from: from, to: to) == [12, 13, 16, 17])
+        #expect(column.shape.rectangle(from: from, to: to) == [12, 13, 16, 17])
     }
 }

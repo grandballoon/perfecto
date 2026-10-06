@@ -13,9 +13,20 @@ enum TimelineTime {
         Int((Double(tick) / Double(ticksPerStep)).rounded(.down))
     }
 
+    /// The step whose line `tick` is nearest: the one a note starting there
+    /// is drawn on, so a chord played a little early or late is on its beat.
+    static func step(nearest tick: Int) -> Int {
+        Int((Double(tick) / Double(ticksPerStep)).rounded())
+    }
+
     /// The step line nearest `tick`, as a tick.
     static func nearestStepLine(to tick: Int) -> Int {
-        Int((Double(tick) / Double(ticksPerStep)).rounded()) * ticksPerStep
+        step(nearest: tick) * ticksPerStep
+    }
+
+    /// Where step `step` begins, as a tick.
+    static func line(ofStep step: Int) -> Int {
+        step * ticksPerStep
     }
 
     /// The ticks step `step` covers.

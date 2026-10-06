@@ -59,6 +59,8 @@ enum LogEvent {
 
     // Sequencer
     case sequencer_bars_changed(barCount: Int)
+    /// `signature` as written on a score: "6/8".
+    case sequencer_signature_changed(signature: String)
     /// `stepCount` 0 means the whole pattern loops.
     case sequencer_loop_changed(stepCount: Int)
 
@@ -187,6 +189,9 @@ extension LogEvent: Encodable {
         case let .sequencer_bars_changed(barCount):
             try c.encode("sequencer_bars_changed", forKey: Key("type"))
             try c.encode(barCount, forKey: Key("barCount"))
+        case let .sequencer_signature_changed(signature):
+            try c.encode("sequencer_signature_changed", forKey: Key("type"))
+            try c.encode(signature, forKey: Key("signature"))
         case let .sequencer_loop_changed(stepCount):
             try c.encode("sequencer_loop_changed", forKey: Key("type"))
             try c.encode(stepCount, forKey: Key("stepCount"))

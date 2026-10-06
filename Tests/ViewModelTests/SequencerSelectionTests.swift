@@ -138,15 +138,12 @@ struct SequencerSelectionTests {
         #expect(!state.canUndo)
     }
 
-    @Test func editSelectedStepsAppliesToEveryStepAcrossBars() {
+    @Test func aChordEditAppliesToEverySelectedStepAcrossBars() {
         let state = emptySelection()
         state.addBar()
         state.toggleStepSelection(3)
         state.toggleStepSelection(20)   // on the second bar
-        state.editSelectedSteps {
-            $0.degree = .vi
-            $0.isRest = false
-        }
+        state.editSelectedChords { ChordSpec(degree: .vi, color: $0.color) }
         #expect(state.steps[3].degree == .vi)
         #expect(state.steps[20].degree == .vi)
         #expect(state.steps[4].isRest)
@@ -179,23 +176,23 @@ struct SequencerSelectionTests {
     // MARK: – Rectangle geometry (4-column grid)
 
     @Test func rectangleAcrossRowSelectsRowRun() {
-        #expect(SequencerState.rectangle(from: 4, to: 7) == [4, 5, 6, 7])
+        #expect(StepGridShape().rectangle(from: 4, to: 7) == [4, 5, 6, 7])
     }
 
     @Test func rectangleDownColumnSelectsColumnRun() {
-        #expect(SequencerState.rectangle(from: 1, to: 13) == [1, 5, 9, 13])
+        #expect(StepGridShape().rectangle(from: 1, to: 13) == [1, 5, 9, 13])
     }
 
     @Test func rectangleDiagonalSelectsFullBlock() {
-        #expect(SequencerState.rectangle(from: 0, to: 10) == [0, 1, 2, 4, 5, 6, 8, 9, 10])
+        #expect(StepGridShape().rectangle(from: 0, to: 10) == [0, 1, 2, 4, 5, 6, 8, 9, 10])
     }
 
     @Test func rectangleIsCornerOrderIndependent() {
-        #expect(SequencerState.rectangle(from: 10, to: 0) ==
-                SequencerState.rectangle(from: 0, to: 10))
+        #expect(StepGridShape().rectangle(from: 10, to: 0) ==
+                StepGridShape().rectangle(from: 0, to: 10))
     }
 
     @Test func rectangleOfSingleCellIsThatCell() {
-        #expect(SequencerState.rectangle(from: 6, to: 6) == [6])
+        #expect(StepGridShape().rectangle(from: 6, to: 6) == [6])
     }
 }

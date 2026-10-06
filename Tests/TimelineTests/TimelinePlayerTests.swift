@@ -201,7 +201,7 @@ struct TimelinePlayerTests {
         let rig = Rig(timeline([note(.I, step: 0, steps: 8)]), live: live, clock: clock)
         rig.player.start()
         advance(steps: 2)
-        rig.player.timeline.layers[0].lengthen(notesIn: [0], by: -4 * Self.step, limit: 1920)
+        rig.player.timeline.layers[0].lengthen(notesOn: [0], by: -4 * Self.step, limit: 1920)
         #expect(rig.voices[0].stopCount == 0)
         advance(steps: 2.01)
         #expect(rig.voices[0].stopCount == 1)

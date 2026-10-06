@@ -11,6 +11,10 @@ struct Timeline: Equatable, Codable, Sendable {
     /// The stretch of time that repeats, in ticks; nil repeats all of it.
     var loop: Range<Int>?
 
+    /// The most layers a timeline is given: what can be told apart by ear
+    /// and reached from the loop bar.
+    static let maxLayers = 6
+
     /// The timeline's length in ticks.
     var length: Int { barCount * signature.ticksPerBar }
 
@@ -72,6 +76,25 @@ struct TimelineNote: Equatable, Codable, Sendable {
 
     /// Whether the note starts and ends on step lines.
     var isOnGrid: Bool { TimelineTime.isOnGrid(start) && TimelineTime.isOnGrid(end) }
+
+    /// The step the note belongs to: the one whose line its start is
+    /// nearest. It is drawn from there and edited through it.
+    var step: Int { TimelineTime.step(nearest: start) }
+
+    /// The steps the note is drawn across: from its own to the step line
+    /// nearest its end, and at least the one.
+    var steps: Range<Int> { step ..< max(step + 1, TimelineTime.step(nearest: end)) }
+
+    /// The steps it is held across, counting a part of one as one: a chord
+    /// entered on a step is 1 however crisp, and two tied steps are 2.
+    var heldSteps: Int {
+        max(1, Int((Double(length) / Double(TimelineTime.ticksPerStep)).rounded(.up)))
+    }
+
+    /// How much of the last of those steps it sounds for, above 0 and up to 1.
+    var gate: Double {
+        Double(length - (heldSteps - 1) * TimelineTime.ticksPerStep) / Double(TimelineTime.ticksPerStep)
+    }
 }
 
 /// What of its chord a note sounds.

@@ -1,6 +1,6 @@
 # Sequencer spec: one timeline for sequences and loops
 
-> **Status (2026-10-06): parts A to D of section 8 are built; E and F (the screen) are not.**
+> **Status (2026-10-06): parts A to E of section 8 are built; E awaits review on a device, and F (entry from the keys, a note's own settings) is not built.**
 > This is step 5 of [audio-engine-spec.md](audio-engine-spec.md), and it answers [../sequencer.md](../sequencer.md), which states what is wanted.
 > It replaces sections 6.1, 6.2 and 6.2.1 of [../spec.md](../spec.md) as each part lands.
 
@@ -24,6 +24,7 @@ Looper mode is removed.
 Decided on 2026-10-06:
 
 1. **The editor stays a grid of chits.** A chord spans as many chits as it lasts, drawn as one wide chit. One layer is shown at a time, chosen from layer tabs. A note that does not sit on the grid is drawn at its nearest step with a mark.
+   A note belongs to that nearest step for editing too, and is on every step it is drawn across, so selecting any step of a wide chit selects the note.
 2. **The first loop sets the tempo.** A loop recorded with no sequence yet is taken to be a whole number of bars, choosing the count that puts the tempo nearest the current one, and the tempo is set to match. Nothing played is moved or cut. The bar count can be halved or doubled afterwards.
 3. **Looper mode is removed**, with its screen and state. Mute and volume belong to layers.
 4. **Time signatures are in the first version**: one for the whole timeline. Triplets, swing, and signatures that change mid-sequence are not.
@@ -108,10 +109,10 @@ Every edit is a pure function from a timeline to a timeline, so each is tested w
 | Edit | What it does |
 |---|---|
 | Place | Puts a chord on the selected steps, one note per step, replacing what was there |
-| Join / split | Makes the selected steps one long note; cuts a note at the step lines it crosses |
-| Length | Lengthens or shortens a note by a step, or finely; "gate" is this |
+| Join / split | Makes each run of selected steps one long note (never a shorter one); cuts a note at the edges of the selected steps it is drawn across |
+| Length | Lengthens or shortens a note by a step; the gate sets how much of its last step it sounds for |
 | Snap | Moves starts and ends to the nearest step line, for a loosely played loop |
-| Rest | Removes the notes on the selected steps |
+| Rest | Empties the selected steps; a note held across more steps than those keeps the rest of itself |
 | Set playing | Sets or clears a note's own key, octave, sound or effects |
 | Replace | Swaps a note's chord for one played on the keys, keeping its time |
 | Bars | Adds a bar at the end; removes a bar, moving later notes up; trims empty bars from the end |
@@ -204,7 +205,7 @@ Each part leaves the app working.
 | B | ~~`TimelinePlayer`, and the sequencer's playback moved onto it behind today's screen~~ (done). The screen still edits one layer a step at a time, through `SequencerStep`, which reads a long note as tied steps. `SequencerMode` is only the screen now; it still stops playback on the way out, until Play mode has the loop bar to stop it from (part D). | The sequencer's tests pass against the timeline |
 | C | ~~The MIDI export reads `compile`~~ (done): every unmuted layer is a track, in the timeline's signature | Export tests pass; the renderer's own timing rules are gone |
 | D | ~~Loops as layers: the recorder, tempo from the first loop, the loop bar on layers. Audio loopers and Looper mode deleted~~ (done). A voice to each layer; the sequence plays on under Play mode, with a play/stop chit in the loop bar; a new sequence is empty | A loop recorded in Play mode plays as notes and appears in the sequencer |
-| E | The screen: stretched chits, layer tabs, join/split/length/snap, signatures, bars | On-device review |
+| E | ~~The screen: stretched chits, layer tabs, join/split/length/snap, signatures, bars~~ (built, not yet seen on a device). Double and halve change the tempo to match, so the notes sound as they did. `SequencerStep` is left only as the old saved format and a way to write a pattern in a test | On-device review |
 | F | Entry from the keys (step entry, replace), and a note's own key, octave, sound and effects | On-device review |
 
 ## 9. Open questions

@@ -1,10 +1,11 @@
-/// One step of a layer as the step editor sees and edits it: the chord on
-/// it, how much of the step it sounds for, or a rest.
+/// One sixteenth of a pattern as it was saved before there was a timeline:
+/// the chord on it, how much of the step it sounds for, or a rest. A saved
+/// pattern of these is read into a layer once (`SequencerState.load`).
 ///
-/// A layer holds notes of any length; this is the view of it one step at a
-/// time. A step a long note runs through reads as that chord, tied (its
-/// gate full), and writing a tied step beside the same chord makes one long
-/// note of the two, so tying steps and holding a chord are the same thing.
+/// It is also a layer read one step at a time, for notes on the grid: a step
+/// a long note runs through reads as that chord, tied (its gate full), and
+/// writing a tied step beside the same chord makes one long note of the two.
+/// The screen does not edit through it; it edits notes (`TimelineEdits`).
 struct SequencerStep: Codable, Equatable {
     var degree: Degree = .I
     var color: ChordColor = .base
@@ -30,7 +31,7 @@ extension Layer {
         for (index, step) in steps.enumerated() { setStep(index, to: step) }
     }
 
-    /// Step `index` as the step editor sees it.
+    /// Step `index` of a layer whose notes are on the grid.
     func step(_ index: Int) -> SequencerStep {
         let ticks = TimelineTime.ticks(ofStep: index)
         // The note that starts in the step, or else one running through it.
@@ -50,7 +51,7 @@ extension Layer {
         let before = notes.first { $0.start < ticks.upperBound && $0.end > ticks.lowerBound }
         // Cut a long note free at both of the step's lines, so only this
         // step changes.
-        split(steps: [index, index + 1])
+        split(steps: [index])
         clear(ticks)
         guard !step.isRest else { return }
 

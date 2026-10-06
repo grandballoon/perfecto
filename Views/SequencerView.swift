@@ -30,6 +30,7 @@ struct SequencerView: View {
     private var portraitBody: some View {
         VStack(spacing: 12) {
             transportBar
+            layerTabs
             SequencerStepGrid()
             barControls
             // Portrait: no surrounding box, and the coloration bar matches
@@ -50,6 +51,7 @@ struct SequencerView: View {
         HStack(spacing: 12) {
             // Left: roomy step editor filling the freed half.
             VStack(spacing: 10) {
+                layerTabs
                 barControls
                 stepEditorPanel(boxed: true, colorBarHeight: 72)
             }
@@ -271,6 +273,7 @@ struct SequencerView: View {
                 Spacer(minLength: 0)
             }
             addBarButton
+            barsMenu
 
             Rectangle().fill(Color(white: 0.2)).frame(width: 1, height: 18)
 
@@ -342,6 +345,101 @@ struct SequencerView: View {
         .accessibilityLabel(label)
     }
 
+    /// The time signature, and the changes to how the notes are counted
+    /// into bars: the same notes read as twice or half as many (with the
+    /// tempo changed to match, so they sound as they did), and the empty
+    /// bars at the end dropped.
+    private var barsMenu: some View {
+        Menu {
+            Picker("Time signature", selection: Binding(
+                get: { seqState.timeline.signature },
+                set: { seqState.setSignature($0) }
+            )) {
+                ForEach(TimeSignature.offered, id: \.self) { Text($0.label).tag($0) }
+            }
+            Divider()
+            Button("Double the bars") { scaleBars(by: 2) }
+                .disabled(!canScaleBars(by: 2))
+            Button("Halve the bars") { scaleBars(by: 0.5) }
+                .disabled(!canScaleBars(by: 0.5))
+            Button("Trim empty bars") { seqState.trimEmptyBars() }
+                .disabled(!seqState.canTrimBars)
+        } label: {
+            Text(seqState.timeline.signature.label)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color(white: 0.6))
+                .padding(.horizontal, 8)
+                .frame(height: 29)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.13)))
+        }
+        .accessibilityLabel("Time signature and bars")
+    }
+
+    /// Whether the notes can be read as `factor` times as many bars at
+    /// `factor` times the tempo.
+    private func canScaleBars(by factor: Double) -> Bool {
+        MusicalTime.tempoRange.contains(perfState.bpm * factor) && (factor > 1 || seqState.canHalveBars)
+    }
+
+    private func scaleBars(by factor: Double) {
+        guard canScaleBars(by: factor) else { return }
+        if factor > 1 { seqState.doubleBars() } else { seqState.halveBars() }
+        perfState.setBPM(perfState.bpm * factor)
+    }
+
+    // MARK: – Layers
+
+    /// One tab per layer, and a plus. The layer chosen is the one the grid
+    /// shows and the editor changes; the others play on. The menu at the end
+    /// acts on the layer chosen.
+    private var layerTabs: some View {
+        HStack(spacing: 8) {
+            fieldLabel("LAYER")
+            ForEach(Array(seqState.layers.enumerated()), id: \.element.id) { index, layer in
+                layerTab(index, layer)
+            }
+            barCountButton("plus", label: "Add layer") { seqState.addLayer() }
+                .disabled(!seqState.canAddLayer)
+                .opacity(seqState.canAddLayer ? 1 : 0.4)
+            Spacer(minLength: 0)
+            layerMenu
+        }
+    }
+
+    private func layerTab(_ index: Int, _ layer: Layer) -> some View {
+        let on = seqState.layerID == layer.id
+        return Button { seqState.showLayer(layer.id) } label: {
+            Text("\(index + 1)")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .strikethrough(layer.isMuted)
+                .foregroundStyle(on ? .black : Color(white: layer.isMuted ? 0.35 : 0.6))
+                .frame(minWidth: 26)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 6)
+                    .fill(on ? Color.orange : Color(white: 0.13)))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Layer \(index + 1)" + (layer.isMuted ? ", muted" : ""))
+    }
+
+    private var layerMenu: some View {
+        let layer = seqState.layers.first { $0.id == seqState.layerID }
+        let isMuted = layer?.isMuted ?? false
+        return Menu {
+            Button(isMuted ? "Unmute" : "Mute") { seqState.setLayer(seqState.layerID, muted: !isMuted) }
+            Button("Duplicate") { seqState.duplicateLayer() }
+                .disabled(!seqState.canAddLayer)
+            Button("Delete", role: .destructive) { seqState.removeLayer(seqState.layerID) }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color(white: 0.6))
+                .frame(width: 30, height: 29)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.13)))
+        }
+        .accessibilityLabel("Layer actions")
+    }
+
     /// ALL repeats the whole pattern; SEL captures the selected steps as the
     /// loop. Tapping SEL again with a different selection moves the loop there.
     private var loopToggle: some View {
@@ -396,7 +494,7 @@ struct SequencerView: View {
     private func stepEditorPanel(boxed: Bool, colorBarHeight: CGFloat) -> some View {
         // The editor displays the most recently touched step and applies every
         // edit to all selected steps at once.
-        let primary = seqState.primaryStep.map(seqState.step)
+        let primary = seqState.primaryNote
         // The grid needs a row per mode, so it is taller than the strip.
         let surfaceHeight: CGFloat = perfState.colorSurface == .grid
             ? (boxed ? 168 : ColorSurfaceView.portraitHeight(.grid))
@@ -404,18 +502,19 @@ struct SequencerView: View {
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 12) {
-                restButton(primary)
-                gateControl
+                restButton
+                gateControl(primary)
                 undoButton
             }
+            noteControls
 
             // Chord-degree (scale-number) ring — the same circular layout as the
             // Play-mode chord ring, filling the free space above the coloration
-            // bar. It edits the selected step's `degree`; nothing is highlighted
-            // while the step is a rest.
+            // bar. It sets the degree of the selected notes, and puts a chord on
+            // a selected step that has none; nothing is highlighted on a rest.
             DegreeRingView(
-                key: perfState.key,
-                selected: (primary?.isRest ?? true) ? nil : primary?.degree,
+                key: primary?.playing.key ?? perfState.key,
+                selected: primary?.chord.degree,
                 onChange: { degree in
                     guard !seqState.selectedSteps.isEmpty else { return }
                     // One undo snapshot per drag: take it on the first change,
@@ -424,10 +523,7 @@ struct SequencerView: View {
                         seqState.snapshot()
                         stepDegreeEditActive = true
                     }
-                    seqState.editSelectedSteps {
-                        $0.degree = degree
-                        $0.isRest = false
-                    }
+                    seqState.editSelectedChords { ChordSpec(degree: degree, color: $0.color) }
                 },
                 onEnd: { stepDegreeEditActive = false }
             )
@@ -446,7 +542,7 @@ struct SequencerView: View {
                 case .joystick:
                     stepColorBar
                 case .grid:
-                    stepColorGrid(degree: primary.flatMap { $0.isRest ? nil : $0.degree } ?? .I)
+                    stepColorGrid(degree: primary?.chord.degree ?? .I)
                 }
             }
             .frame(height: surfaceHeight)
@@ -489,12 +585,10 @@ struct SequencerView: View {
                     stepColorEditActive = true
                 }
                 stepColorTransient = direction
-                seqState.editSelectedSteps {
-                    // Use the mode the labels were drawn from, so playback
-                    // and the step's coloration indicator match what the bar
-                    // showed.
-                    $0.color = .joystick(perfState.joystickMode, direction)
-                    $0.isRest = false
+                // Use the mode the labels were drawn from, so playback and
+                // the note's coloration tag match what the bar showed.
+                seqState.editSelectedChords {
+                    ChordSpec(degree: $0.degree, color: .joystick(perfState.joystickMode, direction))
                 }
             },
             onEnd: {
@@ -519,9 +613,9 @@ struct SequencerView: View {
                 }
                 stepGridTransient = position
                 let key = perfState.key
-                seqState.editSelectedSteps {
-                    $0.color = ChordGrid.color(at: position, key: key, degree: $0.degree)
-                    $0.isRest = false
+                seqState.editSelectedChords {
+                    ChordSpec(degree: $0.degree,
+                              color: ChordGrid.color(at: position, key: key, degree: $0.degree))
                 }
             },
             onEnd: {
@@ -531,55 +625,76 @@ struct SequencerView: View {
         )
     }
 
-    // MARK: – Rest / Gate (apply to every selected step)
+    // MARK: – Rest / length (apply to every selected note)
 
-    private func restButton(_ primary: SequencerStep?) -> some View {
-        let on = primary?.isRest ?? false
-        return Button {
-            seqState.snapshot()
-            seqState.editSelectedSteps { $0.isRest = !on }
-        } label: {
-            Text("REST")
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                .foregroundStyle(on ? Color.black : Color(white: 0.7))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 7)
-                    .fill(on ? Color.orange : Color(white: 0.12)))
-        }
-        .buttonStyle(.plain)
-        .disabled(seqState.selectedSteps.isEmpty)
+    private var hasSelectedNotes: Bool { !seqState.selectedNotes.isEmpty }
+
+    /// Makes the selected steps rests.
+    private var restButton: some View {
+        editButton("REST", enabled: hasSelectedNotes) { seqState.restSelected() }
     }
 
-    /// Gate of the primary step, or the default when nothing is selected.
-    private var primaryGate: Double {
-        seqState.primaryStep.map { seqState.step($0).gate } ?? SequencerStep().gate
-    }
-
-    private var gateControl: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(gateLabel(primaryGate))
+    /// How much of its last step the note sounds for. The steps it is held
+    /// across are changed by the buttons under it.
+    private func gateControl(_ primary: TimelineNote?) -> some View {
+        let gate = primary?.gate ?? TimelineNote.enteredGate
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(lengthLabel(primary))
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(Color(white: 0.4))
             Slider(value: Binding(
-                get: { primaryGate },
-                set: { gate in seqState.editSelectedSteps { $0.gate = gate } }
+                get: { gate },
+                set: { seqState.setGateOfSelected($0) }
             ), in: 0.1...1.0, onEditingChanged: { editing in
                 if editing { seqState.snapshot() }
             })
             .tint(.orange)
         }
         .frame(maxWidth: .infinity)
-        .disabled(seqState.selectedSteps.isEmpty)
+        .disabled(!hasSelectedNotes)
     }
 
-    /// Gate read-out names the audible behavior, matching the prototype:
-    /// crisp at the bottom, tied/legato at the very top.
-    private func gateLabel(_ gate: Double) -> String {
-        let pct = Int(gate * 100)
-        if gate >= SequencerStep.tieThreshold { return "Gate \(pct)% · tie" }
-        if gate <= 0.30 { return "Gate \(pct)% · staccato" }
-        return "Gate \(pct)%"
+    /// The length read-out names the audible behavior: crisp at the bottom
+    /// of the slider, running into the next chord at the very top.
+    private func lengthLabel(_ note: TimelineNote?) -> String {
+        guard let note else { return "Length" }
+        let steps = Double(note.length) / Double(TimelineTime.ticksPerStep)
+        let length = "Length \(steps.formatted(.number.precision(.fractionLength(0...2))))"
+        if note.gate >= 1 { return length + " · held" }
+        if note.gate <= 0.30 { return length + " · staccato" }
+        return length
+    }
+
+    /// The edits that change how notes sit on the steps: one held note from
+    /// the selected steps or a note for each of them, a step longer or
+    /// shorter, and onto the grid's lines.
+    private var noteControls: some View {
+        HStack(spacing: 8) {
+            editButton("JOIN", enabled: seqState.canJoin) { seqState.joinSelected() }
+            editButton("SPLIT", enabled: seqState.canSplit) { seqState.splitSelected() }
+            editButton("SNAP", enabled: seqState.canSnap) { seqState.snapSelected() }
+            Spacer(minLength: 0)
+            fieldLabel("STEPS")
+            barCountButton("minus", label: "A step shorter") { seqState.lengthenSelected(bySteps: -1) }
+                .disabled(!hasSelectedNotes)
+                .opacity(hasSelectedNotes ? 1 : 0.4)
+            barCountButton("plus", label: "A step longer") { seqState.lengthenSelected(bySteps: 1) }
+                .disabled(!hasSelectedNotes)
+                .opacity(hasSelectedNotes ? 1 : 0.4)
+        }
+    }
+
+    private func editButton(_ label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(enabled ? Color(white: 0.7) : Color(white: 0.3))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 7).fill(Color(white: 0.12)))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 
     private var undoButton: some View {

@@ -43,7 +43,7 @@ struct SequencerViewBarRemovalTests {
         seq.focusedBar = removal.focusedBar
         // A selection, loop and playhead in the bar that goes, as when the
         // bar being worked on is the one removed.
-        let lastStep = (removal.removedBar + 1) * SequencerState.stepsPerBar - 1
+        let lastStep = (removal.removedBar + 1) * seq.stepsPerBar - 1
         seq.selectedSteps = [lastStep]
         seq.primaryStep = lastStep
         seq.loopSelection()
@@ -63,6 +63,40 @@ struct SequencerViewBarRemovalTests {
         seq.undo()
         redraw(window)
         #expect(seq.barCount == removal.bars)
+    }
+
+    /// Every signature draws, in both layouts, with a note held across
+    /// rows and bars, a note played off the grid, and a second layer.
+    @Test(.serialized, arguments: TimeSignature.offered)
+    func theScreenDrawsInEverySignature(_ signature: TimeSignature) throws {
+        let seq = SequencerState(defaults: isolatedDefaults())
+        seq.addBar()
+        seq.setSignature(signature)
+        seq.selectedSteps = Set(2..<seq.stepsPerBar + 3)
+        seq.primaryStep = 2
+        seq.editSelectedChords { ChordSpec(degree: .V, color: $0.color) }
+        seq.joinSelected()
+        seq.addLayer()
+        seq.startLoop([TimelineNote(start: 110, length: 300, chord: ChordSpec(degree: .ii, color: .base)),
+                       TimelineNote(start: seq.timeline.length - 10, length: 10,
+                                    chord: ChordSpec(degree: .I, color: .base))],
+                      bars: seq.barCount)
+        seq.undo()                                    // back to the two layers
+
+        let perf = PerformanceState(sink: RecordingSink(), clock: ManualClock())
+        let window = try show(SequencerView().environment(perf).environment(seq))
+        defer { window.isHidden = true }
+
+        for layout in SequencerLayout.allCases {
+            seq.layout = layout
+            for layer in seq.layers {
+                seq.showLayer(layer.id)
+                redraw(window)
+            }
+            seq.focusedBar = seq.barCount - 1
+            redraw(window)
+        }
+        #expect(seq.shape.rowsPerBar * seq.shape.columns >= seq.stepsPerBar)
     }
 
     // MARK: – Hosting

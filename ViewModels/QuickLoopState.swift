@@ -42,7 +42,7 @@ final class QuickLoopState {
     private(set) var phase: Phase = .idle
 
     /// The most layers there can be.
-    static let maxLoops = 6
+    static let maxLoops = Timeline.maxLayers
 
     /// The shortest take that becomes a loop, in seconds. Anything shorter
     /// is an accidental double tap.
