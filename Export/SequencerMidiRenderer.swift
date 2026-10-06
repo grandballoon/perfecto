@@ -1,96 +1,59 @@
-/// Everything needed to render a sequencer pattern offline: the steps as
-/// playback runs through them plus the key, octave and tempo they sound in.
+/// Everything needed to render a sequence offline: the timeline, the
+/// settings its notes follow where they have none of their own, and the tempo.
 struct SequencerPattern: Sendable {
-    var steps: [SequencerStep]
-    var key: Key
-    var octave: Int
+    var timeline: Timeline
+    var live: LiveSettings
     var bpm: Double
-    /// Sequencer steps per quarter note (the clock's resolution).
-    var stepsPerBeat: Int
+
+    /// The steps playback runs through before starting again.
+    var stepCount: Int { timeline.playedRange.count / TimelineTime.ticksPerStep }
 }
 
-/// Renders a sequencer pattern to a Standard MIDI File — the offline twin of
-/// `SequencerMode`, following the same timing rules so the file matches what
-/// playback sounds like:
+/// Renders a sequence to a Standard MIDI File. It reads the same compiled
+/// chords playback does (`Timeline.compile`), so the file holds exactly what
+/// is heard: the stretch that repeats, once through, each chord from its
+/// start to its end.
 ///
-///  • each step lasts one clock tick (a 1/16 note at the default resolution);
-///  • a chord sounds for `gate` × the step, and a tied step rings until the
-///    next step begins;
-///  • a tied step followed by the same chord becomes one long note rather than
-///    a retrigger — the natural reading of a tie in a DAW's piano roll.
-///
-/// Chord names are written as markers at each chord change. No program change
+/// Every layer that is not muted is a track. Chord names are written as
+/// markers at each change of chord in the first of them. No program change
 /// is written, so the importing DAW assigns (and lets you swap) the instrument.
 enum SequencerMidiRenderer {
-    static let ticksPerQuarter = 480
+    static let ticksPerQuarter = TimelineTime.ticksPerBeat
     /// Matches `MidiSink`: channel 1, fixed velocity.
     static let channel = 0
     static let velocity = 100
 
     static func render(_ pattern: SequencerPattern) -> MidiFile {
-        let stepTicks = ticksPerQuarter / max(pattern.stepsPerBeat, 1)
-        var events: [MidiEvent] = [
+        let timeline = pattern.timeline
+        let range = timeline.playedRange
+        let header = [
             MidiEvent(tick: 0, .trackName("Perfecto")),
             MidiEvent(tick: 0, .tempo(bpm: pattern.bpm)),
-            MidiEvent(tick: 0, .timeSignature(numerator: 4, denominator: 4)),
-            MidiEvent(tick: 0, .keySignature(pattern.key.midiKeySignature)),
+            MidiEvent(tick: 0, .timeSignature(numerator: timeline.signature.beats,
+                                              denominator: timeline.signature.unit.rawValue)),
+            MidiEvent(tick: 0, .keySignature(pattern.live.key.midiKeySignature)),
         ]
 
-        /// The chord currently sounding: its notes and whether its step tied.
-        var sounding: (notes: [Int], tied: Bool)?
-        var previousVoicing: Voicing?
-        var lastMarker: String?
-
-        func release(at tick: Int) {
-            guard let chord = sounding else { return }
-            for note in chord.notes {
-                events.append(MidiEvent(tick: tick, .noteOff(channel: channel, note: note)))
-            }
-            sounding = nil
-        }
-
-        for (index, step) in pattern.steps.enumerated() {
-            let start = index * stepTicks
-            guard !step.isRest else {
-                release(at: start)
-                continue
-            }
-
-            let voicing = performanceVoicing(key: pattern.key,
-                                             octave: pattern.octave,
-                                             spec: step.spec,
-                                             previousVoicing: previousVoicing)
-            previousVoicing = voicing
-
-            let previous = index > 0 ? pattern.steps[index - 1] : nil
-            if sounding != nil, step.continues(previous) {
-                sounding?.tied = step.isTied          // tie continues the held chord
-            } else {
-                release(at: start)
-                for note in voicing.notes {
-                    events.append(MidiEvent(tick: start, .noteOn(channel: channel,
-                                                                 note: note,
-                                                                 velocity: velocity)))
+        let layers = timeline.layers.filter { !$0.isMuted }
+        var tracks: [MidiTrack] = []
+        for (index, layer) in layers.enumerated() {
+            var events = index == 0 ? header : [MidiEvent(tick: 0, .trackName("Perfecto \(index + 1)"))]
+            var lastMarker: String?
+            for chord in timeline.compile(layer: layer.id, live: pattern.live) {
+                let start = chord.start - range.lowerBound
+                for note in chord.event.voicing.notes {
+                    events.append(MidiEvent(tick: start, .noteOn(channel: channel, note: note, velocity: velocity)))
+                    events.append(MidiEvent(tick: chord.end - range.lowerBound, .noteOff(channel: channel, note: note)))
                 }
-                sounding = (voicing.notes, step.isTied)
-
-                let label = chordLabel(key: pattern.key,
-                                       spec: step.spec)
-                if label != lastMarker {
+                let label = chordLabel(key: chord.event.context.key, spec: chord.event.context.spec)
+                if index == 0, label != lastMarker {
                     events.append(MidiEvent(tick: start, .marker(label)))
                     lastMarker = label
                 }
             }
-
-            if !step.isTied {
-                let held = Int((step.gate * Double(stepTicks)).rounded())
-                release(at: start + min(max(held, 1), stepTicks))
-            }
+            tracks.append(MidiTrack(events: events, length: range.count))
         }
-
-        let length = pattern.steps.count * stepTicks
-        release(at: length)
-        return MidiFile(ticksPerQuarter: ticksPerQuarter,
-                        tracks: [MidiTrack(events: events, length: length)])
+        if tracks.isEmpty { tracks = [MidiTrack(events: header, length: range.count)] }
+        return MidiFile(ticksPerQuarter: ticksPerQuarter, tracks: tracks)
     }
 }

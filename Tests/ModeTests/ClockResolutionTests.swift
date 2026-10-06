@@ -98,10 +98,8 @@ struct ClockResolutionTests {
             let seq = SequencerState(defaults: isolatedDefaults())
             seq.steps[0].gate = 0.5
             state.setMode(SequencerMode(seq))
-            seq.isPlaying = true
             sink.reset()
-
-            clock.tick()                                        // step 1 starts
+            seq.isPlaying = true                                // step 1 starts
             #expect(sink.playCalls.count == 1)
             let step = 1.0 / Double(MusicalTime.stepsPerBeat)
             clock.advance(beats: 0.49 * step)
@@ -119,10 +117,8 @@ struct ClockResolutionTests {
         seq.steps[0].gate = 1
         seq.steps[1].degree = .IV
         state.setMode(SequencerMode(seq))
-        seq.isPlaying = true
         sink.reset()
-
-        clock.tick()
+        seq.isPlaying = true
         clock.tick()
         #expect(sink.playCalls.count == 2)
         #expect(sink.stopCount == 0)
@@ -145,7 +141,8 @@ struct ClockResolutionTests {
     }
 
     /// Sequencer steps stay sixteenth notes on a finer clock: at 8 ticks per
-    /// beat the playhead moves every second tick.
+    /// beat the playhead, which starts on the first step, moves every second
+    /// tick.
     @Test func sequencerStepsStaySixteenthsOnAFinerClock() {
         let clock = ManualClock()
         clock.ticksPerBeat = 8
@@ -156,7 +153,7 @@ struct ClockResolutionTests {
 
         var playhead: [Int] = []
         for _ in 0..<6 { clock.tick(); playhead.append(seq.currentStep) }
-        #expect(playhead == [0, 0, 1, 1, 2, 2])
+        #expect(playhead == [0, 1, 1, 2, 2, 3])
     }
 
     @Test func tempoStaysInTheSupportedRange() {

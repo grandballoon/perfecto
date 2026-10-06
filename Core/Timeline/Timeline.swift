@@ -3,7 +3,7 @@ import Foundation
 /// Music that repeats, as notes in layers: a sequence entered by hand and a
 /// loop recorded from playing are both this. It is plain data. The edits are
 /// in `TimelineEdits`, and `compile` turns a layer into what is played.
-struct Timeline: Equatable, Sendable {
+struct Timeline: Equatable, Codable, Sendable {
     var signature = TimeSignature.common
     /// The timeline's length in bars, at least 1. Every layer shares it.
     var barCount = 1
@@ -26,6 +26,12 @@ struct Timeline: Equatable, Sendable {
     /// Whether no layer has a note.
     var isEmpty: Bool { layers.allSatisfy(\.notes.isEmpty) }
 
+    /// Whether the stretch that repeats has no note starting in it.
+    var playsNothing: Bool {
+        let range = playedRange
+        return layers.allSatisfy { layer in !layer.notes.contains { range.contains($0.start) } }
+    }
+
     func layer(_ id: Layer.ID) -> Layer? {
         layers.first { $0.id == id }
     }
@@ -33,7 +39,7 @@ struct Timeline: Equatable, Sendable {
 
 /// One line of chords on a timeline: one chord at a time, as one hand plays
 /// them. Its notes are in order and never overlap; the edits keep them so.
-struct Layer: Equatable, Identifiable, Sendable {
+struct Layer: Equatable, Identifiable, Codable, Sendable {
     let id: UUID
     var notes: [TimelineNote]
     var isMuted = false
@@ -46,7 +52,7 @@ struct Layer: Equatable, Identifiable, Sendable {
 }
 
 /// One chord (or one note of it) at a place in time, and how it is played.
-struct TimelineNote: Equatable, Sendable {
+struct TimelineNote: Equatable, Codable, Sendable {
     /// Ticks from the start of the timeline.
     var start: Int
     /// Ticks it sounds for, at least 1.
@@ -69,7 +75,7 @@ struct TimelineNote: Equatable, Sendable {
 }
 
 /// What of its chord a note sounds.
-enum NotePitch: Equatable, Sendable {
+enum NotePitch: Equatable, Codable, Sendable {
     /// Every note of the chord.
     case chord
     /// The scale degree alone, as Lead mode plays it.
@@ -80,7 +86,7 @@ enum NotePitch: Equatable, Sendable {
 /// when nil, whatever is chosen now: a note entered in the sequencer follows
 /// the live key and sound, and a note recorded from playing keeps the ones
 /// it was played with.
-struct NotePlaying: Equatable, Sendable {
+struct NotePlaying: Equatable, Codable, Sendable {
     var key: Key?
     var octave: Int?
     var preset: SynthPreset?
@@ -91,7 +97,7 @@ struct NotePlaying: Equatable, Sendable {
 }
 
 /// Every effect's settings, as one note is played with them.
-struct NoteEffects: Equatable, Sendable {
+struct NoteEffects: Equatable, Codable, Sendable {
     var arpeggiator = ArpeggiatorSettings()
     var filter = FilterSettings()
     var chorus = ChorusSettings()
@@ -100,7 +106,7 @@ struct NoteEffects: Equatable, Sendable {
 
 /// The effects as they became at a moment inside a held note: one point of
 /// a slide.
-struct SoundChange: Equatable, Sendable {
+struct SoundChange: Equatable, Codable, Sendable {
     /// Ticks after the note's start.
     var offset: Int
     var effects: NoteEffects

@@ -13,7 +13,7 @@ struct ClockScheduleTests {
         var made: [String] = []
         _ = schedule.after(seconds: 0.3) { made.append("third") }
         _ = schedule.after(seconds: 0.1) { made.append("first") }
-        _ = schedule.after(beats: 0.4) { made.append("second") }   // 0.2 s
+        _ = schedule.after(beats: 0.4, first: false) { made.append("second") }   // 0.2 s
 
         schedule.run(until: 0.25)
         #expect(made == ["first", "second"])
@@ -44,6 +44,16 @@ struct ClockScheduleTests {
         schedule.onTick { call.cancel() }
         schedule.run(until: 0.25)
         #expect(made.isEmpty)
+    }
+
+    /// What starts a chord goes ahead of what continues one, however late
+    /// it was asked for.
+    @Test func aCallAskedForAsFirstComesBeforeTheOthersDueWithIt() {
+        var made: [String] = []
+        _ = schedule.every(beats: 1) { made.append("continues") }
+        _ = schedule.after(beats: 1, first: true) { made.append("starts") }
+        schedule.run(until: 0.5)
+        #expect(made == ["starts", "continues"])
     }
 
     /// Inside a call "now" is the call's own time, so a chain of calls each
@@ -88,7 +98,7 @@ struct ClockScheduleTests {
     /// seconds away does not move.
     @Test func aTempoChangeMovesWhatIsTimedInBeatsOnly() {
         var made: [String] = []
-        _ = schedule.after(beats: 1) { made.append("beat") }       // 0.5 s at 120
+        _ = schedule.after(beats: 1, first: false) { made.append("beat") }       // 0.5 s at 120
         _ = schedule.after(seconds: 0.5) { made.append("second") }
         schedule.run(until: 0.25)                                   // half a beat gone
         schedule.bpm = 60                                           // the other half now takes 0.5 s
@@ -163,7 +173,7 @@ struct ClockScheduleTests {
     /// Inside a call the position is the call's own, like the time.
     @Test func insideACallThePositionIsTheCallsOwn() {
         var position = 0.0
-        _ = schedule.after(beats: 1.5) { position = schedule.beats }
+        _ = schedule.after(beats: 1.5, first: false) { position = schedule.beats }
         schedule.run(until: 10)
         #expect(abs(position - 1.5) < 1e-9)
     }

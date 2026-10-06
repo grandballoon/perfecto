@@ -79,6 +79,12 @@ final class EffectsState {
     /// bottom of the key; nil while the zones are off or no key is held.
     private(set) var zone: Int?
 
+    /// Every effect as set, whatever is being played: what a note of a
+    /// timeline follows when it has no effects of its own.
+    var asSet: NoteEffects {
+        NoteEffects(arpeggiator: arpeggiator, filter: filter, chorus: chorus, reverb: reverb)
+    }
+
     var isAnyOn: Bool { arpeggiator.isOn || filter.isOn || chorus.isOn || reverb.isOn || zones.isOn }
 
     private let arpeggiatorSink: Arpeggiator

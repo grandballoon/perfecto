@@ -23,12 +23,19 @@ struct SequencerMidiRendererTests {
 
     private var rest: SequencerStep { SequencerStep(isRest: true) }
 
-    private func render(_ steps: [SequencerStep], key: Key? = nil) -> MidiFile {
-        SequencerMidiRenderer.render(SequencerPattern(steps: steps,
-                                                      key: key ?? cMajor,
-                                                      octave: 4,
-                                                      bpm: 120,
-                                                      stepsPerBeat: 4))
+    private func live(_ key: Key) -> LiveSettings {
+        LiveSettings(key: key, octave: 4, preset: .initial, effects: NoteEffects())
+    }
+
+    /// A one-bar timeline with `steps` entered on its first steps.
+    private func timeline(_ steps: [SequencerStep]) -> Timeline {
+        var timeline = Timeline()
+        timeline.layers = [Layer(steps: steps)]
+        return timeline
+    }
+
+    private func render(_ steps: [SequencerStep], key: Key? = nil, bpm: Double = 120) -> MidiFile {
+        SequencerMidiRenderer.render(SequencerPattern(timeline: timeline(steps), live: live(key ?? cMajor), bpm: bpm))
     }
 
     private func events(_ file: MidiFile) -> [MidiEvent] {
@@ -73,8 +80,8 @@ struct SequencerMidiRendererTests {
                              + chord([60, 64, 67], 240, 270))
     }
 
-    @Test func trailingRestsKeepTheFullPatternLength() {
-        let file = render([step(.I)] + Array(repeating: rest, count: 15))
+    @Test func theFileIsAsLongAsTheSequenceHoweverFewNotesItHas() {
+        let file = render([step(.I)])
         #expect(file.tracks.map(\.length) == [16 * stepTicks])
         #expect(file.ticksPerQuarter == 480)
     }
@@ -128,7 +135,7 @@ struct SequencerMidiRendererTests {
         state.key = key
         state.setMode(SequencerMode(seq))
         seq.isPlaying = true
-        for _ in steps { clock.tick() }
+        clock.advance(beats: 3.9)                       // once through the bar
 
         let file = render(steps, key: key)
         var onsets: [Int: [Int]] = [:]
@@ -141,9 +148,7 @@ struct SequencerMidiRendererTests {
     // MARK: – Metadata
 
     @Test func headerEventsDescribeTempoMeterAndKey() {
-        let file = SequencerMidiRenderer.render(SequencerPattern(
-            steps: [step(.I)], key: Key(root: .D, scale: .naturalMinor),
-            octave: 4, bpm: 96, stepsPerBeat: 4))
+        let file = render([step(.I)], key: Key(root: .D, scale: .naturalMinor), bpm: 96)
         let meta = events(file).filter { $0.tick == 0 }.map(\.kind)
         #expect(meta.contains(.tempo(bpm: 96)))
         #expect(meta.contains(.timeSignature(numerator: 4, denominator: 4)))
@@ -160,20 +165,58 @@ struct SequencerMidiRendererTests {
         ])
     }
 
+    @Test func theTimeSignatureIsTheTimelines() {
+        var waltz = timeline([step(.I)])
+        waltz.setSignature(TimeSignature(beats: 6, unit: .eighth))
+        let file = SequencerMidiRenderer.render(SequencerPattern(timeline: waltz, live: live(cMajor), bpm: 120))
+        #expect(events(file).map(\.kind).contains(.timeSignature(numerator: 6, denominator: 8)))
+        #expect(file.tracks.map(\.length) == [waltz.length])
+    }
+
+    // MARK: – What is exported
+
+    /// Only the stretch that repeats, starting from its own beginning.
+    @Test func aLoopedStretchIsExportedAlone() {
+        var looped = timeline([step(.I), step(.I), step(.V), step(.V)])
+        looped.setLoop(steps: [2, 3])
+        let file = SequencerMidiRenderer.render(SequencerPattern(timeline: looped, live: live(cMajor), bpm: 120))
+        #expect(file.tracks.map(\.length) == [2 * stepTicks])
+        #expect(Set(spans(file).map(\.start)) == [0, stepTicks])
+        #expect(Set(spans(file).map(\.note)) == [67, 71, 74])
+    }
+
+    /// Each layer is a track of its own; a muted one is left out.
+    @Test func everyLayerThatIsNotMutedIsATrack() {
+        var layered = timeline([step(.I)])
+        layered.layers.append(Layer(steps: [rest, step(.V)]))
+        layered.layers.append(Layer(steps: [step(.IV)]))
+        layered.layers[2].isMuted = true
+        let file = SequencerMidiRenderer.render(SequencerPattern(timeline: layered, live: live(cMajor), bpm: 120))
+        #expect(file.tracks.count == 2)
+        #expect(Set(spans(file).map(\.note)) == [60, 64, 67, 71, 74])
+    }
+
+    /// A note with a key of its own is written in that key.
+    @Test func aNotesOwnKeyIsExported() {
+        var own = timeline([step(.I)])
+        own.layers[0].edit(notesIn: [0]) { $0.playing.key = Key(root: .D, scale: .major) }
+        let file = SequencerMidiRenderer.render(SequencerPattern(timeline: own, live: live(cMajor), bpm: 120))
+        #expect(spans(file).map(\.note) == [62, 66, 69])
+    }
+
     // MARK: – Wiring
 
-    @Test func exportUsesThePlayedStepsAndCurrentSettings() {
+    @Test func exportUsesTheSequenceAndCurrentSettings() {
         let state = PerformanceState(sink: RecordingSink(), clock: ManualClock())
         state.key = Key(root: .A, scale: .naturalMinor)
         state.octave = 3
         state.setBPM(90)
 
         let export = state.sequencerMidiExport
-        #expect(export.pattern.steps == state.sequencerState.playedSteps)
-        #expect(export.pattern.key == state.key)
-        #expect(export.pattern.octave == 3)
+        #expect(export.pattern.timeline == state.sequencerState.timeline)
+        #expect(export.pattern.live.key == state.key)
+        #expect(export.pattern.live.octave == 3)
         #expect(export.pattern.bpm == 90)
-        #expect(export.pattern.stepsPerBeat == MusicalTime.stepsPerBeat)
         #expect(export.fileName == "Perfecto A Natural Minor 90 BPM.mid")
     }
 
@@ -185,7 +228,7 @@ struct SequencerMidiRendererTests {
             Issue.record("expected a sequencer_midi_exported event")
             return
         }
-        #expect(stepCount == state.sequencerState.playedSteps.count)
+        #expect(stepCount == 16)
         #expect(noteCount == 12)
         #expect(byteCount == 345)
     }

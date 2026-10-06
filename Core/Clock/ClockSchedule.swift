@@ -22,6 +22,8 @@ final class ClockSchedule {
         let kind: Kind
         /// Whether `due` is a number of beats away, and so moves with the tempo.
         let followsTempo: Bool
+        /// Whether it is made before the other calls due at the same moment.
+        let isFirst: Bool
         /// The order calls were asked for in: the order they are made in
         /// when they fall due together.
         let order: Int
@@ -85,7 +87,7 @@ final class ClockSchedule {
     /// nothing if already ticking.
     func startTicks() {
         guard tickID == nil else { return }
-        tickID = add(.tick, due: now + seconds(forBeats: tickBeats), followsTempo: true) { [weak self] in
+        tickID = add(.tick, due: now + seconds(forBeats: tickBeats), followsTempo: true, isFirst: true) { [weak self] in
             self?.tickHandler?()
         }
     }
@@ -98,15 +100,19 @@ final class ClockSchedule {
 
     func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
         precondition(beats > 0, "a repeat needs a length")
-        return cancellable(add(.every(beats: beats), due: now + seconds(forBeats: beats), followsTempo: true, handler))
+        return cancellable(add(.every(beats: beats), due: now + seconds(forBeats: beats), followsTempo: true,
+                               isFirst: false, handler))
     }
 
-    func after(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
-        cancellable(add(.once, due: now + seconds(forBeats: max(0, beats)), followsTempo: true, handler))
+    /// `first` puts the call ahead of the others due at the same moment, as
+    /// a tick is.
+    func after(beats: Double, first: Bool, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+        cancellable(add(.once, due: now + seconds(forBeats: max(0, beats)), followsTempo: true,
+                        isFirst: first, handler))
     }
 
     func after(seconds: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
-        cancellable(add(.once, due: now + max(0, seconds), followsTempo: false, handler))
+        cancellable(add(.once, due: now + max(0, seconds), followsTempo: false, isFirst: false, handler))
     }
 
     /// Calls waiting to be made, ticks apart.
@@ -169,22 +175,23 @@ final class ClockSchedule {
     }
 
     /// The call to make next: the earliest due and, of those due at the
-    /// same moment, a tick first and then the one asked for first.
+    /// same moment, the ones that go first (a tick, whatever starts a
+    /// chord) and then the one asked for first.
     private var next: Int? {
         guard let earliest = calls.values.map(\.due).min() else { return nil }
         return calls
             .filter { $0.value.due <= earliest + Self.sameMoment }
             .min { a, b in
-                if (a.key == tickID) != (b.key == tickID) { return a.key == tickID }
+                if a.value.isFirst != b.value.isFirst { return a.value.isFirst }
                 return a.value.order < b.value.order
             }?.key
     }
 
-    private func add(_ kind: Kind, due: Double, followsTempo: Bool,
+    private func add(_ kind: Kind, due: Double, followsTempo: Bool, isFirst: Bool,
                      _ handler: @escaping @MainActor () -> Void) -> Int {
         let id = nextOrder
         nextOrder += 1
-        calls[id] = Call(due: due, kind: kind, followsTempo: followsTempo, order: id, handler: handler)
+        calls[id] = Call(due: due, kind: kind, followsTempo: followsTempo, isFirst: isFirst, order: id, handler: handler)
         changed()
         return id
     }

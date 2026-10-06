@@ -1,6 +1,6 @@
 # Sequencer spec: one timeline for sequences and loops
 
-> **Status (2026-10-06): proposed; the model (part A of section 8) is being built.**
+> **Status (2026-10-06): parts A, B and C of section 8 are built; D, E and F are not.**
 > This is step 5 of [audio-engine-spec.md](audio-engine-spec.md), and it answers [../sequencer.md](../sequencer.md), which states what is wanted.
 > It replaces sections 6.1, 6.2 and 6.2.1 of [../spec.md](../spec.md) as each part lands.
 
@@ -200,15 +200,16 @@ Each part leaves the app working.
 
 | | Part | Done when |
 |---|---|---|
-| A | The model: time, timeline, notes, the edits of 3.4, `compile`, and the clock's musical position | Model tests pass; nothing in the app uses it yet |
-| B | `TimelinePlayer`, and the sequencer's playback moved onto it behind today's screen (one layer, notes one step long) | Today's sequencer tests pass against the timeline; `SequencerMode` is gone |
-| C | The MIDI export reads `compile` | Export tests pass; the renderer's own timing rules are gone |
+| A | ~~The model: time, timeline, notes, the edits of 3.4, `compile`, and the clock's musical position~~ (done) | Model tests pass |
+| B | ~~`TimelinePlayer`, and the sequencer's playback moved onto it behind today's screen~~ (done). The screen still edits one layer a step at a time, through `SequencerStep`, which reads a long note as tied steps. `SequencerMode` is only the screen now; it still stops playback on the way out, until Play mode has the loop bar to stop it from (part D). | The sequencer's tests pass against the timeline |
+| C | ~~The MIDI export reads `compile`~~ (done): every unmuted layer is a track, in the timeline's signature | Export tests pass; the renderer's own timing rules are gone |
 | D | Loops as layers: the recorder, tempo from the first loop, the loop bar on layers. Audio loopers and Looper mode deleted | A loop recorded in Play mode plays as notes and appears in the sequencer |
 | E | The screen: stretched chits, layer tabs, join/split/length/snap, signatures, bars | On-device review |
 | F | Entry from the keys (step entry, replace), and a note's own key, octave, sound and effects | On-device review |
 
 ## 9. Open questions
 
-1. **The loop inside a sequence.** Today any set of steps can be looped, even a scattered one, and exactly those steps play in order. With notes of any length that no longer has a clear meaning, so this spec makes the loop one stretch of time (from the first selected step to the last). Say if the scattered loop matters.
+1. **The loop inside a sequence.** Until part B any set of steps could be looped, even a scattered one, and exactly those steps played in order. With notes of any length that no longer has a clear meaning, so the loop is now one stretch of time (from the first selected step to the last). Say if the scattered loop matters.
+4. **What a new sequence starts as.** Today, and still, a new or cleared pattern has the I chord on every step. Once sequences are also recorded from playing, an empty one may be the better start.
 2. **Voice leading and inversion per note.** `ChordContext` carries them and every chord today is root position with voice leading off. The note model has no field for them until they are a setting somewhere.
 3. **Per-layer volume.** In the model from the start, but heard only with the kernel, like a note's own sound.

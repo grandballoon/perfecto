@@ -54,7 +54,7 @@ struct SequencerBarsTests {
         #expect(state.barCount == 2)
         #expect(state.steps[24].degree == .IV)
         #expect(state.selectedSteps == [2, 24])
-        #expect(state.loopSteps == [2, 24])
+        #expect(state.loopSteps == Set(2...24))
         #expect(state.primaryStep == 24)
         #expect(state.currentStep == 25)
         #expect(state.focusedBar == 1)
@@ -70,14 +70,13 @@ struct SequencerBarsTests {
         #expect(state.focusedBar == 0)
     }
 
-    /// The playhead steps back to just before the removed bar, so the next
-    /// tick plays what moved into its place.
+    /// The playhead steps back to just before the removed bar, so what
+    /// moved into its place is next.
     @Test func removingTheBarBeingPlayedContinuesWithTheBarThatFollowed() {
         let state = makeState(bars: 3)
         state.currentStep = 20
         state.removeBar(1)
         #expect(state.currentStep == 15)
-        #expect(state.step(after: state.currentStep) == 16)
     }
 
     @Test func removingTheBarThatHeldTheLoopLoopsTheWholePattern() {
@@ -86,7 +85,7 @@ struct SequencerBarsTests {
         state.loopSelection()
         state.removeBar(1)
         #expect(state.loopSteps.isEmpty)
-        #expect(state.playOrder == Array(0..<16))
+        #expect(state.timeline.playedRange == 0..<16 * TimelineTime.ticksPerStep)
     }
 
     @Test func theLastBarCannotBeRemoved() {
@@ -132,21 +131,18 @@ struct SequencerBarsTests {
 
     @Test func theWholePatternPlaysWhenNoLoopIsSet() {
         let state = makeState(bars: 2)
-        #expect(state.playOrder == Array(0..<32))
-        #expect(state.step(after: -1) == 0)
-        #expect(state.step(after: 31) == 0)
+        #expect(state.loopSteps.isEmpty)
+        #expect(state.timeline.playedRange == 0..<32 * TimelineTime.ticksPerStep)
     }
 
-    @Test func loopSelectionPlaysExactlyTheSelectedStepsInOrder() {
+    /// The loop is one stretch of time: from the first selected step to
+    /// the last, whatever lies between.
+    @Test func loopSelectionPlaysTheStretchFromTheFirstSelectedStepToTheLast() {
         let state = makeState(bars: 2)
-        state.steps[20].degree = .V
         state.selectedSteps = [20, 4, 5]
         state.loopSelection()
-        #expect(state.playOrder == [4, 5, 20])
-        #expect(state.playedSteps.map(\.degree) == [.I, .I, .V])
-        #expect(state.step(after: -1) == 4)
-        #expect(state.step(after: 5) == 20)
-        #expect(state.step(after: 20) == 4)
+        #expect(state.loopSteps == Set(4...20))
+        #expect(state.timeline.playedRange == 4 * TimelineTime.ticksPerStep ..< 21 * TimelineTime.ticksPerStep)
     }
 
     /// The loop is captured, not tied to the selection: steps can go on being
@@ -276,18 +272,20 @@ struct SequencerBarsTests {
         let original = SequencerState(defaults: defaults)
         original.steps[0].degree = .V
         original.save()
-        let key = "sequencer.pattern.v4"
+        let key = "sequencer.timeline.v1"
         let saved = String(decoding: defaults.data(forKey: key)!, as: UTF8.self)
+        #expect(saved.contains("\"default\""))
         let blank = SequencerState(defaults: isolatedDefaults()).steps
 
         defaults.set(Data(saved.replacingOccurrences(of: "\"default\"", with: "\"future\"").utf8),
                      forKey: key)
         #expect(SequencerState(defaults: defaults).steps == blank)
 
+        let stepsOnly = isolatedDefaults()
         let ragged = Array(repeating: SequencerStep(degree: .V), count: 17)
         let raggedJSON = String(decoding: try JSONEncoder().encode(ragged), as: UTF8.self)
-        defaults.set(Data("{\"steps\":\(raggedJSON)}".utf8), forKey: key)
-        #expect(SequencerState(defaults: defaults).steps == blank)
+        stepsOnly.set(Data("{\"steps\":\(raggedJSON)}".utf8), forKey: "sequencer.pattern.v4")
+        #expect(SequencerState(defaults: stepsOnly).steps == blank)
     }
 
     /// A saved loop naming steps the pattern doesn't have is dropped to the
@@ -299,5 +297,26 @@ struct SequencerBarsTests {
         defaults.set(Data("{\"steps\":\(stepsJSON),\"loopSteps\":[3,99]}".utf8),
                      forKey: "sequencer.pattern.v4")
         #expect(SequencerState(defaults: defaults).loopSteps == [3])
+    }
+
+    /// A pattern saved as steps is read once into the timeline, and from
+    /// then on the timeline is what is saved.
+    @Test func aPatternSavedAsStepsBecomesTheFirstLayer() throws {
+        let defaults = isolatedDefaults()
+        var steps = Array(repeating: SequencerStep(), count: 16)
+        steps[2] = SequencerStep(degree: .V, gate: 1)
+        steps[3] = SequencerStep(degree: .V, gate: 0.5)
+        steps[5].isRest = true
+        let stepsJSON = String(decoding: try JSONEncoder().encode(steps), as: UTF8.self)
+        defaults.set(Data("{\"steps\":\(stepsJSON)}".utf8), forKey: "sequencer.pattern.v4")
+
+        let state = SequencerState(defaults: defaults)
+        #expect(state.steps == steps)
+        // The tied pair is one held note.
+        let held = state.timeline.layers[0].notes.first { $0.chord.degree == .V }
+        #expect(held?.length == TimelineTime.ticksPerStep * 3 / 2)
+
+        state.steps[0].degree = .IV
+        #expect(SequencerState(defaults: defaults).steps[0].degree == .IV)
     }
 }

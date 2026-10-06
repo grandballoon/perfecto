@@ -39,8 +39,12 @@ enum ColorSurface: CaseIterable {
 @Observable
 @MainActor
 final class PerformanceState {
-    var key = Key(root: .C, scale: .major)
-    var octave = 4
+    var key = Key(root: .C, scale: .major) {
+        didSet { timelinePlayer?.live = liveSettings }
+    }
+    var octave = 4 {
+        didSet { timelinePlayer?.live = liveSettings }
+    }
     var joystickMode: JoystickMode = .default
     private(set) var synthPreset: SynthPreset = .initial
     /// Always within `MusicalTime.tempoRange`; change it with `setBPM`.
@@ -100,6 +104,8 @@ final class PerformanceState {
     var quickLooper: Looper? { engine?.quickLooper }
 
     private let sink:   any ChordEventSink
+    /// Plays the sequencer's timeline against the clock, under whatever mode is on.
+    private var timelinePlayer: TimelinePlayer?
     private let engine: AudioSink?
     private let clock:  any ClockTickable
     private let logger: (any Logger)?
@@ -133,6 +139,9 @@ final class PerformanceState {
         self.quickLoopState = QuickLoopState(looper: engine?.quickLooper)
         self.quickLoopState.onWillStopRecording = { [weak self] in self?.endChord() }
         self.clock.bpm = bpm
+        self.timelinePlayer = TimelinePlayer(live: liveSettings, clock: clock) { [weak self] in
+            LiveVoice(state: self)
+        }
         self.clock.onTick { [weak self] in
             guard let self else { return }
             self.mode.onClockTick(state: self)
@@ -159,6 +168,7 @@ final class PerformanceState {
         clock.stop()
         mode = newMode
         if newMode.requiresClock { clock.start() }
+        newMode.activate(state: self)
     }
 
     func setBPM(_ value: Double) {
@@ -186,6 +196,7 @@ final class PerformanceState {
     func setSynthPreset(_ preset: SynthPreset) {
         synthPreset = preset
         engine?.setPreset(preset)
+        timelinePlayer?.live = liveSettings
         logger?.log(.sound_changed(preset: preset.rawValue))
     }
 
@@ -352,22 +363,44 @@ final class PerformanceState {
     /// The sequencer pattern exactly as playback runs through it, in the
     /// current key, octave and tempo — ready to share as a MIDI file.
     var sequencerMidiExport: SequencerMidiExport {
-        let pattern = SequencerPattern(steps: sequencerState.playedSteps,
-                                       key: key,
-                                       octave: octave,
-                                       bpm: bpm,
-                                       stepsPerBeat: MusicalTime.stepsPerBeat)
+        let pattern = SequencerPattern(timeline: sequencerState.timeline, live: liveSettings, bpm: bpm)
         return SequencerMidiExport(pattern: pattern) { [weak self] noteCount, byteCount in
-            self?.logger?.log(.sequencer_midi_exported(stepCount: pattern.steps.count,
+            self?.logger?.log(.sequencer_midi_exported(stepCount: pattern.stepCount,
                                                        noteCount: noteCount,
                                                        byteCount: byteCount))
         }
     }
 
-    /// Plays a sequencer step, which carries its own chord color rather than
-    /// the live one.
-    func playSequencerStep(_ spec: ChordSpec) {
-        sound(select(spec), .block, source: .sequencer)
+    // MARK: – The timeline
+
+    /// What a timeline's notes follow where they have no settings of their own.
+    private var liveSettings: LiveSettings {
+        LiveSettings(key: key, octave: octave, preset: synthPreset, effects: effects.asSet)
+    }
+
+    /// Lets `sequencer` be heard: its timeline is the one that plays.
+    func attach(_ sequencer: SequencerState) {
+        guard let timelinePlayer else { return }
+        sequencer.attach(timelinePlayer)
+    }
+
+    /// Stops `sequencer` and lets go of it.
+    func detach(_ sequencer: SequencerState) {
+        guard let timelinePlayer else { return }
+        sequencer.detach(timelinePlayer)
+    }
+
+    /// Sounds a chord of the timeline as the active chord. It was voiced
+    /// when the timeline was compiled, with its own key and color or the
+    /// live ones, so it is sent as it stands.
+    fileprivate func playTimelineChord(_ chord: TimedChord) {
+        let context = chord.event.context
+        activeDegree = context.spec.degree
+        currentContext = context
+        currentVoicing = chord.event.voicing
+        activeVoicingText = chordLabel(key: context.key, spec: context.spec)
+        sink.playChord(chord.event)
+        logger?.log(.chord_played(notes: chord.event.voicing.notes, source: .sequencer))
     }
 
     // MARK: – Private
@@ -391,5 +424,25 @@ final class PerformanceState {
         guard let currentContext else { return }
         sink.playChord(ChordEvent(voicing: voicing, articulation: articulation, context: currentContext))
         logger?.log(.chord_played(notes: voicing.notes, source: source))
+    }
+}
+
+/// The timeline played through the same sinks as the keys: its chords are
+/// the active chord, as a sequencer step's always was. (A voice to each
+/// layer, so layers sound together, comes with loops as layers.)
+@MainActor
+private final class LiveVoice: TimelineVoice {
+    private weak var state: PerformanceState?
+
+    init(state: PerformanceState?) {
+        self.state = state
+    }
+
+    func play(_ chord: TimedChord) {
+        state?.playTimelineChord(chord)
+    }
+
+    func stop() {
+        state?.stopSounding()
     }
 }

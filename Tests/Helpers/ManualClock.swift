@@ -46,8 +46,8 @@ final class ManualClock: ClockTickable {
         schedule.every(beats: beats, handler)
     }
 
-    func after(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
-        schedule.after(beats: beats, handler)
+    func after(beats: Double, first: Bool, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+        schedule.after(beats: beats, first: first, handler)
     }
 
     func after(seconds: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {

@@ -1,30 +1,5 @@
 import Foundation
 
-struct SequencerStep: Codable, Equatable {
-    var degree: Degree = .I
-    var color: ChordColor = .base
-    var gate: Double = 0.75     // fraction of step to hold chord (0...1)
-    var isRest: Bool = false
-
-    /// The chord this step plays.
-    var spec: ChordSpec { ChordSpec(degree: degree, color: color) }
-
-    func label(in key: Key) -> String { isRest ? "—" : degreeNumeral(key: key, degree: degree) }
-
-    /// Gates this close to 100% tie: the chord rings into the next step
-    /// instead of being released, the clearly-audible top of the gate range.
-    static let tieThreshold = 0.98
-    var isTied: Bool { gate >= Self.tieThreshold }
-
-    /// Whether this step holds the chord of `previous` rather than striking a
-    /// new one: `previous` is tied into it and asks for the same chord. The one
-    /// tie rule, shared by live playback and the MIDI export.
-    func continues(_ previous: SequencerStep?) -> Bool {
-        guard let previous, previous.isTied, !previous.isRest, !isRest else { return false }
-        return previous.spec == spec
-    }
-}
-
 /// How the sequencer lays out a pattern longer than one bar.
 enum SequencerLayout: String, CaseIterable {
     /// One bar on screen at a time, behind numbered tabs.
@@ -43,9 +18,18 @@ enum SequencerLayout: String, CaseIterable {
 @Observable
 @MainActor
 final class SequencerState {
-    /// One step per 1/16 note, always a whole number of bars. The pattern is
-    /// as long as the bars added to it (`addBar`, `removeBar`).
-    var steps: [SequencerStep] = Array(repeating: SequencerStep(), count: stepsPerBar)
+    /// The music being edited and played: notes in layers (see `Timeline`).
+    /// Every edit goes through here, so the player hears it at once and it
+    /// is saved.
+    private(set) var timeline = Timeline() {
+        didSet {
+            guard timeline != oldValue else { return }
+            transport?.timeline = timeline
+        }
+    }
+    /// The layer on screen: the one the grid shows and the editor changes.
+    private(set) var layerID: Layer.ID
+
     var currentStep: Int = -1   // -1 = stopped; else 0 ..< steps.count (global playhead)
     /// Steps being edited in the UI, as global indices (they may span bars).
     /// The step editor applies each change to every selected step.
@@ -53,14 +37,18 @@ final class SequencerState {
     /// Most recently touched selected step — the one whose values the step
     /// editor displays. nil when the selection is empty.
     var primaryStep: Int? = 0
-    var isPlaying: Bool = false
-    var swing: Double = 0       // 0...0.5 (reserved for later timing offset)
+    var isPlaying: Bool = false {
+        didSet {
+            guard isPlaying != oldValue else { return }
+            if isPlaying {
+                transport?.start()
+            } else {
+                transport?.stop()
+                currentStep = -1
+            }
+        }
+    }
 
-    /// The steps playback repeats, as global indices; empty means the whole
-    /// pattern. It is captured from the selection (`loopSelection`) and then
-    /// independent of it, so steps can go on being selected and edited while
-    /// the loop plays.
-    private(set) var loopSteps: Set<Int> = []
     /// The bar the grid shows: the visible page in the paged layout, the bar
     /// scrolled to in the scroll layout. Playback moves it with the playhead.
     var focusedBar: Int = 0
@@ -69,33 +57,52 @@ final class SequencerState {
         didSet { defaults.set(layout.rawValue, forKey: Self.layoutKey) }
     }
 
+    /// What plays the timeline. Attached by whoever owns the clock and the
+    /// sinks; without one the sequencer can be edited but not heard.
+    private var transport: TimelinePlayer?
+
     static let stepsPerBar = MusicalTime.stepsPerBar
 
-    var barCount: Int { steps.count / Self.stepsPerBar }
+    var barCount: Int { timeline.barCount }
 
-    /// The step indices playback runs through, in order.
-    var playOrder: [Int] {
-        loopSteps.isEmpty ? Array(steps.indices) : loopSteps.sorted()
+    /// The layer on screen.
+    private var layer: Layer { timeline.layer(layerID) ?? Layer() }
+
+    /// The layer on screen, one step at a time, as the step editor sees it
+    /// (see `SequencerStep`). Setting it changes only the steps that differ.
+    var steps: [SequencerStep] {
+        get {
+            let layer = layer
+            return (0..<timeline.stepCount).map(layer.step)
+        }
+        set {
+            let old = steps
+            edit { layer in
+                for (index, step) in newValue.enumerated() where index < old.count && step != old[index] {
+                    layer.setStep(index, to: step)
+                }
+            }
+        }
     }
 
-    /// The steps playback runs through, in order — also what the MIDI export
-    /// renders.
-    var playedSteps: [SequencerStep] { playOrder.map { steps[$0] } }
-
-    /// Where the playhead goes from `index`: the next step of the loop (or of
-    /// the whole pattern), wrapping to the first at the end. A playhead outside
-    /// the loop joins it at the next loop step.
-    func step(after index: Int) -> Int {
-        guard !loopSteps.isEmpty else { return (index + 1) % steps.count }
-        return loopSteps.filter { $0 > index }.min() ?? loopSteps.min() ?? 0
+    /// One step of the layer on screen.
+    func step(_ index: Int) -> SequencerStep {
+        layer.step(index)
     }
 
-    /// One undoable state: the pattern (and so its length), the loop and the
-    /// step selection, so Undo rewinds selection changes the same way it
+    /// The steps playback repeats; empty means the whole pattern. It is
+    /// captured from the selection (`loopSelection`) and then independent of
+    /// it, so steps can go on being selected and edited while the loop plays.
+    var loopSteps: Set<Int> {
+        guard let loop = timeline.loop else { return [] }
+        return Set(TimelineTime.step(at: loop.lowerBound) ..< TimelineTime.step(at: loop.upperBound - 1) + 1)
+    }
+
+    /// One undoable state: the timeline (and so its length and loop) and
+    /// the step selection, so Undo rewinds selection changes the same way it
     /// rewinds chord edits.
     private struct EditState {
-        var steps: [SequencerStep]
-        var loopSteps: Set<Int>
+        var timeline: Timeline
         var selectedSteps: Set<Int>
         var primaryStep: Int?
     }
@@ -108,10 +115,11 @@ final class SequencerState {
 
     private let defaults: UserDefaults
     private let logger: (any Logger)?
-    /// "sequencer.pattern.v3" also stored a fixed bar count and a chain flag;
-    /// its steps are still read (see `load`). Formats before v3 are not.
-    private static let storageKey = "sequencer.pattern.v4"
-    private static let legacyStorageKey = "sequencer.pattern.v3"
+    /// The timeline, as JSON. "sequencer.pattern.v4" and "v3" held one step
+    /// for every sixteenth; they are still read, once, into the first layer
+    /// (see `load`). Formats before v3 are not.
+    private static let storageKey = "sequencer.timeline.v1"
+    private static let stepStorageKeys = ["sequencer.pattern.v4", "sequencer.pattern.v3"]
     private static let layoutKey = "sequencer.layout"
 
     /// `defaults` is injectable so tests can use an isolated store instead of
@@ -119,13 +127,50 @@ final class SequencerState {
     init(defaults: UserDefaults = .standard, logger: (any Logger)? = nil) {
         self.defaults = defaults
         self.logger = logger
+        let blank = Self.blank()
+        timeline = blank
+        layerID = blank.layers[0].id
         load()
     }
 
-    /// Call immediately *before* mutating `steps`, the loop or the selection
-    /// to make the change undoable.
+    /// The sequence a new pattern starts as: one bar, the I chord on every step.
+    private static func blank(bars: Int = 1) -> Timeline {
+        var timeline = Timeline(barCount: bars)
+        timeline.layers = [Layer(steps: Array(repeating: SequencerStep(), count: timeline.stepCount))]
+        return timeline
+    }
+
+    /// Gives the sequencer something to be heard through: it follows the
+    /// timeline and the play button from here on, and moves the playhead.
+    func attach(_ transport: TimelinePlayer) {
+        self.transport = transport
+        transport.timeline = timeline
+        transport.onStep = { [weak self] step in
+            guard let self, let step else { return }
+            currentStep = step
+            focusedBar = step / Self.stepsPerBar
+        }
+        if isPlaying { transport.start() }
+    }
+
+    /// Stops this sequencer being heard through `transport`, if it is.
+    func detach(_ transport: TimelinePlayer) {
+        guard self.transport === transport else { return }
+        isPlaying = false
+        transport.onStep = nil
+        self.transport = nil
+    }
+
+    /// Changes the layer on screen and saves.
+    private func edit(_ change: (inout Layer) -> Void) {
+        timeline.edit(layer: layerID, change)
+        save()
+    }
+
+    /// Call immediately *before* mutating the pattern, the loop or the
+    /// selection to make the change undoable.
     func snapshot() {
-        undoStack.append(EditState(steps: steps, loopSteps: loopSteps,
+        undoStack.append(EditState(timeline: timeline,
                                    selectedSteps: selectedSteps,
                                    primaryStep: primaryStep))
         if undoStack.count > undoLimit { undoStack.removeFirst() }
@@ -133,8 +178,7 @@ final class SequencerState {
 
     func undo() {
         guard let previous = undoStack.popLast() else { return }
-        steps = previous.steps
-        loopSteps = previous.loopSteps
+        timeline = previous.timeline
         selectedSteps = previous.selectedSteps
         primaryStep = previous.primaryStep
         clampCursors()
@@ -145,10 +189,10 @@ final class SequencerState {
     /// selection together as one undo step.
     func clearPattern() {
         snapshot()
-        steps = Array(repeating: SequencerStep(), count: steps.count)
+        let cleared = Self.blank(bars: barCount).layers[0].notes
+        edit { $0.notes = cleared }
         selectedSteps = []
         primaryStep = nil
-        save()
     }
 
     // MARK: – Selection
@@ -185,11 +229,15 @@ final class SequencerState {
 
     /// Applies `edit` to every selected step and saves. The caller takes the
     /// undo snapshot, so a continuous gesture can group many calls into one.
-    func editSelectedSteps(_ edit: (inout SequencerStep) -> Void) {
-        for idx in selectedSteps where idx < steps.count {
-            edit(&steps[idx])
+    func editSelectedSteps(_ change: (inout SequencerStep) -> Void) {
+        let stepCount = timeline.stepCount
+        edit { layer in
+            for index in selectedSteps.sorted() where index < stepCount {
+                var step = layer.step(index)
+                change(&step)
+                layer.setStep(index, to: step)
+            }
         }
-        save()
     }
 
     /// All step indices inside the axis-aligned rectangle spanned by two
@@ -210,36 +258,43 @@ final class SequencerState {
 
     // MARK: – Loop
 
-    /// Makes playback repeat exactly the selected steps, in order.
+    /// Makes playback repeat the stretch from the first selected step to
+    /// the last.
     func loopSelection() {
-        guard !selectedSteps.isEmpty, selectedSteps != loopSteps else { return }
+        guard !selectedSteps.isEmpty else { return }
+        var looped = timeline
+        looped.setLoop(steps: selectedSteps)
+        guard looped.loop != timeline.loop else { return }
         snapshot()
-        loopSteps = selectedSteps
+        timeline = looped
         save()
         logger?.log(.sequencer_loop_changed(stepCount: loopSteps.count))
     }
 
     /// Makes playback repeat the whole pattern again.
     func loopAll() {
-        guard !loopSteps.isEmpty else { return }
+        guard timeline.loop != nil else { return }
         snapshot()
-        loopSteps = []
+        timeline.loop = nil
         save()
         logger?.log(.sequencer_loop_changed(stepCount: 0))
     }
 
     // MARK: – Bars
 
-    /// Appends a blank bar and shows it.
+    /// Appends a bar and shows it.
     func addBar() {
         snapshot()
-        steps.append(contentsOf: Array(repeating: SequencerStep(), count: Self.stepsPerBar))
+        let added = barCount * Self.stepsPerBar ..< (barCount + 1) * Self.stepsPerBar
+        timeline.addBar()
+        edit { layer in
+            for step in added { layer.setStep(step, to: SequencerStep()) }
+        }
         focusedBar = barCount - 1
-        save()
         logger?.log(.sequencer_bars_changed(barCount: barCount))
     }
 
-    var canRemoveBar: Bool { barCount > 1 }
+    var canRemoveBar: Bool { timeline.canRemoveBar }
 
     /// Removes one bar; the bars after it move up, and the selection, loop and
     /// playhead move with their steps. A loop that lay wholly inside the bar
@@ -253,12 +308,10 @@ final class SequencerState {
             if removed.contains(index) { return nil }
             return index < removed.lowerBound ? index : index - removed.count
         }
-        steps.removeSubrange(removed)
+        timeline.removeBar(bar)
         selectedSteps = Set(selectedSteps.compactMap(moved))
-        loopSteps = Set(loopSteps.compactMap(moved))
         primaryStep = primaryStep.flatMap(moved) ?? selectedSteps.min()
-        // A playhead inside the removed bar steps back to just before it, so
-        // the next tick plays what moved into its place.
+        // A playhead inside the removed bar steps back to just before it.
         currentStep = moved(currentStep) ?? removed.lowerBound - 1
         if focusedBar > bar { focusedBar -= 1 }
         clampCursors()
@@ -266,14 +319,14 @@ final class SequencerState {
         logger?.log(.sequencer_bars_changed(barCount: barCount))
     }
 
-    /// Keeps the focused bar, playhead, loop and selection inside the pattern
-    /// after it shrinks, so no view or clock tick indexes past the end of `steps`.
+    /// Keeps the focused bar, playhead and selection inside the pattern
+    /// after it shrinks, so no view indexes past the end of it.
     private func clampCursors() {
+        let stepCount = timeline.stepCount
         focusedBar = min(max(focusedBar, 0), barCount - 1)
-        if currentStep >= steps.count { currentStep = -1 }
-        selectedSteps = selectedSteps.filter { $0 < steps.count }
-        loopSteps = loopSteps.filter { $0 < steps.count }
-        if let primary = primaryStep, primary >= steps.count {
+        if currentStep >= stepCount { currentStep = -1 }
+        selectedSteps = selectedSteps.filter { $0 < stepCount }
+        if let primary = primaryStep, primary >= stepCount {
             primaryStep = selectedSteps.min()
         }
     }
@@ -281,34 +334,47 @@ final class SequencerState {
     // MARK: – Persistence
 
     func save() {
-        let pattern = SavedPattern(steps: steps, loopSteps: loopSteps.sorted())
-        guard let data = try? JSONEncoder().encode(pattern) else { return }
+        guard let data = try? JSONEncoder().encode(timeline) else { return }
         defaults.set(data, forKey: Self.storageKey)
     }
 
-    /// Restores the saved pattern and layout. Data that doesn't decode (for
+    /// Restores the saved timeline and layout. Data that doesn't decode (for
     /// example a color case this build doesn't know) or isn't a whole number
-    /// of bars leaves the default empty pattern rather than being partly
+    /// of bars leaves the default pattern rather than being partly
     /// interpreted.
     func load() {
         if let saved = defaults.string(forKey: Self.layoutKey).flatMap(SequencerLayout.init(rawValue:)) {
             layout = saved
         }
-        guard let data = defaults.data(forKey: Self.storageKey)
-                      ?? defaults.data(forKey: Self.legacyStorageKey),
-              let pattern = try? JSONDecoder().decode(SavedPattern.self, from: data),
-              !pattern.steps.isEmpty,
-              pattern.steps.count.isMultiple(of: Self.stepsPerBar)
-        else { return }
-        steps = pattern.steps
-        loopSteps = Set(pattern.loopSteps ?? [])
+        guard let loaded = savedTimeline() ?? timelineFromSavedSteps(),
+              loaded.barCount >= 1, let first = loaded.layers.first else { return }
+        timeline = loaded
+        layerID = first.id
         clampCursors()
     }
 
-    /// The stored form of a pattern. Enum cases are encoded by name (and
-    /// `Degree` by its explicit raw value), so reordering a Swift enum never
-    /// changes what a saved pattern means. `loopSteps` is absent from v3 data.
-    private struct SavedPattern: Codable {
+    private func savedTimeline() -> Timeline? {
+        defaults.data(forKey: Self.storageKey).flatMap { try? JSONDecoder().decode(Timeline.self, from: $0) }
+    }
+
+    /// A pattern saved as steps, read into one layer.
+    private func timelineFromSavedSteps() -> Timeline? {
+        guard let data = Self.stepStorageKeys.lazy.compactMap({ self.defaults.data(forKey: $0) }).first,
+              let pattern = try? JSONDecoder().decode(SavedSteps.self, from: data),
+              !pattern.steps.isEmpty,
+              pattern.steps.count.isMultiple(of: Self.stepsPerBar)
+        else { return nil }
+        var timeline = Timeline(barCount: pattern.steps.count / Self.stepsPerBar)
+        timeline.layers = [Layer(steps: pattern.steps)]
+        timeline.setLoop(steps: Set(pattern.loopSteps ?? []).filter { $0 < pattern.steps.count })
+        return timeline
+    }
+
+    /// The stored form of a pattern of steps. Enum cases are encoded by name
+    /// (and `Degree` by its explicit raw value), so reordering a Swift enum
+    /// never changed what a saved pattern meant. `loopSteps` is absent from
+    /// v3 data.
+    private struct SavedSteps: Codable {
         var steps: [SequencerStep]
         var loopSteps: [Int]?
     }

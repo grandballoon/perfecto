@@ -30,10 +30,10 @@ enum TimelineTime {
 }
 
 /// How a bar is counted: `beats` notes of one `unit` each.
-struct TimeSignature: Hashable, Sendable {
+struct TimeSignature: Hashable, Codable, Sendable {
 
     /// The note a signature counts in.
-    enum Unit: Int, CaseIterable, Sendable {
+    enum Unit: Int, CaseIterable, Codable, Sendable {
         case quarter = 4
         case eighth = 8
     }

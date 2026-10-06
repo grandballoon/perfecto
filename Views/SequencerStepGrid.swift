@@ -60,7 +60,7 @@ struct SequencerStepGrid: View {
     /// The cells are handed their steps rather than looking them up, because
     /// SwiftUI can redraw a bar's cells once more after the bar has left the
     /// pattern (the lazy grid re-runs its cells before the column drops the
-    /// bar). A cell that indexed `steps` then would index past its end.
+    /// bar), and a cell should draw what it was given, not look it up then.
     private struct Bar: Identifiable {
         /// The bar's number, counted from 0.
         var id: Int
@@ -76,7 +76,7 @@ struct SequencerStepGrid: View {
     private func bar(_ index: Int) -> Bar {
         let base = index * SequencerState.stepsPerBar
         return Bar(id: index, cells: (base..<base + SequencerState.stepsPerBar).map {
-            Cell(id: $0, step: seqState.steps[$0])
+            Cell(id: $0, step: seqState.step($0))
         })
     }
 

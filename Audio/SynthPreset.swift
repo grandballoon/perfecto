@@ -1,5 +1,5 @@
 /// The built-in synth sounds, in the order the Sound panel lists them.
-enum SynthPreset: String, CaseIterable, Identifiable, Sendable {
+enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
     case electricPiano, glassKeys, organ, clav
     case sinePad, warmPad, strings
     case pluck, bell, kalimba

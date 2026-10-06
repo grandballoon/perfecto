@@ -14,7 +14,7 @@ struct SequencerMidiExport: Transferable, Sendable {
 
     /// e.g. "Perfecto C Major 120 BPM.mid"
     var fileName: String {
-        "Perfecto \(pattern.key.root.name) \(pattern.key.scale.displayName) \(Int(pattern.bpm)) BPM.mid"
+        "Perfecto \(pattern.live.key.root.name) \(pattern.live.key.scale.displayName) \(Int(pattern.bpm)) BPM.mid"
     }
 
     static var transferRepresentation: some TransferRepresentation {

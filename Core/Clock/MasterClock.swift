@@ -33,9 +33,10 @@ final class ClockCall {
 ///
 /// Everything a clock calls, it calls in the order it falls due (`ClockSchedule`
 /// keeps that order for both clocks):
-/// - A call that falls due at the same moment as a tick is made after the
-///   tick's handler, so whatever the tick starts (a sequencer step) can
-///   cancel a call before it acts on what the tick replaced.
+/// - A tick is made before the other calls due at the same moment, and so
+///   is a call asked for as `first`. Whatever starts a chord (a tick, the
+///   timeline) can then cancel a call before it acts on the chord that was
+///   replaced: an arpeggio's next note is never heard after its chord ended.
 /// - Inside a call, "now" is the moment the call was due, not the moment the
 ///   clock got round to it. A call that asks for another one a beat later
 ///   gets it exactly a beat after its own time, so nothing drifts.
@@ -63,13 +64,18 @@ protocol ClockTickable: AnyObject {
     var beats: Double { get }
     func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall
     /// Calls `handler` once, `beats` beats from now. A change of tempo before
-    /// then moves it, so it stays that many beats away.
-    func after(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall
+    /// then moves it, so it stays that many beats away. `first` puts it
+    /// ahead of the other calls due at the same moment.
+    func after(beats: Double, first: Bool, _ handler: @escaping @MainActor () -> Void) -> ClockCall
     /// Calls `handler` once, `seconds` from now, whatever the tempo does.
     func after(seconds: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall
 }
 
 extension ClockTickable {
+    func after(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+        after(beats: beats, first: false, handler)
+    }
+
     /// Default resolution: 1/16-note ticks, one per sequencer step. Shared by
     /// every clock so production and test doubles agree.
     var ticksPerBeat: Int { MusicalTime.stepsPerBeat }
@@ -124,9 +130,9 @@ final class MasterClock: ClockTickable {
         return schedule.every(beats: beats, handler)
     }
 
-    func after(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
+    func after(beats: Double, first: Bool, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
         settle()
-        return schedule.after(beats: beats, handler)
+        return schedule.after(beats: beats, first: first, handler)
     }
 
     func after(seconds: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {

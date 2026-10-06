@@ -385,12 +385,17 @@ Arpeggio was a mode in the original plan; it is now an effect that works under e
 
 ### 6.1 Sequencer
 
+The sequencer is being rebuilt on a timeline of notes in layers, shared with loops: see [docs/sequencer-spec.md](docs/sequencer-spec.md).
+As of 2026-10-06 its playback and export run on the timeline, behind the screen described here.
+
 - A pattern is any number of bars of 16 steps.
   There are no preset lengths: bars are added at the end and removed one at a time.
 - Each step holds: chord degree + chord color + gate + rest flag.
-- Playback repeats either the whole pattern or a loop: the steps that were selected when the loop was set.
+  Underneath, the pattern is notes of any length (`Timeline`); a step is how the editor sees them, and a tied step into the same chord is one held note.
+- Playback starts on the first step the moment Play is pressed, and an edit is heard without stopping.
+- Playback repeats either the whole pattern or a loop: the stretch from the first to the last of the steps that were selected when the loop was set.
   The loop is captured from the selection and then independent of it, so steps can be selected and edited while it plays.
-  A loop need not be one run of steps; exactly its steps play, in order.
+  (Until 2026-10-06 a loop could be any scattered set of steps; it is now one stretch of time.)
 - The grid has two layouts, chosen in Settings: numbered pages (one bar at a time) or one scrolling column of every bar.
   Steps are selected by tap and by drag in both; in the scrolling column one finger selects and two fingers scroll.
 - Tempo + swing controls.

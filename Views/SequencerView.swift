@@ -155,7 +155,7 @@ struct SequencerView: View {
     /// `.mid` file. Disabled when every played step is a rest — there would be
     /// nothing in the file.
     private var exportButton: some View {
-        let isEmpty = seqState.playedSteps.allSatisfy(\.isRest)
+        let isEmpty = seqState.timeline.playsNothing
         return ShareLink(item: perfState.sequencerMidiExport,
                          preview: SharePreview("Perfecto MIDI pattern",
                                                image: Image(systemName: "pianokeys"))) {
@@ -396,7 +396,7 @@ struct SequencerView: View {
     private func stepEditorPanel(boxed: Bool, colorBarHeight: CGFloat) -> some View {
         // The editor displays the most recently touched step and applies every
         // edit to all selected steps at once.
-        let primary = seqState.primaryStep.map { seqState.steps[$0] }
+        let primary = seqState.primaryStep.map(seqState.step)
         // The grid needs a row per mode, so it is taller than the strip.
         let surfaceHeight: CGFloat = perfState.colorSurface == .grid
             ? (boxed ? 168 : ColorSurfaceView.portraitHeight(.grid))
@@ -553,7 +553,7 @@ struct SequencerView: View {
 
     /// Gate of the primary step, or the default when nothing is selected.
     private var primaryGate: Double {
-        seqState.primaryStep.map { seqState.steps[$0].gate } ?? SequencerStep().gate
+        seqState.primaryStep.map { seqState.step($0).gate } ?? SequencerStep().gate
     }
 
     private var gateControl: some View {

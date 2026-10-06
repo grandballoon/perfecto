@@ -23,7 +23,7 @@ enum ModeKind: CaseIterable {
         case .lead:      return "Single melody note per button"
         case .drone:     return "Press to latch; press again to stop"
         case .repeat:    return "Chord retriggers at tempo"
-        case .sequencer: return "16-step chord sequence"
+        case .sequencer: return "Chords in sequence, bar by bar"
         case .looper:    return "2-track audio looper"
         case .micSample: return "Record a clip; play it via buttons"
         }
@@ -74,11 +74,14 @@ protocol PerformanceMode: AnyObject {
     /// are sounding a chord re-voice it with `state.color(for:)`.
     func onColorChange(state: PerformanceState)
     func onClockTick(state: PerformanceState)
+    /// The mode has just become the active one.
+    func activate(state: PerformanceState)
     func deactivate(state: PerformanceState)
 }
 
 extension PerformanceMode {
     var name: String { kind.displayName }
     func onClockTick(state: PerformanceState) { }
+    func activate(state: PerformanceState) { }
     func deactivate(state: PerformanceState) { state.endChord() }
 }

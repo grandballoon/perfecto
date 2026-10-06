@@ -1,4 +1,4 @@
-public struct Key: Equatable, Hashable, Sendable {
+public struct Key: Equatable, Hashable, Codable, Sendable {
     public let root: PitchClass
     public let scale: ScaleType
 

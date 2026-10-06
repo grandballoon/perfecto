@@ -290,9 +290,9 @@ struct ArpeggiatorTests {
 
     // MARK: – With the sequencer
 
-    /// A sequencer chord arpeggiates from the tick that starts it. When the
-    /// next chord starts on the very tick the pattern would come round, the
-    /// new chord wins: no note of the old one sounds first.
+    /// A sequencer chord arpeggiates from the moment it starts. When the
+    /// next chord starts at the very moment the pattern would come round,
+    /// the new chord wins: no note of the old one sounds first.
     @Test func sequencerStepsArpeggiateInTime() {
         let (state, sink, clock) = makeState()
         let seq = SequencerState(defaults: isolatedDefaults())
@@ -303,7 +303,7 @@ struct ArpeggiatorTests {
 
         for _ in 0..<5 { clock.tick() }              // one beat of I, then IV begins
         #expect(notes(sink) == [[60], [64], [67], [65]])
-        #expect(clock.pendingCount == 1)
+        #expect(clock.pendingCount == 2)             // the new chord's notes, and the sequencer's next step
     }
 
     // MARK: – The chord listener

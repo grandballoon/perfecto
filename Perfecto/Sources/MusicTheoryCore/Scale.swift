@@ -1,4 +1,4 @@
-public enum ScaleType: CaseIterable, Hashable, Identifiable, Sendable {
+public enum ScaleType: CaseIterable, Hashable, Identifiable, Codable, Sendable {
     public var id: Self { self }
     case major
     case naturalMinor

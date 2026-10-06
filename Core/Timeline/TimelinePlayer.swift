@@ -77,7 +77,10 @@ final class TimelinePlayer {
         guard isPlaying else { return nil }
         let range = timeline.playedRange
         let moved = Int(((clock.beats - cursorBeats) * Double(TimelineTime.ticksPerBeat)).rounded(.down))
-        return min(cursor + max(moved, 0), range.upperBound - 1)
+        // Between calls the playhead is short of the next one, so short of
+        // the end of the stretch while it is inside it.
+        let here = cursor + max(moved, 0)
+        return range.contains(cursor) ? min(here, range.upperBound - 1) : here
     }
 
     /// Starts from the beginning of the stretch that repeats. Does nothing
@@ -129,49 +132,54 @@ final class TimelinePlayer {
                 silence(id)
             }
         }
-        let range = timeline.playedRange
-        cursor = range.contains(here) ? here : range.lowerBound
+        cursor = here
         cursorBeats = clock.beats
         schedule()
     }
 
-    /// The playhead has reached `tick`: ends what ends there, starts what
-    /// starts there, and asks for the next call.
+    /// The playhead has reached `tick`: starts what starts there, ends what
+    /// has ended, and asks for the next call. A playhead at the end of the
+    /// stretch that repeats, or left outside it by a change of loop, goes to
+    /// its beginning.
     private func arrive(at tick: Int) {
         let range = timeline.playedRange
-        var tick = tick
-        // Chords end before others start, so a voice is free for its next chord.
-        for id in layers.keys where (layers[id]?.sounding?.end ?? .max) <= tick { silence(id) }
-        if tick >= range.upperBound {
-            // Round again: whatever was still sounding was cut at the end.
-            for id in layers.keys { silence(id) }
-            tick = range.lowerBound
-        }
-        cursor = tick
+        let wrapped = !range.contains(tick)
+        cursor = wrapped ? range.lowerBound : tick
         cursorBeats = clock.beats
         for id in layers.keys {
-            guard let chord = layers[id]?.chords.first(where: { $0.start == tick }) else { continue }
-            layers[id]?.sounding = chord
-            layers[id]?.voice.play(chord)
+            if let chord = layers[id]?.chords.first(where: { $0.start == cursor }) {
+                // Playing replaces what the voice was sounding, so a chord
+                // that ends where the next begins needs no stop between.
+                layers[id]?.sounding = chord
+                layers[id]?.voice.play(chord)
+            } else if wrapped || (layers[id]?.sounding?.end ?? .max) <= tick {
+                silence(id)
+            }
         }
-        if TimelineTime.isOnGrid(tick) { onStep?(TimelineTime.step(at: tick)) }
+        if TimelineTime.isOnGrid(cursor) { onStep?(TimelineTime.step(at: cursor)) }
         schedule()
     }
 
     /// Asks the clock for a call at the next tick anything happens on: a
-    /// chord's start or end, a step line, or the end of the stretch.
+    /// chord's start or end, a step line, or the end of the stretch. The
+    /// call goes ahead of others due at the same moment, so a chord that
+    /// starts there replaces the old one before anything plays on from it.
     private func schedule() {
         next?.cancel()
         let range = timeline.playedRange
-        var due = range.upperBound
-        for playing in layers.values {
-            if let end = playing.sounding?.end, end > cursor { due = min(due, end) }
-            if let start = playing.chords.first(where: { $0.start > cursor })?.start { due = min(due, start) }
-        }
         let stepLine = (TimelineTime.step(at: cursor) + 1) * TimelineTime.ticksPerStep
-        due = min(due, stepLine)
+        var due = stepLine
+        // A playhead outside the stretch keeps the pulse: it joins at the
+        // next step line.
+        if range.contains(cursor) {
+            due = min(due, range.upperBound)
+            for playing in layers.values {
+                if let end = playing.sounding?.end, end > cursor { due = min(due, end) }
+                if let start = playing.chords.first(where: { $0.start > cursor })?.start { due = min(due, start) }
+            }
+        }
         let beats = Double(due - cursor) / Double(TimelineTime.ticksPerBeat)
-        next = clock.after(beats: beats) { [weak self] in self?.arrive(at: due) }
+        next = clock.after(beats: beats, first: true) { [weak self] in self?.arrive(at: due) }
     }
 
     private func silence(_ id: Layer.ID) {

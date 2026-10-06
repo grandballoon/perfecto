@@ -17,7 +17,7 @@ struct ChordContext: Equatable {
 }
 
 /// How a chord's notes are started.
-enum Articulation: Equatable, Sendable {
+enum Articulation: Equatable, Codable, Sendable {
     /// All notes at once.
     case block
     /// One note at a time, low to high, `interval` seconds apart.

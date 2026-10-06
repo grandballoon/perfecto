@@ -75,7 +75,6 @@ struct MidiAnnouncerSinkTests {
         seq.steps[0] = SequencerStep(degree: .V, color: .joystick(.default, .upRight))
         state.setMode(SequencerMode(seq))
         seq.isPlaying = true
-        clock.tick()
 
         let lastFrame: [UInt8] = transport.frames.last ?? []
         guard case let .chord(announcement)? = ChordWire.decode(lastFrame) else {

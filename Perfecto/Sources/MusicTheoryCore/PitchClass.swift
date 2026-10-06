@@ -1,4 +1,4 @@
-public enum PitchClass: Int, CaseIterable, Hashable, Identifiable, Sendable {
+public enum PitchClass: Int, CaseIterable, Hashable, Identifiable, Codable, Sendable {
     public var id: Int { rawValue }
     case C = 0, Cs, D, Ds, E, F, Fs, G, Gs, A, As, B
 

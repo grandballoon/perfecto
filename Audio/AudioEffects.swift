@@ -1,6 +1,6 @@
 /// The chorus's controls, as plain data: `EffectsChain` realizes them.
 /// Both amounts run 0...1.
-struct ChorusSettings: Equatable, Sendable, SlidePlayed {
+struct ChorusSettings: Equatable, Codable, Sendable, SlidePlayed {
     static var kind: EffectKind { .chorus }
 
     var isOn = false
@@ -20,7 +20,7 @@ struct ChorusSettings: Equatable, Sendable, SlidePlayed {
 
 /// The reverb's controls, as plain data: `EffectsChain` realizes them.
 /// Both amounts run 0...1.
-struct ReverbSettings: Equatable, Sendable, SlidePlayed {
+struct ReverbSettings: Equatable, Codable, Sendable, SlidePlayed {
     static var kind: EffectKind { .reverb }
 
     var isOn = false
@@ -42,7 +42,7 @@ struct ReverbSettings: Equatable, Sendable, SlidePlayed {
 /// The filter's controls, as plain data: `BrightnessFilter` realizes them.
 /// Unlike the chorus and reverb it shapes the sound before it is recorded,
 /// so a loop holds the brightness it was played with.
-struct FilterSettings: Equatable, Sendable, SlidePlayed {
+struct FilterSettings: Equatable, Codable, Sendable, SlidePlayed {
     static var kind: EffectKind { .filter }
 
     var isOn = false

@@ -16,6 +16,7 @@ Tests/
 ├── AudioTests/         — synth presets, loop arithmetic, and the looper, filter, effects chain, shared reverb and master bus in an offline engine
 ├── ModeTests/          — per-mode tests using recording doubles
 │   └── PlayModeTests.swift
+├── TimelineTests/      — the timeline: its edits, compile, and the player against a manual clock
 ├── ExportTests/        — sequencer → Standard MIDI File rendering
 ├── ViewTests/          — real screens hosted in a window, redrawn while their state changes
 ├── SinkTests/          — NotePlayerTests (chords into notes), MidiSinkTests

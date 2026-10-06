@@ -1,5 +1,5 @@
 /// The order an arpeggio visits a chord's notes.
-enum ArpeggioPattern: String, CaseIterable, Identifiable, Sendable {
+enum ArpeggioPattern: String, CaseIterable, Identifiable, Codable, Sendable {
     case up, down, upDown, random
 
     var id: Self { self }
@@ -30,7 +30,7 @@ enum ArpeggioPattern: String, CaseIterable, Identifiable, Sendable {
 
 /// How long one pass over a chord takes. The notes share it evenly, so a
 /// chord with more notes plays them faster, not for longer.
-enum ArpeggioCycle: String, CaseIterable, Identifiable, Sendable {
+enum ArpeggioCycle: String, CaseIterable, Identifiable, Codable, Sendable {
     case halfBeat, beat, twoBeats, bar
 
     var id: Self { self }
@@ -71,7 +71,7 @@ enum ArpeggioCycle: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-struct ArpeggiatorSettings: Equatable, Sendable, SlidePlayed {
+struct ArpeggiatorSettings: Equatable, Codable, Sendable, SlidePlayed {
     static var kind: EffectKind { .arpeggiator }
 
     var isOn = false
