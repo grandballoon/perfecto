@@ -1,151 +1,363 @@
 import AudioKit
 import AVFoundation
 
-/// Two-track audio looper.
-/// AudioPlayer nodes are pre-wired into outputMixer at init so the audio graph
-/// is fully connected before engine.start() — no dynamic graph changes at runtime.
+/// A layered audio looper.
+///
+/// The first take recorded sets the loop's length. Every later take is folded
+/// onto that length at the point in the loop where it was played, and all
+/// tracks start on the same sample grid, so layers stay in time with each
+/// other for as long as they play. The length lasts until every track is
+/// empty again.
+///
+/// A loop keeps the effects it was closed with. Each track plays through its
+/// own `EffectsChain`, set from `liveEffects` when its take ends and left
+/// alone after that, so a loop sounds the same whatever is chosen later,
+/// whether it plays on or is stopped and started again.
+///
+/// All timing is in sample times on the capture point's clock (`LoopCapture`
+/// stamps takes with it): loop cycles begin at `anchor`, every `period`
+/// frames. Players and their effects are pre-wired into `outputMixer` at
+/// init, so the audio graph never changes at runtime.
 @MainActor
-final class Looper {
+final class Looper: LoopTracks {
 
     let outputMixer = Mixer()
+    let trackCount: Int
 
-    private let synthSource: Node
-    private var recorders:   [NodeRecorder?]
-    private var players:     [AudioPlayer]
-    private var trackVolumes: [Float]
+    /// The effects on what is being played now: what the next take to end
+    /// will keep.
+    var liveEffects = SoundEffects()
 
-    init(synthSource: Node, trackCount: Int = 2) {
-        self.synthSource  = synthSource
-        recorders         = Array(repeating: nil, count: trackCount)
-        trackVolumes      = Array(repeating: 1,   count: trackCount)
-        players           = (0..<trackCount).map { _ in AudioPlayer() }
-        for p in players { outputMixer.addInput(p) }
+    /// The shortest first take that becomes a loop. Anything shorter is an
+    /// accidental double tap, and too short to hand over to playback cleanly.
+    static let minimumSeconds: Double = 0.5
+
+    /// Frames faded at a take's two ends, so a take that starts or stops
+    /// mid-note doesn't click.
+    private static let fadeFrames = 256
+
+    private struct Track {
+        /// The loop, exactly one period long; nil while empty or still being recorded.
+        var samples: [[Float]]?
+        /// True from the moment a take is kept, before its samples arrive.
+        var hasTake = false
+        /// Whether the track should be sounding once it has samples.
+        var isPlaying = false
+        var volume: Float = 1
+        var isMuted = false
+        /// Bumped whenever the track is cleared or re-recorded, so a take
+        /// that finishes afterwards is dropped.
+        var generation = 0
+        /// Set while the first take's opening frames are already playing and
+        /// the rest of it is still arriving: how many frames were scheduled.
+        var headFrames: Int?
+    }
+
+    private let capture: LoopCapture
+    private let players: [LoopPlayer]
+    /// Each track's own effects, after its player.
+    private let effects: [EffectsChain]
+    private let logger: (any Logger)?
+    private let scheduleLead: () -> TimeInterval
+
+    private var tracks: [Track]
+    private var recordingTrack: Int?
+    private var period: Int?
+    private var anchor: AVAudioFramePosition = 0
+
+    /// - Parameter scheduleLead: how far ahead of the clock's last reading a
+    ///   start must be scheduled to land on time. The reading can be one
+    ///   render cycle old, and the start has to be queued before the cycle
+    ///   that contains it begins.
+    init(capture: LoopCapture,
+         trackCount: Int,
+         logger: (any Logger)? = nil,
+         scheduleLead: @escaping () -> TimeInterval = {
+             max(0.01, 3 * AVAudioSession.sharedInstance().ioBufferDuration)
+         }) {
+        self.capture = capture
+        self.trackCount = trackCount
+        self.logger = logger
+        self.scheduleLead = scheduleLead
+        tracks = Array(repeating: Track(), count: trackCount)
+        players = (0..<trackCount).map { _ in LoopPlayer() }
+        effects = players.map { EffectsChain($0) }
+        for chain in effects { outputMixer.addInput(chain.output) }
     }
 
     // MARK: – Recording
 
     func startRecording(_ track: Int) throws {
-        guard track < players.count else { return }
-        recorders[track]?.stop()
-        recorders[track] = nil
-
-        // Read the sample rate from the node's live output format — the most
-        // reliable source of the engine's actual running rate. NodeRecorder
-        // creates its file using Settings.sampleRate; if that stays at AudioKit's
-        // 44100 default while the iPhone hardware runs at 48000, the file is
-        // mislabeled and loops play back ~1.5 semitones flat.
-        Settings.sampleRate = synthSource.avAudioNode.outputFormat(forBus: 0).sampleRate
-
-        let rec = try NodeRecorder(node: synthSource)
-        recorders[track] = rec
-        try rec.record()
-        print("[Looper] track \(track) recording started")
+        guard tracks.indices.contains(track), recordingTrack == nil else { return }
+        try capture.begin()
+        resetTrack(track)
+        recordingTrack = track
+        logger?.log(.loop_record_started(track: track))
     }
 
-    func stopRecording(_ track: Int) {
-        guard track < players.count, let rec = recorders[track], rec.isRecording else { return }
-        rec.stop()
-        print("[Looper] track \(track) recording stopped")
+    /// Ends the take on `track` now and starts it looping. Returns false if
+    /// the take was dropped (nothing recorded, or too short to be a loop).
+    @discardableResult
+    func stopRecording(_ track: Int) -> Bool {
+        guard recordingTrack == track else { return false }
+        recordingTrack = nil
+        guard let stop = capture.now?.sampleTime, let partial = capture.snapshot() else {
+            return discard(track, reason: "nothing recorded")
+        }
+        guard players[track].playerNode.outputFormat(forBus: 0).sampleRate == partial.sampleRate else {
+            return discard(track, reason: "sample rate mismatch")
+        }
+        effects[track].apply(liveEffects)
+        tracks[track].hasTake = true
+        tracks[track].isPlaying = true
+        let generation = tracks[track].generation
+
+        if period == nil {
+            let length = Int(stop - partial.start)
+            guard length >= Int(Self.minimumSeconds * partial.sampleRate) else {
+                return discard(track, reason: "too short")
+            }
+            period = length
+            // The loop comes round as soon as a start can be scheduled, and
+            // plays what has arrived so far; the last few frames of the take
+            // are still in flight and are queued behind it when they land.
+            let start = stop + leadFrames(partial.sampleRate)
+            anchor = start
+            // The loop's last frames are faded out, and the opening frames
+            // must sound exactly as the finished loop will: so they stop
+            // short of that fade unless the whole take is already here, in
+            // which case they are the finished loop.
+            let isWhole = partial.frameCount >= length
+            let headFrames = isWhole ? length : min(partial.frameCount, max(0, length - Self.fadeFrames))
+            var head = LoopMath.fitted(partial.channels, to: headFrames)
+            LoopMath.fadeIn(&head, frames: Self.fadeFrames)
+            if isWhole { LoopMath.fadeOut(&head, frames: Self.fadeFrames) }
+            if players[track].start([head], loop: nil, at: playerTime(start, for: players[track])) {
+                tracks[track].headFrames = head.first?.count ?? 0
+            }
+            capture.end(at: stop) { [weak self] take in
+                self?.finishFirstTake(take, track: track, generation: generation)
+            }
+        } else {
+            capture.end(at: stop) { [weak self] take in
+                self?.finishOverdub(take, track: track, generation: generation)
+            }
+        }
+        return true
     }
 
     // MARK: – Playback
 
+    /// Starts `track` in time with the loop. Does nothing if it is already playing.
     func startPlayback(_ track: Int) {
-        guard track < players.count, let url = recorders[track]?.audioFile?.url else { return }
-        players[track].stop()
-        do {
-            // Build the PCM buffer directly from the file so we can call
-            // AudioPlayer.load(buffer:) instead of load(url:buffered:).
-            // load(url:buffered:) only reconnects the playerNode to the graph when
-            // the file format *changes from a previously loaded file*; on the first
-            // load the node stays wired at AVAudioPlayerNode's default 44100 Hz
-            // (set when the empty player was added to the mixer at init time).
-            // load(buffer:) always checks playerNode.outputFormat vs buffer.format
-            // and reconnects if they differ — fixing the 44100/48000 mismatch that
-            // pitches the loop down ~1.5 semitones.
-            let file = try AVAudioFile(forReading: url)
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat,
-                                                frameCapacity: AVAudioFrameCount(file.length)) else {
-                print("[Looper] track \(track) buffer alloc failed")
-                return
-            }
-            try file.read(into: buffer)
-            applyLoopFades(to: buffer)
-            // AudioKit's load(buffer:) only calls makeInternalConnections() when the buffer
-            // format differs from the player's current output format.  On the first load the
-            // format changes from 44.1 → 48 kHz, so makeInternalConnections() fires and the
-            // player node is (re)connected at the correct rate.  On every subsequent load both
-            // sides are already 48 kHz, so makeInternalConnections() is skipped — but we still
-            // need to temporarily break the connection so it is re-established at the buffer's
-            // actual format rather than the stale default.  After load() we therefore check
-            // whether the connection was restored; if not, we reconnect explicitly.
-            if let engine = players[track].mixerNode.engine {
-                engine.disconnectNodeOutput(players[track].playerNode)
-            }
-            players[track].load(buffer: buffer)
-            // Restore the playerNode → mixerNode connection if makeInternalConnections()
-            // did not run (same-format reload case).
-            if let engine = players[track].mixerNode.engine,
-               engine.outputConnectionPoints(for: players[track].playerNode, outputBus: 0).isEmpty {
-                engine.connect(players[track].playerNode,
-                               to: players[track].mixerNode,
-                               format: buffer.format)
-            }
-            players[track].isLooping = true
-            players[track].volume    = trackVolumes[track]
-            players[track].play()
-            print("[Looper] track \(track) playback started from \(url.lastPathComponent)")
-        } catch {
-            print("[Looper] track \(track) load error: \(error)")
-        }
+        guard tracks.indices.contains(track), !tracks[track].isPlaying else { return }
+        tracks[track].isPlaying = true
+        playInPhase(track)
     }
 
     func stopPlayback(_ track: Int) {
-        guard track < players.count else { return }
+        guard tracks.indices.contains(track) else { return }
+        tracks[track].isPlaying = false
+        tracks[track].headFrames = nil
         players[track].stop()
     }
 
     // MARK: – Track management
 
     func clearTrack(_ track: Int) {
-        guard track < players.count else { return }
-        recorders[track]?.stop()
-        recorders[track]  = nil
-        players[track].stop()
-        trackVolumes[track]   = 1
-        players[track].volume = 1
+        guard tracks.indices.contains(track) else { return }
+        if recordingTrack == track {
+            capture.cancel()
+            recordingTrack = nil
+        }
+        resetTrack(track)
+        logger?.log(.loop_cleared(track: track))
+        if recordingTrack == nil, !tracks.contains(where: \.hasTake) {
+            period = nil
+        }
     }
 
     func setVolume(_ track: Int, _ volume: Float) {
-        guard track < players.count else { return }
-        trackVolumes[track]   = volume
-        players[track].volume = AUValue(volume)
+        guard tracks.indices.contains(track) else { return }
+        tracks[track].volume = volume
+        applyVolume(track)
     }
 
     func setMute(_ track: Int, _ muted: Bool) {
-        guard track < players.count else { return }
-        players[track].volume = muted ? 0 : AUValue(trackVolumes[track])
+        guard tracks.indices.contains(track) else { return }
+        tracks[track].isMuted = muted
+        applyVolume(track)
     }
 
-    // MARK: – Private helpers
+    /// Call after the audio engine has stopped and started again. Stopping it
+    /// stops every player, drops the take in progress and restarts the sample
+    /// clock, so the loop is given a new starting point and the tracks that
+    /// were playing are started on it together.
+    func engineDidRestart() {
+        capture.cancel()
+        if let track = recordingTrack {
+            recordingTrack = nil
+            discard(track, reason: "engine restarted")
+        }
+        for track in tracks.indices { tracks[track].headFrames = nil }
+        guard period != nil, let now = capture.now else { return }
+        anchor = now.sampleTime + leadFrames(now.sampleRate)
+        for track in tracks.indices where tracks[track].isPlaying {
+            playInPhase(track)
+        }
+    }
 
-    // Applies 256-frame raised-cosine fade-in/out to eliminate the click at loop boundaries.
-    // The buffer is modified in place; the source file is untouched.
-    private func applyLoopFades(to buffer: AVAudioPCMBuffer, fadeFrames: Int = 256) {
-        guard let channelData = buffer.floatChannelData else { return }
-        let frameLength = Int(buffer.frameLength)
-        guard frameLength > fadeFrames * 2 else { return }
-        let channelCount = Int(buffer.format.channelCount)
-        for ch in 0..<channelCount {
-            let samples = channelData[ch]
-            for i in 0..<fadeFrames {
-                let t = Float(i) / Float(fadeFrames)
-                samples[i] *= 0.5 * (1.0 - cosf(.pi * t))
-            }
-            for i in 0..<fadeFrames {
-                let t = Float(i) / Float(fadeFrames)
-                samples[frameLength - 1 - i] *= 0.5 * (1.0 - cosf(.pi * t))
+    // MARK: – Private: finishing takes
+
+    private func finishFirstTake(_ take: LoopTake, track: Int, generation: Int) {
+        guard tracks[track].generation == generation, let period else { return }
+        var loop = LoopMath.fitted(take.channels, to: period)
+        LoopMath.fadeIn(&loop, frames: Self.fadeFrames)
+        LoopMath.fadeOut(&loop, frames: Self.fadeFrames)
+        tracks[track].samples = loop
+        logger?.log(.loop_recorded(track: track,
+                                   seconds: Double(period) / take.sampleRate,
+                                   setsLength: true))
+
+        guard tracks[track].isPlaying else { return }
+        // Queue the rest of the take behind the opening frames that are
+        // already playing, unless those have run out (or never started), in
+        // which case join the loop where it should be by now.
+        if let head = tracks[track].headFrames,
+           let now = capture.now?.sampleTime,
+           now + leadFrames(take.sampleRate) < anchor + AVAudioFramePosition(head) {
+            let rest = head < period ? [loop.map { Array($0[head...]) }] : []
+            players[track].enqueue(rest, loop: loop)
+        } else {
+            playInPhase(track)
+        }
+        tracks[track].headFrames = nil
+    }
+
+    private func finishOverdub(_ take: LoopTake, track: Int, generation: Int) {
+        guard tracks[track].generation == generation, let period else { return }
+        var channels = take.channels
+        LoopMath.fadeIn(&channels, frames: Self.fadeFrames)
+        LoopMath.fadeOut(&channels, frames: Self.fadeFrames)
+        let offset = LoopMath.phase(of: take.start, anchor: anchor, period: period)
+        tracks[track].samples = LoopMath.fold(channels, offset: offset, period: period)
+        logger?.log(.loop_recorded(track: track,
+                                   seconds: Double(take.frameCount) / take.sampleRate,
+                                   setsLength: false))
+        if tracks[track].isPlaying { playInPhase(track) }
+    }
+
+    @discardableResult
+    private func discard(_ track: Int, reason: String) -> Bool {
+        capture.cancel()
+        resetTrack(track)
+        logger?.log(.loop_take_discarded(track: track, reason: reason))
+        return false
+    }
+
+    private func resetTrack(_ track: Int) {
+        players[track].stop()
+        tracks[track] = Track(generation: tracks[track].generation + 1)
+        applyVolume(track)
+    }
+
+    // MARK: – Private: playback
+
+    /// Starts `track` a moment from now at the point the loop will have
+    /// reached, so it lines up with every other track.
+    private func playInPhase(_ track: Int) {
+        guard let loop = tracks[track].samples, let period, let now = capture.now else { return }
+        let start = now.sampleTime + leadFrames(now.sampleRate)
+        let phase = LoopMath.phase(of: start, anchor: anchor, period: period)
+        let rest = phase > 0 ? [loop.map { Array($0[phase...]) }] : []
+        applyVolume(track)
+        players[track].start(rest, loop: loop, at: playerTime(start, for: players[track]))
+    }
+
+    private func applyVolume(_ track: Int) {
+        players[track].volume = tracks[track].isMuted ? 0 : tracks[track].volume
+    }
+
+    private func leadFrames(_ sampleRate: Double) -> AVAudioFramePosition {
+        AVAudioFramePosition((scheduleLead() * sampleRate).rounded(.up))
+    }
+
+    /// `sampleTime` on the capture clock, as a time on `player`'s own clock.
+    /// Nodes of one engine count samples alike, but two readings may be taken
+    /// a render cycle apart; the host times that come with them say by how much.
+    private func playerTime(_ sampleTime: AVAudioFramePosition, for player: LoopPlayer) -> AVAudioTime? {
+        guard let source = capture.now,
+              let target = player.playerNode.lastRenderTime, target.isSampleTimeValid else { return nil }
+        var offset = target.sampleTime - source.sampleTime
+        if source.isHostTimeValid, target.isHostTimeValid {
+            let apart = AVAudioTime.seconds(forHostTime: target.hostTime)
+                - AVAudioTime.seconds(forHostTime: source.hostTime)
+            offset -= AVAudioFramePosition((apart * target.sampleRate).rounded())
+        }
+        return AVAudioTime(sampleTime: sampleTime + offset, atRate: target.sampleRate)
+    }
+}
+
+/// One looper track's player: an `AVAudioPlayerNode` that plays sample arrays
+/// back to back, the last one looping.
+private final class LoopPlayer: Node {
+
+    let playerNode = AVAudioPlayerNode()
+
+    var connections: [Node] { [] }
+    var avAudioNode: AVAudioNode { playerNode }
+
+    var volume: Float {
+        get { playerNode.volume }
+        set { playerNode.volume = newValue }
+    }
+
+    /// Replaces whatever is playing: `pieces` play once, in order, then `loop`
+    /// repeats. Playback begins at `time` on this node's clock, or right away
+    /// when `time` is nil. Returns false if nothing could be started.
+    @discardableResult
+    func start(_ pieces: [[[Float]]], loop: [[Float]]?, at time: AVAudioTime?) -> Bool {
+        guard playerNode.engine?.isRunning == true else { return false }
+        playerNode.stop()
+        guard enqueue(pieces, loop: loop) else { return false }
+        playerNode.play(at: time)
+        return true
+    }
+
+    /// Adds `pieces`, then the repeating `loop`, behind what is already
+    /// scheduled, with no gap.
+    @discardableResult
+    func enqueue(_ pieces: [[[Float]]], loop: [[Float]]?) -> Bool {
+        let buffers = pieces.map(buffer)
+        let loopBuffer = loop.map(buffer)
+        guard !buffers.contains(where: { $0 == nil }), loopBuffer != .some(nil) else { return false }
+        for case let piece? in buffers {
+            playerNode.scheduleBuffer(piece, at: nil, options: [])
+        }
+        if case let loopBuffer?? = loopBuffer {
+            playerNode.scheduleBuffer(loopBuffer, at: nil, options: .loops)
+        }
+        return true
+    }
+
+    func stop() {
+        playerNode.stop()
+    }
+
+    /// `channels` as a buffer in this node's output format. A take with fewer
+    /// channels than the node repeats its last one.
+    private func buffer(_ channels: [[Float]]) -> AVAudioPCMBuffer? {
+        let format = playerNode.outputFormat(forBus: 0)
+        let frames = channels.first?.count ?? 0
+        guard frames > 0,
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames)),
+              let data = buffer.floatChannelData else { return nil }
+        buffer.frameLength = AVAudioFrameCount(frames)
+        for c in 0..<Int(format.channelCount) {
+            channels[min(c, channels.count - 1)].withUnsafeBufferPointer {
+                data[c].update(from: $0.baseAddress!, count: frames)
             }
         }
+        return buffer
     }
 }

@@ -39,8 +39,7 @@ final class LooperMode: PerformanceMode {
 
     func deactivate(state: PerformanceState) {
         if let looper = state.looper {
-            looper.stopRecording(0); looper.stopRecording(1)
-            looper.stopPlayback(0);  looper.stopPlayback(1)
+            looper.clearTrack(0); looper.clearTrack(1)
         }
         looperState.tracks[0].phase = .empty
         looperState.tracks[1].phase = .empty

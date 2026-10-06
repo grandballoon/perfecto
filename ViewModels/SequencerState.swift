@@ -25,11 +25,27 @@ struct SequencerStep: Codable, Equatable {
     }
 }
 
+/// How the sequencer lays out a pattern longer than one bar.
+enum SequencerLayout: String, CaseIterable {
+    /// One bar on screen at a time, behind numbered tabs.
+    case paged
+    /// Every bar in one continuous column that scrolls.
+    case scroll
+
+    var displayName: String {
+        switch self {
+        case .paged:  return "Pages"
+        case .scroll: return "Scroll"
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class SequencerState {
-    /// One step per 1/16 note. `bars` × 16 steps; grows with `setBars`.
-    var steps: [SequencerStep] = Array(repeating: SequencerStep(), count: 16)
+    /// One step per 1/16 note, always a whole number of bars. The pattern is
+    /// as long as the bars added to it (`addBar`, `removeBar`).
+    var steps: [SequencerStep] = Array(repeating: SequencerStep(), count: stepsPerBar)
     var currentStep: Int = -1   // -1 = stopped; else 0 ..< steps.count (global playhead)
     /// Steps being edited in the UI, as global indices (they may span bars).
     /// The step editor applies each change to every selected step.
@@ -40,31 +56,46 @@ final class SequencerState {
     var isPlaying: Bool = false
     var swing: Double = 0       // 0...0.5 (reserved for later timing offset)
 
-    /// Pattern length in bars. Each bar is one 16-step page. Allowed: 1, 2, 4.
-    private(set) var bars: Int = 1
-    /// Which bar (page) the grid is showing.
-    var currentPage: Int = 0
-    /// When true, playback runs through every bar in sequence; when false it
-    /// loops the current bar only.
-    var chain: Bool = true
-
-    /// The bar counts the UI offers, in order — also drives the "add bar" step.
-    static let barOptions = [1, 2, 4]
-    static let stepsPerBar = MusicalTime.stepsPerBar
-
-    /// The steps playback runs through, in order: every bar in chain mode,
-    /// otherwise just the visible bar, which is the one that loops.
-    var playedSteps: [SequencerStep] {
-        guard !chain else { return steps }
-        let base = currentPage * Self.stepsPerBar
-        return Array(steps[base ..< min(base + Self.stepsPerBar, steps.count)])
+    /// The steps playback repeats, as global indices; empty means the whole
+    /// pattern. It is captured from the selection (`loopSelection`) and then
+    /// independent of it, so steps can go on being selected and edited while
+    /// the loop plays.
+    private(set) var loopSteps: Set<Int> = []
+    /// The bar the grid shows: the visible page in the paged layout, the bar
+    /// scrolled to in the scroll layout. Playback moves it with the playhead.
+    var focusedBar: Int = 0
+    /// Which of the two grid layouts is on screen. Remembered across launches.
+    var layout: SequencerLayout = .paged {
+        didSet { defaults.set(layout.rawValue, forKey: Self.layoutKey) }
     }
 
-    /// One undoable state: the pattern, its length, and the step selection, so
-    /// Undo rewinds selection changes the same way it rewinds chord edits.
+    static let stepsPerBar = MusicalTime.stepsPerBar
+
+    var barCount: Int { steps.count / Self.stepsPerBar }
+
+    /// The step indices playback runs through, in order.
+    var playOrder: [Int] {
+        loopSteps.isEmpty ? Array(steps.indices) : loopSteps.sorted()
+    }
+
+    /// The steps playback runs through, in order — also what the MIDI export
+    /// renders.
+    var playedSteps: [SequencerStep] { playOrder.map { steps[$0] } }
+
+    /// Where the playhead goes from `index`: the next step of the loop (or of
+    /// the whole pattern), wrapping to the first at the end. A playhead outside
+    /// the loop joins it at the next loop step.
+    func step(after index: Int) -> Int {
+        guard !loopSteps.isEmpty else { return (index + 1) % steps.count }
+        return loopSteps.filter { $0 > index }.min() ?? loopSteps.min() ?? 0
+    }
+
+    /// One undoable state: the pattern (and so its length), the loop and the
+    /// step selection, so Undo rewinds selection changes the same way it
+    /// rewinds chord edits.
     private struct EditState {
         var steps: [SequencerStep]
-        var bars: Int
+        var loopSteps: Set<Int>
         var selectedSteps: Set<Int>
         var primaryStep: Int?
     }
@@ -76,21 +107,25 @@ final class SequencerState {
     var canUndo: Bool { !undoStack.isEmpty }
 
     private let defaults: UserDefaults
-    /// Earlier formats ("seqSteps.v1", "seqSteps.v2") stored joystick fields
-    /// by array position; they are not read (no saved patterns needed keeping).
-    private static let storageKey = "sequencer.pattern.v3"
+    private let logger: (any Logger)?
+    /// "sequencer.pattern.v3" also stored a fixed bar count and a chain flag;
+    /// its steps are still read (see `load`). Formats before v3 are not.
+    private static let storageKey = "sequencer.pattern.v4"
+    private static let legacyStorageKey = "sequencer.pattern.v3"
+    private static let layoutKey = "sequencer.layout"
 
     /// `defaults` is injectable so tests can use an isolated store instead of
     /// reading and writing the user's saved pattern.
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, logger: (any Logger)? = nil) {
         self.defaults = defaults
+        self.logger = logger
         load()
     }
 
-    /// Call immediately *before* mutating `steps`, `bars` or the selection to
-    /// make the change undoable.
+    /// Call immediately *before* mutating `steps`, the loop or the selection
+    /// to make the change undoable.
     func snapshot() {
-        undoStack.append(EditState(steps: steps, bars: bars,
+        undoStack.append(EditState(steps: steps, loopSteps: loopSteps,
                                    selectedSteps: selectedSteps,
                                    primaryStep: primaryStep))
         if undoStack.count > undoLimit { undoStack.removeFirst() }
@@ -99,18 +134,18 @@ final class SequencerState {
     func undo() {
         guard let previous = undoStack.popLast() else { return }
         steps = previous.steps
-        bars  = previous.bars
+        loopSteps = previous.loopSteps
         selectedSteps = previous.selectedSteps
         primaryStep = previous.primaryStep
         clampCursors()
         save()
     }
 
-    /// Resets every step (keeping the pattern length) and the selection
-    /// together as one undo step.
+    /// Resets every step (keeping the pattern length and the loop) and the
+    /// selection together as one undo step.
     func clearPattern() {
         snapshot()
-        steps = Array(repeating: SequencerStep(), count: bars * Self.stepsPerBar)
+        steps = Array(repeating: SequencerStep(), count: steps.count)
         selectedSteps = []
         primaryStep = nil
         save()
@@ -158,9 +193,9 @@ final class SequencerState {
     }
 
     /// All step indices inside the axis-aligned rectangle spanned by two
-    /// cells of one page's grid. A straight drag yields a row or column run;
-    /// a diagonal drag selects the full block between its corners. Indices are
-    /// page-local (0 ..< 16); callers add the page's base offset.
+    /// cells of the step grid. A straight drag yields a row or column run;
+    /// a diagonal drag selects the full block between its corners. Rows run on
+    /// through the bars, so global indices sweep across bar boundaries.
     static func rectangle(from a: Int, to b: Int, columns: Int = 4) -> Set<Int> {
         let (rowA, colA) = (a / columns, a % columns)
         let (rowB, colB) = (b / columns, b % columns)
@@ -173,43 +208,71 @@ final class SequencerState {
         return indices
     }
 
-    // MARK: – Bars / pagination
+    // MARK: – Loop
 
-    func setBars(_ newBars: Int) {
-        guard newBars != bars, newBars >= 1 else { return }
+    /// Makes playback repeat exactly the selected steps, in order.
+    func loopSelection() {
+        guard !selectedSteps.isEmpty, selectedSteps != loopSteps else { return }
         snapshot()
-        applyBars(newBars)
+        loopSteps = selectedSteps
         save()
+        logger?.log(.sequencer_loop_changed(stepCount: loopSteps.count))
     }
 
-    /// Advances to the next larger allowed bar count (1 → 2 → 4). No-op at max.
+    /// Makes playback repeat the whole pattern again.
+    func loopAll() {
+        guard !loopSteps.isEmpty else { return }
+        snapshot()
+        loopSteps = []
+        save()
+        logger?.log(.sequencer_loop_changed(stepCount: 0))
+    }
+
+    // MARK: – Bars
+
+    /// Appends a blank bar and shows it.
     func addBar() {
-        guard let idx = Self.barOptions.firstIndex(of: bars),
-              idx + 1 < Self.barOptions.count else { return }
-        setBars(Self.barOptions[idx + 1])
-        currentPage = bars - 1
+        snapshot()
+        steps.append(contentsOf: Array(repeating: SequencerStep(), count: Self.stepsPerBar))
+        focusedBar = barCount - 1
+        save()
+        logger?.log(.sequencer_bars_changed(barCount: barCount))
     }
 
-    var canAddBar: Bool { bars != Self.barOptions.last }
+    var canRemoveBar: Bool { barCount > 1 }
 
-    private func applyBars(_ newBars: Int) {
-        bars = newBars
-        let target = bars * Self.stepsPerBar
-        if steps.count < target {
-            steps.append(contentsOf: Array(repeating: SequencerStep(),
-                                           count: target - steps.count))
-        } else if steps.count > target {
-            steps.removeLast(steps.count - target)
+    /// Removes one bar; the bars after it move up, and the selection, loop and
+    /// playhead move with their steps. A loop that lay wholly inside the bar
+    /// goes with it, leaving the whole pattern looping. The last bar stays.
+    func removeBar(_ bar: Int) {
+        guard canRemoveBar, (0..<barCount).contains(bar) else { return }
+        snapshot()
+        let removed = bar * Self.stepsPerBar ..< (bar + 1) * Self.stepsPerBar
+        /// Where a step index points after the removal; nil if it was removed.
+        func moved(_ index: Int) -> Int? {
+            if removed.contains(index) { return nil }
+            return index < removed.lowerBound ? index : index - removed.count
         }
+        steps.removeSubrange(removed)
+        selectedSteps = Set(selectedSteps.compactMap(moved))
+        loopSteps = Set(loopSteps.compactMap(moved))
+        primaryStep = primaryStep.flatMap(moved) ?? selectedSteps.min()
+        // A playhead inside the removed bar steps back to just before it, so
+        // the next tick plays what moved into its place.
+        currentStep = moved(currentStep) ?? removed.lowerBound - 1
+        if focusedBar > bar { focusedBar -= 1 }
         clampCursors()
+        save()
+        logger?.log(.sequencer_bars_changed(barCount: barCount))
     }
 
-    /// Keeps the page, playhead and selection inside the pattern after it
-    /// shrinks, so no view or clock tick indexes past the end of `steps`.
+    /// Keeps the focused bar, playhead, loop and selection inside the pattern
+    /// after it shrinks, so no view or clock tick indexes past the end of `steps`.
     private func clampCursors() {
-        if currentPage >= bars { currentPage = max(0, bars - 1) }
+        focusedBar = min(max(focusedBar, 0), barCount - 1)
         if currentStep >= steps.count { currentStep = -1 }
         selectedSteps = selectedSteps.filter { $0 < steps.count }
+        loopSteps = loopSteps.filter { $0 < steps.count }
         if let primary = primaryStep, primary >= steps.count {
             primaryStep = selectedSteps.min()
         }
@@ -218,31 +281,35 @@ final class SequencerState {
     // MARK: – Persistence
 
     func save() {
-        let pattern = SavedPattern(bars: bars, chain: chain, steps: steps)
+        let pattern = SavedPattern(steps: steps, loopSteps: loopSteps.sorted())
         guard let data = try? JSONEncoder().encode(pattern) else { return }
         defaults.set(data, forKey: Self.storageKey)
     }
 
-    /// Restores the saved pattern. Data that doesn't decode (for example a
-    /// color case this build doesn't know) leaves the default empty pattern
-    /// rather than being partly interpreted.
+    /// Restores the saved pattern and layout. Data that doesn't decode (for
+    /// example a color case this build doesn't know) or isn't a whole number
+    /// of bars leaves the default empty pattern rather than being partly
+    /// interpreted.
     func load() {
-        guard let data = defaults.data(forKey: Self.storageKey),
+        if let saved = defaults.string(forKey: Self.layoutKey).flatMap(SequencerLayout.init(rawValue:)) {
+            layout = saved
+        }
+        guard let data = defaults.data(forKey: Self.storageKey)
+                      ?? defaults.data(forKey: Self.legacyStorageKey),
               let pattern = try? JSONDecoder().decode(SavedPattern.self, from: data),
-              Self.barOptions.contains(pattern.bars)
+              !pattern.steps.isEmpty,
+              pattern.steps.count.isMultiple(of: Self.stepsPerBar)
         else { return }
-        bars  = pattern.bars
-        chain = pattern.chain
         steps = pattern.steps
-        applyBars(bars)   // reconcile any length mismatch
+        loopSteps = Set(pattern.loopSteps ?? [])
+        clampCursors()
     }
 
     /// The stored form of a pattern. Enum cases are encoded by name (and
     /// `Degree` by its explicit raw value), so reordering a Swift enum never
-    /// changes what a saved pattern means.
+    /// changes what a saved pattern means. `loopSteps` is absent from v3 data.
     private struct SavedPattern: Codable {
-        var bars: Int
-        var chain: Bool
         var steps: [SequencerStep]
+        var loopSteps: [Int]?
     }
 }

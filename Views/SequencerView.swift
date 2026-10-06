@@ -14,19 +14,6 @@ struct SequencerView: View {
     @State private var stepColorTransient: JoystickDirection = .center
     /// The chord grid's equivalent: a cell lights only while dragged.
     @State private var stepGridTransient: GridPosition? = nil
-    /// Drives the KEY sheet for the landscape transport row, which owns the
-    /// whole screen and so needs its own copy of the KEY control.
-    @State private var showKeySheet = false
-    /// Step index where the active grid drag began — the fixed corner of the
-    /// selection sweep's rectangle.
-    @State private var dragAnchor: Int?
-    /// True once the active drag has left its starting cell; from then on the
-    /// gesture is a selection sweep rather than a candidate tap.
-    @State private var dragSelecting = false
-    /// Chits inside the sweep rectangle right now, highlighted but not yet
-    /// committed. Recomputed from the anchor each frame, so backtracking
-    /// shrinks it; it merges into the real selection only on finger lift.
-    @State private var sweepPreview: Set<Int> = []
 
     var body: some View {
         GeometryReader { geo in
@@ -36,7 +23,6 @@ struct SequencerView: View {
                 portraitBody
             }
         }
-        .sheet(isPresented: $showKeySheet) { KeySheet().environment(perfState) }
     }
 
     // MARK: – Portrait (stacked)
@@ -44,8 +30,8 @@ struct SequencerView: View {
     private var portraitBody: some View {
         VStack(spacing: 12) {
             transportBar
-            stepGrid
-            pageBar
+            SequencerStepGrid()
+            barControls
             // Portrait: no surrounding box, and the coloration bar matches
             // play mode's height rather than being scaled down.
             stepEditorPanel(boxed: false, colorBarHeight: 88)
@@ -64,33 +50,37 @@ struct SequencerView: View {
         HStack(spacing: 12) {
             // Left: roomy step editor filling the freed half.
             VStack(spacing: 10) {
-                pageBar
+                barControls
                 stepEditorPanel(boxed: true, colorBarHeight: 72)
             }
             .frame(width: width * 0.40, alignment: .top)
 
-            // Right: BPM + clear along the top, centered grid,
-            // Play anchored bottom-right.
-            ZStack(alignment: .bottomTrailing) {
-                VStack(spacing: 14) {
-                    HStack(spacing: 12) {
-                        Spacer(minLength: 0)
-                        bpmControl
-                        exportButton
-                        clearButton
-                        deselectButton
-                    }
+            // Right: BPM + clear along the top, the grid in the middle
+            // (centered when paged, filling the height when it scrolls), Play
+            // anchored bottom-right.
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
                     Spacer(minLength: 0)
-                    stepGrid
+                    bpmControl
+                    exportButton
+                    clearButton
+                    deselectButton
+                }
+                .padding(.bottom, 14)
+                switch seqState.layout {
+                case .paged:
                     Spacer(minLength: 0)
+                    SequencerStepGrid()
+                    Spacer(minLength: 0)
+                case .scroll:
+                    SequencerStepGrid(fillsHeight: true)
                 }
                 HStack(spacing: 10) {
                     playSeqToggle
-                    keyButton
                     midiButton
                     playCornerButton
                 }
-                .frame(maxWidth: .infinity)
+                .padding(.top, 14)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -209,7 +199,7 @@ struct SequencerView: View {
     // MARK: – Mode / Key / MIDI (landscape bottom row)
     //
     // The landscape sequencer owns the whole screen, so it carries its own
-    // compact copies of PerformanceView's PLAY/SEQ, KEY, and MIDI controls.
+    // compact copies of PerformanceView's PLAY/SEQ, KEY, FX, and MIDI controls.
     // They keep the standard button height and just narrow horizontally.
 
     private var playSeqToggle: some View {
@@ -244,22 +234,6 @@ struct SequencerView: View {
         .buttonStyle(.plain)
     }
 
-    private var keyButton: some View {
-        Text("KEY")
-            .font(.system(size: 13, weight: .semibold, design: .monospaced))
-            .foregroundStyle(Color(white: 0.85))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(white: 0.13))
-                    .overlay(RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(white: 0.25), lineWidth: 1))
-            )
-            .contentShape(Rectangle())
-            .onTapGesture { showKeySheet = true }
-    }
-
     private var midiButton: some View {
         Button { perfState.isExternalSynth.toggle() } label: {
             Text("MIDI")
@@ -278,47 +252,59 @@ struct SequencerView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: – Bars / pagination bar
+    // MARK: – Bars / loop bar
 
-    private var pageBar: some View {
+    /// The pattern's length and what repeats. The paged layout reaches its
+    /// bars here, by numbered tab; the scroll layout shows every bar in the
+    /// grid, so only the count is stated.
+    private var barControls: some View {
         HStack(spacing: 8) {
-            Text("BARS")
-                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                .foregroundStyle(Color(white: 0.35))
-                .kerning(1)
-            ForEach(SequencerState.barOptions, id: \.self) { barsPill($0) }
+            fieldLabel("BARS")
+            switch seqState.layout {
+            case .paged:
+                pageTabs
+                removeBarButton
+            case .scroll:
+                Text("\(seqState.barCount)")
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.6))
+                Spacer(minLength: 0)
+            }
+            addBarButton
 
             Rectangle().fill(Color(white: 0.2)).frame(width: 1, height: 18)
 
-            ForEach(Array(0..<seqState.bars), id: \.self) { pageTab($0) }
-            if seqState.canAddBar { addBarButton }
-
-            Spacer(minLength: 0)
-            chainToggle
+            fieldLabel("LOOP")
+            loopToggle
         }
     }
 
-    private func barsPill(_ b: Int) -> some View {
-        let on = seqState.bars == b
-        return Button { seqState.setBars(b) } label: {
-            Text("\(b)")
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                .foregroundStyle(on ? Color.orange : Color(white: 0.5))
-                .frame(minWidth: 22)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(white: 0.10))
-                        .overlay(RoundedRectangle(cornerRadius: 6)
-                            .stroke(on ? Color.orange.opacity(0.7) : Color(white: 0.2), lineWidth: 1))
-                )
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .medium, design: .monospaced))
+            .foregroundStyle(Color(white: 0.35))
+            .kerning(1)
+    }
+
+    /// One tab per bar. They scroll sideways once there are more than fit,
+    /// keeping the focused bar's tab in view.
+    private var pageTabs: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(0..<seqState.barCount, id: \.self) { pageTab($0).id($0) }
+                }
+            }
+            .onAppear { proxy.scrollTo(seqState.focusedBar) }
+            .onChange(of: seqState.focusedBar) { _, bar in
+                withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo(bar) }
+            }
         }
-        .buttonStyle(.plain)
     }
 
     private func pageTab(_ p: Int) -> some View {
-        let on = seqState.currentPage == p
-        return Button { seqState.currentPage = p } label: {
+        let on = seqState.focusedBar == p
+        return Button { seqState.focusedBar = p } label: {
             Text("\(p + 1)")
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
                 .foregroundStyle(on ? .black : Color(white: 0.6))
@@ -331,25 +317,56 @@ struct SequencerView: View {
     }
 
     private var addBarButton: some View {
-        Button { seqState.addBar() } label: {
-            Image(systemName: "plus")
+        barCountButton("plus", label: "Add bar") { seqState.addBar() }
+    }
+
+    /// Removes the bar on screen (paged layout).
+    private var removeBarButton: some View {
+        barCountButton("minus", label: "Remove bar \(seqState.focusedBar + 1)") {
+            seqState.removeBar(seqState.focusedBar)
+        }
+        .disabled(!seqState.canRemoveBar)
+        .opacity(seqState.canRemoveBar ? 1 : 0.4)
+    }
+
+    private func barCountButton(_ symbol: String, label: String,
+                                action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Color(white: 0.6))
                 .frame(width: 26, height: 29)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.13)))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
-    private var chainToggle: some View {
-        Button { seqState.chain.toggle(); seqState.save() } label: {
-            Text("⟳ chain")
+    /// ALL repeats the whole pattern; SEL captures the selected steps as the
+    /// loop. Tapping SEL again with a different selection moves the loop there.
+    private var loopToggle: some View {
+        let looping = !seqState.loopSteps.isEmpty
+        return HStack(spacing: 0) {
+            loopSegButton("ALL", active: !looping) { seqState.loopAll() }
+            loopSegButton("SEL", active: looping) { seqState.loopSelection() }
+                .disabled(seqState.selectedSteps.isEmpty)
+                .opacity(seqState.selectedSteps.isEmpty && !looping ? 0.4 : 1)
+        }
+        .padding(2)
+        .background(RoundedRectangle(cornerRadius: 7).fill(Color(white: 0.13)))
+    }
+
+    private func loopSegButton(_ label: String, active: Bool,
+                               action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundStyle(seqState.chain ? .black : Color(white: 0.6))
-                .padding(.horizontal, 9)
-                .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 6)
-                    .fill(seqState.chain ? Color.orange : Color(white: 0.13)))
+                .foregroundStyle(active ? .black : Color(white: 0.6))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(RoundedRectangle(cornerRadius: 5)
+                    .fill(active ? Color.orange : Color.clear))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -372,127 +389,6 @@ struct SequencerView: View {
         seqState.currentStep = -1
         perfState.endChord()
         seqState.clearPattern()
-    }
-
-    // MARK: – 4×4 Grid
-
-    private static let gridColumns = 4
-    private static let gridSpacing: CGFloat = 6
-
-    /// Global index of the first step on the visible page. The grid and its
-    /// gesture work in page-local indices (0 ..< 16) and add this offset.
-    private var pageBase: Int { seqState.currentPage * SequencerState.stepsPerBar }
-
-    private var stepGrid: some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: Self.gridSpacing),
-                            count: Self.gridColumns)
-        return LazyVGrid(columns: columns, spacing: Self.gridSpacing) {
-            ForEach(0..<SequencerState.stepsPerBar, id: \.self) { col in
-                stepCell(pageBase + col)
-            }
-        }
-        // One gesture over the whole grid handles both tap-to-toggle and the
-        // drag-to-sweep multi-selection, so both share the cell-position math.
-        .overlay {
-            GeometryReader { geo in
-                Color.clear
-                    .contentShape(Rectangle())
-                    .gesture(selectionGesture(gridSize: geo.size))
-            }
-        }
-    }
-
-    /// Maps a touch point to a page-local step index. Points in the gutters
-    /// or slightly outside the grid clamp to the nearest cell so a sweep never
-    /// drops out mid-drag.
-    private func stepIndex(at point: CGPoint, in size: CGSize) -> Int {
-        let n = CGFloat(Self.gridColumns)
-        let cellW = (size.width  - (n - 1) * Self.gridSpacing) / n
-        let cellH = (size.height - (n - 1) * Self.gridSpacing) / n
-        let col = min(Self.gridColumns - 1, max(0, Int(point.x / (cellW + Self.gridSpacing))))
-        let row = min(Self.gridColumns - 1, max(0, Int(point.y / (cellH + Self.gridSpacing))))
-        return row * Self.gridColumns + col
-    }
-
-    /// Tap toggles one chit; dragging previews the rectangle between the
-    /// drag's start cell and the finger. Nothing is committed until the finger
-    /// lifts — like a chess piece, the sweep can be taken back by moving out
-    /// of an accidentally entered row or column — and only then does the final
-    /// rectangle merge into the selection (adding, never removing).
-    private func selectionGesture(gridSize: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 0)
-            .onChanged { value in
-                let anchor = dragAnchor ?? stepIndex(at: value.startLocation, in: gridSize)
-                dragAnchor = anchor
-                let current = stepIndex(at: value.location, in: gridSize)
-                // Still inside the start cell → still a candidate tap.
-                guard dragSelecting || current != anchor else { return }
-                dragSelecting = true
-                sweepPreview = globalIndices(SequencerState.rectangle(from: anchor, to: current))
-            }
-            .onEnded { value in
-                if dragSelecting, let anchor = dragAnchor {
-                    let current = stepIndex(at: value.location, in: gridSize)
-                    seqState.addToSelection(globalIndices(SequencerState.rectangle(from: anchor, to: current)),
-                                            primary: pageBase + current)
-                } else {
-                    seqState.toggleStepSelection(pageBase + stepIndex(at: value.startLocation, in: gridSize))
-                }
-                dragAnchor = nil
-                dragSelecting = false
-                sweepPreview = []
-            }
-    }
-
-    private func globalIndices(_ local: Set<Int>) -> Set<Int> {
-        Set(local.map { pageBase + $0 })
-    }
-
-    @ViewBuilder
-    private func stepCell(_ idx: Int) -> some View {
-        let step      = seqState.steps[idx]
-        let isPlaying = seqState.currentStep == idx
-        let isSelected = seqState.selectedSteps.contains(idx) || sweepPreview.contains(idx)
-
-        VStack(spacing: 2) {
-            Text("\(idx + 1)")
-                .font(.system(size: 9, design: .monospaced))
-                .foregroundStyle(Color(white: 0.35))
-            Text(step.label(in: perfState.key))
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundStyle(step.isRest ? Color(white: 0.3) : .white)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isPlaying  ? Color.orange.opacity(0.35) :
-                      isSelected ? Color(white: 0.22) :
-                                   Color(white: 0.10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(isPlaying  ? Color.orange :
-                                isSelected ? Color(white: 0.45) :
-                                             Color(white: 0.18),
-                                lineWidth: isPlaying ? 1.5 : 1)
-                )
-        )
-        // Coloration tag tucked into the lower-left corner, showing the
-        // step's chord coloration (omitted for rests and uncolored steps).
-        .overlay(alignment: .bottomLeading) { colorationTag(step) }
-    }
-
-    @ViewBuilder
-    private func colorationTag(_ step: SequencerStep) -> some View {
-        if !step.isRest, !step.color.isBase {
-            Text(colorActionLabel(step.color))
-                .font(.system(size: 8.75, weight: .medium, design: .monospaced))
-                .foregroundStyle(Color.orange.opacity(0.85))
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .padding(.leading, 4)
-                .padding(.bottom, 3)
-        }
     }
 
     // MARK: – Step Editor

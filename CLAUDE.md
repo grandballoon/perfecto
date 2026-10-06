@@ -17,13 +17,14 @@ SwiftUI Views
     ↓
 ViewModels (@Observable): PerformanceState, LooperState, SequencerState
     ↓
-Performance Engine: PerformanceMode protocol + 9 per-mode implementations
+Performance Engine: PerformanceMode protocol + 8 per-mode implementations
     ↓
 Music Theory Core  ← PURE Swift only (Int/Array, no UIKit/AudioKit/Foundation)
     ↓
 ChordEventSink protocol (receives ChordEvent)
-    ├── AudioSink          →  AudioKit engine
-    ├── MidiSink           →  CoreMIDI ("Perfecto" note source)
+    ├── Arpeggiator        →  the note sinks; one note at a time while it is on
+    │     ├── AudioSink    →  AudioKit engine → BrightnessFilter → EffectsChain (chorus → reverb send)
+    │     └── MidiSink     →  CoreMIDI ("Perfecto" note source)
     └── MidiAnnouncerSink  →  ChordLink SysEx ("Perfecto Link"; see chordlink.md)
 ```
 
@@ -31,9 +32,24 @@ ChordEventSink protocol (receives ChordEvent)
 
 **ChordEventSink decouples event generation from consumption.** Every sink receives the same `ChordEvent`s independently — neither knows about the others or reads app state. A `ChordEvent` carries the voicing, its `Articulation` (block or strum), and the `ChordContext` that produced it; the protocol's doc states the contract (`playChord` replaces what is sounding).
 
-**MasterClock drives all tempo-aware modes.** Arpeggio, Repeat, Sequencer, and Looper all use it. It is behind a `ClockTickable` protocol so test doubles can replace it without changing callers.
+**MasterClock drives everything tempo-aware.** Repeat, Sequencer, Looper and the arpeggiator all use it. It is behind a `ClockTickable` protocol so test doubles can replace it without changing callers. Modes count its ticks (sixteenths); anything finer or off that grid asks it for a repeat (`every(beats:)`), as the arpeggiator does.
 
-**Adding a performance mode = one file plus one `ModeKind` case.** Each mode implements `PerformanceMode`; its `ModeKind` gives the display name and the `ModeSurface` (screen) it uses, and `PerformanceState.makeMode` builds it. Views decide by kind or surface, never by display name. `PerformanceState` enforces the button contract documented on `PerformanceMode` (a mode hears a release only for the most recent press), and all chord surfaces report through `movePointer(from:to:)`.
+**Effects are layers, not modes**, so they work under every mode. The arpeggiator is a note effect: a `ChordEventSink` in front of the note sinks, so audio and MIDI hear the same notes, while ChordLink still hears the whole chord. One pass over a chord takes one cycle (`ArpeggioCycle`) however many notes it has. Chorus and reverb are sound effects: an `EffectsChain`, after the loopers' capture point, so loops are recorded dry. What is being played has one chain and every loop track has its own, set from the live settings (`SoundEffects`) when its take ends and never again, so a finished loop keeps its key, octave, sound and effects whatever is chosen later. An effect's settings are plain data (`ArpeggiatorSettings`, `ChorusSettings`, `ReverbSettings`), edited through `EffectsState`. Adding a sound effect = a settings struct, a node in `EffectsChain`, and a card in `EffectsPanel`.
+
+**Key gestures play effects.** What a finger does on a chord key beyond pressing it is a control, read in the same place fingers become keys (`ChordKeyTouches`) and reported by `ChordKeySurface` beside the key changes, so every layout gets it. The first is the slide: how far up its key the finger is (`ChordKeySlide`, 0 at the bottom to 1 at the top). `PerformanceState` keeps one per held key and hands the active key's to `EffectsState.slide`, by the same rule as the chord (the most recent press). Every effect's settings are `SlidePlayed`: each has a `followsSlide` switch and names the one control the slide stands in for (the filter's brightness, the chorus's amount, the reverb's mix, the arpeggiator's cycle), and lifting returns to the set value. `EffectsState` keeps the set values and passes every effect on as played, so nothing downstream knows about the slide: the `Arpeggiator` gets its settings, and each `EffectsControl` gets the sound effects (`AudioSink` makes the sound, `MidiSink` sends CC 74, 93 and 91). Loops are given the chorus and reverb as set (`setLoopEffects`), never as played. The filter (`BrightnessFilter`) sits before the loopers' capture point, unlike the `EffectsChain`, so a loop records the brightness it was played with. Because a played value jumps back on lifting, a played control must not cut what is already sounding: the reverb's mix is a send into the reverb, and a new arpeggiator cycle takes effect from the next note. Adding a gesture = a reading in `ChordKeyTouches` and a value on `EffectsState`; making a setting playable = conforming it to `SlidePlayed` and a switch on its card.
+
+**Key zones play effects by where a key is struck.**
+They are a second use of the slide, not a second gesture: `KeyZoneSettings` divides the slide into 2 to 4 equal zones, and each `KeyZone` names one effect (or none) and the place on the slide its played control is held at.
+A finger in a zone switches that effect on at that value, whatever it is set to (`SlidePlayed.held(at:)`); out of the zone, or lifted, the effect is as set, and still played by the slide if it follows it.
+Zones are independent, so a key can mix effects or play one effect at several values (an arpeggio at three speeds).
+`EffectsState` works out the zone the finger is in (`zone`, which sticks a little at its edges so a resting finger cannot flicker between two) and passes the effects on as played, so nothing downstream knows about zones either.
+Because a zone switches an effect on and off, the last key up ends its chord before its slide ends (`PerformanceState.release`), or the arpeggiator switching off would sound the chord once more.
+`ChordKeySurface` marks the zone edges on every key, at the places `ChordKeySlide.share(at:)` gives, so the marks and the reading cannot disagree.
+A zone's value is a place on the slide for every effect, so a new `SlidePlayed` effect can be zoned with no more than a row in the Key zones card.
+
+**Adding a performance mode = one file plus one `ModeKind` case.** Each mode implements `PerformanceMode`; its `ModeKind` gives the display name and the `ModeSurface` (screen) it uses, and `PerformanceState.makeMode` builds it. Views decide by kind or surface, never by display name. `PerformanceState` enforces the button contract documented on `PerformanceMode` (the most recent press is active; lifting it hands the chord back to the press held beneath it), and every chord layout is played through `ChordKeySurface`, which tracks each finger (`ChordKeyTouches`) so all layouts get several fingers and sliding; layouts only draw keys and mark them with `chordKey(_:)`.
+
+**Every setting lives in the menu, a side panel, not in sheets.** `SidePanel` slides over the leading edge of `PerformanceView`, covers only its own width (`SidePanelLayout`) and takes only the touches that land on it, so the keys still showing beside it play as usual and a setting can be heard while it is changed. `SidePanelButton`, in the top leading corner, is the one way in; `SidePanelState` says which page is open and reopens the menu where it was left. A new setting goes on a page (`KeyPanel`, `SoundPanel`, `EffectsPanel`, `SetupPanel`), not behind its own button or sheet.
 
 **Musical time is stated once** in `MusicalTime` (steps per beat, beats per bar, tempo range); nothing restates "16" or "4".
 
@@ -41,7 +57,7 @@ ChordEventSink protocol (receives ChordEvent)
 
 ```swift
 // Music Theory Core
-PitchClass, ScaleType (10 scales; the Key sheet offers the 7 heptatonic ones), Key, Degree (I–vii°)
+PitchClass, ScaleType (10 scales; the Key panel offers the 7 heptatonic ones), Key, Degree (I–vii°)
 ChordSpec { degree, color: ChordColor }   // which chord, independent of key and voicing
 ChordColor .joystick(JoystickMode, JoystickDirection)  — 3 modes × 9 directions; shapes live in JoystickMap
            .grid(StackHeight, HeptatonicMode?)          — thirds stacked through a mode; nil = the degree's own
@@ -67,7 +83,7 @@ Implement in this sequence — each step is independently testable:
 4. JoystickView wiring
 5. Key sheet + Sound sheet
 6. Non-clock modes: Play, Strum, Lead, Drone
-7. MasterClock + Arpeggio, Repeat modes
+7. MasterClock + Repeat mode + the arpeggiator
 8. MidiSink (test with GarageBand)
 9. Sequencer mode + screen
 10. Looper (2-track, sample-accurate) — heaviest piece
@@ -101,14 +117,15 @@ Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/` (run with `swift test`
 
 ## MIDI
 
-App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100 fixed in v1. No MIDI input, CC messages, program change, or clock sync in v1.
+App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100 fixed in v1. The sound effects' amounts are sent as CC 74 (filter), 93 (chorus) and 91 (reverb) while each is on; no other CC messages. No MIDI input, program change, or clock sync in v1.
 
 ## V1 scope
 
-- Modes 1–9: Play, Strum, Lead, Drone, Arpeggio, Repeat, Sequencer, Looper (2-track), Mic Sample
+- Modes: Play, Strum, Lead, Drone, Repeat, Sequencer, Looper (2-track), Mic Sample
+- Effects: arpeggiator, filter, chorus, reverb; each can be played by sliding on the chord keys, or switched on from a zone of them
 - Drum module deferred
 - The 7 heptatonic scales (pentatonic and blues hidden for now), all 12 keys, all 3 joystick modes (28 chord types), all 3 inversions
-- Synth engine (8 presets) + sample engine (SFZ, ≤250MB bundle)
+- Synth engine (14 presets; each a `SynthPatch` in `SynthPreset`) + sample engine (SFZ, ≤250MB bundle)
 - MIDI out
 - Light + dark mode
 
@@ -119,5 +136,5 @@ When adding a feature, identify its load-bearing events and emit `LogEvent` case
 ## Known risks (watch for)
 
 - **Virtual joystick zone detection** — 8 zones by thumb-drag is harder than physical; may need visual zone-highlighting or wider deadbands. Prototype early.
-- **Looper sample-accuracy** — small timing bugs cause audible drift. Test against a metronome reference throughout, not just at the end.
+- **Looper sample-accuracy** — small timing bugs cause audible drift. Test against a metronome reference throughout, not just at the end. Layers share one sample grid (`Looper`'s anchor and period, `LoopMath`); `LooperTests` checks it frame by frame in an offline engine.
 - **Inversion + voice leading + chord lock interactions** — subtle; write explicit test cases for combinations before shipping.

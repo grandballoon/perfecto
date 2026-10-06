@@ -131,4 +131,86 @@ struct QuickLoopStateTests {
         state.triggerTapped()
         #expect(state.phase == .recording)
     }
+
+    // MARK: – With a looper
+
+    /// A looper double that records the calls it gets.
+    private final class RecordingLoopTracks: LoopTracks {
+        var keepsTakes = true
+        private(set) var calls: [String] = []
+
+        func startRecording(_ track: Int) throws { calls.append("record \(track)") }
+        func stopRecording(_ track: Int) -> Bool {
+            calls.append("close \(track)")
+            return keepsTakes
+        }
+        func startPlayback(_ track: Int) { calls.append("play \(track)") }
+        func stopPlayback(_ track: Int) { calls.append("stop \(track)") }
+        func clearTrack(_ track: Int) { calls.append("clear \(track)") }
+    }
+
+    @Test func closingATakeStartsItLoopingWithoutASeparatePlay() {
+        let tracks = RecordingLoopTracks()
+        let state = QuickLoopState(looper: tracks)
+        state.triggerTapped()
+        state.triggerTapped()
+        #expect(tracks.calls == ["record 0", "close 0"])
+        #expect(state.loops.map(\.isPlaying) == [true])
+    }
+
+    @Test func aDroppedTakeLeavesNoLoop() {
+        let tracks = RecordingLoopTracks()
+        tracks.keepsTakes = false
+        let state = QuickLoopState(looper: tracks)
+        state.triggerTapped()
+        state.triggerTapped()
+        #expect(state.loops.isEmpty)
+        #expect(state.phase == .idle)
+    }
+
+    @Test func heldNotesAreReleasedBeforeTheTakeCloses() {
+        let tracks = RecordingLoopTracks()
+        let state = QuickLoopState(looper: tracks)
+        var callsWhenReleased: [String]?
+        state.onWillStopRecording = { callsWhenReleased = tracks.calls }
+        state.triggerTapped()
+        state.triggerTapped()
+        #expect(callsWhenReleased == ["record 0"])
+    }
+
+    @Test func eachLayerRecordsOnItsOwnTrackAndAFreedTrackIsReused() {
+        let tracks = RecordingLoopTracks()
+        let state = QuickLoopState(looper: tracks)
+        for _ in 0..<3 { state.triggerTapped(); state.triggerTapped() }
+        #expect(state.loops.map(\.trackIndex) == [0, 1, 2])
+        state.removeLoop(id: state.loops[1].id)
+        state.triggerTapped()
+        state.triggerTapped()
+        #expect(state.loops.map(\.trackIndex) == [0, 2, 1])
+    }
+
+    @Test func togglingALayerStopsAndRestartsItsTrack() {
+        let tracks = RecordingLoopTracks()
+        let state = QuickLoopState(looper: tracks)
+        state.triggerTapped()
+        state.triggerTapped()
+        let id = state.loops[0].id
+        state.togglePlayback(id: id)
+        #expect(state.loops[0].isPlaying == false)
+        state.togglePlayback(id: id)
+        #expect(state.loops[0].isPlaying)
+        #expect(tracks.calls.suffix(2) == ["stop 0", "play 0"])
+    }
+
+    @Test func clearAllRemovesEveryLoopAndTheTakeInProgress() {
+        let tracks = RecordingLoopTracks()
+        let state = QuickLoopState(looper: tracks)
+        state.triggerTapped()
+        state.triggerTapped()
+        state.triggerTapped()
+        state.clearAll()
+        #expect(state.loops.isEmpty)
+        #expect(state.phase == .idle)
+        #expect(tracks.calls.suffix(2) == ["clear 1", "clear 0"])
+    }
 }

@@ -6,18 +6,9 @@ import SwiftUI
 /// ii (upper-right), iii (right), IV (lower-right),
 /// V (lower-left), vi (left), vii° (upper-left).
 ///
-/// A single container-level drag gesture enables sliding between buttons.
-/// @GestureState guarantees the pressed degree resets to nil whenever the
-/// gesture ends or is cancelled — including multi-touch interference — so
-/// chords can never get stuck in the "on" position.
+/// Visual only: the `ChordKeySurface` owns the touches.
 struct CircleChordGridView: View {
     @Environment(PerformanceState.self) private var state
-
-    // GestureState resets automatically on gesture end/cancel — no manual
-    // cleanup needed and no stuck-chord possible.
-    @GestureState private var pressingDegree: Degree? = nil
-
-    private let haptic = UIImpactFeedbackGenerator(style: .medium)
 
     private struct RingChord: Identifiable {
         let degree: Degree
@@ -44,78 +35,52 @@ struct CircleChordGridView: View {
             let centerSz = size * 0.27
             let outerSz  = size * 0.22
 
-            ZStack {
-                // Faint guide ring
-                Circle()
-                    .stroke(Color(white: 0.18), lineWidth: 1)
-                    .frame(width: ringR * 2, height: ringR * 2)
-                    .position(x: cx, y: cy)
+            ChordKeySurface {
+                ZStack {
+                    // Faint guide ring
+                    Circle()
+                        .stroke(Color(white: 0.18), lineWidth: 1)
+                        .frame(width: ringR * 2, height: ringR * 2)
+                        .position(x: cx, y: cy)
 
-                // Outer chord buttons (visual only — gesture is on the container)
-                ForEach(ringChords) { chord in
-                    let rad = chord.angleDeg * .pi / 180
-                    CircleChordButton(
-                        label:     degreeNumeral(key: state.key, degree: chord.degree),
-                        color:     chord.color,
-                        isPressed: pressingDegree == chord.degree,
-                        fontSize:  outerSz * 0.30
-                    )
-                    .frame(width: outerSz, height: outerSz)
-                    .position(
-                        x: cx + ringR * CGFloat(sin(rad)),
-                        y: cy - ringR * CGFloat(cos(rad))
-                    )
-                }
-
-                // Centre: root chord I (visual only)
-                CircleChordButton(
-                    label:     degreeNumeral(key: state.key, degree: .I),
-                    color:     .orange,
-                    isPressed: pressingDegree == .I,
-                    fontSize:  centerSz * 0.34
-                )
-                .frame(width: centerSz, height: centerSz)
-                .position(x: cx, y: cy)
-            }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0, coordinateSpace: .local)
-                    .updating($pressingDegree) { value, degree, _ in
-                        degree = nearest(to: value.location, cx: cx, cy: cy, ringR: ringR)
+                    // Outer chord buttons
+                    ForEach(ringChords) { chord in
+                        let rad = chord.angleDeg * .pi / 180
+                        CircleChordButton(
+                            label:     degreeNumeral(key: state.key, degree: chord.degree),
+                            color:     chord.color,
+                            isPressed: state.heldDegrees.contains(chord.degree),
+                            fontSize:  outerSz * 0.30
+                        )
+                        .frame(width: outerSz, height: outerSz)
+                        .chordKey(chord.degree)
+                        .position(
+                            x: cx + ringR * CGFloat(sin(rad)),
+                            y: cy - ringR * CGFloat(cos(rad))
+                        )
                     }
-            )
+
+                    // Centre: root chord I
+                    CircleChordButton(
+                        label:     degreeNumeral(key: state.key, degree: .I),
+                        color:     .orange,
+                        isPressed: state.heldDegrees.contains(.I),
+                        fontSize:  centerSz * 0.34
+                    )
+                    .frame(width: centerSz, height: centerSz)
+                    .chordKey(.I)
+                    .position(x: cx, y: cy)
+                }
+            }
         }
         .aspectRatio(1, contentMode: .fit)
-        .onChange(of: pressingDegree) { oldDegree, newDegree in
-            // Sliding presses the new degree before releasing the old, so the
-            // chord changes without a gap (PerformanceState.movePointer).
-            if newDegree != nil { haptic.impactOccurred() }
-            state.movePointer(from: oldDegree, to: newDegree)
-        }
-    }
-
-    /// Returns the degree whose button centre is closest to `point`.
-    private func nearest(to point: CGPoint, cx: CGFloat, cy: CGFloat, ringR: CGFloat) -> Degree {
-        var best: Degree = .I
-        var bestDist = hypot(point.x - cx, point.y - cy)
-        for chord in ringChords {
-            let rad = chord.angleDeg * .pi / 180
-            let bx = cx + ringR * CGFloat(sin(rad))
-            let by = cy - ringR * CGFloat(cos(rad))
-            let d = hypot(point.x - bx, point.y - by)
-            if d < bestDist {
-                bestDist = d
-                best = chord.degree
-            }
-        }
-        return best
     }
 }
 
-// MARK: – Visual-only circle button (no gesture — parent owns interaction)
+// MARK: – Visual-only circle button (no gesture — the surface owns interaction)
 
 /// Circular chord button drawn by `CircleChordGridView`. Visual only; the
-/// parent owns the gesture and hit-testing.
+/// enclosing `ChordKeySurface` owns the touches.
 struct CircleChordButton: View {
     let label:     String
     let color:     Color

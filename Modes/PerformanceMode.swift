@@ -1,7 +1,7 @@
 /// Identifies a performance mode. Views, settings and logs decide by kind,
 /// never by display name, so renaming or localizing a mode changes nothing else.
 enum ModeKind: CaseIterable {
-    case play, strum, lead, drone, arpeggio, `repeat`, sequencer, looper, micSample
+    case play, strum, lead, drone, `repeat`, sequencer, looper, micSample
 
     var displayName: String {
         switch self {
@@ -9,7 +9,6 @@ enum ModeKind: CaseIterable {
         case .strum:     return "Strum"
         case .lead:      return "Lead"
         case .drone:     return "Drone"
-        case .arpeggio:  return "Arpeggio"
         case .repeat:    return "Repeat"
         case .sequencer: return "Sequencer"
         case .looper:    return "Looper"
@@ -23,7 +22,6 @@ enum ModeKind: CaseIterable {
         case .strum:     return "Notes arpeggiate on button press"
         case .lead:      return "Single melody note per button"
         case .drone:     return "Press to latch; press again to stop"
-        case .arpeggio:  return "Sequential notes at tempo"
         case .repeat:    return "Chord retriggers at tempo"
         case .sequencer: return "16-step chord sequence"
         case .looper:    return "2-track audio looper"
@@ -37,7 +35,7 @@ enum ModeKind: CaseIterable {
         case .sequencer: return .sequencer
         case .looper:    return .looper
         case .micSample: return .micSample
-        case .play, .strum, .lead, .drone, .arpeggio, .repeat: return .chords
+        case .play, .strum, .lead, .drone, .repeat: return .chords
         }
     }
 }
@@ -57,11 +55,15 @@ enum ModeSurface {
 /// One way of turning chord-button presses into sound.
 ///
 /// Button contract (enforced by `PerformanceState`, so modes can rely on it):
-/// - Every `onButtonDown(degree)` is eventually followed by exactly one
-///   `onButtonUp` for the same degree, unless a later press supersedes it.
 /// - Several degrees may be held at once (several fingers). The most recent
-///   press is the active one; `onButtonUp` is called only when the active
-///   degree is released. Releasing an older, superseded press is not reported.
+///   press is the active one. Releasing an older press is not reported.
+/// - Releasing the active degree while older presses are still held makes the
+///   most recent of them active again: it arrives as a new `onButtonDown`,
+///   with no `onButtonUp` in between, so the chord changes without a gap.
+/// - `onButtonUp` is called only when the last held degree is released.
+///   Every `onButtonDown(degree)` is therefore eventually followed by one
+///   `onButtonUp` for the same degree, unless another `onButtonDown`
+///   supersedes it first.
 @MainActor
 protocol PerformanceMode: AnyObject {
     var kind: ModeKind { get }

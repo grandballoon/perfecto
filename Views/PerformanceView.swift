@@ -4,11 +4,9 @@ import UIKit
 struct PerformanceView: View {
     @Environment(PerformanceState.self) private var state
 
-    @State private var showKeySheet      = false
-    @State private var showSettingsSheet = false
-
-    @State private var keyQuick = KeyQuickController()
-    @State private var keyButtonCenter: CGPoint = .zero
+    /// The menu. Its panel lies over part of this screen, and whatever stays
+    /// visible beside it stays playable.
+    @State private var sidePanel = SidePanelState()
 
     private let topRow:    [(Degree, Color)] = [
         (.I, .orange),
@@ -22,6 +20,10 @@ struct PerformanceView: View {
         (.viiDim, .orange),
     ]
 
+    /// Landscape panels' inset from the screen edges and from each other.
+    private static let edgeMargin: CGFloat = 16
+    private static let midiChitWidth: CGFloat = 64
+
     var body: some View {
         GeometryReader { geo in
             let isLandscape = geo.size.width > geo.size.height
@@ -33,45 +35,25 @@ struct PerformanceView: View {
                     portraitLayout
                 }
 
-                settingsButton
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(.leading, 16)
-                    .padding(.top, 12)
+                SidePanel(containerWidth: geo.size.width)
 
-                if keyQuick.isActive {
-                    KeyQuickSelectOverlay(controller: keyQuick)
-                        .allowsHitTesting(false)
-                }
+                // On top of the panel, so the same spot opens and closes it.
+                SidePanelButton()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(.leading, SidePanelLayout.buttonLeading)
+                    .padding(.top, SidePanelLayout.buttonTop)
             }
-            .coordinateSpace(.named("perf"))
         }
         .ignoresSafeArea(edges: .bottom)
-        .sheet(isPresented: $showKeySheet)      { KeySheet().environment(state) }
-        .sheet(isPresented: $showSettingsSheet) { SettingsSheet().environment(state) }
-    }
-
-    private var settingsButton: some View {
-        Button { showSettingsSheet = true } label: {
-            Image(systemName: "gearshape.fill")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(Color(white: 0.6))
-                .frame(width: 38, height: 38)
-                .background(
-                    Circle()
-                        .fill(Color(white: 0.13))
-                        .overlay(Circle().stroke(Color(white: 0.25), lineWidth: 1))
-                )
-        }
-        .buttonStyle(.plain)
+        .environment(sidePanel)
     }
 
     // MARK: – Portrait layout
 
     private var portraitLayout: some View {
         VStack(spacing: 0) {
-            // The OLED shares the top row with the settings gear, inset past
-            // it and top-aligned with it. The current key lives in the KEY
-            // chit below rather than in a separate status label.
+            // The OLED shares the top row with the menu button, inset past
+            // it and top-aligned with it.
             oledDisplay
                 .padding(.leading, 66)
                 .padding(.trailing, 24)
@@ -81,7 +63,7 @@ struct PerformanceView: View {
             // mode: play/lead/etc. anchor them here (a single Spacer below pushes
             // the input strip to the bottom), and the full-screen modes get the
             // same gap instead of butting straight against the OLED.
-            portraitFunctionButtons
+            functionButtons
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .padding(.bottom, 12)
@@ -96,6 +78,9 @@ struct PerformanceView: View {
                     .environment(state.looperState)
                     .padding(.top, 8)
             } else {
+                LoopBar()
+                    .padding(.horizontal, 20)
+
                 if state.mode.kind.surface == .micSample {
                     MicSampleView()
                         .environment(state)
@@ -139,27 +124,47 @@ struct PerformanceView: View {
                 .frame(width: geo.size.width, height: geo.size.height)
         } else {
         HStack(spacing: 0) {
-                let panelW = geo.size.width / 2
+                let isFullScreenMode = state.mode.kind.surface == .looper
+                // With the horizontal chord row, the joystick bar stands
+                // upright along the leading edge so the row can take the
+                // width a half-screen bar would have used.
+                let barIsVertical = state.chordGridLayout == .horizontalBar
+                    && state.colorSurface == .joystick
+                    && !isFullScreenMode
+                let leftW = barIsVertical
+                    ? Self.edgeMargin + ColorSurfaceView.barThickness
+                    : geo.size.width / 2
                 let panelH = geo.size.height
 
-                // Left panel: input control. The coloration bar stays
-                // horizontal here (as in portrait) and keeps the same 88pt
-                // height; the chord grid fills the panel. Both sit at the
-                // bottom so their lower margin lines up with the function
-                // buttons in the right panel.
-                let isFullScreenMode = state.mode.kind.surface == .looper
-                VStack(spacing: 8) {
-                    Spacer(minLength: 0)
-                    if !isFullScreenMode {
-                        ColorSurfaceView()
-                            .environment(state)
-                            .frame(maxWidth: .infinity)
-                            .frame(maxHeight: state.colorSurface == .grid ? .infinity : 88)
+                if barIsVertical {
+                    // Left panel: the upright bar, starting below the
+                    // menu button. Its trailing gap is the right panel's
+                    // own leading margin.
+                    ColorSurfaceView(barAxis: .vertical)
+                        .environment(state)
+                        .padding(.leading, Self.edgeMargin)
+                        .padding(.top, SidePanelLayout.buttonTop + SidePanelLayout.buttonSize + 8)
+                        .padding(.bottom, Self.edgeMargin)
+                        .frame(width: leftW, height: panelH)
+                } else {
+                    // Left panel: input control. The coloration bar stays
+                    // horizontal here (as in portrait) and keeps the same
+                    // thickness; the chord grid fills the panel. Both sit at
+                    // the bottom so their lower margin lines up with the
+                    // function buttons in the right panel.
+                    VStack(spacing: 8) {
+                        Spacer(minLength: 0)
+                        if !isFullScreenMode {
+                            ColorSurfaceView()
+                                .environment(state)
+                                .frame(maxWidth: .infinity)
+                                .frame(maxHeight: state.colorSurface == .grid
+                                       ? .infinity : ColorSurfaceView.barThickness)
+                        }
                     }
+                    .padding(Self.edgeMargin)
+                    .frame(width: leftW, height: panelH)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
-                .frame(width: panelW, height: panelH)
 
                 // Right panel: OLED + chord grid + function buttons
                 VStack(spacing: 0) {
@@ -168,6 +173,8 @@ struct PerformanceView: View {
                             .environment(state.looperState)
                     } else {
                         oledDisplay
+                            .padding(.bottom, 8)
+                        LoopBar()
                             .padding(.bottom, 8)
                         if state.mode.kind.surface == .micSample {
                             MicSampleView()
@@ -193,9 +200,8 @@ struct PerformanceView: View {
                         functionButtons
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
-                .frame(width: panelW, height: panelH)
+                .padding(Self.edgeMargin)
+                .frame(width: geo.size.width - leftW, height: panelH)
         }
         }
     }
@@ -220,23 +226,13 @@ struct PerformanceView: View {
             .onLongPressGesture(minimumDuration: 3) { shareLogs() }
     }
 
+    /// The mode toggle takes the row; MIDI keeps to a narrow fixed width.
     private var functionButtons: some View {
         @Bindable var state = state
         return HStack(spacing: 10) {
-            keyQuickButton(label: "KEY")
             modeSegToggle
             toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
-        }
-    }
-
-    /// Portrait puts the KEY chit in the center and labels it with the
-    /// current key (e.g. "C Major"), replacing the old top-left status label.
-    private var portraitFunctionButtons: some View {
-        @Bindable var state = state
-        return HStack(spacing: 10) {
-            modeSegToggle
-            keyQuickButton(label: "\(state.key.root.name) \(state.key.scale.displayName)")
-            toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
+                .frame(width: Self.midiChitWidth)
         }
     }
 
@@ -272,141 +268,19 @@ struct PerformanceView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: – KEY button: tap opens the sheet, press-and-hold quick-selects
-
-    private func keyQuickButton(label: String) -> some View {
-        functionButton(label: label) { showKeySheet = true }
-            .background(
-                GeometryReader { g in
-                    Color.clear
-                        .onAppear { updateKeyCenter(g) }
-                        .onChange(of: g.frame(in: .named("perf"))) { updateKeyCenter(g) }
-                }
-            )
-            .highPriorityGesture(keyQuickGesture)
-    }
-
-    private var keyQuickGesture: some Gesture {
-        LongPressGesture(minimumDuration: 0.22)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named("perf")))
-            .onChanged { value in
-                if case .second(true, let drag) = value {
-                    if !keyQuick.isActive {
-                        keyQuick.begin(at: keyButtonCenter,
-                                       key: state.key,
-                                       style: state.keyQuickStyle)
-                    }
-                    if let drag { keyQuick.update(location: drag.location) }
-                }
-            }
-            .onEnded { _ in
-                if keyQuick.isActive, let newKey = keyQuick.end() {
-                    state.key = newKey
-                }
-            }
-    }
-
-    private func updateKeyCenter(_ g: GeometryProxy) {
-        let f = g.frame(in: .named("perf"))
-        keyButtonCenter = CGPoint(x: f.midX, y: f.midY)
-    }
-
     private var chordGrid: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                ForEach(topRow, id: \.0) { degree, color in
-                    ChordButton(degree: degree, label: degreeNumeral(key: state.key, degree: degree), color: color)
-                }
-            }
-            HStack(spacing: 10) {
-                ForEach(bottomRow, id: \.0) { degree, color in
-                    ChordButton(degree: degree, label: degreeNumeral(key: state.key, degree: degree), color: color)
-                }
-                Spacer()
-            }
-        }
-    }
-
-    // MARK: – Quick loop panel (landscape only)
-
-    private var loopControlColumn: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            loopTriggerButton
-            loopDots
-        }
-    }
-
-    private var loopTriggerButton: some View {
-        Button { state.quickLoopState.triggerTapped() } label: {
-            loopTriggerLabel
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(white: 0.13))
-                        .overlay(RoundedRectangle(cornerRadius: 6)
-                            .stroke(loopTriggerStroke, lineWidth: 1))
-                )
-        }
-        .buttonStyle(.plain)
-        .disabled(state.quickLoopState.phase == .idle && !state.quickLoopState.canStartNew)
-    }
-
-    @ViewBuilder
-    private var loopTriggerLabel: some View {
-        switch state.quickLoopState.phase {
-        case .idle:
-            Text("● LOOP")
-                .foregroundStyle(
-                    state.quickLoopState.canStartNew ? Color(white: 0.7) : Color(white: 0.3)
-                )
-        case .recording:
-            Text("■ STOP")
-                .foregroundStyle(Color.red)
-        }
-    }
-
-    private var loopTriggerStroke: Color {
-        switch state.quickLoopState.phase {
-        case .idle:      return state.quickLoopState.canStartNew ? Color(white: 0.28) : Color(white: 0.15)
-        case .recording: return Color.red.opacity(0.5)
-        }
-    }
-
-    private var loopDots: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            ForEach(state.quickLoopState.loops) { loop in
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 10, height: 10)
-                    Button {
-                        state.quickLoopState.removeLoop(id: loop.id)
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundStyle(Color(white: 0.5))
-                            .frame(width: 20, height: 20)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color(white: 0.12))
-                            )
+        ChordKeySurface {
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    ForEach(topRow, id: \.0) { degree, color in
+                        ChordButton(degree: degree, label: degreeNumeral(key: state.key, degree: degree), color: color)
                     }
-                    .buttonStyle(.plain)
-                    Button {
-                        state.quickLoopState.togglePlayback(id: loop.id)
-                    } label: {
-                        Image(systemName: loop.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(loop.isPlaying ? Color.green : Color(white: 0.45))
-                            .frame(width: 50, height: 20)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color(white: 0.12))
-                            )
+                }
+                HStack(spacing: 10) {
+                    ForEach(bottomRow, id: \.0) { degree, color in
+                        ChordButton(degree: degree, label: degreeNumeral(key: state.key, degree: degree), color: color)
                     }
-                    .buttonStyle(.plain)
+                    Spacer()
                 }
             }
         }
@@ -428,28 +302,6 @@ struct PerformanceView: View {
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(isOn.wrappedValue ? Color.orange : Color(white: 0.25),
                                         lineWidth: 1)
-                        )
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func functionButton(label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color(white: 0.85))
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .padding(.horizontal, 6)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(white: 0.13))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(white: 0.25), lineWidth: 1)
                         )
                 )
         }

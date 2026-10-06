@@ -1,6 +1,18 @@
 import Foundation
 import Observation
 
+/// What the play-mode looper needs from the audio layer: tracks that record
+/// and loop. `Looper` is the real one; tests substitute their own.
+@MainActor
+protocol LoopTracks: AnyObject {
+    func startRecording(_ track: Int) throws
+    /// Ends the take and starts it looping; false if the take was dropped.
+    @discardableResult func stopRecording(_ track: Int) -> Bool
+    func startPlayback(_ track: Int)
+    func stopPlayback(_ track: Int)
+    func clearTrack(_ track: Int)
+}
+
 struct QuickLoopEntry: Identifiable {
     let id = UUID()
     let trackIndex: Int
@@ -18,16 +30,16 @@ final class QuickLoopState {
     private(set) var phase: Phase = .idle
     private(set) var loops: [QuickLoopEntry] = []
 
-    private let looper: Looper?
+    private let looper: (any LoopTracks)?
     private var recordingTrackIndex: Int?
 
     /// Called immediately before recording stops so the caller can release held notes.
     var onWillStopRecording: (() -> Void)? = nil
 
-    static let maxLoops = 6
+    static let maxLoops = AudioSink.quickLoopTrackCount
 
     /// Production: pass the quickLooper from AudioSink. Tests: omit looper (nil → no audio).
-    init(looper: Looper? = nil) {
+    init(looper: (any LoopTracks)? = nil) {
         self.looper = looper
     }
 
@@ -59,9 +71,17 @@ final class QuickLoopState {
 
     func removeLoop(id: UUID) {
         guard let entry = loops.first(where: { $0.id == id }) else { return }
-        looper?.stopPlayback(entry.trackIndex)
         looper?.clearTrack(entry.trackIndex)
         loops.removeAll { $0.id == id }
+    }
+
+    /// Removes every loop, and drops the take being recorded if there is one.
+    func clearAll() {
+        if let recordingTrackIndex { looper?.clearTrack(recordingTrackIndex) }
+        recordingTrackIndex = nil
+        phase = .idle
+        for entry in loops { looper?.clearTrack(entry.trackIndex) }
+        loops = []
     }
 
     // MARK: – Private
@@ -85,10 +105,10 @@ final class QuickLoopState {
     private func finishRecording() {
         guard let trackIdx = recordingTrackIndex else { phase = .idle; return }
         onWillStopRecording?()
-        looper?.stopRecording(trackIdx)
         recordingTrackIndex = nil
         phase = .idle
+        // A dropped take (too short to loop) leaves no entry behind.
+        guard looper?.stopRecording(trackIdx) ?? true else { return }
         loops.append(QuickLoopEntry(trackIndex: trackIdx))
-        looper?.startPlayback(trackIdx)
     }
 }

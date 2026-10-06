@@ -27,34 +27,19 @@ struct ClockResolutionTests {
         #expect(state.ticksPerBeat == 3)
     }
 
-    @Test func arpeggioFiresOncePerBeatAtDefaultResolution() {
-        let clock = ManualClock()               // ticksPerBeat = 4
-        let (state, sink) = makeState(clock: clock)
-        state.setMode(ArpeggioMode())
-        state.press(degree: .I)                 // arms Cmaj, no audio yet
-        sink.reset()
+    /// The real clock's repeats: called over and over, and not after a cancel.
+    @Test func aRepeatRunsUntilItIsCancelled() async throws {
+        let clock = MasterClock()
+        clock.bpm = 300                          // a beat is 0.2 s
+        var calls = 0
+        let repeating = clock.every(beats: 0.05) { calls += 1 }   // every 10 ms
 
-        // Three ticks: below the four-tick beat, nothing fires.
-        clock.tick(); clock.tick(); clock.tick()
-        #expect(sink.playCalls.isEmpty)
-
-        // Fourth tick completes the beat and plays one arpeggio note.
-        clock.tick()
-        #expect(sink.playCalls.count == 1)
-    }
-
-    @Test func arpeggioFollowsAChangedClockResolution() {
-        let clock = ManualClock()
-        clock.ticksPerBeat = 2                   // coarser clock: a beat is two ticks
-        let (state, sink) = makeState(clock: clock)
-        state.setMode(ArpeggioMode())
-        state.press(degree: .I)
-        sink.reset()
-
-        clock.tick()                             // one tick: below the two-tick beat
-        #expect(sink.playCalls.isEmpty)
-        clock.tick()                             // second tick completes the beat
-        #expect(sink.playCalls.count == 1)
+        let ran = try await waitUntil { calls >= 3 }
+        #expect(ran)
+        repeating.cancel()
+        let atCancel = calls
+        try await Task.sleep(for: .milliseconds(60))
+        #expect(calls == atCancel)
     }
 
     @Test func repeatRetriggersOncePerBeat() {

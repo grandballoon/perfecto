@@ -173,17 +173,19 @@ struct LooperView: View {
     // MARK: – Chord buttons
 
     private var chordButtons: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                ForEach(topRow, id: \.0) { degree, color in
-                    ChordButton(degree: degree, label: degreeNumeral(key: perfState.key, degree: degree), color: color)
+        ChordKeySurface {
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    ForEach(topRow, id: \.0) { degree, color in
+                        ChordButton(degree: degree, label: degreeNumeral(key: perfState.key, degree: degree), color: color)
+                    }
                 }
-            }
-            HStack(spacing: 10) {
-                ForEach(bottomRow, id: \.0) { degree, color in
-                    ChordButton(degree: degree, label: degreeNumeral(key: perfState.key, degree: degree), color: color)
+                HStack(spacing: 10) {
+                    ForEach(bottomRow, id: \.0) { degree, color in
+                        ChordButton(degree: degree, label: degreeNumeral(key: perfState.key, degree: degree), color: color)
+                    }
+                    Spacer()
                 }
-                Spacer()
             }
         }
     }

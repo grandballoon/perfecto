@@ -1,5 +1,5 @@
 {
-  "originHash" : "e104eca2df19f5285e04cd8e142d3e542010be9f4c4b4482aa34e2928a2475e8",
+  "originHash" : "63973bd8e46f76509335c000a0a94b5199f90d146dc4c93533864625fe36316e",
   "pins" : [
     {
       "identity" : "audiokit",
@@ -17,6 +17,15 @@
       "state" : {
         "revision" : "c33dac0f581e4ef5bf179e550394f3152aafabfd",
         "version" : "5.7.0"
+      }
+    },
+    {
+      "identity" : "dunneaudiokit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AudioKit/DunneAudioKit",
+      "state" : {
+        "revision" : "f6cee064ab82b95b36d8b9242a11bd06cb390256",
+        "version" : "5.6.2"
       }
     },
     {

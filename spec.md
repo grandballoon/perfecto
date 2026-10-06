@@ -1,6 +1,6 @@
 # Perfecto — iOS app specification (v1)
 
-A chord performance instrument for iPhone. v1 covers the nine core performance modes; some features are deferred or simplified per the decisions below. The music theory core is portable by purity: no platform dependencies, testable in isolation as pure functions of their inputs.
+A chord performance instrument for iPhone. v1 covers the eight core performance modes and a small set of effects; some features are deferred or simplified per the decisions below. The music theory core is portable by purity: no platform dependencies, testable in isolation as pure functions of their inputs.
 
 ---
 
@@ -8,7 +8,8 @@ A chord performance instrument for iPhone. v1 covers the nine core performance m
 
 **Goals**
 
-- All nine primary performance modes (Play, Strum, Lead, Drone, Arpeggio, Repeat, Sequencer, Looper, Mic Sample).
+- All eight primary performance modes (Play, Strum, Lead, Drone, Repeat, Sequencer, Looper, Mic Sample).
+- Effects that work under every mode: an arpeggiator, chorus and reverb.
 - Clean architectural seams so the music theory core remains portable by purity (no platform dependencies, testable in isolation).
 - MIDI output for DAW integration.
 - Both synthesis and sample-based sound engines, switchable at runtime.
@@ -220,6 +221,61 @@ Voices → ADSR → BassOsc → Filter → Chorus → Flanger → Delay → Reve
 
 All effects implemented as AudioKit nodes (`Reverb`, `Delay`, `Chorus`, `Flanger`, `LowPassFilter`). Wet/dry per effect exposed to user.
 
+**Built so far (2026-10-05):** chorus and reverb, in `EffectsChain`, one for what is being played and one for each loop track:
+
+```
+Voices ─→ synth mix ─→ Chorus ─┬────────────→ dry ─┬─→ Output
+                               └─→ send ─→ Reverb ─┘
+Each loop track ─→ the same chain of its own ──────→ Output
+```
+
+The loopers record the synth mix, before the effects.
+When a take ends, its track's effects are set as the live ones are at that moment and then left alone.
+So a finished loop keeps its effects, as it keeps its key, octave and sound: choosing new ones changes only what is played next, whether the loop is playing or is stopped and started again later.
+Each effect has an on/off switch and two controls (chorus: amount, rate; reverb: mix, size), on the side panel's Effects page, behind the FX chit.
+An effect that is off keeps running with none of the sound reaching it, so the graph is never rewired while the engine runs.
+The reverb's mix is how much of the sound is sent into the reverb, not how much of the reverb is let out, so what is already ringing always dies away in its own time: a mix that is being played, or a reverb switched off, never cuts a tail short.
+The low-pass filter that shapes a preset is per voice, part of each `SynthPatch`.
+
+**Filter (played).** One more low-pass, `BrightnessFilter`, sits between the synth mix and everything after it:
+
+```
+Voices ─→ synth mix ─→ Filter ─┬─→ Chorus ─→ Reverb ─→ Output
+                               └─→ loop capture
+```
+
+It has a switch and one control, brightness, on the Effects page.
+While a chord key is held and the filter follows the slide (below), the slide plays the brightness: the bottom of the key is dark and the top lets everything through.
+Lifting the key returns it to the set brightness, which is also what the sequencer's steps sound at.
+It sits before the loopers' capture point, so unlike the chorus and reverb its movement is recorded into a loop.
+Off, it is bypassed.
+
+**Played by the slide.** Every effect has a "slide plays" switch beside the one control the slide (8.4) can play: the filter's brightness (on by default), the chorus's amount, the reverb's mix and the arpeggiator's cycle (off by default).
+While a chord key is held, the slide stands in for that control on every effect that is on and follows it, so one finger can play several at once; lifting the key returns each to its set value.
+The cycle is played in steps, each with an equal share of the key's height: a bar at the bottom, then 2 beats, 1 beat, and half a beat at the top.
+A loop keeps the chorus and reverb as they were set when it was closed, not as they were being played; only the filter's movement is recorded.
+The settings a slide can play are `SlidePlayed`; `EffectsState` holds the set values and the slide and passes each effect on as played, so the audio, the arpeggiator and MIDI only ever see that.
+
+**Key zones.** Every chord key can be divided into 2 to 4 zones, stacked from the bottom of the key to the top, each with an equal share of the slide (8.4).
+Each zone names one effect, or none, and a value for that effect's played control: a cycle for the arpeggiator, an amount from 0 to 1 for the filter's brightness, the chorus's amount and the reverb's mix.
+While the finger playing the chord is in a zone, that zone's effect is on with its control held at the zone's value, whether or not the effect is switched on and whatever it is set to.
+Everywhere else on the key, and once the key is lifted, the effect is as set, and is still played by the slide if it follows it.
+Zones are independent of one another, so one key can mix effects (a plain zone, an arpeggiated zone and a reverb zone) or play one effect at several values (an arpeggio at a bar, a beat and half a beat).
+The zone is read from the moment the finger lands, so where a key is struck chooses the effect, and sliding from one zone to another under a held chord changes it; moving into or out of an arpeggiator zone sounds the held chord again, whole or as notes.
+A finger must go a little past a zone's edge (4% of the slide) to leave the zone, so one resting on an edge does not switch back and forth.
+Lifting the last key ends its chord before the zone's effect switches off, so the chord does not sound once more.
+While the zones are on, every key shows a tick at each side where one zone gives way to the next.
+A loop keeps the chorus and reverb as set, not as a zone was holding them.
+The zones are set on the Effects page, in a "Key zones" card: a switch, the number of zones, and for each zone its effect and value.
+They are off by default; switched on, the default is two zones, plain at the bottom and the arpeggiator at one beat at the top.
+
+**Arpeggiator.** A note effect rather than a sound effect: it turns each chord into single notes in tempo before they reach the audio and MIDI sinks, so it works in every mode and is sent over MIDI.
+The first note sounds on the press and the rest follow evenly, in one of four patterns (up, down, up/down, random).
+One pass of the pattern takes one cycle (half a beat, 1 beat, 2 beats or 1 bar) however many notes the chord has, so adding a coloration makes the notes faster rather than the pass longer, and the pattern always comes round on the beat.
+Changing the cycle while a chord is held changes the speed without starting the pattern again: the note that is due still comes when it was due and the ones after it follow at the new spacing.
+Each note lasts until the next.
+ChordLink still announces the whole chord.
+
 ### 5.3 Audio session
 
 - 48kHz, 256-sample buffer (~5.3ms latency).
@@ -259,7 +315,15 @@ struct SampleConfig {
 
 Bundled at ship:
 
-- 8 synth presets: saw lead, square bass, sine pad, triangle bell, FM bell, FM bass, pluck, brass
+- 14 synth presets, grouped as the Sound page lists them:
+  - Keys: electric piano, glass keys, organ, clav
+  - Pads: sine pad, warm pad, strings
+  - Plucked: pluck, bell, kalimba
+  - Synth: saw lead, square lead, brass, synth bass
+- Each preset is a `SynthPatch`: plain data naming up to two oscillators, an optional FM pair, an optional low-pass filter and an amplitude envelope.
+  Every `SynthVoice` has the same fixed signal path (oscillators + FM → filter → envelope), so changing sound only changes parameters and never rewires the audio graph.
+  Filter cutoff and FM depth can sweep after each note starts, which is what separates a pluck from a pad on the same oscillator.
+- Choosing a sound on the Sound page plays nothing by itself: the keys beside the panel stay playable, and the next chord is heard in the new sound.
 - 3 sample-based instruments (TBD, sourced before v1 ship):
   - Salamander Grand Piano (CC-BY, ~120MB compressed)
   - 1–2 more from CC-licensed libraries (strings + electric piano are likely picks)
@@ -306,16 +370,23 @@ Modes must not call any other methods on `PerformanceState`. This list is the co
 | Strum | Chord plays as quick arpeggio on press | No (one-shot timing) |
 | Lead | Buttons play single melody notes | No |
 | Drone | Press latches chord on; press again to release | No |
-| Arpeggio | Chord notes play sequentially at tempo (up/down/up-down/random) | Yes |
 | Repeat | Chord retriggers rhythmically at tempo | Yes |
-| Sequencer | 16-step grid of chords plays back at tempo | Yes |
+| Sequencer | Bars of 16 chord steps play back at tempo | Yes |
 | Looper | 2-track audio looper, sample-accurate | Yes |
 | Mic Sample | Record audio from mic, play back via chord buttons | No (playback timing) |
 
+Arpeggio was a mode in the original plan; it is now an effect that works under every mode (see 5.2).
+
 ### 6.1 Sequencer
 
-- 16 steps.
-- Each step holds: chord degree + joystick (mode, direction) + duration (1, ½, ¼, etc.) + rest flag.
+- A pattern is any number of bars of 16 steps.
+  There are no preset lengths: bars are added at the end and removed one at a time.
+- Each step holds: chord degree + chord color + gate + rest flag.
+- Playback repeats either the whole pattern or a loop: the steps that were selected when the loop was set.
+  The loop is captured from the selection and then independent of it, so steps can be selected and edited while it plays.
+  A loop need not be one run of steps; exactly its steps play, in order.
+- The grid has two layouts, chosen in Settings: numbered pages (one bar at a time) or one scrolling column of every bar.
+  Steps are selected by tap and by drag in both; in the scrolling column one finger selects and two fingers scroll.
 - Tempo + swing controls.
 - Save/load presets to UserDefaults (in v1; SwiftData later).
 
@@ -328,6 +399,25 @@ Modes must not call any other methods on `PerformanceState`. This list is the co
 - Quantized loop boundaries (snap record-end to nearest bar).
 
 Architecture is designed for 6 tracks; v1 caps the UI at 2.
+
+### 6.2.1 Play-mode loop
+
+The first looping the app offers lives in Play mode: one LOOP button, no clock and no count-in.
+
+- Tap LOOP to start a take, tap again to close it; it loops from that moment.
+- The first take sets the loop's length.
+  Each later take (up to 6 layers) is folded onto that length at the point in the loop where it was played, so layers stay in time with each other however long they play.
+  A take longer than the loop layers over itself.
+- Each layer has a numbered chit: tap to silence it or bring it back (it rejoins in time).
+  A trash chit after the layers switches them to deleting: while it is on, tapping a layer removes it.
+  Holding the trash chit offers to clear every loop at once.
+  Deleting every layer frees the length, so the next take sets a new one.
+- A first take shorter than half a second is dropped as an accidental double tap.
+- A loop holds the synth as it sounded when recorded, and the effects that were on when it was closed, so layers can differ in key, octave, sound and effects; loops are never re-recorded into later takes.
+
+How it keeps time: `LoopCapture` taps the synth mix and stamps every buffer with the engine's sample clock, so a take starts and ends at exact samples.
+`Looper` schedules every layer on one sample grid (cycles begin at an anchor, every loop-length frames) and `LoopMath` holds the arithmetic as pure functions.
+`LooperTests` runs the real looper in an offline engine and checks every rendered frame.
 
 ### 6.3 Mic Sample
 
@@ -368,6 +458,12 @@ Strumming (`strumChord`) and preset changes (`setPreset`) are audio-only operati
 
 When `playChord` is called while a chord is already held, `MidiSink` sends Note Off for all previous notes before sending Note On for the new chord.
 
+### 7.3.1 Effect controllers
+
+The sound effects' amounts are sent on channel 1 as they are played, each time one reaches a new value: the filter's brightness as CC 74 (0 dark to 127 open), the chorus's amount as CC 93 and the reverb's mix as CC 91.
+A chord's starting values are sent ahead of its notes.
+Switching an effect off sends its resting value once (127 for the filter, 0 for the chorus and reverb); an effect never switched on sends nothing.
+
 ### 7.4 Fixed parameters (v1)
 
 - Channel: 1 (fixed; not configurable in v1)
@@ -382,12 +478,12 @@ GarageBand requires a one-time manual step. On first launch, the app displays a 
 2. Tap the MIDI settings icon → enable "Perfecto" as a MIDI input source.
 3. Return to Perfecto. Chord presses now sound in GarageBand.
 
-The app shows this hint as a dismissible card on first run and as a "Where's my sound?" link in the settings sheet.
+The app shows this hint as a dismissible card on first run and as a "Where's my sound?" link on the menu's Setup page.
 
 ### 7.6 What's NOT in MIDI v1
 
 - MIDI input (driving the app from external controllers).
-- CC messages for joystick state.
+- CC messages for joystick state. (The only controllers sent are the effects' amounts, 7.3.1.)
 - Program change for sound preset switching.
 - MIDI clock sync.
 - Network MIDI / RTP-MIDI to Mac DAW (deferred to v1.x).
@@ -444,15 +540,18 @@ Both supported. Color tokens via SwiftUI's adaptive color system. Dark mode uses
 ### 8.4 Interaction details
 
 - **Chord buttons**: minimum 60×60pt. Multi-touch (press multiple for layered chords).
+- **Key gestures**: what a finger does on a chord key, beyond pressing it, is a control. The first is the slide: how far up its key the finger is, 0 at the bottom to 1 at the top, with the top and bottom 15% of the key already reading as all the way. It is read from the moment the finger lands, so where a key is struck matters, and it plays every effect that follows it (5.2). Sliding onto another key still changes chord. With several keys held, the slide that is heard is the most recent press's, as the chord is. The slide can also be read in steps: key zones (5.2) divide it into bands, each of which switches an effect on.
 - **Joystick**: `DragGesture` in a circular bounded region. Drag direction maps to one of 9 zones. Released = snaps back to center. Tap (no drag) = "click" event for looper control.
 - **Volume wheel**: vertical slider with smooth tracking.
-- **Function buttons**: tap opens a modal sheet with that menu's content.
+- **Menu button**: top leading corner, a sliders icon. It opens the menu (8.5) where it was left, and closes it. It is the one way to every setting.
 - **Haptic feedback**: light haptic on chord button press (Core Haptics).
 
-### 8.5 Menu sheets
+### 8.5 Side panel and menu sheets
 
-- **Key sheet**: 12 keys × 7 scales grid + octave selector. Pentatonic and blues are hidden for now: chords on scales with fewer than seven notes aren't defined yet.
-- **Sound sheet**: list of synth presets + sampled instruments, with category headers.
+- **Menu (side panel)**: slides over the leading edge and covers only part of the screen. The keys still showing beside it play as usual, so a key, a sound or an effect can be heard while it is changed. One panel, four pages (Key, Sound, Effects, Setup), switched by tabs at its top; opened and closed by the menu button, which stays in its corner on top of the panel.
+- **Setup page**: chord layout, chord color surface, sequencer bar layout.
+- **Key page**: 12 keys × 7 scales grid + octave selector. Pentatonic and blues are hidden for now: chords on scales with fewer than seven notes aren't defined yet.
+- **Sound page**: synth presets + sampled instruments, with category headers.
 - **Mode sheet**: list of 9 modes + mode-specific settings panel below.
 
 ---
@@ -516,9 +615,13 @@ Perfecto/
 │   ├── JoystickView.swift
 │   ├── VolumeSlider.swift
 │   ├── OLEDDisplay.swift
+│   ├── SidePanel/
+│   │   ├── SidePanel.swift
+│   │   ├── KeyPanel.swift
+│   │   ├── SoundPanel.swift
+│   │   ├── SetupPanel.swift
+│   │   └── EffectsPanel.swift
 │   ├── Sheets/
-│   │   ├── KeySheet.swift
-│   │   ├── SoundSheet.swift
 │   │   └── ModeSheet.swift
 │   ├── Permissions/
 │   │   ├── PrePromptView.swift

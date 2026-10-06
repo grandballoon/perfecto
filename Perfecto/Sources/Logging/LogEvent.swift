@@ -9,7 +9,11 @@ enum SinkKind: String, Codable {
 }
 
 enum ChordSource: String, Codable {
-    case button, sequencer, arpeggio, looper
+    case button, sequencer, looper
+}
+
+enum EffectKind: String, Codable, CaseIterable {
+    case arpeggiator, filter, chorus, reverb
 }
 
 enum ChordLinkFrameKind: String, Codable {
@@ -52,6 +56,23 @@ enum LogEvent {
     case chord_button_pressed(degree: Int, key: String, color: String, resultingNotes: [Int])
     case chord_played(notes: [Int], source: ChordSource)
     case chord_stopped(notes: [Int], source: ChordSource)
+
+    // Sequencer
+    case sequencer_bars_changed(barCount: Int)
+    /// `stepCount` 0 means the whole pattern loops.
+    case sequencer_loop_changed(stepCount: Int)
+
+    // Sound
+    case sound_changed(preset: String)
+    case effect_switched(effect: EffectKind, isOn: Bool)
+    case key_zones_switched(isOn: Bool)
+
+    // Looper
+    case loop_record_started(track: Int)
+    /// `setsLength`: the take that defined the loop's length; later takes are layered onto it.
+    case loop_recorded(track: Int, seconds: Double, setsLength: Bool)
+    case loop_take_discarded(track: Int, reason: String)
+    case loop_cleared(track: Int)
 
     // Export
     case sequencer_midi_exported(stepCount: Int, noteCount: Int, byteCount: Int)
@@ -164,6 +185,37 @@ extension LogEvent: Encodable {
             try c.encode("chord_stopped", forKey: Key("type"))
             try c.encode(notes,  forKey: Key("notes"))
             try c.encode(source, forKey: Key("source"))
+        case let .sequencer_bars_changed(barCount):
+            try c.encode("sequencer_bars_changed", forKey: Key("type"))
+            try c.encode(barCount, forKey: Key("barCount"))
+        case let .sequencer_loop_changed(stepCount):
+            try c.encode("sequencer_loop_changed", forKey: Key("type"))
+            try c.encode(stepCount, forKey: Key("stepCount"))
+        case let .sound_changed(preset):
+            try c.encode("sound_changed", forKey: Key("type"))
+            try c.encode(preset, forKey: Key("preset"))
+        case let .effect_switched(effect, isOn):
+            try c.encode("effect_switched", forKey: Key("type"))
+            try c.encode(effect, forKey: Key("effect"))
+            try c.encode(isOn,   forKey: Key("isOn"))
+        case let .key_zones_switched(isOn):
+            try c.encode("key_zones_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .loop_record_started(track):
+            try c.encode("loop_record_started", forKey: Key("type"))
+            try c.encode(track, forKey: Key("track"))
+        case let .loop_recorded(track, seconds, setsLength):
+            try c.encode("loop_recorded", forKey: Key("type"))
+            try c.encode(track,      forKey: Key("track"))
+            try c.encode(seconds,    forKey: Key("seconds"))
+            try c.encode(setsLength, forKey: Key("setsLength"))
+        case let .loop_take_discarded(track, reason):
+            try c.encode("loop_take_discarded", forKey: Key("type"))
+            try c.encode(track,  forKey: Key("track"))
+            try c.encode(reason, forKey: Key("reason"))
+        case let .loop_cleared(track):
+            try c.encode("loop_cleared", forKey: Key("type"))
+            try c.encode(track, forKey: Key("track"))
         case let .sequencer_midi_exported(stepCount, noteCount, byteCount):
             try c.encode("sequencer_midi_exported", forKey: Key("type"))
             try c.encode(stepCount, forKey: Key("stepCount"))

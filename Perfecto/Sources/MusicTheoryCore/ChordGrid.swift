@@ -21,7 +21,7 @@ public enum ChordGrid {
     public static let rowCount = 7
 
     /// The mode `degree` stacks through in `key` when no other row is chosen.
-    /// Scales without seven notes have no diatonic mode (the Key sheet doesn't
+    /// Scales without seven notes have no diatonic mode (the Key panel doesn't
     /// offer them; see docs/next-phase-plan.md, Open decision 1), so they use
     /// the major-scale mode with the degree's triad quality.
     public static func ownMode(key: Key, degree: Degree) -> HeptatonicMode {

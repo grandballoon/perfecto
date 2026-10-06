@@ -3,18 +3,31 @@ import AVFoundation
 import SoundpipeAudioKit
 
 /// Drives a pool of `polyphony` SynthVoices from chord events.
-/// Signal chain: SynthVoices → synthMixer → finalMixer → AudioEngine output
-///               Looper players        → looper.outputMixer ↗
+/// Signal chain: SynthVoices → synthMixer → BrightnessFilter → liveMixer → EffectsChain → AudioEngine output
+///               Looper players → each track's EffectsChain → looper.outputMixer ↗
+/// The loopers record the filter's output (through one shared `LoopCapture`),
+/// so a loop holds what was played, as bright as it was played, and never the
+/// other loops. They record it
+/// before the effects, and each loop then plays through effects of its own,
+/// set as the live ones were set when it was closed (not as they were being
+/// played): later changes to the
+/// effects reach only what is played next, and a loop's reverb tail carries
+/// on across its seam.
 @MainActor
-final class AudioSink: ChordEventSink {
+final class AudioSink: ChordEventSink, AudioEffects {
 
     /// Voices in the pool: the most notes one chord can sound. Notes past this
     /// are dropped and logged (`audio_notes_dropped`); MIDI still sends them.
     static let polyphony = 8
 
+    /// Layers the play-mode looper can hold.
+    static let quickLoopTrackCount = 6
+
     private let engine     = AudioEngine()
     private var voices:    [SynthVoice] = []
     private let synthMixer = Mixer()
+    private var filter:    BrightnessFilter!
+    private var effects:   EffectsChain!
     private var strumTask: Task<Void, Never>?
     private let logger: (any Logger)?
 
@@ -36,15 +49,17 @@ final class AudioSink: ChordEventSink {
         Settings.sampleRate = AVAudioSession.sharedInstance().sampleRate
 
         for _ in 0..<Self.polyphony {
-            let voice = SynthVoice()
+            let voice = SynthVoice(patch: SynthPreset.initial.patch)
             voices.append(voice)
             synthMixer.addInput(voice.node)
         }
-        looper       = Looper(synthSource: synthMixer, trackCount: 2)
-        quickLooper  = Looper(synthSource: synthMixer, trackCount: 6)
+        filter       = BrightnessFilter(synthMixer)
+        let capture  = LoopCapture(source: filter.output)
+        looper       = Looper(capture: capture, trackCount: 2, logger: logger)
+        quickLooper  = Looper(capture: capture, trackCount: Self.quickLoopTrackCount, logger: logger)
         micSampler   = MicSampler(engine: engine)
-        let finalMixer = Mixer([synthMixer, looper.outputMixer, quickLooper.outputMixer, micSampler.outputMixer])
-        engine.output = finalMixer
+        effects = EffectsChain(Mixer([filter.output, micSampler.outputMixer]))
+        engine.output = Mixer([effects.output, looper.outputMixer, quickLooper.outputMixer])
 
         do {
             try configureSession()
@@ -52,7 +67,8 @@ final class AudioSink: ChordEventSink {
             // AudioKit reconfigures AVAudioSession during start(), so re-apply our options
             // afterward to ensure .defaultToSpeaker takes effect when no headphones are present.
             try configureSession()
-            for voice in voices { voice.prepare() }
+            // Sources are switched on once the engine runs.
+            setPreset(.initial)
             logger?.log(.audio_engine_started)
         } catch {
             logger?.log(.audio_engine_failed(message: error.localizedDescription))
@@ -95,6 +111,7 @@ final class AudioSink: ChordEventSink {
                 try? configureSession()
                 try? engine.start()
                 logger?.log(.audio_engine_started)
+                loopersDidRestart()
             }
         }
     }
@@ -106,12 +123,18 @@ final class AudioSink: ChordEventSink {
         .mixWithOthers, .defaultToSpeaker, .allowAirPlay, .allowBluetoothA2DP,
     ]
 
+    /// 256 frames at 48 kHz.
+    private static let ioBufferDuration: TimeInterval = 256.0 / 48_000
+
     private func configureSession() throws {
         try AVAudioSession.sharedInstance().setCategory(
             .playAndRecord,
             mode: .default,
             options: Self.sessionOptions
         )
+        // Small render cycles keep the delay from touch to sound, and from
+        // closing a loop to hearing it come round, to a few milliseconds.
+        try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(Self.ioBufferDuration)
         try AVAudioSession.sharedInstance().setActive(true)
         // Re-sync Settings.sampleRate in case engine.start() reset it.
         // The primary sync happens before node creation in init(); this keeps
@@ -132,10 +155,16 @@ final class AudioSink: ChordEventSink {
             try engine.start()
             try configureSession()
             logger?.log(.audio_engine_started)
+            loopersDidRestart()
         } catch {
             logger?.log(.audio_engine_failed(message: error.localizedDescription))
             print("[AudioSink] route-change restart error: \(error)")
         }
+    }
+
+    private func loopersDidRestart() {
+        looper.engineDidRestart()
+        quickLooper.engineDidRestart()
     }
 
     func playChord(_ event: ChordEvent) {
@@ -144,6 +173,7 @@ final class AudioSink: ChordEventSink {
         if notes.count > voices.count {
             logger?.log(.audio_notes_dropped(requested: notes.count, voices: voices.count))
         }
+        filter.settle()
         strumTask = startNotes(Array(notes.prefix(voices.count)), event.articulation) { [weak self] i, note in
             self?.voices[i].noteOn(midiNote: note)
         }
@@ -155,15 +185,26 @@ final class AudioSink: ChordEventSink {
         for voice in voices { voice.noteOff() }
     }
 
+    /// Switches every voice to `preset`. Notes that are sounding are released.
     func setPreset(_ preset: SynthPreset) {
         stopChord()
-        for voice in voices { synthMixer.removeInput(voice.node) }
-        voices = (0..<Self.polyphony).map { _ in
-            let voice = SynthVoice(waveform: preset.table)
-            synthMixer.addInput(voice.node)
-            voice.prepare()
-            voice.applyEnvelope(from: preset)
-            return voice
-        }
+        for voice in voices { voice.apply(preset.patch) }
+    }
+
+    func setFilter(_ settings: FilterSettings) {
+        filter.apply(settings)
+    }
+
+    func setChorus(_ settings: ChorusSettings) {
+        effects.apply(settings)
+    }
+
+    func setReverb(_ settings: ReverbSettings) {
+        effects.apply(settings)
+    }
+
+    func setLoopEffects(_ effects: SoundEffects) {
+        looper.liveEffects = effects
+        quickLooper.liveEffects = effects
     }
 }

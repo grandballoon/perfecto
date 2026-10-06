@@ -42,15 +42,11 @@ final class PerformanceState {
     var key = Key(root: .C, scale: .major)
     var octave = 4
     var joystickMode: JoystickMode = .default
-    var synthPreset: SynthPreset = .sinePad
+    private(set) var synthPreset: SynthPreset = .initial
     /// Always within `MusicalTime.tempoRange`; change it with `setBPM`.
     private(set) var bpm: Double = 120
 
     var chordGridLayout: ChordGridLayout = .circle
-
-    /// Which press-and-hold key quick-selector is wired to the KEY button.
-    /// Two candidates ship side by side for on-device comparison; see `KeyQuickSelect`.
-    var keyQuickStyle: KeyQuickStyle = .wheel
 
     var isExternalSynth: Bool = false {
         didSet { engine?.isExternalSynth = isExternalSynth }
@@ -85,16 +81,20 @@ final class PerformanceState {
     private(set) var activeDegree: Degree? = nil
     /// Degrees whose buttons are down, oldest first; the last is the active press.
     private(set) var heldDegrees: [Degree] = []
+    /// How far up each held key its finger is, 0 at the bottom to 1 at the
+    /// top. The active key's is the one that plays the effects (`EffectsState.slide`).
+    private var slides: [Degree: Float] = [:]
     private(set) var currentVoicing: Voicing? = nil
-    /// The context `currentVoicing` was built from; single notes of the active
-    /// chord (lead, arpeggio) are sent with it.
+    /// The context `currentVoicing` was built from; a single note of the
+    /// active chord (lead) is sent with it.
     private var currentContext: ChordContext? = nil
     private(set) var activeVoicingText = "—"
 
-    let sequencerState  = SequencerState()
+    let sequencerState: SequencerState
     let looperState     = LooperState()
     let micSampleState  = MicSampleState()
     let quickLoopState: QuickLoopState
+    let effects: EffectsState
 
     var looper:      Looper? { engine?.looper }
     var quickLooper: Looper? { engine?.quickLooper }
@@ -106,20 +106,33 @@ final class PerformanceState {
     let micGate: any PermissionGate
 
     /// Designated initializer. Sinks, clock, logger, and micGate are always injected.
-    /// Production: pass CompositeSink([audio, midi]) + audio engine + FileLogger + MicrophonePermissionGate.
+    /// Production: pass CompositeSink([audio, midi]) + the announcer + audio engine + FileLogger + MicrophonePermissionGate.
     /// Tests: pass RecordingSink + ManualClock + RecordingLogger + StubPermissionGate; omit engine.
+    ///
+    /// `sink` sounds the notes, so it sits behind the arpeggiator and hears
+    /// one note at a time while that is on. `chordListener` is told which
+    /// chord is held, whole, however its notes are being played.
+    /// `effectsListener` follows the sound effects beside the audio (MIDI does).
     init(sink: any ChordEventSink,
+         chordListener: (any ChordEventSink)? = nil,
          engine: AudioSink? = nil,
+         effectsListener: (any EffectsControl)? = nil,
          clock: (any ClockTickable)? = nil,
          logger: (any Logger)? = nil,
          micGate: (any PermissionGate)? = nil) {
-        self.sink         = sink
+        let clock = clock ?? MasterClock()
+        let arpeggiator = Arpeggiator(downstream: sink, clock: clock)
+        self.sink         = chordListener.map { CompositeSink([arpeggiator, $0]) } ?? arpeggiator
         self.engine       = engine
-        self.clock        = clock ?? MasterClock()
+        self.clock        = clock
         self.logger       = logger
+        self.effects      = EffectsState(arpeggiator: arpeggiator, audio: engine,
+                                         effectsListener: effectsListener, logger: logger)
+        self.sequencerState = SequencerState(logger: logger)
         self.micGate      = micGate ?? NoopPermissionGate()
         self.quickLoopState = QuickLoopState(looper: engine?.quickLooper)
         self.quickLoopState.onWillStopRecording = { [weak self] in self?.endChord() }
+        self.clock.bpm = bpm
         self.clock.onTick { [weak self] in
             guard let self else { return }
             self.mode.onClockTick(state: self)
@@ -142,12 +155,10 @@ final class PerformanceState {
         logger?.log(.mode_changed(from: mode.name, to: newMode.name))
         heldDegrees = []
         mode.deactivate(state: self)
+        followSlide()
         clock.stop()
         mode = newMode
-        if newMode.requiresClock {
-            clock.bpm = bpm
-            clock.start()
-        }
+        if newMode.requiresClock { clock.start() }
     }
 
     func setBPM(_ value: Double) {
@@ -160,30 +171,52 @@ final class PerformanceState {
     /// a change to the clock's resolution propagates to every mode automatically.
     var ticksPerBeat: Int { clock.ticksPerBeat }
 
+    /// Switches the synth sound. It is heard on the next chord played.
     func setSynthPreset(_ preset: SynthPreset) {
         synthPreset = preset
         engine?.setPreset(preset)
+        logger?.log(.sound_changed(preset: preset.rawValue))
     }
 
     // MARK: – Chord button (delegates to mode)
 
     // The pointer contract lives here, so every mode gets it (see
-    // PerformanceMode): presses stack, and a mode hears a release only for the
-    // degree pressed most recently.
+    // PerformanceMode): presses stack, the most recent one is active, and
+    // lifting it hands the chord back to the press beneath it.
 
     func press(degree: Degree) {
         heldDegrees.append(degree)
+        followSlide()
         mode.onButtonDown(degree: degree, state: self)
     }
 
     func release(degree: Degree) {
-        guard let index = heldDegrees.lastIndex(of: degree) else { return }
-        let wasActive = index == heldDegrees.count - 1
-        heldDegrees.remove(at: index)
-        if wasActive { mode.onButtonUp(degree: degree, state: self) }
+        release([degree])
     }
 
-    /// One pointer moved from `old` to `new` (either may be nil: touch down,
+    /// Keys lifted together (several fingers at once, or the chord surface
+    /// going away). They leave as one step, so the chord is handed back only
+    /// to a key that is still down afterwards.
+    func release(_ degrees: [Degree]) {
+        guard let active = heldDegrees.last else { return }
+        var activeLifted = false
+        for degree in degrees {
+            guard let index = heldDegrees.lastIndex(of: degree) else { continue }
+            if index == heldDegrees.count - 1 { activeLifted = true }
+            heldDegrees.remove(at: index)
+        }
+        // The last key up ends its chord before its slide: an effect the
+        // finger was holding on (a key zone) must not switch off under a
+        // chord that is about to stop, which would sound it once more.
+        if activeLifted, heldDegrees.isEmpty { mode.onButtonUp(degree: active, state: self) }
+        followSlide()
+        // Two presses of the same degree: it is still held, nothing changes.
+        if activeLifted, let resumed = heldDegrees.last, resumed != active {
+            mode.onButtonDown(degree: resumed, state: self)
+        }
+    }
+
+    /// One key change: `old` went up and `new` came down (either may be nil: touch down,
     /// lift). The new degree is pressed before the old one is released, so a
     /// finger sliding across chords never leaves a gap: the new chord replaces
     /// the old, and the old release is superseded.
@@ -191,6 +224,25 @@ final class PerformanceState {
         guard old != new else { return }
         if let new { press(degree: new) }
         if let old { release(degree: old) }
+    }
+
+    // MARK: – Key slide
+
+    /// The finger on the key for `degree` is `height` of the way up it (0 at
+    /// the bottom, 1 at the top). Report it before pressing the key, so the
+    /// chord starts where the finger landed. Like the chord, the slide that
+    /// is heard is the most recent press's, and lifting that press hands it
+    /// back to the key held beneath.
+    func slide(on degree: Degree, to height: Float) {
+        slides[degree] = height
+        if degree == heldDegrees.last { followSlide() }
+    }
+
+    /// Makes the active key's slide the one that is heard, and forgets the
+    /// slides of keys no longer held.
+    private func followSlide() {
+        slides = slides.filter { heldDegrees.contains($0.key) }
+        effects.slide = heldDegrees.last.flatMap { slides[$0] }
     }
 
     // MARK: – Color surfaces (delegate to mode)
@@ -222,11 +274,6 @@ final class PerformanceState {
         sound(voicing, .block, source: .button)
     }
 
-    /// Sets up voicing state without triggering audio — for clock-driven modes.
-    func armChord(degree: Degree) {
-        select(ChordSpec(degree: degree, color: color(for: degree)))
-    }
-
     /// Stop the sounding chord on *every* sink — audio note-off, MIDI note-off,
     /// and a ChordLink release all fire — while leaving the OLED display and the
     /// active-gesture state (`activeDegree`, `currentVoicing`) untouched, so a
@@ -235,11 +282,6 @@ final class PerformanceState {
     /// this reaches MIDI and ChordLink, not just audio.)
     func stopSounding() {
         sink.stopChord()
-    }
-
-    /// Plays a single note of the armed chord — for arpeggiator tick playback.
-    func playNote(_ midiNote: Int) {
-        sound(Voicing(notes: [midiNote]), .block, source: .arpeggio)
     }
 
     func endChord() {
@@ -290,7 +332,6 @@ final class PerformanceState {
         case .strum:     return StrumMode()
         case .lead:      return LeadMode()
         case .drone:     return DroneMode()
-        case .arpeggio:  return ArpeggioMode()
         case .repeat:    return RepeatMode()
         case .sequencer: return SequencerMode(sequencerState)
         case .looper:    return LooperMode(looperState)

@@ -5,6 +5,7 @@ import CoreMIDI
 protocol MidiBackend: AnyObject {
     func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8)
     func sendNoteOff(note: UInt8, velocity: UInt8, channel: UInt8)
+    func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8)
 }
 
 // Production backend. Creates a virtual source (visible to Mac via USB) and an output
@@ -38,6 +39,10 @@ final class CoreMidiBackend: MidiBackend {
 
     func sendNoteOff(note: UInt8, velocity: UInt8, channel: UInt8) {
         send(status: 0x80 | (channel & 0x0F), data1: note, data2: velocity)
+    }
+
+    func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8) {
+        send(status: 0xB0 | (channel & 0x0F), data1: controller, data2: value)
     }
 
     // MARK: – Private
@@ -75,6 +80,7 @@ final class CoreMidiBackend: MidiBackend {
 final class NoopMidiBackend: MidiBackend {
     func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8) {}
     func sendNoteOff(note: UInt8, velocity: UInt8, channel: UInt8) {}
+    func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8) {}
 }
 
 /// Broadcasts chord voicings as MIDI note-on/off messages via an on-device virtual source.
@@ -82,14 +88,25 @@ final class NoopMidiBackend: MidiBackend {
 /// When the iPhone is connected to a Mac via USB, the source also appears there automatically.
 ///
 /// Channel 1, velocity 100 fixed in v1. Per-note Note Off (no CC 123 / All Notes Off).
+///
+/// The sound effects' amounts go out as the controllers synths read them
+/// from, as they are played, each time one reaches a new value: the filter's
+/// brightness, the chorus's amount and the reverb's mix.
 @MainActor
-final class MidiSink: ChordEventSink {
+final class MidiSink: ChordEventSink, EffectsControl {
+
+    static let brightnessController: UInt8 = 74
+    static let chorusController: UInt8 = 93
+    static let reverbController: UInt8 = 91
 
     private let backend: any MidiBackend
     private let logger: (any Logger)?
     /// Notes sent note-on and not yet note-off, including the started part of a strum.
     private var activeNotes: [UInt8] = []
     private var strumTask: Task<Void, Never>?
+    /// The value last sent to each controller. An effect that has never been
+    /// switched on has none.
+    private var sentControllers: [UInt8: UInt8] = [:]
 
     init(backend: (any MidiBackend)? = nil, logger: (any Logger)? = nil) {
         self.logger  = logger
@@ -111,6 +128,30 @@ final class MidiSink: ChordEventSink {
             logger?.log(.midi_note_sent(note: Int(note), velocity: 0, channel: 0, kind: .noteOff))
         }
         activeNotes = []
+    }
+
+    func setFilter(_ played: FilterSettings) {
+        // A filter that is off is fully open.
+        send(Self.brightnessController, played.isOn ? played.brightness : 1, isOn: played.isOn)
+    }
+
+    func setChorus(_ played: ChorusSettings) {
+        send(Self.chorusController, played.isOn ? played.amount : 0, isOn: played.isOn)
+    }
+
+    func setReverb(_ played: ReverbSettings) {
+        send(Self.reverbController, played.isOn ? played.mix : 0, isOn: played.isOn)
+    }
+
+    /// Sends `amount` (0...1) to `controller`, unless that is the value it
+    /// already has. An effect that has never been on sends nothing: there is
+    /// nothing of it at the other end to undo.
+    private func send(_ controller: UInt8, _ amount: Float, isOn: Bool) {
+        guard isOn || sentControllers[controller] != nil else { return }
+        let value = UInt8((amount.clamped(to: 0...1) * 127).rounded())
+        guard value != sentControllers[controller] else { return }
+        sentControllers[controller] = value
+        backend.sendControlChange(controller: controller, value: value, channel: 0)
     }
 
     private func noteOn(_ note: UInt8) {

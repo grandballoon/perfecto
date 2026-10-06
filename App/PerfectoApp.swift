@@ -9,8 +9,10 @@ struct PerfectoApp: App {
         let announcer = MidiAnnouncerSink(logger: logger)
         let micGate   = MicrophonePermissionGate(logger: logger)
         let state = PerformanceState(
-            sink:    CompositeSink([audio, midi, announcer]),
+            sink:    CompositeSink([audio, midi]),
+            chordListener: announcer,
             engine:  audio,
+            effectsListener: midi,
             logger:  logger,
             micGate: micGate
         )

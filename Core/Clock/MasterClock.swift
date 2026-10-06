@@ -11,6 +11,21 @@ enum MusicalTime {
     static let tempoRange = 20.0...300.0
 }
 
+/// A call a clock makes over and over until `cancel()`.
+@MainActor
+final class ClockRepeat {
+    private var onCancel: (() -> Void)?
+
+    init(onCancel: @escaping () -> Void) {
+        self.onCancel = onCancel
+    }
+
+    func cancel() {
+        onCancel?()
+        onCancel = nil
+    }
+}
+
 /// Protocol that both MasterClock (production) and ManualClock (tests) conform to.
 /// Callers register a tick handler via onTick(_:) rather than conforming to a delegate.
 @MainActor
@@ -26,6 +41,15 @@ protocol ClockTickable: AnyObject {
     func start()
     func stop()
     func onTick(_ handler: @escaping @MainActor () -> Void)
+    /// Calls `handler` every `beats` beats at the current tempo, first one
+    /// such length from now, until the returned repeat is cancelled. For
+    /// timing finer than a tick, or not on the tick grid at all; it runs
+    /// whether or not the clock is ticking.
+    ///
+    /// A call that falls due at the same moment as a tick is made after the
+    /// tick's handler, so whatever the tick starts (a sequencer step) can
+    /// cancel a repeat before it acts on what the tick replaced.
+    func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockRepeat
 }
 
 extension ClockTickable {
@@ -43,11 +67,27 @@ final class MasterClock: ClockTickable {
         didSet {
             bpm = bpm.clamped(to: MusicalTime.tempoRange)
             if isRunning { schedule() }
+            for id in repeats.keys { scheduleRepeat(id) }
         }
+    }
+
+    private struct Repeat {
+        let beats: Double
+        let handler: @MainActor () -> Void
+        var timer: Timer?
     }
 
     private var timer: Timer?
     private var tickHandler: (@MainActor () -> Void)?
+    private var repeats: [Int: Repeat] = [:]
+    private var nextRepeatID = 0
+    /// Repeats that fell due with a tick about to fire; called after it.
+    private var repeatsAfterTick: [Int] = []
+
+    /// How close to a tick a repeat's call counts as the same moment. Two
+    /// timers set for one instant fire within a few milliseconds of each
+    /// other, in either order.
+    private static let sameMoment: TimeInterval = 0.005
 
     var isRunning: Bool { timer != nil }
 
@@ -64,19 +104,55 @@ final class MasterClock: ClockTickable {
         timer = nil
     }
 
+    func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockRepeat {
+        let id = nextRepeatID
+        nextRepeatID += 1
+        repeats[id] = Repeat(beats: beats, handler: handler)
+        scheduleRepeat(id)
+        return ClockRepeat { [weak self] in
+            self?.repeats.removeValue(forKey: id)?.timer?.invalidate()
+        }
+    }
+
     private func schedule() {
         timer?.invalidate()
         let interval = 60.0 / bpm / Double(ticksPerBeat)  // one tick per 1/16th note
         // .common mode keeps the timer firing during UIKit touch-tracking; .default pauses it,
         // which causes missed ticks (and a half-second gap at the loop boundary) when the user
         // is pressing chord buttons while the sequencer is running.
+        // The timer is on the main run loop, so it fires on the main actor.
+        // Ticking right there, rather than in a task queued from it, means a
+        // tick can never arrive after the clock was stopped or restarted.
         let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.tickHandler?()
-            }
+            MainActor.assumeIsolated { self?.tick() }
         }
         RunLoop.main.add(t, forMode: .common)
         timer = t
+    }
+
+    private func tick() {
+        tickHandler?()
+        let due = repeatsAfterTick
+        repeatsAfterTick = []
+        for id in due { repeats[id]?.handler() }
+    }
+
+    private func scheduleRepeat(_ id: Int) {
+        guard let beats = repeats[id]?.beats else { return }
+        repeats[id]?.timer?.invalidate()
+        let t = Timer(timeInterval: 60.0 / bpm * beats, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.repeatFired(id) }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        repeats[id]?.timer = t
+    }
+
+    private func repeatFired(_ id: Int) {
+        if let nextTick = timer?.fireDate, nextTick.timeIntervalSinceNow < Self.sameMoment {
+            repeatsAfterTick.append(id)
+        } else {
+            repeats[id]?.handler()
+        }
     }
 }
 

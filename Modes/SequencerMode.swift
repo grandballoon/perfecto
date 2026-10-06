@@ -25,24 +25,13 @@ final class SequencerMode: PerformanceMode {
         defer { tickInStep = (tickInStep + 1) % ticksPerStep }
         guard tickInStep == 0 else { return }
 
-        // Advance the global playhead. In chain mode it runs through every bar;
-        // otherwise it loops the current bar. The visible page follows the
-        // playhead so the grid shows the bar that's sounding.
-        let total = seqState.steps.count
-        let perBar = SequencerState.stepsPerBar
+        // Advance the global playhead through the loop (or the whole pattern).
+        // The focused bar follows it so the grid shows the bar that's sounding.
         let previousIdx = seqState.currentStep
-        let idx: Int
-        if seqState.chain {
-            idx = (previousIdx + 1) % total
-            seqState.currentPage = idx / perBar
-        } else {
-            let base = seqState.currentPage * perBar
-            let within = (((previousIdx - base) + 1) % perBar + perBar) % perBar
-            idx = base + within
-        }
+        let idx = seqState.step(after: previousIdx)
         seqState.currentStep = idx
+        seqState.focusedBar = idx / SequencerState.stepsPerBar
 
-        guard idx < total else { return }
         let step = seqState.steps[idx]
         let previous = seqState.steps.indices.contains(previousIdx) ? seqState.steps[previousIdx] : nil
         gateTask?.cancel()

@@ -9,12 +9,15 @@ struct SequencerPlaybackTests {
 
     /// Returns the PerformanceState too: the clock holds it weakly, so the
     /// caller must keep it alive for ticks to reach the mode.
-    private func start(bars: Int, chain: Bool, page: Int = 0)
+    private func start(bars: Int, loop: Set<Int> = [])
         -> (SequencerState, ManualClock, PerformanceState) {
         let seq = SequencerState(defaults: isolatedDefaults())
-        seq.setBars(bars)
-        seq.chain = chain
-        seq.currentPage = page
+        for _ in 1..<bars { seq.addBar() }
+        seq.focusedBar = 0
+        if !loop.isEmpty {
+            seq.selectedSteps = loop
+            seq.loopSelection()
+        }
         let clock = ManualClock()
         let state = PerformanceState(sink: RecordingSink(), clock: clock)
         state.setMode(SequencerMode(seq))
@@ -22,36 +25,71 @@ struct SequencerPlaybackTests {
         return (seq, clock, state)
     }
 
-    @Test func chainPlaysEveryBarAndThePageFollowsThePlayhead() {
-        let (seq, clock, state) = start(bars: 2, chain: true)
+    @Test func theWholePatternPlaysAndTheFocusedBarFollowsThePlayhead() {
+        let (seq, clock, state) = start(bars: 3)
         var visited: [Int] = []
-        for _ in 0..<32 {
+        for _ in 0..<48 {
             clock.tick()
             visited.append(seq.currentStep)
-            #expect(seq.currentPage == seq.currentStep / 16)
+            #expect(seq.focusedBar == seq.currentStep / 16)
         }
-        #expect(visited == Array(0..<32))
+        #expect(visited == Array(0..<48))
 
         clock.tick()                         // wraps back to the first bar
         #expect(seq.currentStep == 0)
-        #expect(seq.currentPage == 0)
+        #expect(seq.focusedBar == 0)
         withExtendedLifetime(state) {}
     }
 
-    @Test func withoutChainTheVisibleBarLoops() {
-        let (seq, clock, state) = start(bars: 2, chain: false, page: 1)
+    @Test func aLoopedPortionRepeatsOnItsOwn() {
+        let (seq, clock, state) = start(bars: 2, loop: Set(12..<20))
         var visited: [Int] = []
-        for _ in 0..<20 {
+        for _ in 0..<12 {
             clock.tick()
             visited.append(seq.currentStep)
         }
-        #expect(visited == Array(16..<32) + Array(16..<20))
-        #expect(seq.currentPage == 1)
+        #expect(visited == Array(12..<20) + Array(12..<16))
+        withExtendedLifetime(state) {}
+    }
+
+    /// A loop need not be one run of steps: only the chosen steps sound.
+    @Test func aLoopOfSeparateStepsPlaysOnlyThoseSteps() {
+        let seq = SequencerState(defaults: isolatedDefaults())
+        seq.steps[0].degree = .I
+        seq.steps[4].degree = .IV
+        seq.steps[8].degree = .V
+        seq.selectedSteps = [0, 4, 8]
+        seq.loopSelection()
+        let sink = RecordingSink()
+        let clock = ManualClock()
+        let state = PerformanceState(sink: sink, clock: clock)
+        state.setMode(SequencerMode(seq))
+        seq.isPlaying = true
+        for _ in 0..<4 { clock.tick() }
+
+        #expect(sink.playCalls.count == 4)
+        #expect(seq.currentStep == 0)
+        withExtendedLifetime(state) {}
+    }
+
+    /// Setting a loop mid-playback brings the playhead into it at the next
+    /// loop step rather than restarting.
+    @Test func settingALoopWhilePlayingJoinsItFromThePlayhead() {
+        let (seq, clock, state) = start(bars: 1)
+        for _ in 0..<7 { clock.tick() }      // playhead on step 6
+        seq.selectedSteps = [2, 3, 10, 11]
+        seq.loopSelection()
+        var visited: [Int] = []
+        for _ in 0..<5 {
+            clock.tick()
+            visited.append(seq.currentStep)
+        }
+        #expect(visited == [10, 11, 2, 3, 10])
         withExtendedLifetime(state) {}
     }
 
     @Test func stoppedSequencerDoesNotAdvance() {
-        let (seq, clock, state) = start(bars: 1, chain: true)
+        let (seq, clock, state) = start(bars: 1)
         seq.isPlaying = false
         clock.tick()
         #expect(seq.currentStep == -1)
@@ -61,7 +99,7 @@ struct SequencerPlaybackTests {
     /// The landscape sequencer's SEQ button, tapped while already in the
     /// sequencer, used to re-enter the mode and stop playback.
     @Test func tappingSeqInTheSequencerKeepsItPlaying() {
-        let (seq, clock, state) = start(bars: 1, chain: true)
+        let (seq, clock, state) = start(bars: 1)
         clock.tick()
         state.selectMode(.sequencer)   // what the SEQ button calls
 

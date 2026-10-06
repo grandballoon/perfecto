@@ -140,7 +140,7 @@ struct SequencerSelectionTests {
 
     @Test func editSelectedStepsAppliesToEveryStepAcrossBars() {
         let state = emptySelection()
-        state.setBars(2)
+        state.addBar()
         state.toggleStepSelection(3)
         state.toggleStepSelection(20)   // on the second bar
         state.editSelectedSteps { $0.degree = .vi }

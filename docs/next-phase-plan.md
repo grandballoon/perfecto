@@ -1,6 +1,6 @@
 # Next Phase Plan: Chord Grid, Tonnetz, Audio
 
-> **Status (2026-09-24):** Phase 0b steps 1–4 done, step 5 partly; see "Updated plan" for what remains.
+> **Status (2026-10-05):** Phase 0b steps 1–4 done, step 5 partly; goal 5 has its first version (arpeggiator, chorus, reverb); see "Updated plan" for what remains.
 > This document supersedes the feature list in the chat that produced it.
 
 ## Goals
@@ -99,7 +99,7 @@ The core is pure and well tested, but callers repeat its math instead of asking 
 - "Stacked thirds" is undefined for scales with fewer than seven notes.
   In major pentatonic, degree ii stacks D–F♯–A, and F♯ is not in the scale.
 - `MicSampleMode` transposes by `degree.index - 3` semitones, which depends on `Degree` declaration order and ignores the key.
-- `KeyQuickController.isMajorish` puts theory in a view file.
+- `KeyQuickController.isMajorish` puts theory in a view file. (Gone 2026-10-05: the key quick-select was removed with the KEY chit.)
 - `TriadBase` has no augmented case, so the augmented triads of harmonic and melodic minor play as major triads with a perfect fifth.
   In C harmonic minor, III plays E♭–G–B♭, and B♭ is not in the scale (it should be E♭–G–B).
   Found while doing Phase 0b step 1; not fixed, because every `JoystickMap` entry would need an augmented shape.
@@ -180,13 +180,21 @@ Modes and views send intents to it; nothing outside it touches AudioKit nodes or
 
 **Blocks:** goals 4, 5, 6.
 
+**Progress (2026-10-05), from the sounds and play-mode loop work.**
+`Looper` no longer uses `NodeRecorder`, `AudioPlayer` internals or `Settings.sampleRate`: `LoopCapture` owns the one tap on the synth mix, and each track is a plain player node scheduled on a shared sample grid.
+`setPreset` no longer changes the graph: every `SynthVoice` has a fixed signal path and a preset only sets parameters.
+`QuickLoopState` talks to the looper through the `LoopTracks` protocol, and its layer count is `AudioSink.quickLoopTrackCount`.
+The session now asks for 256-frame render cycles (the sample rate is still whatever the hardware gives).
+The Sound sheet and the play-mode loop are reachable again (`SoundLoopBar`); the dead `loopControlColumn` is gone.
+Still open: `LooperMode`/`LooperView` reach `Looper` directly, loops capture only the synth mix, and the route-change restart in External Synth mode.
+
 ### H. Smaller couplings
 
 - Ring geometry (angles, 0.38/0.27/0.22 ratios, `nearest()`) is copied between `CircleChordGridView` and `DegreeRingView`.
   Bar heights and paddings are kept in sync between `PerformanceView` and `SequencerView` only by comments.
-  `KeyQuickMetrics` is the pattern to follow.
+  A metrics enum beside the view (as `SidePanelLayout` is) is the pattern to follow.
 - MIDI channel and velocity are literals in `MidiSink` and again in `SequencerMidiRenderer`.
-- Octave bounds (2...7) are enforced only in `KeySheet`.
+- Octave bounds (2...7) are enforced only in `KeyPanel`.
 - Tests pinned to implementation: `SequencerMidiRendererTests` expects `byteCount == 345`; `ChordNamingTests.swift:107-121` tests `JoystickMap`/`ChordShape` directly.
 - `project.yml:31` still points at `PocketChord/Sources/...`; regenerating with xcodegen would break the build.
 - The core's sources compile into the app module, so `internal` doesn't hide `JoystickMap` from app code.
@@ -218,8 +226,8 @@ Each fix starts with an end-to-end repro, as CLAUDE.md requires.
 6. ~~Lead mode octave error in pentatonic scales (C).~~ No longer reachable now that pentatonic scales are hidden; `leadNote` uses `ScaleType.offset(of:)` since Phase 0b step 1.
 7. ~~Degree buttons show major-key numerals in every scale (C).~~ Fixed in Phase 0b step 1 (`degreeNumeral`).
 8. Route change restarts the engine in External Synth mode (G).
-9. Initial synth envelope doesn't match the shown preset (G).
-10. Two loopers can tap the same bus (G), after a device repro.
+9. ~~Initial synth envelope doesn't match the shown preset (G).~~ Gone with the sound work (2026-10-05): `SynthPreset.initial` is the one statement of the starting sound, and both the voices and `PerformanceState` read it.
+10. ~~Two loopers can tap the same bus (G).~~ Gone with the looper work (2026-10-05), by construction rather than after a device repro: both loopers record through one `LoopCapture`, which owns the tap and refuses a second take (`LooperTests.onlyOneTakeIsRecordedAtATime`).
 
 Several of these disappear naturally with Phase 0b; fix them there if the interface work comes first, but each still gets its repro and a regression test.
 
@@ -284,11 +292,24 @@ The surface stores the finger's `GridPosition`, and `PerformanceState.color(for:
 Modes hear `onColorChange(state:)` from either surface.
 **Next:** device comparison of the two surfaces, then removing the joystick and `JoystickMap`.
 
+**Goal 5 progress (2026-10-05).** The arpeggiator, chorus and reverb are built as effects, behind an FX chit and the side panel's Effects page (first built as a sheet; moved so the keys stay playable while an effect is adjusted).
+Key, Sound, Effects and Setup are now the four pages of one menu, opened by the one button in the top leading corner; the KEY, sound and FX chits, the settings gear and the key quick-select are gone.
+`ArpeggioMode` is gone: `Arpeggiator` is a `ChordEventSink` in front of the audio and MIDI sinks, so it works under every mode (Open decision 5), and the ChordLink announcer still hears the whole chord.
+A chord's first note sounds on the press; each new chord starts the pattern again.
+One pass of the pattern takes one cycle (1 beat, 2 beats, 1 bar) however many notes the chord has, so a coloration never stretches the pass.
+That puts notes off the sixteenth-note tick grid (a triad over a beat is triplets), so the clock did not gain several tick listeners; it gained repeats: `every(beats:)` calls back at any spacing, at the clock's tempo, until cancelled.
+A repeat due at the same moment as a tick is called after the tick's handler, so when the sequencer changes chord on the beat the old chord's next note is cancelled rather than sounded first.
+`MasterClock` now ticks straight from its timer rather than from a task queued by it, so no tick can arrive after a stop.
+Chorus and reverb are `EffectsChain`, on the master bus after the loop capture point: loops are recorded dry and play back through the effects (group G's "a reverb inserted after it would be missing from loops" is answered this way, not by moving the capture point).
+Since then each loop track has its own `EffectsChain`, set from the live settings when its take ends, so a finished loop keeps its effects; the live chain carries only what is being played.
+Chorus comes from DunneAudioKit, a new package dependency.
+Still open for goal 5: a gate (notes shorter than their slot), timing from the audio thread rather than run-loop timers, and saving effect settings between launches.
+
 ## Open decisions
 
 1. **Grid on non-heptatonic scales.** Resolved for now (2026-09-24): the Key sheet offers only the seven-note scales (`ScaleType.isHeptatonic`), so the grid only needs to handle seven-note scales. The pentatonic and blues cases stay in `ScaleType` so ChordWire numbering is unchanged. Revisit if they return; harmonizing from a parent seven-note scale is the likely answer.
 2. **ChordLink v1 compatibility.** Keep decoding v1 frames in Harmonicland during the transition, or switch both repos at once.
 3. **Saved sequencer patterns.** Resolved (2026-09-24): testers have no saved patterns, so no migration is needed. Still version the storage format so later changes can migrate.
 4. **Unreachable modes.** Looper, Mic Sample and Strum have no entry point in the UI. Decide whether to restore them before or during Phase 1, since the vocoder and the effects need a home.
-5. **Arpeggiation.** It exists as a mode ([ArpeggioMode.swift](../Modes/ArpeggioMode.swift)). Goal 5 assumes it becomes a layer usable with any mode; confirm.
+5. **Arpeggiation.** Resolved (2026-10-05): it is an effect layer usable with any mode (`Arpeggiator`), and the mode is removed.
 6. **"Third-party downloads" in goal 6.** AUv3 apps the player installs and Perfecto hosts, or sample libraries bundled with the app.
