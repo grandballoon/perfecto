@@ -1,6 +1,7 @@
 # Sequencer spec: one timeline for sequences and loops
 
-> **Status (2026-10-06): parts A to E of section 8 are built; E awaits review on a device, and F (entry from the keys, a note's own settings) is not built.**
+> **Status (2026-10-06): parts A to F of section 8 are built; the screen (E and F) has not been seen on a device.**
+> Two things in F are left for later, and section 5.2 and 6 say which: a note's own sound and effects wait for the kernel, and a chord entered is not heard as it goes in.
 > This is step 5 of [audio-engine-spec.md](audio-engine-spec.md), and it answers [../sequencer.md](../sequencer.md), which states what is wanted.
 > It replaces sections 6.1, 6.2 and 6.2.1 of [../spec.md](../spec.md) as each part lands.
 
@@ -162,21 +163,23 @@ The loop bar's numbered chits are the layers: tap to mute or unmute, and the tra
 
 ### 5.2 Into the sequencer
 
-Two ways, both from the chord keys shown on the sequencer screen:
+Two ways, both from the editor's own chord keys: the degree ring and the color surface under it, which are laid out as Play mode's are.
+A separate strip of keys was not added, since the screen has no room for a second set.
 
-- **Step entry.** With a step selected and the keys armed, each chord played is placed on the selected step and the selection moves to the next, so a progression is entered by playing it in order with no regard to timing.
-- **Replace.** With notes selected, a chord played replaces theirs and nothing moves.
+- **Replace.** A degree chosen on the ring replaces the chord of the selected notes (and puts a chord on a selected step with none), and nothing moves.
+- **Step entry.** With ENTRY on, the same, and when the finger lifts the selection moves to the step after the note, round to the first step at the end, so a progression is entered by choosing its chords in order with no regard to timing.
 
-Both take the chord as played, color and all.
+Both take the chord as played, color and all: a coloration held on the color surface while the degree is chosen is the chord's, as on the keys.
+A chord is not sounded as it is entered; it is heard when playback reaches it.
 
 ## 6. The sequencer screen
 
 - **Layer tabs** above the grid: one per layer, and a plus. The selected layer is the one shown and edited; the others play on.
 - **The grid.** Rows of steps, grouped by beat, bar after bar, in the two layouts there are now (pages or one scrolling column). A note is one chit as wide as its steps, wrapping onto the next row if it crosses a beat. A note off the grid has a mark; a note with its own key, octave or sound has a small tag.
 - **Selection** is by step, by tap and by drag, as now. An edit applies to the notes on the selected steps.
-- **The step editor** keeps degree, color, rest and length (was gate), and gains Join, Split and Snap, and a row for the note's own key, octave, sound and effects, each showing "live" until set.
+- **The step editor** keeps degree, color, rest and length (the gate slider, with a step shorter and longer beside it), and gains Join, Split and Snap, step entry, and a menu (◆ OWN) for the note's own key and octave. Keeping one sets it to what is chosen now, so a note's key is changed by choosing the key and keeping it; following gives it up. A note's own sound and effects join the menu when the kernel can play them (audio engine step 8); until then they are stored on recorded notes and shown only by the ◆ tag.
 - **Bars**: add, remove, and now the time signature, halve/double, and trim.
-- **The keys**: a strip of the chord keys for step entry and replace.
+- **The keys**: the ring and the color surface, as above.
 
 Rows per beat follow the signature: four steps a row in 4/4 and 3/4, six in 6/8, 9/8 and 12/8, and four with a short last row in 5/8 and 7/8.
 
@@ -206,7 +209,7 @@ Each part leaves the app working.
 | C | ~~The MIDI export reads `compile`~~ (done): every unmuted layer is a track, in the timeline's signature | Export tests pass; the renderer's own timing rules are gone |
 | D | ~~Loops as layers: the recorder, tempo from the first loop, the loop bar on layers. Audio loopers and Looper mode deleted~~ (done). A voice to each layer; the sequence plays on under Play mode, with a play/stop chit in the loop bar; a new sequence is empty | A loop recorded in Play mode plays as notes and appears in the sequencer |
 | E | ~~The screen: stretched chits, layer tabs, join/split/length/snap, signatures, bars~~ (built, not yet seen on a device). Double and halve change the tempo to match, so the notes sound as they did. `SequencerStep` is left only as the old saved format and a way to write a pattern in a test | On-device review |
-| F | Entry from the keys (step entry, replace), and a note's own key, octave, sound and effects | On-device review |
+| F | ~~Entry from the keys (step entry, replace), and a note's own key and octave~~ (built, not yet seen on a device). A note's own sound and effects are left for the kernel | On-device review |
 
 ## 9. Open questions
 

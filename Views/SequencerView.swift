@@ -14,6 +14,10 @@ struct SequencerView: View {
     @State private var stepColorTransient: JoystickDirection = .center
     /// The chord grid's equivalent: a cell lights only while dragged.
     @State private var stepGridTransient: GridPosition? = nil
+    /// Step entry: while on, a chord chosen on the ring goes on the selected
+    /// step and the selection moves to the next, so a progression is entered
+    /// by choosing its chords in order.
+    @State private var isEnteringSteps = false
 
     var body: some View {
         GeometryReader { geo in
@@ -523,9 +527,16 @@ struct SequencerView: View {
                         seqState.snapshot()
                         stepDegreeEditActive = true
                     }
-                    seqState.editSelectedChords { ChordSpec(degree: degree, color: $0.color) }
+                    // As on the keys, a coloration held while the degree is
+                    // chosen is the chord's.
+                    seqState.editSelectedChords {
+                        ChordSpec(degree: degree, color: heldColor(for: degree) ?? $0.color)
+                    }
                 },
-                onEnd: { stepDegreeEditActive = false }
+                onEnd: {
+                    if stepDegreeEditActive, isEnteringSteps { seqState.advanceSelection() }
+                    stepDegreeEditActive = false
+                }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scaleEffect(1.1)
@@ -570,6 +581,12 @@ struct SequencerView: View {
     }
 
     // MARK: – Step color surfaces
+
+    /// The coloration a finger is holding on the color surface now, if one is.
+    private func heldColor(for degree: Degree) -> ChordColor? {
+        if stepColorTransient != .center { return .joystick(perfState.joystickMode, stepColorTransient) }
+        return stepGridTransient.map { ChordGrid.color(at: $0, key: perfState.key, degree: degree) }
+    }
 
     private var stepColorBar: some View {
         ChordColorBar(
@@ -642,16 +659,21 @@ struct SequencerView: View {
             Text(lengthLabel(primary))
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(Color(white: 0.4))
-            Slider(value: Binding(
-                get: { gate },
-                set: { seqState.setGateOfSelected($0) }
-            ), in: 0.1...1.0, onEditingChanged: { editing in
-                if editing { seqState.snapshot() }
-            })
-            .tint(.orange)
+            HStack(spacing: 6) {
+                Slider(value: Binding(
+                    get: { gate },
+                    set: { seqState.setGateOfSelected($0) }
+                ), in: 0.1...1.0, onEditingChanged: { editing in
+                    if editing { seqState.snapshot() }
+                })
+                .tint(.orange)
+                barCountButton("minus", label: "A step shorter") { seqState.lengthenSelected(bySteps: -1) }
+                barCountButton("plus", label: "A step longer") { seqState.lengthenSelected(bySteps: 1) }
+            }
         }
         .frame(maxWidth: .infinity)
         .disabled(!hasSelectedNotes)
+        .opacity(hasSelectedNotes ? 1 : 0.5)
     }
 
     /// The length read-out names the audible behavior: crisp at the bottom
@@ -665,23 +687,68 @@ struct SequencerView: View {
         return length
     }
 
-    /// The edits that change how notes sit on the steps: one held note from
-    /// the selected steps or a note for each of them, a step longer or
-    /// shorter, and onto the grid's lines.
+    /// The edits that change how notes sit on the steps (one held note from
+    /// the selected steps, a note for each of them, onto the grid's lines),
+    /// what the selected notes keep of their own, and step entry.
     private var noteControls: some View {
         HStack(spacing: 8) {
             editButton("JOIN", enabled: seqState.canJoin) { seqState.joinSelected() }
             editButton("SPLIT", enabled: seqState.canSplit) { seqState.splitSelected() }
             editButton("SNAP", enabled: seqState.canSnap) { seqState.snapSelected() }
             Spacer(minLength: 0)
-            fieldLabel("STEPS")
-            barCountButton("minus", label: "A step shorter") { seqState.lengthenSelected(bySteps: -1) }
-                .disabled(!hasSelectedNotes)
-                .opacity(hasSelectedNotes ? 1 : 0.4)
-            barCountButton("plus", label: "A step longer") { seqState.lengthenSelected(bySteps: 1) }
-                .disabled(!hasSelectedNotes)
-                .opacity(hasSelectedNotes ? 1 : 0.4)
+            ownSettingsMenu
+            stepEntryToggle
         }
+    }
+
+    /// A note follows the key and octave chosen now unless it has its own.
+    /// Keeping one sets it to what is chosen now, so a note's key is changed
+    /// by choosing the key and keeping it; following gives it up again.
+    private var ownSettingsMenu: some View {
+        let playing = seqState.primaryNote?.playing
+        let (liveKey, liveOctave) = (perfState.key, perfState.octave)
+        let hasOwn = playing?.key != nil || playing?.octave != nil
+        return Menu {
+            Section(playing?.key.map { "Key: its own, \(keyName($0))" } ?? "Key: follows the key chosen") {
+                Button("Keep \(keyName(liveKey))") { seqState.editSelectedPlaying { $0.key = liveKey } }
+                Button("Follow the key chosen") { seqState.editSelectedPlaying { $0.key = nil } }
+                    .disabled(playing?.key == nil)
+            }
+            Section(playing?.octave.map { "Octave: its own, \($0)" } ?? "Octave: follows the octave chosen") {
+                Button("Keep octave \(liveOctave)") { seqState.editSelectedPlaying { $0.octave = liveOctave } }
+                Button("Follow the octave chosen") { seqState.editSelectedPlaying { $0.octave = nil } }
+                    .disabled(playing?.octave == nil)
+            }
+        } label: {
+            Text("◆ OWN")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(!hasSelectedNotes ? Color(white: 0.3)
+                                 : hasOwn ? Color.orange : Color(white: 0.7))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 7).fill(Color(white: 0.12)))
+        }
+        .disabled(!hasSelectedNotes)
+        .accessibilityLabel("The note's own key and octave")
+    }
+
+    private func keyName(_ key: Key) -> String {
+        "\(key.root.name) \(key.scale.displayName)"
+    }
+
+    private var stepEntryToggle: some View {
+        Button { isEnteringSteps.toggle() } label: {
+            Label("ENTRY", systemImage: "arrow.right.to.line")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(isEnteringSteps ? Color.black : Color(white: 0.7))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 7)
+                    .fill(isEnteringSteps ? Color.orange : Color(white: 0.12)))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Step entry")
+        .accessibilityAddTraits(isEnteringSteps ? .isSelected : [])
     }
 
     private func editButton(_ label: String, enabled: Bool, action: @escaping () -> Void) -> some View {

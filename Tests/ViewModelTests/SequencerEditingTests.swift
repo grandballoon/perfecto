@@ -152,6 +152,76 @@ struct SequencerEditingTests {
         #expect(state.timeline.layers[0].notes.count == 1)
     }
 
+    // MARK: – A note's own key and octave
+
+    @Test func aNoteKeepsAKeyOfItsOwnUntilToldToFollowAgain() {
+        let state = makeState()
+        enter(.I, on: [0, 1], in: state)
+        state.selectedSteps = [1]
+        state.primaryStep = 1
+        let d = Key(root: .D, scale: .major)
+        state.editSelectedPlaying { $0.key = d }
+        #expect(state.timeline.layers[0].notes.map(\.playing.key) == [nil, d])
+        #expect(state.primaryNote?.playing.hasOwn == true)
+
+        // It plays in its own key whatever is chosen, and the other note follows.
+        let live = LiveSettings(key: Key(root: .C, scale: .major), octave: 4, preset: .allCases[0], effects: NoteEffects())
+        let chords = state.timeline.compile(layer: state.layerID, live: live)
+        #expect(chords.map(\.event.context.key) == [live.key, d])
+
+        state.editSelectedPlaying { $0.key = nil }
+        #expect(state.primaryNote?.playing.hasOwn == false)
+        state.undo()
+        #expect(state.primaryNote?.playing.key == d)
+    }
+
+    @Test func anOctaveOfItsOwnIsSetOnEverySelectedNote() {
+        let state = makeState()
+        enter(.I, on: [0, 1, 2], in: state)
+        state.selectedSteps = [0, 2]
+        state.editSelectedPlaying { $0.octave = 5 }
+        #expect(state.timeline.layers[0].notes.map(\.playing.octave) == [5, nil, 5])
+    }
+
+    // MARK: – Step entry
+
+    /// A progression is entered by choosing its chords in order: each goes
+    /// on the selected step and the selection moves to the next.
+    @Test func enteringChordsInOrderFillsStepAfterStep() {
+        let state = makeState(selecting: [14])
+        for degree in [Degree.I, .IV, .V] {
+            state.snapshot()
+            state.editSelectedChords { ChordSpec(degree: degree, color: $0.color) }
+            state.advanceSelection()
+        }
+        // Round the end of the bar to its first step.
+        #expect(drawn(state) == [[0, 1, 5], [14, 1, 1], [15, 1, 4]])
+        #expect(state.selectedSteps == [1] && state.primaryStep == 1)
+        state.undo()                                  // the last chord and its move
+        #expect(drawn(state) == [[14, 1, 1], [15, 1, 4]])
+        #expect(state.selectedSteps == [0])
+    }
+
+    /// Past a held note, the next place is the step after its end.
+    @Test func theSelectionMovesPastAHeldNote() {
+        let state = makeState()
+        enter(.I, on: [4, 5, 6], in: state)
+        state.joinSelected()
+        state.selectedSteps = [4]
+        state.primaryStep = 4
+        state.advanceSelection()
+        #expect(state.selectedSteps == [7])
+    }
+
+    @Test func theSelectionMovesOnToTheNextBarAndShowsIt() {
+        let state = makeState(selecting: [15])
+        state.addBar()
+        state.focusedBar = 0
+        state.advanceSelection()
+        #expect(state.selectedSteps == [16])
+        #expect(state.focusedBar == 1)
+    }
+
     // MARK: – Layers
 
     @Test func aNewLayerIsShownAndEditedOnItsOwn() {

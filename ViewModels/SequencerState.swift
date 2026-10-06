@@ -337,6 +337,29 @@ final class SequencerState {
         edit { $0.hold(notesOn: selected, forGate: gate, limit: limit) }
     }
 
+    /// Changes what the selected notes are played with of their own (see
+    /// `NotePlaying`): a key or octave set here stays when the live one is
+    /// changed, and nil goes back to following it.
+    func editSelectedPlaying(_ change: (inout NotePlaying) -> Void) {
+        guard !selectedNotes.isEmpty else { return }
+        snapshot()
+        let steps = editedSteps
+        edit { $0.edit(notesOn: steps) { change(&$0.playing) } }
+    }
+
+    /// Selects the step after the note the editor shows (or after the step
+    /// touched last, if it is empty), coming round to the first at the end:
+    /// where the next chord goes when a progression is entered a chord at a
+    /// time. The undo snapshot is the caller's, taken before the chord went in.
+    func advanceSelection() {
+        guard let primaryStep else { return }
+        let after = primaryNote.map { max($0.steps.upperBound, primaryStep + 1) } ?? primaryStep + 1
+        let next = after < timeline.stepCount ? after : 0
+        selectedSteps = [next]
+        self.primaryStep = next
+        focusedBar = next / stepsPerBar
+    }
+
     // MARK: – Layers
 
     var layers: [Layer] { timeline.layers }
