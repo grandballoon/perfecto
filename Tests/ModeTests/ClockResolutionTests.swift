@@ -96,7 +96,7 @@ struct ClockResolutionTests {
             clock.bpm = bpm
             let (state, sink) = makeState(clock: clock)
             let seq = SequencerState(defaults: isolatedDefaults())
-            seq.steps[0].gate = 0.5
+            seq.steps[0] = SequencerStep(gate: 0.5)
             state.setMode(SequencerMode(seq))
             sink.reset()
             seq.isPlaying = true                                // step 1 starts
@@ -114,8 +114,8 @@ struct ClockResolutionTests {
         let clock = ManualClock()
         let (state, sink) = makeState(clock: clock)
         let seq = SequencerState(defaults: isolatedDefaults())
-        seq.steps[0].gate = 1
-        seq.steps[1].degree = .IV
+        seq.steps[0] = SequencerStep(gate: 1)
+        seq.steps[1] = SequencerStep(degree: .IV)
         state.setMode(SequencerMode(seq))
         sink.reset()
         seq.isPlaying = true
@@ -125,14 +125,14 @@ struct ClockResolutionTests {
     }
 
     /// Stopping the sequencer inside a step leaves no gate waiting to fire.
-    @Test func leavingTheSequencerCancelsTheGate() {
+    @Test func stoppingTheSequencerCancelsTheGate() {
         let clock = ManualClock()
         let (state, sink) = makeState(clock: clock)
         let seq = SequencerState(defaults: isolatedDefaults())
+        seq.steps[0] = SequencerStep()
         state.setMode(SequencerMode(seq))
         seq.isPlaying = true
-        clock.tick()
-        state.selectMode(.play)
+        seq.isPlaying = false
         sink.reset()
 
         clock.advance(beats: 4)

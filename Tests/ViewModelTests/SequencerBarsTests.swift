@@ -12,10 +12,13 @@ struct SequencerBarsTests {
         return state
     }
 
+    /// A new sequence is one empty bar.
     @Test func defaultsToOneBarOfSixteenStepsLoopingWhole() {
         let state = makeState()
         #expect(state.barCount == 1)
         #expect(state.steps.count == 16)
+        #expect(state.steps.allSatisfy { $0.isRest })
+        #expect(state.timeline.isEmpty)
         #expect(state.focusedBar == 0)
         #expect(state.loopSteps.isEmpty)
         #expect(state.layout == .paged)
@@ -25,11 +28,11 @@ struct SequencerBarsTests {
 
     @Test func addBarAppendsABlankBarAndShowsIt() {
         let state = makeState()
-        state.steps[5].degree = .V
+        state.steps[5] = SequencerStep(degree: .V)
         state.addBar()
         #expect(state.barCount == 2)
         #expect(state.steps[5].degree == .V)
-        #expect(state.steps[20] == SequencerStep())
+        #expect(state.steps[20] == SequencerStep(isRest: true))
         #expect(state.focusedBar == 1)
     }
 
@@ -42,7 +45,7 @@ struct SequencerBarsTests {
 
     @Test func removingABarMovesLaterBarsAndTheirCursorsUp() {
         let state = makeState(bars: 3)
-        state.steps[40].degree = .IV
+        state.steps[40] = SequencerStep(degree: .IV)
         state.selectedSteps = [2, 20, 40]
         state.primaryStep = 40
         state.loopSelection()
@@ -98,7 +101,7 @@ struct SequencerBarsTests {
 
     @Test func undoRestoresARemovedBarWithItsStepsSelectionAndLoop() {
         let state = makeState(bars: 3)
-        state.steps[40].degree = .IV
+        state.steps[40] = SequencerStep(degree: .IV)
         state.selectedSteps = [40]
         state.primaryStep = 40
         state.loopSelection()
@@ -121,7 +124,7 @@ struct SequencerBarsTests {
 
     @Test func clearPatternKeepsThePatternLength() {
         let state = makeState(bars: 2)
-        state.steps[20].degree = .V
+        state.steps[20] = SequencerStep(degree: .V)
         state.clearPattern()
         #expect(state.barCount == 2)
         #expect(state.steps[20].degree == .I)
@@ -219,7 +222,7 @@ struct SequencerBarsTests {
         let original = SequencerState(defaults: defaults)
         original.addBar()
         original.addBar()
-        original.steps[40].degree = .vi
+        original.steps[40] = SequencerStep(degree: .vi)
         original.steps[40].gate = 0.3
         original.selectedSteps = [38, 39, 40]
         original.loopSelection()
@@ -270,7 +273,7 @@ struct SequencerBarsTests {
     @Test func unreadablePatternsLoadAsEmpty() throws {
         let defaults = isolatedDefaults()
         let original = SequencerState(defaults: defaults)
-        original.steps[0].degree = .V
+        original.steps[0] = SequencerStep(degree: .V)
         original.save()
         let key = "sequencer.timeline.v1"
         let saved = String(decoding: defaults.data(forKey: key)!, as: UTF8.self)
@@ -316,7 +319,7 @@ struct SequencerBarsTests {
         let held = state.timeline.layers[0].notes.first { $0.chord.degree == .V }
         #expect(held?.length == TimelineTime.ticksPerStep * 3 / 2)
 
-        state.steps[0].degree = .IV
+        state.steps[0] = SequencerStep(degree: .IV)
         #expect(SequencerState(defaults: defaults).steps[0].degree == .IV)
     }
 }

@@ -127,18 +127,13 @@ final class SequencerState {
     init(defaults: UserDefaults = .standard, logger: (any Logger)? = nil) {
         self.defaults = defaults
         self.logger = logger
-        let blank = Self.blank()
-        timeline = blank
-        layerID = blank.layers[0].id
+        // A new sequence is one empty bar.
+        let empty = Timeline()
+        timeline = empty
+        layerID = empty.layers[0].id
         load()
     }
 
-    /// The sequence a new pattern starts as: one bar, the I chord on every step.
-    private static func blank(bars: Int = 1) -> Timeline {
-        var timeline = Timeline(barCount: bars)
-        timeline.layers = [Layer(steps: Array(repeating: SequencerStep(), count: timeline.stepCount))]
-        return timeline
-    }
 
     /// Gives the sequencer something to be heard through: it follows the
     /// timeline and the play button from here on, and moves the playhead.
@@ -185,12 +180,11 @@ final class SequencerState {
         save()
     }
 
-    /// Resets every step (keeping the pattern length and the loop) and the
+    /// Empties every step (keeping the pattern length and the loop) and the
     /// selection together as one undo step.
     func clearPattern() {
         snapshot()
-        let cleared = Self.blank(bars: barCount).layers[0].notes
-        edit { $0.notes = cleared }
+        edit { $0.notes = [] }
         selectedSteps = []
         primaryStep = nil
     }
@@ -282,14 +276,11 @@ final class SequencerState {
 
     // MARK: – Bars
 
-    /// Appends a bar and shows it.
+    /// Appends an empty bar and shows it.
     func addBar() {
         snapshot()
-        let added = barCount * Self.stepsPerBar ..< (barCount + 1) * Self.stepsPerBar
         timeline.addBar()
-        edit { layer in
-            for step in added { layer.setStep(step, to: SequencerStep()) }
-        }
+        save()
         focusedBar = barCount - 1
         logger?.log(.sequencer_bars_changed(barCount: barCount))
     }

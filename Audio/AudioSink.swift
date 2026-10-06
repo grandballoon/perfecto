@@ -23,10 +23,11 @@ import SoundpipeAudioKit
 @MainActor
 final class AudioSink: NoteSink, AudioEffects {
 
-    /// Voices in the pool: the most notes that can be held at once. A note
-    /// past this takes over the voice held longest (`audio_voice_stolen`).
-    /// Released notes ring out on whatever voices are not needed yet.
-    static let polyphony = 8
+    /// Voices in the pool: the most notes that can be held at once, by the
+    /// keys and every layer of the timeline together. A note past this takes
+    /// over the voice held longest (`audio_voice_stolen`). Released notes
+    /// ring out on whatever voices are not needed yet.
+    static let polyphony = 16
 
     /// Layers the play-mode looper can hold.
     static let quickLoopTrackCount = 6

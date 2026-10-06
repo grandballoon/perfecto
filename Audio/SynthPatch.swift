@@ -70,6 +70,6 @@ struct SynthPatch: Equatable, Sendable {
     /// nil leaves the sources unfiltered.
     var filter: Filter? = nil
     var envelope: Envelope
-    /// One note's output level. A chord sums up to `AudioSink.polyphony` of them.
+    /// One note's output level. Notes add, and the `MasterBus` holds the sum under full scale.
     var level: Float
 }

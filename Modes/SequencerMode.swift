@@ -2,8 +2,8 @@
 /// played and the sequencer is heard.
 ///
 /// Playing the sequence is not this mode's work. A `TimelinePlayer` runs the
-/// timeline against the clock; the mode only connects the sequencer on
-/// screen to it, and stops it on the way out.
+/// timeline against the clock under every mode, so a sequence started here
+/// plays on under the keys when the screen is left.
 @MainActor
 final class SequencerMode: PerformanceMode {
     var kind: ModeKind { .sequencer }
@@ -24,8 +24,4 @@ final class SequencerMode: PerformanceMode {
     func onButtonUp(degree: Degree, state: PerformanceState) { }
     func onColorChange(state: PerformanceState) { }
 
-    func deactivate(state: PerformanceState) {
-        state.detach(seqState)
-        state.endChord()
-    }
 }

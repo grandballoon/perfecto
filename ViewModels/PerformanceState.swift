@@ -104,6 +104,12 @@ final class PerformanceState {
     var quickLooper: Looper? { engine?.quickLooper }
 
     private let sink:   any ChordEventSink
+    /// Hears the chord that is held, whole (ChordLink).
+    private let chordListener: (any ChordEventSink)?
+    /// Makes the sink a layer of the timeline sounds its notes through.
+    private let layerSink: () -> any ChordEventSink
+    /// The sequencer whose timeline is playing.
+    private var playingSequencer: SequencerState?
     /// Plays the sequencer's timeline against the clock, under whatever mode is on.
     private var timelinePlayer: TimelinePlayer?
     private let engine: AudioSink?
@@ -119,8 +125,12 @@ final class PerformanceState {
     /// one note at a time while that is on. `chordListener` is told which
     /// chord is held, whole, however its notes are being played.
     /// `effectsListener` follows the sound effects beside the audio (MIDI does).
+    /// `layerSink` makes a sink for each layer of the timeline, so layers
+    /// sound together: production passes a new `NotePlayer` on the same note
+    /// sinks each time. Without one, layers share `sink`.
     init(sink: any ChordEventSink,
          chordListener: (any ChordEventSink)? = nil,
+         layerSink: (() -> any ChordEventSink)? = nil,
          engine: AudioSink? = nil,
          effectsListener: (any EffectsControl)? = nil,
          clock: (any ClockTickable)? = nil,
@@ -129,6 +139,8 @@ final class PerformanceState {
         let clock = clock ?? MasterClock()
         let arpeggiator = Arpeggiator(downstream: sink, clock: clock)
         self.sink         = chordListener.map { CompositeSink([arpeggiator, $0]) } ?? arpeggiator
+        self.chordListener = chordListener
+        self.layerSink    = layerSink ?? { sink }
         self.engine       = engine
         self.clock        = clock
         self.logger       = logger
@@ -139,9 +151,16 @@ final class PerformanceState {
         self.quickLoopState = QuickLoopState(looper: engine?.quickLooper)
         self.quickLoopState.onWillStopRecording = { [weak self] in self?.endChord() }
         self.clock.bpm = bpm
-        self.timelinePlayer = TimelinePlayer(live: liveSettings, clock: clock) { [weak self] in
-            LiveVoice(state: self)
+        self.timelinePlayer = TimelinePlayer(live: liveSettings, clock: clock) { [weak self] layer in
+            LayerVoice(sink: self?.layerSink() ?? CompositeSink([]), clock: clock) { chord in
+                self?.layerSounded(layer, chord)
+            }
         }
+        self.effects.onSetChange = { [weak self] in
+            guard let self else { return }
+            timelinePlayer?.live = liveSettings
+        }
+        attach(sequencerState)
         self.clock.onTick { [weak self] in
             guard let self else { return }
             self.mode.onClockTick(state: self)
@@ -378,28 +397,32 @@ final class PerformanceState {
         LiveSettings(key: key, octave: octave, preset: synthPreset, effects: effects.asSet)
     }
 
-    /// Lets `sequencer` be heard: its timeline is the one that plays.
+    /// Makes `sequencer`'s timeline the one that plays, in place of
+    /// whichever was. The app has one sequencer and it is attached from the
+    /// start; this is for a caller that brings its own (tests).
     func attach(_ sequencer: SequencerState) {
-        guard let timelinePlayer else { return }
+        guard let timelinePlayer, playingSequencer !== sequencer else { return }
+        playingSequencer?.detach(timelinePlayer)
+        playingSequencer = sequencer
         sequencer.attach(timelinePlayer)
     }
 
-    /// Stops `sequencer` and lets go of it.
-    func detach(_ sequencer: SequencerState) {
-        guard let timelinePlayer else { return }
-        sequencer.detach(timelinePlayer)
-    }
-
-    /// Sounds a chord of the timeline as the active chord. It was voiced
-    /// when the timeline was compiled, with its own key and color or the
-    /// live ones, so it is sent as it stands.
-    fileprivate func playTimelineChord(_ chord: TimedChord) {
+    /// A layer of the timeline started `chord`, or fell silent (nil). Its
+    /// notes are already sounding through the layer's own sink. The layer
+    /// on screen in the sequencer is also shown and announced as the chord
+    /// being played, while no key is held to say otherwise.
+    private func layerSounded(_ layer: Layer.ID, _ chord: TimedChord?) {
+        guard layer == playingSequencer?.layerID, heldDegrees.isEmpty else { return }
+        guard let chord else {
+            chordListener?.stopChord()
+            return
+        }
         let context = chord.event.context
         activeDegree = context.spec.degree
         currentContext = context
         currentVoicing = chord.event.voicing
         activeVoicingText = chordLabel(key: context.key, spec: context.spec)
-        sink.playChord(chord.event)
+        chordListener?.playChord(chord.event)
         logger?.log(.chord_played(notes: chord.event.voicing.notes, source: .sequencer))
     }
 
@@ -424,25 +447,5 @@ final class PerformanceState {
         guard let currentContext else { return }
         sink.playChord(ChordEvent(voicing: voicing, articulation: articulation, context: currentContext))
         logger?.log(.chord_played(notes: voicing.notes, source: source))
-    }
-}
-
-/// The timeline played through the same sinks as the keys: its chords are
-/// the active chord, as a sequencer step's always was. (A voice to each
-/// layer, so layers sound together, comes with loops as layers.)
-@MainActor
-private final class LiveVoice: TimelineVoice {
-    private weak var state: PerformanceState?
-
-    init(state: PerformanceState?) {
-        self.state = state
-    }
-
-    func play(_ chord: TimedChord) {
-        state?.playTimelineChord(chord)
-    }
-
-    func stop() {
-        state?.stopSounding()
     }
 }

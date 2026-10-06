@@ -12,6 +12,7 @@ struct PerfectoApp: App {
         let state = PerformanceState(
             sink:    NotePlayer([audio, midi], clock: clock),
             chordListener: announcer,
+            layerSink: { NotePlayer([audio, midi], clock: clock) },
             engine:  audio,
             effectsListener: midi,
             clock:   clock,

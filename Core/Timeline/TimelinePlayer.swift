@@ -47,7 +47,7 @@ final class TimelinePlayer {
     var onStep: ((Int?) -> Void)?
 
     private let clock: any ClockTickable
-    private let makeVoice: () -> any TimelineVoice
+    private let makeVoice: (Layer.ID) -> any TimelineVoice
 
     private struct Playing {
         let voice: any TimelineVoice
@@ -64,7 +64,7 @@ final class TimelinePlayer {
     private var next: ClockCall?
 
     init(timeline: Timeline = Timeline(), live: LiveSettings,
-         clock: any ClockTickable, makeVoice: @escaping () -> any TimelineVoice) {
+         clock: any ClockTickable, makeVoice: @escaping (Layer.ID) -> any TimelineVoice) {
         self.timeline = timeline
         self.live = live
         self.clock = clock
@@ -109,7 +109,7 @@ final class TimelinePlayer {
     private func compile() {
         var compiled: [Layer.ID: Playing] = [:]
         for layer in timeline.layers {
-            var playing = layers[layer.id] ?? Playing(voice: makeVoice())
+            var playing = layers[layer.id] ?? Playing(voice: makeVoice(layer.id))
             playing.chords = layer.isMuted ? [] : timeline.compile(layer: layer.id, live: live)
             compiled[layer.id] = playing
         }

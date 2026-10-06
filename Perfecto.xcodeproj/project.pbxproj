@@ -83,6 +83,7 @@
 		6D3AE0E68E83D67BD96CEDB7 /* JoystickTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DFFCC7F4B78811B16D415F1 /* JoystickTypes.swift */; };
 		7ED6D2137A9E03627C7F0B77 /* PerfectoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE680B23C261DFD9FCD510C /* PerfectoApp.swift */; };
 		A4ED9A745159C7720684F4B5 /* MasterClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 692368EB486831FC11EB6DB6 /* MasterClock.swift */; };
+		E8B550212E6CD50E45EBB500 /* LayerVoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F550212E6CD50E45EBB500 /* LayerVoice.swift */; };
 		E8BBE4E30C35A61FDEE46B86 /* TimelinePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FBE4E30C35A61FDEE46B86 /* TimelinePlayer.swift */; };
 		E8B685223BDA89CF220270F3 /* TimelineCompile.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F685223BDA89CF220270F3 /* TimelineCompile.swift */; };
 		E8B54BC70D008788E76436BD /* TimelineEdits.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F54BC70D008788E76436BD /* TimelineEdits.swift */; };
@@ -218,6 +219,7 @@
 		49E7E18D6B5C5F39FF60569A /* Scale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scale.swift; sourceTree = "<group>"; };
 		690CA02E32600E0361B28339 /* RepeatMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepeatMode.swift; sourceTree = "<group>"; };
 		692368EB486831FC11EB6DB6 /* MasterClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterClock.swift; sourceTree = "<group>"; };
+		E8F550212E6CD50E45EBB500 /* LayerVoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LayerVoice.swift; path = "../Timeline/LayerVoice.swift"; sourceTree = "<group>"; };
 		E8FBE4E30C35A61FDEE46B86 /* TimelinePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelinePlayer.swift; path = "../Timeline/TimelinePlayer.swift"; sourceTree = "<group>"; };
 		E8F685223BDA89CF220270F3 /* TimelineCompile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineCompile.swift; path = "../Timeline/TimelineCompile.swift"; sourceTree = "<group>"; };
 		E8F54BC70D008788E76436BD /* TimelineEdits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineEdits.swift; path = "../Timeline/TimelineEdits.swift"; sourceTree = "<group>"; };
@@ -452,6 +454,7 @@
 			isa = PBXGroup;
 			children = (
 				692368EB486831FC11EB6DB6 /* MasterClock.swift */,
+				E8F550212E6CD50E45EBB500 /* LayerVoice.swift */,
 				E8FBE4E30C35A61FDEE46B86 /* TimelinePlayer.swift */,
 				E8F685223BDA89CF220270F3 /* TimelineCompile.swift */,
 				E8F54BC70D008788E76436BD /* TimelineEdits.swift */,
@@ -869,6 +872,7 @@
 				132354CBD3FCEB8F5BBBDBEC /* Key.swift in Sources */,
 				C7BEEEEA9E863927E630C205 /* LeadMode.swift in Sources */,
 				A4ED9A745159C7720684F4B5 /* MasterClock.swift in Sources */,
+				E8B550212E6CD50E45EBB500 /* LayerVoice.swift in Sources */,
 				E8BBE4E30C35A61FDEE46B86 /* TimelinePlayer.swift in Sources */,
 				E8B685223BDA89CF220270F3 /* TimelineCompile.swift in Sources */,
 				E8B54BC70D008788E76436BD /* TimelineEdits.swift in Sources */,

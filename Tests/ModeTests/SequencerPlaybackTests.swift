@@ -63,8 +63,7 @@ struct SequencerPlaybackTests {
     /// last: every step between plays.
     @Test func aLoopPlaysEveryStepFromItsFirstToItsLast() {
         let seq = SequencerState(defaults: isolatedDefaults())
-        seq.steps[4].degree = .IV
-        seq.steps[8].degree = .V
+        seq.steps = Array(repeating: SequencerStep(), count: 16)
         seq.selectedSteps = [0, 4, 8]
         seq.loopSelection()
         let sink = RecordingSink()
@@ -129,13 +128,33 @@ struct SequencerPlaybackTests {
         withExtendedLifetime(state) {}
     }
 
-    @Test func leavingTheSequencerStopsIt() {
+    /// A sequence is a loop under the keys: it plays on when the sequencer
+    /// screen is left, and the keys play over it.
+    @Test func theSequencePlaysOnUnderPlayMode() {
+        let seq = SequencerState(defaults: isolatedDefaults())
+        seq.steps[2] = SequencerStep(degree: .V)
+        let sink = RecordingSink()
+        let clock = ManualClock()
+        let state = PerformanceState(sink: sink, clock: clock)
+        state.setMode(SequencerMode(seq))
+        seq.isPlaying = true
+        state.selectMode(.play)
+        #expect(seq.isPlaying)
+
+        sink.reset()
+        state.press(degree: .I)
+        step(clock); step(clock)
+        #expect(sink.playCalls.map(\.notes) == [[60, 64, 67], [67, 71, 74]])
+        #expect(seq.currentStep == 2)
+    }
+
+    @Test func stoppingLeavesNothingWaitingOnTheClock() {
         let (seq, clock, state) = start(bars: 1)
         step(clock)
-        state.selectMode(.play)
-        #expect(!seq.isPlaying)
+        seq.isPlaying = false
         #expect(seq.currentStep == -1)
         #expect(clock.pendingCount == 0)
+        withExtendedLifetime(state) {}
     }
 
     /// A tied step followed by the same chord holds it, as the MIDI export
@@ -165,7 +184,7 @@ struct SequencerPlaybackTests {
         state.setMode(SequencerMode(seq))
         seq.isPlaying = true
         step(clock)
-        seq.steps[3].degree = .V
+        seq.steps[3] = SequencerStep(degree: .V)
         step(clock); step(clock)
 
         #expect(sink.lastPlay?.notes == [67, 71, 74])

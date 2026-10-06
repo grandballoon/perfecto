@@ -143,19 +143,22 @@ struct SequencerSelectionTests {
         state.addBar()
         state.toggleStepSelection(3)
         state.toggleStepSelection(20)   // on the second bar
-        state.editSelectedSteps { $0.degree = .vi }
+        state.editSelectedSteps {
+            $0.degree = .vi
+            $0.isRest = false
+        }
         #expect(state.steps[3].degree == .vi)
         #expect(state.steps[20].degree == .vi)
-        #expect(state.steps[4].degree == .I)
+        #expect(state.steps[4].isRest)
     }
 
     @Test func clearPatternIsOneUndoStep() {
         let state = emptySelection()
         state.toggleStepSelection(4)
-        state.steps[4].degree = .V
+        state.steps[4] = SequencerStep(degree: .V)
         state.clearPattern()
         #expect(state.selectedSteps.isEmpty)
-        #expect(state.steps[4].degree == .I)
+        #expect(state.steps[4].isRest)
         state.undo()
         #expect(state.selectedSteps == [4])
         #expect(state.primaryStep == 4)
@@ -166,7 +169,7 @@ struct SequencerSelectionTests {
         let state = emptySelection()
         state.toggleStepSelection(7)
         state.snapshot()   // as the step editor does before a chord edit
-        state.steps[7].degree = .IV
+        state.steps[7] = SequencerStep(degree: .IV)
         state.undo()
         #expect(state.steps[7].degree == .I)
         #expect(state.selectedSteps == [7])

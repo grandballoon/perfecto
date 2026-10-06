@@ -19,7 +19,7 @@ struct TimelinePlayerTests {
         private(set) var player: TimelinePlayer!
 
         init(_ timeline: Timeline, live: LiveSettings, clock: ManualClock) {
-            player = TimelinePlayer(timeline: timeline, live: live, clock: clock) { [unowned self] in
+            player = TimelinePlayer(timeline: timeline, live: live, clock: clock) { [unowned self] _ in
                 let voice = RecordingVoice()
                 voices.append(voice)
                 return voice

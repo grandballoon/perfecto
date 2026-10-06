@@ -14,9 +14,14 @@ import Observation
 @MainActor
 final class EffectsState {
 
+    /// Called when an effect is set to something new (not when one is only
+    /// played): whatever follows the settings as set reads them again.
+    var onSetChange: (() -> Void)?
+
     var arpeggiator = ArpeggiatorSettings() {
         didSet {
             guard arpeggiator != oldValue else { return }
+            onSetChange?()
             sendArpeggiator()
             logSwitch(.arpeggiator, from: oldValue.isOn, to: arpeggiator.isOn)
         }
@@ -25,6 +30,7 @@ final class EffectsState {
     var filter = FilterSettings() {
         didSet {
             guard filter != oldValue else { return }
+            onSetChange?()
             sendFilter()
             logSwitch(.filter, from: oldValue.isOn, to: filter.isOn)
         }
@@ -33,6 +39,7 @@ final class EffectsState {
     var chorus = ChorusSettings() {
         didSet {
             guard chorus != oldValue else { return }
+            onSetChange?()
             sendChorus()
             sendLoopEffects()
             logSwitch(.chorus, from: oldValue.isOn, to: chorus.isOn)
@@ -42,6 +49,7 @@ final class EffectsState {
     var reverb = ReverbSettings() {
         didSet {
             guard reverb != oldValue else { return }
+            onSetChange?()
             sendReverb()
             sendLoopEffects()
             logSwitch(.reverb, from: oldValue.isOn, to: reverb.isOn)
