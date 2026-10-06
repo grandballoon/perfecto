@@ -9,7 +9,8 @@
 //  - `perfecto_kernel_render` is the render thread's. It never allocates,
 //    locks or waits.
 //  - `perfecto_kernel_send` is for one other thread at a time.
-//  - `perfecto_kernel_time` is for any thread.
+//  - `perfecto_kernel_time` and the chorus's and reverb's settings are for
+//    any thread.
 //  - Everything else is called while nothing is rendering.
 //
 // Time is a count of frames rendered since the kernel was prepared. An event
@@ -76,6 +77,10 @@ typedef struct {
 ///
 ///     operator 2 ──(modulates, or is mixed with)──→ operator 1
 ///         → low-pass filter → amplitude envelope → the note's brightness
+///
+/// From there a note goes where it says (its pan, and how much of it to the
+/// chorus and the reverb), and everything is added and held under full
+/// scale by a limiter.
 typedef struct {
     PerfectoOperator operators[PerfectoOperatorCount];
     /// The second operator bends the first one's phase by `index` (in
@@ -109,7 +114,8 @@ typedef enum {
     /// Ends the note `note_id`. Unknown ids are ignored.
     PerfectoEventNoteOff = 2,
     /// Changes how the note `note_id` is played while it sounds: its
-    /// `brightness`. The change is glided to, not jumped to.
+    /// `brightness`, `chorus` and `reverb`, all three. The change is glided
+    /// to, not jumped to.
     PerfectoEventNoteChange = 3,
 } PerfectoEventType;
 
@@ -128,6 +134,15 @@ typedef struct {
     /// Note on and note change: the note's own low-pass, from 0 (dark) to 1
     /// (open: the sound as its patch makes it).
     float brightness;
+    /// Note on: where the note is between left (-1) and right (1).
+    float pan;
+    /// Note on and note change: how much chorus the note has, from 0 (none)
+    /// to 1 (as much wavering copy as sound).
+    float chorus;
+    /// Note on and note change: how much of the note goes into the reverb
+    /// and not straight out, from 0 (dry) to 1 (the room alone). It is a
+    /// send: turning it down never cuts what is already ringing.
+    float reverb;
 } PerfectoEvent;
 
 /// The most notes that can be held at once. A note past this takes over a
@@ -151,6 +166,15 @@ int32_t perfecto_kernel_sound_count(void);
 /// takes a moment and allocates: it is for loading sounds before playing,
 /// while nothing is rendering. A number never set plays a plain sine.
 void perfecto_kernel_set_sound(PerfectoKernel *kernel, int32_t sound, const PerfectoPatch *patch);
+
+/// How fast the chorus wavers, in Hz, and the seconds the reverb's tail
+/// takes to fall 60 dB: the two settings every note shares.
+void perfecto_kernel_set_chorus_rate(PerfectoKernel *kernel, float hz);
+void perfecto_kernel_set_reverb_tail(PerfectoKernel *kernel, float seconds);
+
+/// Frames between an event's frame and its sound coming out: the limiter
+/// has to see a peak coming to turn it down in time. Fixed by `prepare`.
+int32_t perfecto_kernel_latency(const PerfectoKernel *kernel);
 
 /// Hands the kernel an event. Returns false, and drops the event, if as
 /// many as it can hold are already waiting for their frames.

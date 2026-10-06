@@ -45,6 +45,10 @@ struct Lowpass {
 };
 
 struct Voice {
+    /// The paths a voice's sound takes: straight to the output, and into
+    /// the chorus and the reverb.
+    enum Path { dry = 0, toChorus, toReverb, pathCount };
+
     enum class Stage : uint8_t {
         /// Silent and free to take a note.
         free,
@@ -66,6 +70,9 @@ struct Voice {
         float velocity = 0;
         int32_t sound = 0;
         float brightness = 1;
+        float pan = 0;
+        float chorus = 0;
+        float reverb = 0;
     };
 
     Stage stage = Stage::free;
@@ -106,6 +113,26 @@ struct Voice {
     Lowpass brightener;
     float brightness = 1;
     float brightnessGoal = 1;
+
+    /// How much of the voice goes left and right.
+    float side[2] = {1, 1};
+    /// How much chorus and reverb the note has now, and is gliding to.
+    float chorus = 0;
+    float chorusGoal = 0;
+    float reverb = 0;
+    float reverbGoal = 0;
+    /// What that makes the voice's share of each path, and how far each
+    /// moves a frame.
+    float share[pathCount] = {1, 0, 0};
+    float shareStep[pathCount] = {0, 0, 0};
+
+    /// The shares of each path for `chorus` and `reverb`. Chorus at its
+    /// fullest is as much copy as sound; reverb takes from both.
+    void shares(float out[pathCount]) const {
+        out[dry] = (1 - reverb) * (1 - 0.5f * chorus);
+        out[toChorus] = (1 - reverb) * 0.5f * chorus;
+        out[toReverb] = reverb;
+    }
 
     /// How loud the voice is now, for choosing which to give up.
     float loudness() const { return level * velocity * (sound ? sound->patch.level : 0); }

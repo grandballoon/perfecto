@@ -1,6 +1,7 @@
 #include "PerfectoKernel.h"
 
 #include "EventQueue.hpp"
+#include "MixBus.hpp"
 #include "RenderGuard.hpp"
 #include "Voice.hpp"
 
@@ -40,6 +41,10 @@ constexpr double brightest = 20000;
 
 constexpr double twoPi = 6.283185307179586;
 
+/// The most frames the mix is worked out for at a time; a render call for
+/// more is done in pieces.
+constexpr int32_t blockFrames = 256;
+
 double valueOf(const PerfectoSweep &sweep, double seconds) {
     if (sweep.time <= 0 || seconds >= sweep.time) return sweep.to;
     return sweep.from + (sweep.to - sweep.from) * seconds / sweep.time;
@@ -70,8 +75,22 @@ struct PerfectoKernel {
     std::array<bool, soundCount> isSet{};
     perfecto::Sound plain;
 
+    /// Where the voices' sound is added up, a block at a time: left and
+    /// right of each path (see `Voice::Path`).
+    std::array<std::array<float, blockFrames>, perfecto::Voice::pathCount * 2> buses{};
+    perfecto::Chorus chorus;
+    perfecto::Reverb reverb;
+    perfecto::Limiter limiter;
+    /// The chorus's and reverb's settings as asked for, from any thread,
+    /// and as the render thread last took them up.
+    std::atomic<float> chorusRate{1};
+    std::atomic<float> reverbTail{2};
+    float chorusRateInUse = 0;
+    float reverbTailInUse = 0;
+
     PerfectoKernel() {
         plain.load(perfecto::Sound::plainSine());
+        prepare(sampleRate);
     }
 
     const perfecto::Sound &sound(int32_t number) const {
@@ -113,6 +132,14 @@ struct PerfectoKernel {
         // A note starts at the brightness it was played with, not on the
         // way to it.
         voice.brightness = voice.brightnessGoal = std::clamp(note.brightness, 0.0f, 1.0f);
+        // Centre is full on both sides; to one side, the other falls away.
+        const float pan = std::clamp(note.pan, -1.0f, 1.0f);
+        voice.side[0] = std::min(1.0f, 1 - pan);
+        voice.side[1] = std::min(1.0f, 1 + pan);
+        voice.chorus = voice.chorusGoal = std::clamp(note.chorus, 0.0f, 1.0f);
+        voice.reverb = voice.reverbGoal = std::clamp(note.reverb, 0.0f, 1.0f);
+        voice.shares(voice.share);
+        std::fill(std::begin(voice.shareStep), std::end(voice.shareStep), 0.0f);
     }
 
     /// The voice a new note takes: a free one, else the quietest of those
@@ -136,7 +163,8 @@ struct PerfectoKernel {
 
     void noteOn(const PerfectoEvent &event) {
         using Stage = perfecto::Voice::Stage;
-        const perfecto::Voice::Waiting note{event.note_id, event.note, event.velocity, event.sound, event.brightness};
+        const perfecto::Voice::Waiting note{event.note_id, event.note, event.velocity, event.sound,
+                                            event.brightness, event.pan, event.chorus, event.reverb};
         auto &voice = voiceForNewNote();
         if (voice.stage == Stage::free) {
             start(voice, note);
@@ -166,11 +194,17 @@ struct PerfectoKernel {
     void noteChange(const PerfectoEvent &event) {
         using Stage = perfecto::Voice::Stage;
         const float brightness = std::clamp(event.brightness, 0.0f, 1.0f);
+        const float chorus = std::clamp(event.chorus, 0.0f, 1.0f);
+        const float reverb = std::clamp(event.reverb, 0.0f, 1.0f);
         for (auto &voice : voices) {
             if (voice.stage == Stage::held && voice.id == event.note_id) {
                 voice.brightnessGoal = brightness;
+                voice.chorusGoal = chorus;
+                voice.reverbGoal = reverb;
             } else if (voice.stage == Stage::stolen && voice.waiting.id == event.note_id) {
                 voice.waiting.brightness = brightness;
+                voice.waiting.chorus = chorus;
+                voice.waiting.reverb = reverb;
             }
         }
     }
@@ -199,6 +233,15 @@ struct PerfectoKernel {
                                              lowestCutoff, std::min(highestCutoff, ceiling));
             // Resonance 0 is flat; 1 rings.
             voice.filter.tune(cutoff, sampleRate, 0.7071 * std::pow(25.0, patch.resonance));
+        }
+        // The note's own settings glide to where they were last put, and
+        // its share of each path moves there evenly over these frames.
+        voice.chorus += (voice.chorusGoal - voice.chorus) * brightnessRate;
+        voice.reverb += (voice.reverbGoal - voice.reverb) * brightnessRate;
+        float shares[perfecto::Voice::pathCount];
+        voice.shares(shares);
+        for (int path = 0; path < perfecto::Voice::pathCount; ++path) {
+            voice.shareStep[path] = (shares[path] - voice.share[path]) / controlFrames;
         }
         voice.brightness += (voice.brightnessGoal - voice.brightness) * brightnessRate;
         voice.brightener.tune(std::min(darkest * std::pow(brightest / darkest, voice.brightness), ceiling),
@@ -249,17 +292,23 @@ struct PerfectoKernel {
         return true;
     }
 
-    /// Adds `voice`'s next `frames` frames to `out`.
-    void render(perfecto::Voice &voice, float *out, int32_t frames) {
-        using Stage = perfecto::Voice::Stage;
-        for (int32_t i = 0; i < frames; ++i) {
+    /// Adds `voice`'s next `frames` frames to the buses, from `offset`.
+    void render(perfecto::Voice &voice, int32_t offset, int32_t frames) {
+        using Voice = perfecto::Voice;
+        using Stage = Voice::Stage;
+        for (int32_t i = offset; i < offset + frames; ++i) {
             if (voice.stage == Stage::free) return;
             if (voice.age % controlFrames == 0) control(voice);
 
             float sample = source(voice);
             if (voice.sound->patch.filtered) sample = voice.filter.run(sample);
-            sample = voice.brightener.run(sample * voice.level * voice.velocity);
-            out[i] += sample * voice.fade;
+            sample = voice.brightener.run(sample * voice.level * voice.velocity) * voice.fade;
+            for (int path = 0; path < Voice::pathCount; ++path) {
+                const float sent = sample * voice.share[path];
+                buses[path * 2][i] += sent * voice.side[0];
+                buses[path * 2 + 1][i] += sent * voice.side[1];
+                voice.share[path] += voice.shareStep[path];
+            }
             ++voice.age;
 
             const bool sounding = advance(voice);
@@ -278,16 +327,11 @@ struct PerfectoKernel {
         }
     }
 
-    void render(float *const *out, int32_t outChannels, int32_t frames) {
-        if (outChannels < 1 || frames < 1) return;
+    /// Renders the next `frames` frames, at most a block, to `out` from `offset`.
+    void renderBlock(float *const *out, int32_t outChannels, int32_t offset, int32_t frames) {
+        using Voice = perfecto::Voice;
         const uint64_t start = time.load(std::memory_order_relaxed);
-
-        agenda.compact();
-        PerfectoEvent event;
-        while (mailbox.pop(event)) agenda.add(event);
-
-        float *mix = out[0];
-        std::fill(mix, mix + frames, 0.0f);
+        for (auto &bus : buses) std::fill(bus.begin(), bus.begin() + frames, 0.0f);
 
         int32_t frame = 0;
         while (frame < frames) {
@@ -302,14 +346,49 @@ struct PerfectoKernel {
                 const uint64_t due = agenda.next().time - start;
                 if (due < static_cast<uint64_t>(frames)) until = static_cast<int32_t>(due);
             }
-            for (auto &voice : voices) render(voice, mix + frame, until - frame);
+            for (auto &voice : voices) render(voice, frame, until - frame);
             frame = until;
         }
 
-        for (int32_t channel = 1; channel < outChannels; ++channel) {
-            std::copy(mix, mix + frames, out[channel]);
+        for (int32_t i = 0; i < frames; ++i) {
+            float left = buses[Voice::dry * 2][i];
+            float right = buses[Voice::dry * 2 + 1][i];
+            float wetLeft, wetRight;
+            chorus.run(buses[Voice::toChorus * 2][i], buses[Voice::toChorus * 2 + 1][i], wetLeft, wetRight);
+            left += wetLeft;
+            right += wetRight;
+            reverb.run(buses[Voice::toReverb * 2][i], buses[Voice::toReverb * 2 + 1][i], wetLeft, wetRight);
+            left += wetLeft;
+            right += wetRight;
+            limiter.run(left, right);
+            if (outChannels == 1) {
+                out[0][offset + i] = 0.5f * (left + right);
+            } else {
+                out[0][offset + i] = left;
+                out[1][offset + i] = right;
+            }
+        }
+        for (int32_t channel = 2; channel < outChannels; ++channel) {
+            std::fill(out[channel] + offset, out[channel] + offset + frames, 0.0f);
         }
         time.store(start + static_cast<uint64_t>(frames), std::memory_order_release);
+    }
+
+    void render(float *const *out, int32_t outChannels, int32_t frames) {
+        if (outChannels < 1 || frames < 1) return;
+
+        agenda.compact();
+        PerfectoEvent event;
+        while (mailbox.pop(event)) agenda.add(event);
+
+        const float rate = chorusRate.load(std::memory_order_relaxed);
+        if (rate != chorusRateInUse) chorus.setRate(chorusRateInUse = rate);
+        const float tail = reverbTail.load(std::memory_order_relaxed);
+        if (tail != reverbTailInUse) reverb.setTail(reverbTailInUse = tail);
+
+        for (int32_t done = 0; done < frames; done += blockFrames) {
+            renderBlock(out, outChannels, done, std::min(blockFrames, frames - done));
+        }
     }
 
     /// The level an attack heads for, past full, so it gets there on time.
@@ -327,6 +406,10 @@ struct PerfectoKernel {
         waiting.store(0);
         voices.fill(perfecto::Voice{});
         notesStarted = 0;
+        chorus.prepare(rate);
+        reverb.prepare(rate);
+        limiter.prepare(rate);
+        chorusRateInUse = reverbTailInUse = 0;
     }
 };
 
@@ -360,6 +443,18 @@ bool perfecto_kernel_send(PerfectoKernel *kernel, const PerfectoEvent *event) {
     if (kernel->waiting.load(std::memory_order_acquire) >= eventCapacity) return false;
     kernel->waiting.fetch_add(1, std::memory_order_release);
     return kernel->mailbox.push(*event);
+}
+
+void perfecto_kernel_set_chorus_rate(PerfectoKernel *kernel, float hz) {
+    kernel->chorusRate.store(std::clamp(hz, 0.05f, 10.0f), std::memory_order_relaxed);
+}
+
+void perfecto_kernel_set_reverb_tail(PerfectoKernel *kernel, float seconds) {
+    kernel->reverbTail.store(std::clamp(seconds, 0.1f, 30.0f), std::memory_order_relaxed);
+}
+
+int32_t perfecto_kernel_latency(const PerfectoKernel *kernel) {
+    return static_cast<int32_t>(kernel->limiter.latency());
 }
 
 uint64_t perfecto_kernel_time(const PerfectoKernel *kernel) {

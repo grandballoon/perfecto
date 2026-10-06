@@ -12,7 +12,7 @@ struct KernelTests {
         let rig = KernelRig()
         rig.render(4800)
         #expect(rig.loudest(0..<4800) == 0)
-        #expect(rig.time == 4800)
+        #expect(rig.time == 4800 + rig.latency)
     }
 
     /// The note's first frame is the frame it names: it starts from zero
@@ -57,10 +57,11 @@ struct KernelTests {
     @Test func anEventWhoseFrameHasPassedTakesEffectOnTheNextFrame() {
         let rig = KernelRig()
         rig.render(500, chunk: 100)
+        let next = rig.time
         rig.noteOn(1, at: 0)
         rig.render(500, chunk: 100)
-        #expect(rig.loudest(0..<501) == 0)
-        #expect(rig.output[501] != 0)
+        #expect(rig.loudest(0..<next + 1) == 0)
+        #expect(rig.output[next + 1] != 0)
     }
 
     /// A note's end can be sent before a later note's start is known, so
@@ -129,9 +130,10 @@ struct KernelTests {
     @Test func everyVoiceCanSoundAtOnce() {
         let rig = KernelRig()
         let voices = Int(perfecto_kernel_voice_count())
-        for id in 1...voices { rig.noteOn(UInt64(id), note: 69) }
+        // Softly, so that together they stay under what the limiter holds.
+        for id in 1...voices { rig.noteOn(UInt64(id), note: 69, velocity: 0.05) }
         rig.render(4800)
-        #expect(abs(rig.loudest(2400..<4800) - 0.2 * Float(voices)) < 0.2)
+        #expect(abs(rig.loudest(2400..<4800) - 0.01 * Float(voices)) < 0.01)
     }
 
     /// With every voice held, a new note takes the one held longest, and

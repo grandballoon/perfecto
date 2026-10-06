@@ -91,29 +91,64 @@ final class KernelAudioUnit: AUAudioUnit {
         perfecto_kernel_set_sound(host.kernel, Int32(number), &patch)
     }
 
+    /// How a note is played, beyond its pitch and strength. A note keeps
+    /// what it started with until it is changed (`noteChange`).
+    struct Playing: Equatable, Sendable {
+        /// From 0 (dark) to 1 (open: the sound as its patch makes it).
+        var brightness: Float = 1
+        /// How much chorus, from 0 (none) to 1.
+        var chorus: Float = 0
+        /// How much of the note goes into the reverb and not straight out,
+        /// from 0 (dry) to 1 (the room alone).
+        var reverb: Float = 0
+    }
+
     /// Starts `note` (a MIDI note) under `id` on frame `time`, in sound
-    /// number `sound` and at `brightness` (0 dark to 1 open); a frame
+    /// number `sound`, between left (-1) and right (1) at `pan`; a frame
     /// already rendered means as soon as possible. Returns false if the
     /// kernel has too many events waiting and dropped this one.
     @discardableResult
-    func noteOn(_ id: UInt64, note: Int, velocity: Float, sound: Int = 0, brightness: Float = 1,
-                at time: UInt64 = 0) -> Bool {
+    func noteOn(_ id: UInt64, note: Int, velocity: Float, sound: Int = 0, pan: Float = 0,
+                playing: Playing = Playing(), at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOn,
-                           note: Int32(note), velocity: velocity, sound: Int32(sound), brightness: brightness))
+                           note: Int32(note), velocity: velocity, sound: Int32(sound),
+                           brightness: playing.brightness, pan: pan,
+                           chorus: playing.chorus, reverb: playing.reverb))
     }
 
     /// Ends the note `id` on frame `time`.
     @discardableResult
     func noteOff(_ id: UInt64, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOff, note: 0, velocity: 0,
-                           sound: 0, brightness: 1))
+                           sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0))
     }
 
-    /// Glides the sounding note `id` to `brightness` from frame `time`.
+    /// Glides the sounding note `id` to `playing` from frame `time`.
     @discardableResult
-    func noteChange(_ id: UInt64, brightness: Float, at time: UInt64 = 0) -> Bool {
+    func noteChange(_ id: UInt64, to playing: Playing, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteChange, note: 0, velocity: 0,
-                           sound: 0, brightness: brightness))
+                           sound: 0, brightness: playing.brightness, pan: 0,
+                           chorus: playing.chorus, reverb: playing.reverb))
+    }
+
+    // MARK: – The mix
+
+    /// How fast the chorus wavers, in Hz: one speed for every note.
+    func setChorusRate(_ hz: Float) {
+        perfecto_kernel_set_chorus_rate(host.kernel, hz)
+    }
+
+    /// The seconds the reverb's tail takes to fall 60 dB: one room for every note.
+    func setReverbTail(_ seconds: Float) {
+        perfecto_kernel_set_reverb_tail(host.kernel, seconds)
+    }
+
+    /// Frames between an event's frame and its sound leaving the unit: the
+    /// kernel's limiter looks that far ahead.
+    var latencyFrames: Int { Int(perfecto_kernel_latency(host.kernel)) }
+
+    override var latency: TimeInterval {
+        Double(latencyFrames) / outputBus.format.sampleRate
     }
 
     private func send(_ event: PerfectoEvent) -> Bool {

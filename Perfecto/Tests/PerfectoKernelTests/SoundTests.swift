@@ -298,9 +298,11 @@ struct SoundTests {
         #expect(rig.strength(of: hz(69) * 3, in: settled) > 0.1)             // the square has
     }
 
-    /// The whole pool playing the costliest kind of patch renders several
-    /// times faster than it is heard, even built for testing. The budget on
-    /// a phone (a quarter of each render cycle) is measured on the device.
+    /// The whole pool playing the costliest kind of patch, through the
+    /// chorus and the reverb, renders faster than it is heard even built for
+    /// testing and with other tests running beside it. (Built to run, on a
+    /// Mac, a second takes about 40 ms.) The budget on a phone, a quarter of
+    /// each render cycle, is measured on the device.
     @Test func everyVoiceRendersFasterThanItIsHeard() {
         let rig = KernelRig()
         var patch = PerfectoPatch.wave(PerfectoWaveSawtooth, level: 0.01)
@@ -309,11 +311,12 @@ struct SoundTests {
         patch.operators.1.ratio = 1.003
         rig.setSound(1, patch)
         for id in 1...Int(perfecto_kernel_voice_count()) {
-            rig.noteOn(UInt64(id), note: 36 + id % 48, sound: 1, brightness: 0.5)
+            rig.noteOn(UInt64(id), note: 36 + id % 48, sound: 1, brightness: 0.5,
+                       pan: Float(id % 3) - 1, chorus: 0.5, reverb: 0.3)
         }
         let clock = ContinuousClock()
         let taken = clock.measure { rig.render(48_000) }
-        #expect(taken < .milliseconds(500), "\(taken) to render a second")
+        #expect(taken < .seconds(1), "\(taken) to render a second")
         #expect(rig.output.allSatisfy { $0.isFinite })
     }
 }

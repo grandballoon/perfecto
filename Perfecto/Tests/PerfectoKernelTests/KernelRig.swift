@@ -3,14 +3,22 @@ import PerfectoKernel
 
 /// A kernel rendering into memory: events go in, and every frame it has
 /// rendered can be read back.
+///
+/// The kernel's limiter makes everything `latency` frames late. The rig
+/// takes that out: `output[f]` is what an event on frame `f` makes, so
+/// tests say when things happen and not when they come out. To have those
+/// frames it renders `latency` frames further than it is asked to, so the
+/// kernel's own count (`time`) runs that far ahead of what was asked for.
 final class KernelRig {
 
     static let sampleRate = 48_000.0
 
-    /// Everything rendered so far, first channel.
+    /// Everything rendered so far, left and right, by the frame it belongs to.
     private(set) var output: [Float] = []
+    private(set) var right: [Float] = []
 
     private let kernel = perfecto_kernel_create()!
+    private var discarded = 0
 
     init() {
         perfecto_kernel_prepare(kernel, Self.sampleRate)
@@ -23,19 +31,25 @@ final class KernelRig {
     /// Frames rendered so far, as the kernel counts them.
     var time: Int { Int(perfecto_kernel_time(kernel)) }
 
+    /// Frames between an event and its sound.
+    var latency: Int { Int(perfecto_kernel_latency(kernel)) }
+
     @discardableResult
     func noteOn(_ id: UInt64, note: Int = 69, velocity: Float = 1, sound: Int = 0, brightness: Float = 1,
-                at frame: Int = 0) -> Bool {
+                pan: Float = 0, chorus: Float = 0, reverb: Float = 0, at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteOn,
-                                  note: Int32(note), velocity: velocity, sound: Int32(sound), brightness: brightness)
+                                  note: Int32(note), velocity: velocity, sound: Int32(sound),
+                                  brightness: brightness, pan: pan, chorus: chorus, reverb: reverb)
         return perfecto_kernel_send(kernel, &event)
     }
 
-    /// Changes the brightness of a sounding note.
+    /// Changes how a sounding note is played.
     @discardableResult
-    func noteChange(_ id: UInt64, brightness: Float, at frame: Int = 0) -> Bool {
+    func noteChange(_ id: UInt64, brightness: Float = 1, chorus: Float = 0, reverb: Float = 0,
+                    at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteChange,
-                                  note: 0, velocity: 0, sound: 0, brightness: brightness)
+                                  note: 0, velocity: 0, sound: 0,
+                                  brightness: brightness, pan: 0, chorus: chorus, reverb: reverb)
         return perfecto_kernel_send(kernel, &event)
     }
 
@@ -45,10 +59,13 @@ final class KernelRig {
         perfecto_kernel_set_sound(kernel, Int32(sound), &patch)
     }
 
+    func setChorusRate(_ hz: Float) { perfecto_kernel_set_chorus_rate(kernel, hz) }
+    func setReverbTail(_ seconds: Float) { perfecto_kernel_set_reverb_tail(kernel, seconds) }
+
     @discardableResult
     func noteOff(_ id: UInt64, at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteOff,
-                                  note: 0, velocity: 0, sound: 0, brightness: 1)
+                                  note: 0, velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0)
         return perfecto_kernel_send(kernel, &event)
     }
 
@@ -58,8 +75,10 @@ final class KernelRig {
         render(chunks: stride(from: 0, to: frames, by: chunk).map { min(chunk, frames - $0) })
     }
 
-    /// Renders one call per entry of `chunks`, each of that many frames.
+    /// Renders one call per entry of `chunks`, each of that many frames
+    /// (and, the first time, the limiter's delay more in a call of its own).
     func render(chunks: [Int]) {
+        let chunks = time == 0 ? chunks + [latency] : chunks
         var left = [Float](repeating: 0, count: chunks.max() ?? 0)
         var right = left
         for frames in chunks {
@@ -71,8 +90,11 @@ final class KernelRig {
                     }
                 }
             }
-            precondition(left.prefix(frames).elementsEqual(right.prefix(frames)), "the channels differ")
-            output += left.prefix(frames)
+            // The first `latency` frames out belong to no frame in.
+            let skipped = min(latency - discarded, frames)
+            discarded += skipped
+            output += left[skipped..<frames]
+            self.right += right[skipped..<frames]
         }
     }
 
