@@ -61,6 +61,8 @@ final class KernelRig {
 
     func setChorusRate(_ hz: Float) { perfecto_kernel_set_chorus_rate(kernel, hz) }
     func setReverbTail(_ seconds: Float) { perfecto_kernel_set_reverb_tail(kernel, seconds) }
+    func setReverbPredelay(_ seconds: Float) { perfecto_kernel_set_reverb_predelay(kernel, seconds) }
+    func setReverbDamping(_ hz: Float) { perfecto_kernel_set_reverb_damping(kernel, hz) }
 
     @discardableResult
     func noteOff(_ id: UInt64, at frame: Int = 0) -> Bool {
@@ -188,9 +190,10 @@ extension PerfectoPatch {
         return patch
     }
 
-    func filtered(cutoff: PerfectoSweep, resonance: Float = 0) -> PerfectoPatch {
+    func filtered(cutoff: PerfectoSweep, resonance: Float = 0, steep: Bool = false) -> PerfectoPatch {
         var patch = self
         patch.filtered = true
+        patch.steep = steep
         patch.cutoff = cutoff
         patch.resonance = resonance
         return patch

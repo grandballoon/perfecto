@@ -701,13 +701,15 @@ struct SequencerView: View {
         }
     }
 
-    /// A note follows the key and octave chosen now unless it has its own.
-    /// Keeping one sets it to what is chosen now, so a note's key is changed
-    /// by choosing the key and keeping it; following gives it up again.
+    /// A note follows the key, octave, sound and effects chosen now unless
+    /// it has its own. Keeping one sets it to what is chosen now, so a
+    /// note's key is changed by choosing the key and keeping it; following
+    /// gives it up again.
     private var ownSettingsMenu: some View {
         let playing = seqState.primaryNote?.playing
         let (liveKey, liveOctave) = (perfState.key, perfState.octave)
-        let hasOwn = playing?.key != nil || playing?.octave != nil
+        let (livePreset, liveEffects) = (perfState.synthPreset, perfState.effects.asSet)
+        let hasOwn = playing?.hasOwn ?? false
         return Menu {
             Section(playing?.key.map { "Key: its own, \(keyName($0))" } ?? "Key: follows the key chosen") {
                 Button("Keep \(keyName(liveKey))") { seqState.editSelectedPlaying { $0.key = liveKey } }
@@ -719,6 +721,16 @@ struct SequencerView: View {
                 Button("Follow the octave chosen") { seqState.editSelectedPlaying { $0.octave = nil } }
                     .disabled(playing?.octave == nil)
             }
+            Section(playing?.preset.map { "Sound: its own, \($0.name)" } ?? "Sound: follows the sound chosen") {
+                Button("Keep \(livePreset.name)") { seqState.editSelectedPlaying { $0.preset = livePreset } }
+                Button("Follow the sound chosen") { seqState.editSelectedPlaying { $0.preset = nil } }
+                    .disabled(playing?.preset == nil)
+            }
+            Section(playing?.effects == nil ? "Effects: follow the effects set" : "Effects: its own") {
+                Button("Keep the effects as set now") { seqState.editSelectedPlaying { $0.effects = liveEffects } }
+                Button("Follow the effects set") { seqState.editSelectedPlaying { $0.effects = nil } }
+                    .disabled(playing?.effects == nil)
+            }
         } label: {
             Text("◆ OWN")
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
@@ -729,7 +741,7 @@ struct SequencerView: View {
                 .background(RoundedRectangle(cornerRadius: 7).fill(Color(white: 0.12)))
         }
         .disabled(!hasSelectedNotes)
-        .accessibilityLabel("The note's own key and octave")
+        .accessibilityLabel("The note's own key, octave, sound and effects")
     }
 
     private func keyName(_ key: Key) -> String {

@@ -142,6 +142,38 @@ struct MixTests {
         #expect(dry.loudest(0..<200) > 0.01)
     }
 
+    /// The room answers after its pre-delay, and not before.
+    @Test func theRoomAnswersAfterItsPredelay() {
+        func firstSound(predelay: Float) -> Int {
+            let rig = KernelRig()
+            rig.setReverbPredelay(predelay)
+            rig.noteOn(1, note: 69, reverb: 1)
+            rig.render(24_000)
+            return rig.output.firstIndex { $0 != 0 } ?? -1
+        }
+        let near = firstSound(predelay: 0)
+        let far = firstSound(predelay: 0.1)
+        #expect(near > 0)
+        #expect(far - near == 4800)
+    }
+
+    /// A duller room loses the top of its tail sooner; the bottom rings as long.
+    @Test func dampingTakesTheTopOffTheTail() {
+        func tail(damping: Float, of pitch: Int) -> Double {
+            let rig = KernelRig()
+            rig.setReverbTail(3)
+            rig.setReverbDamping(damping)
+            for (id, note) in [pitch, pitch + 4, pitch + 7, pitch + 11].enumerated() {
+                rig.noteOn(UInt64(id + 1), note: note, velocity: 0.5, reverb: 1)
+                rig.noteOff(UInt64(id + 1), at: 2400)
+            }
+            rig.render(72_000)
+            return rig.power(48_000..<72_000)
+        }
+        #expect(tail(damping: 1000, of: 96) < tail(damping: 12_000, of: 96) * 0.25)
+        #expect(tail(damping: 1000, of: 45) > tail(damping: 12_000, of: 45) * 0.5)
+    }
+
     @Test func theReverbIsDifferentOnEachSide() {
         let rig = room(tail: 2)
         let range = 9600..<48_000

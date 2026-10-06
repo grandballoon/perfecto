@@ -115,4 +115,20 @@ struct KernelSinkTests {
         let after = strength(of: a3 * 8, in: rig.output[48_000..<72_000])
         #expect(after > before * 5)
     }
+
+    /// A chord of four notes in any preset, on its own, stays under what
+    /// the limiter holds: the limiter is for layers piling up, and typical
+    /// playing leaves it idle.
+    @Test(arguments: SynthPreset.allCases)
+    func aChordAloneLeavesTheLimiterIdle(_ preset: SynthPreset) throws {
+        let (sink, rig) = try makeSubject()
+        defer { rig.engine.stop() }
+        for note in [48, 55, 64, 71] {
+            sink.noteOn(.next(), note: note, sound: NoteSound(preset: preset), at: 0)
+        }
+        try rig.render(72_000)
+        let peak = loudest(rig.output[...])
+        #expect(peak < 0.9, "\(preset.name) peaks at \(peak)")
+        #expect(peak > 0.1, "\(preset.name) peaks at \(peak)")
+    }
 }

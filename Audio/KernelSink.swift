@@ -25,12 +25,18 @@ final class KernelSink: NoteSink {
     private var chorusRate: Float?
     private var reverbSize: Float?
 
-    /// How hard every note is struck: the keys do not sense it.
-    private static let velocity: Float = 1
+    /// How hard every note is struck: the keys do not sense it. It is set
+    /// so that a chord of four notes in the loudest preset, alone, stays
+    /// under what the limiter holds; the limiter is for layers piling up.
+    private static let velocity: Float = 0.7
     /// Chorus speeds from a slow drift to a fast shimmer, in Hz.
     static let chorusRates: ClosedRange<Float> = 0.2...5
     /// Reverb tails, in seconds to fall 60 dB.
     static let reverbTails: ClosedRange<Float> = 1...8
+    /// A bigger room is further away, so it answers later (seconds), and
+    /// is softer, so the top of its tail dies sooner (Hz).
+    static let reverbPredelays: ClosedRange<Float> = 0.005...0.04
+    static let reverbDampings: ClosedRange<Float> = 3500...7000
 
     /// The frame the kernel renders at a moment of the device's uptime.
     private let frameAt: (TimeInterval) -> UInt64?
@@ -49,7 +55,7 @@ final class KernelSink: NoteSink {
     func noteOn(_ id: NoteID, note: Int, sound: NoteSound, at time: TimeInterval) {
         setMix(for: sound)
         unit.noteOn(id.number, note: note, velocity: Self.velocity, sound: numbers[sound.preset] ?? 0,
-                    playing: Self.playing(sound), at: frameAt(time) ?? 0)
+                    pan: sound.pan.clamped(to: -1...1), playing: Self.playing(sound), at: frameAt(time) ?? 0)
     }
 
     func noteChange(_ id: NoteID, sound: NoteSound, at time: TimeInterval) {
@@ -78,6 +84,8 @@ final class KernelSink: NoteSink {
         if sound.reverb.size != reverbSize {
             reverbSize = sound.reverb.size
             unit.setReverbTail(Self.reverbTails.exponential(at: sound.reverb.size))
+            unit.setReverbPredelay(Self.reverbPredelays.exponential(at: sound.reverb.size))
+            unit.setReverbDamping(Self.reverbDampings.exponential(at: 1 - sound.reverb.size))
         }
     }
 }

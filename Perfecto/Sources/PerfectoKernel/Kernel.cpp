@@ -85,8 +85,12 @@ struct PerfectoKernel {
     /// and as the render thread last took them up.
     std::atomic<float> chorusRate{1};
     std::atomic<float> reverbTail{2};
+    std::atomic<float> reverbPredelay{0.02f};
+    std::atomic<float> reverbDamping{5000};
     float chorusRateInUse = 0;
     float reverbTailInUse = 0;
+    float reverbPredelayInUse = -1;
+    float reverbDampingInUse = 0;
 
     PerfectoKernel() {
         plain.load(perfecto::Sound::plainSine());
@@ -128,6 +132,7 @@ struct PerfectoKernel {
         voice.fade = 1;
         voice.fadeStep = 0;
         voice.filter.clear();
+        voice.steeper.clear();
         voice.brightener.clear();
         // A note starts at the brightness it was played with, not on the
         // way to it.
@@ -231,8 +236,15 @@ struct PerfectoKernel {
         if (patch.filtered) {
             const double cutoff = std::clamp(valueOf(patch.cutoff, seconds) * voice.hz,
                                              lowestCutoff, std::min(highestCutoff, ceiling));
-            // Resonance 0 is flat; 1 rings.
-            voice.filter.tune(cutoff, sampleRate, 0.7071 * std::pow(25.0, patch.resonance));
+            // Resonance 0 is flat; 1 rings. A steep filter is two in a
+            // row, tuned so that together they are flat up to the cutoff,
+            // with the second doing the ringing.
+            if (patch.steep) {
+                voice.filter.tune(cutoff, sampleRate, 0.5412);
+                voice.steeper.tune(cutoff, sampleRate, 1.3066 * std::pow(14.0, patch.resonance));
+            } else {
+                voice.filter.tune(cutoff, sampleRate, 0.7071 * std::pow(25.0, patch.resonance));
+            }
         }
         // The note's own settings glide to where they were last put, and
         // its share of each path moves there evenly over these frames.
@@ -301,7 +313,10 @@ struct PerfectoKernel {
             if (voice.age % controlFrames == 0) control(voice);
 
             float sample = source(voice);
-            if (voice.sound->patch.filtered) sample = voice.filter.run(sample);
+            if (voice.sound->patch.filtered) {
+                sample = voice.filter.run(sample);
+                if (voice.sound->patch.steep) sample = voice.steeper.run(sample);
+            }
             sample = voice.brightener.run(sample * voice.level * voice.velocity) * voice.fade;
             for (int path = 0; path < Voice::pathCount; ++path) {
                 const float sent = sample * voice.share[path];
@@ -385,6 +400,10 @@ struct PerfectoKernel {
         if (rate != chorusRateInUse) chorus.setRate(chorusRateInUse = rate);
         const float tail = reverbTail.load(std::memory_order_relaxed);
         if (tail != reverbTailInUse) reverb.setTail(reverbTailInUse = tail);
+        const float predelay = reverbPredelay.load(std::memory_order_relaxed);
+        if (predelay != reverbPredelayInUse) reverb.setPredelay(reverbPredelayInUse = predelay);
+        const float damping = reverbDamping.load(std::memory_order_relaxed);
+        if (damping != reverbDampingInUse) reverb.setDamping(reverbDampingInUse = damping);
 
         for (int32_t done = 0; done < frames; done += blockFrames) {
             renderBlock(out, outChannels, done, std::min(blockFrames, frames - done));
@@ -409,7 +428,8 @@ struct PerfectoKernel {
         chorus.prepare(rate);
         reverb.prepare(rate);
         limiter.prepare(rate);
-        chorusRateInUse = reverbTailInUse = 0;
+        chorusRateInUse = reverbTailInUse = reverbDampingInUse = 0;
+        reverbPredelayInUse = -1;
     }
 };
 
@@ -451,6 +471,14 @@ void perfecto_kernel_set_chorus_rate(PerfectoKernel *kernel, float hz) {
 
 void perfecto_kernel_set_reverb_tail(PerfectoKernel *kernel, float seconds) {
     kernel->reverbTail.store(std::clamp(seconds, 0.1f, 30.0f), std::memory_order_relaxed);
+}
+
+void perfecto_kernel_set_reverb_predelay(PerfectoKernel *kernel, float seconds) {
+    kernel->reverbPredelay.store(std::clamp(seconds, 0.0f, 0.2f), std::memory_order_relaxed);
+}
+
+void perfecto_kernel_set_reverb_damping(PerfectoKernel *kernel, float hz) {
+    kernel->reverbDamping.store(std::clamp(hz, 500.0f, 20000.0f), std::memory_order_relaxed);
 }
 
 int32_t perfecto_kernel_latency(const PerfectoKernel *kernel) {

@@ -108,8 +108,10 @@ struct Voice {
     float fade = 1;
     float fadeStep = 0;
 
-    /// The patch's filter, and the note's own brightness after it.
+    /// The patch's filter (two in a row when it is steep), and the note's
+    /// own brightness after it.
     Lowpass filter;
+    Lowpass steeper;
     Lowpass brightener;
     float brightness = 1;
     float brightnessGoal = 1;

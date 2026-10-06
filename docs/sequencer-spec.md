@@ -1,7 +1,7 @@
 # Sequencer spec: one timeline for sequences and loops
 
 > **Status (2026-10-06): parts A to F of section 8 are built; the screen (E and F) has not been seen on a device.**
-> Two things in F are left for later, and section 5.2 and 6 say which: a note's own sound and effects wait for the kernel, and a chord entered is not heard as it goes in.
+> One thing in F is left for later: a chord entered is not heard as it goes in.
 > This is step 5 of [audio-engine-spec.md](audio-engine-spec.md), and it answers [../sequencer.md](../sequencer.md), which states what is wanted.
 > It replaces sections 6.1, 6.2 and 6.2.1 of [../spec.md](../spec.md) as each part lands.
 
@@ -100,7 +100,7 @@ struct NotePlaying {
 What is recorded is the chord *before* the arpeggiator, with the arpeggiator's settings among its effects, so an arpeggiated loop is replayed by arpeggiating it again and its pattern and speed stay editable.
 
 Since the kernel went in (audio engine step 8, 2026-10-06), a note's own preset and effects are heard: each layer's notes are played in the sound their chord says, and a recorded slide is replayed.
-The ◆ OWN menu still offers only key and octave; sound and effects are to be added to it.
+The ◆ OWN menu offers all four: key, octave, sound and effects.
 [../sequencer.md](../sequencer.md) accepts this.
 
 ### 3.4 Editing, as functions on the model

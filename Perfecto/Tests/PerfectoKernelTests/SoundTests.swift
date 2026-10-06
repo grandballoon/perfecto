@@ -162,6 +162,30 @@ struct SoundTests {
         #expect(late < early * 0.1)
     }
 
+    /// A steep filter takes twice as much off, octave for octave, and
+    /// leaves what is under the cutoff as it was.
+    @Test func aSteepFilterFallsAwayTwiceAsFast() {
+        let saw = PerfectoPatch.wave(PerfectoWaveSawtooth)
+        let open = partials(held(saw, note: 45), note: 45, count: 16)
+        let gentle = partials(held(saw.filtered(cutoff: .steady(4)), note: 45), note: 45, count: 16)
+        let steep = partials(held(saw.filtered(cutoff: .steady(4), steep: true), note: 45), note: 45, count: 16)
+        // Two octaves over the cutoff: 24 dB down, and 48.
+        #expect(abs(20 * log10(gentle[15] / open[15]) + 24) < 2)
+        #expect(abs(20 * log10(steep[15] / open[15]) + 48) < 3)
+        // An octave under it: untouched by either.
+        #expect(abs(gentle[1] / open[1] - 1) < 0.05 && abs(steep[1] / open[1] - 1) < 0.05)
+        // At the cutoff both are 3 dB down: flat right up to it.
+        #expect(abs(20 * log10(steep[3] / open[3]) + 3) < 1)
+    }
+
+    @Test(arguments: [0, 24, 108, 127])
+    func theSteepFilterIsStableAtItsExtremes(note: Int) {
+        let patch = PerfectoPatch.wave(PerfectoWaveSawtooth)
+            .filtered(cutoff: PerfectoSweep(from: 1000, to: 0.01, time: 0.01), resonance: 1, steep: true)
+        let rig = held(patch, note: note, seconds: 0.5)
+        #expect(rig.output.allSatisfy { $0.isFinite && abs($0) < 20 })
+    }
+
     @Test func resonanceRaisesWhatIsAtTheCutoff() {
         let flat = held(PerfectoPatch.wave(PerfectoWaveSawtooth).filtered(cutoff: .steady(4)))
         let ringing = held(PerfectoPatch.wave(PerfectoWaveSawtooth).filtered(cutoff: .steady(4), resonance: 0.7))

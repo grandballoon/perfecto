@@ -153,6 +153,16 @@ final class KernelAudioUnit: AUAudioUnit {
         perfecto_kernel_set_reverb_tail(host.kernel, seconds)
     }
 
+    /// The seconds before the room first answers, and the pitch (Hz) above
+    /// which its tail dies sooner.
+    func setReverbPredelay(_ seconds: Float) {
+        perfecto_kernel_set_reverb_predelay(host.kernel, seconds)
+    }
+
+    func setReverbDamping(_ hz: Float) {
+        perfecto_kernel_set_reverb_damping(host.kernel, hz)
+    }
+
     /// Frames between an event's frame and its sound leaving the unit: the
     /// kernel's limiter looks that far ahead.
     var latencyFrames: Int { Int(perfecto_kernel_latency(host.kernel)) }

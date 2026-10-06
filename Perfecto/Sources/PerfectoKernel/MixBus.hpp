@@ -93,9 +93,26 @@ public:
             smear[i].assign(static_cast<std::size_t>(smearSeconds[i] * rate), 0.0f);
             smearAt[i] = 0;
         }
-        // The top of the tail dies sooner than the rest, as in a real room.
-        dulling = static_cast<float>(1 - std::exp(-twoPi * dullAbove / rate));
+        early[0].assign(static_cast<std::size_t>(longestPredelay * rate) + 1, 0.0f);
+        early[1].assign(early[0].size(), 0.0f);
+        earlyAt = 0;
+        setDamping(dullAbove);
+        setPredelay(predelay);
         setTail(tail);
+    }
+
+    /// The pitch, in Hz, above which the tail dies sooner than the rest, as
+    /// in a real room: lower is a softer, duller room.
+    void setDamping(double hz) {
+        dullAbove = hz;
+        dulling = static_cast<float>(1 - std::exp(-twoPi * std::min(hz, 0.45 * sampleRate) / sampleRate));
+    }
+
+    /// The seconds before the room first answers. It leaves the start of a
+    /// note clear of its own reverb.
+    void setPredelay(double seconds) {
+        predelay = std::min(seconds, longestPredelay);
+        predelayFrames = static_cast<std::size_t>(predelay * sampleRate);
     }
 
     /// The seconds the room's tail takes to fall 60 dB.
@@ -107,6 +124,14 @@ public:
     }
 
     void run(float inLeft, float inRight, float &outLeft, float &outRight) {
+        const std::size_t size = early[0].size();
+        early[0][earlyAt] = inLeft;
+        early[1][earlyAt] = inRight;
+        const std::size_t from = (earlyAt + size - predelayFrames) % size;
+        inLeft = early[0][from];
+        inRight = early[1][from];
+        if (++earlyAt == size) earlyAt = 0;
+
         // Each side is smeared first, so the tail starts dense and not as
         // separate echoes.
         inLeft = smeared(smeared(inLeft, 0), 1);
@@ -148,7 +173,7 @@ private:
     static constexpr double lineSeconds[lines] = {0.0317, 0.0371, 0.0419, 0.0473, 0.0539, 0.0613, 0.0679, 0.0731};
     static constexpr double smearSeconds[smears] = {0.0051, 0.0077, 0.0063, 0.0091};
     static constexpr float smearing = 0.6f;
-    static constexpr double dullAbove = 5000;
+    static constexpr double longestPredelay = 0.2;
     /// 1 / sqrt(8): what keeps the lines' feeding one another from adding energy.
     static constexpr float mixing = 0.35355339f;
     static constexpr float level = 0.35f;
@@ -166,6 +191,11 @@ private:
 
     double sampleRate = 48000;
     double tail = 2;
+    double dullAbove = 5000;
+    double predelay = 0.02;
+    std::size_t predelayFrames = 0;
+    std::array<std::vector<float>, 2> early;
+    std::size_t earlyAt = 0;
     std::array<std::vector<float>, lines> line;
     std::array<std::size_t, lines> at{};
     std::array<float, lines> dull{};

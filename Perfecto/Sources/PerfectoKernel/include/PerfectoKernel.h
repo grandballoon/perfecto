@@ -94,6 +94,9 @@ typedef struct {
     PerfectoSweep cutoff;
     /// 0 (none) up to 1 (ringing).
     float resonance;
+    /// The filter falls away at 24 dB an octave above its cutoff, not 12:
+    /// a darker, rounder sound for the same cutoff.
+    bool steep;
     /// Seconds to reach full level.
     float attack;
     /// Seconds in which the level covers 63% of the way to `sustain`, and
@@ -167,10 +170,14 @@ int32_t perfecto_kernel_sound_count(void);
 /// while nothing is rendering. A number never set plays a plain sine.
 void perfecto_kernel_set_sound(PerfectoKernel *kernel, int32_t sound, const PerfectoPatch *patch);
 
-/// How fast the chorus wavers, in Hz, and the seconds the reverb's tail
-/// takes to fall 60 dB: the two settings every note shares.
+/// The settings every note shares: how fast the chorus wavers, in Hz; the
+/// seconds the reverb's tail takes to fall 60 dB; the seconds before the
+/// room first answers (a bigger room is further away); and the pitch, in
+/// Hz, above which the tail dies sooner (a softer room is duller).
 void perfecto_kernel_set_chorus_rate(PerfectoKernel *kernel, float hz);
 void perfecto_kernel_set_reverb_tail(PerfectoKernel *kernel, float seconds);
+void perfecto_kernel_set_reverb_predelay(PerfectoKernel *kernel, float seconds);
+void perfecto_kernel_set_reverb_damping(PerfectoKernel *kernel, float hz);
 
 /// Frames between an event's frame and its sound coming out: the limiter
 /// has to see a peak coming to turn it down in time. Fixed by `prepare`.

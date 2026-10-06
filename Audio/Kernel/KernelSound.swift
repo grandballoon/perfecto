@@ -28,6 +28,7 @@ extension SynthPatch {
             patch.filtered = true
             patch.cutoff = filter.cutoff.kernelSweep
             patch.resonance = filter.resonance
+            patch.steep = filter.isSteep
         }
         patch.attack = envelope.attack
         patch.decay = envelope.decay

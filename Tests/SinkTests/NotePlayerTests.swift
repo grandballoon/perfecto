@@ -220,4 +220,22 @@ struct NotePlayerTests {
         #expect(sink.changeTimes == [2.3, 2.3])
         #expect(sink.endTimes == [2.55, 2.55])
     }
+
+    // MARK: – Left and right
+
+    /// A chord is spread a little across the two sides, low notes to the
+    /// left; a note alone is in the middle.
+    @Test func aChordsNotesAreSpreadFromLeftToRight() {
+        let sink = RecordingNoteSink()
+        let player = NotePlayer([sink], clock: clock)
+        player.playChord(.block([60, 64, 67]))
+        #expect(sink.sounds.map(\.pan) == [-NotePlayer.spread, 0, NotePlayer.spread])
+        player.playChord(.block([72]))
+        #expect(sink.sounds.last?.pan == 0)
+        // A change of sound leaves each note where it sits.
+        sink.reset()
+        player.playChord(.block([60, 67]))
+        player.setFilter(FilterSettings(isOn: true, brightness: 0.4))
+        #expect(sink.changes.map(\.pan) == [-NotePlayer.spread, NotePlayer.spread])
+    }
 }

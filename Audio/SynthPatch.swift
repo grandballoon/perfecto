@@ -53,6 +53,9 @@ struct SynthPatch: Equatable, Sendable {
         var cutoff: Sweep
         /// 0 (none) up to 1 (ringing).
         var resonance: Float = 0
+        /// Whether the top falls away at 24 dB an octave, the rounder
+        /// filter the presets were made on, or at 12, which is brighter.
+        var isSteep = true
     }
 
     struct Envelope: Equatable, Sendable {

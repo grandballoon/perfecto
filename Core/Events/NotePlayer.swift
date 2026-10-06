@@ -29,8 +29,8 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
     var sound = NoteSound() {
         didSet {
             guard sound != oldValue, !isStartingAfresh else { return }
-            for id in sounding {
-                for sink in sinks { sink.noteChange(id, sound: sound, at: now) }
+            for note in sounding {
+                for sink in sinks { sink.noteChange(note.id, sound: sound(at: note.pan), at: now) }
             }
         }
     }
@@ -46,8 +46,14 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
 
     private let sinks: [any NoteSink]
     private let clock: any ClockTickable
-    /// The notes started and not yet ended, in the order they started.
-    private var sounding: [NoteID] = []
+    /// The notes started and not yet ended, in the order they started,
+    /// each with where it sits between left and right.
+    private var sounding: [(id: NoteID, pan: Float)] = []
+
+    /// How far to either side a chord's lowest and highest notes sit: low
+    /// to the left and high to the right, as at a keyboard, and little
+    /// enough that the chord is still one thing in the middle.
+    static let spread: Float = 0.3
     /// The notes of a strum still to come.
     private var strum: [ClockCall] = []
 
@@ -69,12 +75,15 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
 
     func playChord(_ event: ChordEvent) {
         stopChord()
-        for (i, note) in event.voicing.notes.enumerated() {
+        let notes = event.voicing.notes
+        for (i, note) in notes.enumerated() {
+            // A note alone is in the middle.
+            let pan = notes.count > 1 ? Self.spread * (2 * Float(i) / Float(notes.count - 1) - 1) : 0
             let onset = event.articulation.onset(ofNote: i)
             if onset > 0 {
-                strum.append(clock.after(seconds: onset) { [weak self] in self?.start(note) })
+                strum.append(clock.after(seconds: onset) { [weak self] in self?.start(note, pan: pan) })
             } else {
-                start(note)
+                start(note, pan: pan)
             }
         }
     }
@@ -82,16 +91,23 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
     func stopChord() {
         for call in strum { call.cancel() }
         strum = []
-        for id in sounding {
-            for sink in sinks { sink.noteOff(id, at: now) }
+        for note in sounding {
+            for sink in sinks { sink.noteOff(note.id, at: now) }
         }
         sounding = []
     }
 
-    private func start(_ note: Int) {
+    private func start(_ note: Int, pan: Float) {
         let id = NoteID.next()
-        sounding.append(id)
-        for sink in sinks { sink.noteOn(id, note: note, sound: sound, at: now) }
+        sounding.append((id, pan))
+        for sink in sinks { sink.noteOn(id, note: note, sound: sound(at: pan), at: now) }
+    }
+
+    /// The player's sound, for a note at `pan`.
+    private func sound(at pan: Float) -> NoteSound {
+        var sound = sound
+        sound.pan = pan
+        return sound
     }
 
     func setFilter(_ played: FilterSettings) { sound.filter = played }
