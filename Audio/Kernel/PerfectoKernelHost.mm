@@ -1,7 +1,12 @@
 #import "PerfectoKernelHost.h"
 
 #include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <limits>
 #include <vector>
+
+#include <mach/mach_time.h>
 
 namespace {
 
@@ -10,6 +15,11 @@ namespace {
 struct RenderState {
     PerfectoKernel *kernel = nullptr;
     AUAudioFrameCount maximumFrames = 0;
+    double sampleRate = 48000;
+    /// Seconds in one tick of the host's clock.
+    double secondsPerTick = 0;
+    /// When frame 0 was rendered for, by the latest render (see the header).
+    std::atomic<double> uptimeAtFrameZero{std::numeric_limits<double>::quiet_NaN()};
     /// One buffer per channel, for the unit's input to be pulled into, and
     /// for output when the caller brings no buffers of its own.
     std::vector<std::vector<float>> input;
@@ -46,6 +56,10 @@ struct RenderState {
     return _state.kernel;
 }
 
+- (double)uptimeAtFrameZero {
+    return _state.uptimeAtFrameZero.load(std::memory_order_relaxed);
+}
+
 - (void)prepareWithSampleRate:(double)sampleRate
                      channels:(NSInteger)channels
                 maximumFrames:(AUAudioFrameCount)maximumFrames {
@@ -56,6 +70,12 @@ struct RenderState {
     _state.inputListStorage.assign(offsetof(AudioBufferList, mBuffers) + count * sizeof(AudioBuffer), 0);
     _state.inputChannels.assign(count, nullptr);
     _state.outputChannels.assign(count, nullptr);
+    mach_timebase_info_data_t timebase;
+    mach_timebase_info(&timebase);
+    _state.secondsPerTick = static_cast<double>(timebase.numer) / static_cast<double>(timebase.denom) * 1e-9;
+    _state.sampleRate = sampleRate;
+    // The kernel counts its frames from 0 again.
+    _state.uptimeAtFrameZero.store(std::numeric_limits<double>::quiet_NaN());
     perfecto_kernel_prepare(_state.kernel, sampleRate);
 }
 
@@ -98,6 +118,14 @@ struct RenderState {
             if (buffer.mData == nullptr) buffer.mData = state->output[channel].data();
             buffer.mDataByteSize = byteSize;
             state->outputChannels[channel] = static_cast<float *>(buffer.mData);
+        }
+
+        // Each render says when it is for, which keeps the kernel's count
+        // of frames tied to the clock everything else is timed by.
+        if (timestamp->mFlags & kAudioTimeStampHostTimeValid) {
+            const double uptime = static_cast<double>(timestamp->mHostTime) * state->secondsPerTick;
+            const double frames = static_cast<double>(perfecto_kernel_time(state->kernel));
+            state->uptimeAtFrameZero.store(uptime - frames / state->sampleRate, std::memory_order_relaxed);
         }
 
         perfecto_kernel_render(state->kernel,

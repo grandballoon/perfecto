@@ -16,22 +16,29 @@ final class RecordingMidiBackend: MidiBackend {
     }
 
     private(set) var calls: [Call] = []
+    /// When each note-on and note-off was stamped for, in order.
+    private(set) var noteTimes: [Double] = []
 
     var noteOnCalls:  [Call] { calls.filter { $0.kind == .noteOn  } }
     var noteOffCalls: [Call] { calls.filter { $0.kind == .noteOff } }
     var controlChangeCalls: [Call] { calls.filter { $0.kind == .controlChange } }
 
-    func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8) {
+    func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8, at time: Double) {
         calls.append(Call(kind: .noteOn,  note: note, velocity: velocity, channel: channel))
+        noteTimes.append(time)
     }
 
-    func sendNoteOff(note: UInt8, velocity: UInt8, channel: UInt8) {
+    func sendNoteOff(note: UInt8, velocity: UInt8, channel: UInt8, at time: Double) {
         calls.append(Call(kind: .noteOff, note: note, velocity: velocity, channel: channel))
+        noteTimes.append(time)
     }
 
     func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8) {
         calls.append(Call(kind: .controlChange, note: controller, velocity: value, channel: channel))
     }
 
-    func reset() { calls = [] }
+    func reset() {
+        calls = []
+        noteTimes = []
+    }
 }

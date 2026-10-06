@@ -1,3 +1,5 @@
+import Foundation
+
 /// Plays chords as notes: the one place a `ChordEvent` becomes note-ons and
 /// note-offs, for every `NoteSink` alike. It keeps the chord-level contract
 /// (`playChord` replaces what is sounding) on behalf of the note sinks, and
@@ -9,6 +11,15 @@
 /// One player is one line of chords. Players are independent: each ends only
 /// the notes it started, so several can sound at once through the same sinks.
 ///
+/// Every note is stamped with the clock's time when it is started or ended,
+/// plus the player's `lead`. A note started from a call of the clock's is
+/// stamped with the moment that call was due, so with a lead longer than the
+/// clock is ever late, a sink that keeps time (the audio kernel, MIDI) sounds
+/// it at exactly that moment and the clock's lateness is never heard. That is
+/// for what the clock plays (a layer of the timeline): everything it plays
+/// is heard the same short time late and so stays exactly in step. The keys'
+/// player has no lead, since a key must sound at once.
+///
 /// A player has a sound, which every note it starts takes. The keys' player
 /// follows the effects as they are played (it is an `EffectsControl`); a
 /// layer's is given the sound of each of its chords.
@@ -19,7 +30,7 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
         didSet {
             guard sound != oldValue, !isStartingAfresh else { return }
             for id in sounding {
-                for sink in sinks { sink.noteChange(id, sound: sound) }
+                for sink in sinks { sink.noteChange(id, sound: sound, at: now) }
             }
         }
     }
@@ -40,10 +51,21 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
     /// The notes of a strum still to come.
     private var strum: [ClockCall] = []
 
-    init(_ sinks: [any NoteSink], clock: any ClockTickable) {
+    /// How long after the clock's time notes are sounded.
+    private let lead: TimeInterval
+
+    /// The lead for what the clock plays: longer than the main thread is
+    /// held up in ordinary use, short enough not to be noticed between
+    /// pressing Play and hearing the first chord.
+    static let sequencedLead: TimeInterval = 0.05
+
+    init(_ sinks: [any NoteSink], clock: any ClockTickable, lead: TimeInterval = 0) {
         self.sinks = sinks
         self.clock = clock
+        self.lead = lead
     }
+
+    private var now: TimeInterval { clock.time + lead }
 
     func playChord(_ event: ChordEvent) {
         stopChord()
@@ -61,7 +83,7 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
         for call in strum { call.cancel() }
         strum = []
         for id in sounding {
-            for sink in sinks { sink.noteOff(id) }
+            for sink in sinks { sink.noteOff(id, at: now) }
         }
         sounding = []
     }
@@ -69,7 +91,7 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
     private func start(_ note: Int) {
         let id = NoteID.next()
         sounding.append(id)
-        for sink in sinks { sink.noteOn(id, note: note, sound: sound) }
+        for sink in sinks { sink.noteOn(id, note: note, sound: sound, at: now) }
     }
 
     func setFilter(_ played: FilterSettings) { sound.filter = played }

@@ -8,6 +8,11 @@ import Foundation
 /// The kernel has the voices and decides which to give up when there are
 /// more notes than it has (`perfecto_kernel_voice_count`).
 ///
+/// A note's time is turned into the frame the kernel is to act on
+/// (`KernelAudioUnit.frame(atUptime:)`), so a note stamped ahead of time
+/// sounds on exactly its frame. A time already past, or no way to tell
+/// (nothing rendered yet), is as soon as possible.
+///
 /// Two settings are not a note's but the whole mix's: how fast the chorus
 /// wavers, and the size of the reverb's room. They follow the note played
 /// or changed last.
@@ -27,28 +32,33 @@ final class KernelSink: NoteSink {
     /// Reverb tails, in seconds to fall 60 dB.
     static let reverbTails: ClosedRange<Float> = 1...8
 
+    /// The frame the kernel renders at a moment of the device's uptime.
+    private let frameAt: (TimeInterval) -> UInt64?
+
     /// Loads every preset into `unit`, which must not be rendering yet.
-    init(unit: KernelAudioUnit) {
+    /// `frameAt` is for tests, whose engine renders in no real time.
+    init(unit: KernelAudioUnit, frameAt: ((TimeInterval) -> UInt64?)? = nil) {
         self.unit = unit
+        self.frameAt = frameAt ?? { [unit] in unit.frame(atUptime: $0) }
         let presets = SynthPreset.allCases
         precondition(presets.count <= KernelAudioUnit.soundCount, "more presets than the kernel holds")
         numbers = Dictionary(uniqueKeysWithValues: presets.enumerated().map { ($1, $0) })
         for (number, preset) in presets.enumerated() { unit.setSound(number, to: preset.patch) }
     }
 
-    func noteOn(_ id: NoteID, note: Int, sound: NoteSound) {
+    func noteOn(_ id: NoteID, note: Int, sound: NoteSound, at time: TimeInterval) {
         setMix(for: sound)
         unit.noteOn(id.number, note: note, velocity: Self.velocity, sound: numbers[sound.preset] ?? 0,
-                    playing: Self.playing(sound))
+                    playing: Self.playing(sound), at: frameAt(time) ?? 0)
     }
 
-    func noteChange(_ id: NoteID, sound: NoteSound) {
+    func noteChange(_ id: NoteID, sound: NoteSound, at time: TimeInterval) {
         setMix(for: sound)
-        unit.noteChange(id.number, to: Self.playing(sound))
+        unit.noteChange(id.number, to: Self.playing(sound), at: frameAt(time) ?? 0)
     }
 
-    func noteOff(_ id: NoteID) {
-        unit.noteOff(id.number)
+    func noteOff(_ id: NoteID, at time: TimeInterval) {
+        unit.noteOff(id.number, at: frameAt(time) ?? 0)
     }
 
     /// An effect that is off takes none of the note; the filter, off, is

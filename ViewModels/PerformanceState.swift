@@ -107,6 +107,8 @@ final class PerformanceState {
     private var playingSequencer: SequencerState?
     /// Plays the sequencer's timeline against the clock, under whatever mode is on.
     private var timelinePlayer: TimelinePlayer?
+    /// How long after the clock's time the layers' sinks sound their notes.
+    let layerLead: Double
     /// The sound of the notes the keys play.
     private let liveSound: (any SoundControl)?
     private let output: AudioOutput?
@@ -129,11 +131,14 @@ final class PerformanceState {
     /// sound together: production passes a new `NotePlayer` on the same note
     /// sinks each time, and a sink that is a `SoundControl` is given each of
     /// its chords' own sound. Without one, layers share `sink`.
+    /// `layerLead` is the lead those sinks were made with (see
+    /// `NotePlayer`), so a loop recorded over them lands where it was heard.
     /// `sequencer` is the app's sequencer and its saved timeline; tests pass
     /// one with a store of its own.
     init(sink: any ChordEventSink,
          chordListener: (any ChordEventSink)? = nil,
          layerSink: (() -> any ChordEventSink)? = nil,
+         layerLead: Double = 0,
          sequencer: SequencerState? = nil,
          liveSound: (any SoundControl & EffectsControl)? = nil,
          output: AudioOutput? = nil,
@@ -145,6 +150,7 @@ final class PerformanceState {
         self.sink         = chordListener.map { CompositeSink([arpeggiator, $0]) } ?? arpeggiator
         self.chordListener = chordListener
         self.layerSink    = layerSink ?? { sink }
+        self.layerLead    = layerLead
         self.liveSound    = liveSound
         self.output       = output
         self.clock        = clock

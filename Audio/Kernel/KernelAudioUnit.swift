@@ -80,6 +80,16 @@ final class KernelAudioUnit: AUAudioUnit {
     /// Frames rendered since the unit was last readied to render.
     var time: UInt64 { perfecto_kernel_time(host.kernel) }
 
+    /// The frame the unit renders for the moment `uptime` (seconds of the
+    /// device's uptime), going by when its last render was for. A moment
+    /// before the unit began gives frame 0. nil until it has rendered in
+    /// real time: an engine rendering offline has no such moments.
+    func frame(atUptime uptime: TimeInterval) -> UInt64? {
+        let start = host.uptimeAtFrameZero
+        guard start.isFinite else { return nil }
+        return UInt64(max(0, ((uptime - start) * outputBus.format.sampleRate).rounded()))
+    }
+
     /// The most sounds the kernel holds.
     static var soundCount: Int { Int(perfecto_kernel_sound_count()) }
 

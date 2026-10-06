@@ -10,6 +10,10 @@ protocol LoopHost: AnyObject {
     func setBPM(_ value: Double)
     /// How far the clock has got, in beats.
     var clockBeats: Double { get }
+    /// How long after its time on the clock a layer is heard (see
+    /// `NotePlayer`): what is played along to a layer is that much later
+    /// on the clock than the place in the layer it was played to.
+    var layerLead: Double { get }
     /// Everything a chord played now is played with: what a loop keeps.
     var playedNow: NotePlaying { get }
     /// Ends the chord the keys are holding.
@@ -137,7 +141,11 @@ final class QuickLoopState {
         guard let host, let sequencer else { return }
         // Over what is already there, the take is played along to it.
         if !sequencer.timeline.isEmpty, !sequencer.isPlaying { sequencer.isPlaying = true }
-        takeOffset = sequencer.timeline.isEmpty ? 0 : (sequencer.position ?? 0)
+        // The place in the timeline that is being heard as the take starts:
+        // a little behind where the clock has it, by the layers' lead.
+        let length = sequencer.timeline.length
+        let lead = Int((host.layerLead * host.bpm / 60 * Double(TimelineTime.ticksPerBeat)).rounded())
+        takeOffset = sequencer.timeline.isEmpty ? 0 : (((sequencer.position ?? 0) - lead) % length + length) % length
         take = LoopTake(start: host.clockBeats)
         phase = .recording
         logger?.log(.loop_record_started(track: loops.count))

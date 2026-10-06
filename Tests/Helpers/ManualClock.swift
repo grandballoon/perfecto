@@ -24,6 +24,9 @@ final class ManualClock: ClockTickable {
 
     var beats: Double { schedule.beats }
 
+    /// Seconds since the clock was made.
+    var time: Double { schedule.now }
+
     /// Calls waiting to be made (repeats not cancelled, one-off calls not
     /// yet made), ticks apart.
     var pendingCount: Int { schedule.pendingCount }

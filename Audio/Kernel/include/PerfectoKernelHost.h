@@ -17,6 +17,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// The kernel, for sending events to and reading the time from.
 @property (nonatomic, readonly) PerfectoKernel *kernel;
 
+/// The moment, in seconds of the device's uptime, that the kernel's frame 0
+/// was (or would have been) rendered for, going by the latest render: what
+/// turns a moment into a frame. NaN until a render has said when it is for.
+@property (nonatomic, readonly) double uptimeAtFrameZero;
+
 /// Readies the kernel and the buffers for rendering at `sampleRate`, with
 /// `channels` in and out and at most `maximumFrames` a render call. Call it
 /// from `allocateRenderResources`, never while rendering.

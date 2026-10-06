@@ -10,7 +10,10 @@ struct KernelSinkTests {
     /// A kernel sink whose sound is rendered into memory.
     private func makeSubject() throws -> (sink: KernelSink, rig: KernelOfflineRig) {
         var sink: KernelSink?
-        let rig = try KernelOfflineRig { sink = KernelSink(unit: $0) }
+        // The engine renders in no real time; a moment is its count of seconds rendered.
+        let rig = try KernelOfflineRig { unit in
+            sink = KernelSink(unit: unit) { UInt64(($0 * KernelOfflineRig.rate).rounded()) }
+        }
         return (try #require(sink), rig)
     }
 
@@ -31,9 +34,9 @@ struct KernelSinkTests {
         let (sink, rig) = try makeSubject()
         defer { rig.engine.stop() }
         let id = NoteID.next()
-        sink.noteOn(id, note: 57, sound: NoteSound(preset: .organ))
+        sink.noteOn(id, note: 57, sound: NoteSound(preset: .organ), at: 0)
         try rig.render(9600)
-        sink.noteOff(id)
+        sink.noteOff(id, at: 0)
         try rig.render(48_000)
         #expect(loudest(rig.output[4800..<9600]) > 0.05)
         #expect(loudest(rig.output[43_200...]) < 0.0001)
@@ -44,8 +47,8 @@ struct KernelSinkTests {
     @Test func eachNoteIsPlayedInItsOwnPreset() throws {
         let (sink, rig) = try makeSubject()
         defer { rig.engine.stop() }
-        sink.noteOn(.next(), note: 57, sound: NoteSound(preset: .sinePad))
-        sink.noteOn(.next(), note: 64, sound: NoteSound(preset: .squareLead))
+        sink.noteOn(.next(), note: 57, sound: NoteSound(preset: .sinePad), at: 0)
+        sink.noteOn(.next(), note: 64, sound: NoteSound(preset: .squareLead), at: 0)
         try rig.render(48_000)
         let settled = rig.output[24_000..<48_000]
         let e4 = 440 * pow(2, -5.0 / 12)
@@ -58,7 +61,7 @@ struct KernelSinkTests {
         func third(filter: FilterSettings) throws -> Double {
             let (sink, rig) = try makeSubject()
             defer { rig.engine.stop() }
-            sink.noteOn(.next(), note: 57, sound: NoteSound(preset: .sawLead, filter: filter))
+            sink.noteOn(.next(), note: 57, sound: NoteSound(preset: .sawLead, filter: filter), at: 0)
             try rig.render(48_000)
             return strength(of: a3 * 8, in: rig.output[24_000..<48_000])
         }
@@ -86,9 +89,9 @@ struct KernelSinkTests {
             let (sink, rig) = try makeSubject()
             defer { rig.engine.stop() }
             let id = NoteID.next()
-            sink.noteOn(id, note: 57, sound: NoteSound(preset: .organ, reverb: reverb))
+            sink.noteOn(id, note: 57, sound: NoteSound(preset: .organ, reverb: reverb), at: 0)
             try rig.render(4800)
-            sink.noteOff(id)
+            sink.noteOff(id, at: 0)
             try rig.render(96_000)
             return loudest(rig.output[72_000...])
         }
@@ -104,9 +107,9 @@ struct KernelSinkTests {
         let (sink, rig) = try makeSubject()
         defer { rig.engine.stop() }
         let id = NoteID.next()
-        sink.noteOn(id, note: 57, sound: NoteSound(preset: .sawLead, filter: FilterSettings(isOn: true, brightness: 0)))
+        sink.noteOn(id, note: 57, sound: NoteSound(preset: .sawLead, filter: FilterSettings(isOn: true, brightness: 0)), at: 0)
         try rig.render(24_000)
-        sink.noteChange(id, sound: NoteSound(preset: .sawLead, filter: FilterSettings(isOn: true, brightness: 1)))
+        sink.noteChange(id, sound: NoteSound(preset: .sawLead, filter: FilterSettings(isOn: true, brightness: 1)), at: 0)
         try rig.render(72_000)
         let before = strength(of: a3 * 8, in: rig.output[12_000..<24_000])
         let after = strength(of: a3 * 8, in: rig.output[48_000..<72_000])

@@ -62,6 +62,11 @@ protocol ClockTickable: AnyObject {
     /// from beat `b` is `beats - b` beats into itself, whatever the tempo
     /// has done since.
     var beats: Double { get }
+    /// The moment it is now, in seconds of the device's uptime
+    /// (`ProcessInfo.systemUptime`): inside a call, the moment the call was
+    /// due, however late the clock got round to it. A note started in a
+    /// call is stamped with this, so the clock's lateness is not heard.
+    var time: TimeInterval { get }
     func every(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall
     /// Calls `handler` once, `beats` beats from now. A change of tempo before
     /// then moves it, so it stays that many beats away. `first` puts it
@@ -110,6 +115,11 @@ final class MasterClock: ClockTickable {
     var beats: Double {
         settle()
         return schedule.beats
+    }
+
+    var time: TimeInterval {
+        settle()
+        return origin + schedule.now
     }
 
     func onTick(_ handler: @escaping @MainActor () -> Void) {

@@ -1,10 +1,13 @@
 import CoreMIDI
+import Foundation
 
 // Seam for testing: separates MIDI byte construction from CoreMIDI transport.
 @MainActor
 protocol MidiBackend: AnyObject {
-    func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8)
-    func sendNoteOff(note: UInt8, velocity: UInt8, channel: UInt8)
+    /// `time` is when the note starts or ends, in seconds of the device's
+    /// uptime; a moment already past means now.
+    func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8, at time: TimeInterval)
+    func sendNoteOff(note: UInt8, velocity: UInt8, channel: UInt8, at time: TimeInterval)
     func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8)
 }
 
@@ -33,12 +36,12 @@ final class CoreMidiBackend: MidiBackend {
         logger?.log(.midi_source_created(name: name, status: sourceStatus))
     }
 
-    func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8) {
-        send(status: 0x90 | (channel & 0x0F), data1: note, data2: velocity)
+    func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8, at time: TimeInterval) {
+        send(status: 0x90 | (channel & 0x0F), data1: note, data2: velocity, at: time)
     }
 
-    func sendNoteOff(note: UInt8, velocity: UInt8, channel: UInt8) {
-        send(status: 0x80 | (channel & 0x0F), data1: note, data2: velocity)
+    func sendNoteOff(note: UInt8, velocity: UInt8, channel: UInt8, at time: TimeInterval) {
+        send(status: 0x80 | (channel & 0x0F), data1: note, data2: velocity, at: time)
     }
 
     func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8) {
@@ -47,8 +50,18 @@ final class CoreMidiBackend: MidiBackend {
 
     // MARK: – Private
 
-    private func send(status: UInt8, data1: UInt8, data2: UInt8) {
+    /// Ticks of the host's clock (what MIDI stamps its events in) in a second.
+    private let ticksPerSecond: Double = {
+        var timebase = mach_timebase_info_data_t()
+        mach_timebase_info(&timebase)
+        return Double(timebase.denom) / Double(timebase.numer) * 1e9
+    }()
+
+    /// `time` nil sends at once. Otherwise the event is stamped with its
+    /// moment, and whoever receives it plays it then.
+    private func send(status: UInt8, data1: UInt8, data2: UInt8, at time: TimeInterval? = nil) {
         guard isReady else { return }
+        let stamp = time.map { MIDITimeStamp(max(0, $0) * ticksPerSecond) } ?? 0
         // UMP MIDI 1.0 channel voice: bits 31-28 = type 0x2, 27-24 = group 0x0,
         // 23-16 = status, 15-8 = data1, 7-0 = data2
         var word = (UInt32(0x20) << 24) | (UInt32(status) << 16)
@@ -57,7 +70,7 @@ final class CoreMidiBackend: MidiBackend {
         let packetPtr = MIDIEventListInit(&eventList, ._1_0)
         // MIDIEventListAdd is imported as returning a non-optional pointer, so its
         // result can't signal failure; adding one word to a fresh list always fits.
-        _ = MIDIEventListAdd(&eventList, MemoryLayout<MIDIEventList>.size, packetPtr, 0, 1, &word)
+        _ = MIDIEventListAdd(&eventList, MemoryLayout<MIDIEventList>.size, packetPtr, stamp, 1, &word)
 
         // Broadcast via virtual source (Mac via USB; apps that subscribe to "Perfecto")
         MIDIReceivedEventList(source, &eventList)
@@ -78,8 +91,8 @@ final class CoreMidiBackend: MidiBackend {
 // Silent backend — used when CoreMIDI is unavailable or unwanted.
 @MainActor
 final class NoopMidiBackend: MidiBackend {
-    func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8) {}
-    func sendNoteOff(note: UInt8, velocity: UInt8, channel: UInt8) {}
+    func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8, at time: TimeInterval) {}
+    func sendNoteOff(note: UInt8, velocity: UInt8, channel: UInt8, at time: TimeInterval) {}
     func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8) {}
 }
 
@@ -114,20 +127,20 @@ final class MidiSink: NoteSink, EffectsControl {
 
     /// MIDI carries no sound: the receiving instrument has its own. The
     /// effects' amounts go out as controllers (see `setFilter`).
-    func noteOn(_ id: NoteID, note: Int, sound: NoteSound) {
+    func noteOn(_ id: NoteID, note: Int, sound: NoteSound, at time: TimeInterval) {
         let pitch = UInt8(note)   // in range: the NoteSink contract
         sounding[id] = pitch
-        backend.sendNoteOn(note: pitch, velocity: 100, channel: 0)
+        backend.sendNoteOn(note: pitch, velocity: 100, channel: 0, at: time)
         logger?.log(.midi_note_sent(note: note, velocity: 100, channel: 0, kind: .noteOn))
     }
 
-    func noteChange(_ id: NoteID, sound: NoteSound) {}
+    func noteChange(_ id: NoteID, sound: NoteSound, at time: TimeInterval) {}
 
     /// MIDI knows a note only by its pitch, so a pitch that two notes are
     /// sounding is sent note-off when the last of them ends.
-    func noteOff(_ id: NoteID) {
+    func noteOff(_ id: NoteID, at time: TimeInterval) {
         guard let pitch = sounding.removeValue(forKey: id), !sounding.values.contains(pitch) else { return }
-        backend.sendNoteOff(note: pitch, velocity: 0, channel: 0)
+        backend.sendNoteOff(note: pitch, velocity: 0, channel: 0, at: time)
         logger?.log(.midi_note_sent(note: Int(pitch), velocity: 0, channel: 0, kind: .noteOff))
     }
 

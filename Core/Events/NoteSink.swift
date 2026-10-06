@@ -1,3 +1,5 @@
+import Foundation
+
 /// Names one sounding note, from its start to its end. Whoever starts a note
 /// chooses its id, so ending it never depends on what else is sounding, and
 /// two notes of the same pitch (two layers playing middle C) stay two notes.
@@ -56,11 +58,14 @@ protocol SoundControl: AnyObject {
 /// - `noteOff` ends that note and no other. An id that is unknown, or whose
 ///   note has already ended, is ignored.
 /// - `note` is a MIDI note in `Voicing.midiRange`.
+/// - Each call says when it takes effect, as a moment of the device's
+///   uptime (`ClockTickable.time`). A sink that can, acts at exactly that
+///   moment; a moment already past means at once.
 /// - A sink that cannot sound every note at once (a fixed number of voices)
 ///   chooses which to give up; the sender does not need to know.
 @MainActor
 protocol NoteSink: AnyObject {
-    func noteOn(_ id: NoteID, note: Int, sound: NoteSound)
-    func noteChange(_ id: NoteID, sound: NoteSound)
-    func noteOff(_ id: NoteID)
+    func noteOn(_ id: NoteID, note: Int, sound: NoteSound, at time: TimeInterval)
+    func noteChange(_ id: NoteID, sound: NoteSound, at time: TimeInterval)
+    func noteOff(_ id: NoteID, at time: TimeInterval)
 }

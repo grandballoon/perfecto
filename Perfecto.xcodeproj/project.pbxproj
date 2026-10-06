@@ -120,6 +120,7 @@
 		A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */; };
 		E8BE0175B43FFF4CFB8DA04D /* LoopTakeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FE0175B43FFF4CFB8DA04D /* LoopTakeTests.swift */; };
 		E8B4F8EF9611175CC27937DA /* TimelinePlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F4F8EF9611175CC27937DA /* TimelinePlayerTests.swift */; };
+		E8BEF12E13660BCE03274257 /* TimelineTimingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FEF12E13660BCE03274257 /* TimelineTimingTests.swift */; };
 		E8B950E9C2022D71FCE997D1 /* LayerVoiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F950E9C2022D71FCE997D1 /* LayerVoiceTests.swift */; };
 		E8BB4174768E14BD91A0F29B /* TimelineCompileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FB4174768E14BD91A0F29B /* TimelineCompileTests.swift */; };
 		E8BCDA3CAD39673580869D5E /* TimelineEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FCDA3CAD39673580869D5E /* TimelineEditTests.swift */; };
@@ -260,6 +261,7 @@
 		A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockResolutionTests.swift; sourceTree = "<group>"; };
 		E8FE0175B43FFF4CFB8DA04D /* LoopTakeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LoopTakeTests.swift; path = "../TimelineTests/LoopTakeTests.swift"; sourceTree = "<group>"; };
 		E8F4F8EF9611175CC27937DA /* TimelinePlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelinePlayerTests.swift; path = "../TimelineTests/TimelinePlayerTests.swift"; sourceTree = "<group>"; };
+		E8FEF12E13660BCE03274257 /* TimelineTimingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineTimingTests.swift; path = "../TimelineTests/TimelineTimingTests.swift"; sourceTree = "<group>"; };
 		E8F950E9C2022D71FCE997D1 /* LayerVoiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LayerVoiceTests.swift; path = "../TimelineTests/LayerVoiceTests.swift"; sourceTree = "<group>"; };
 		E8FB4174768E14BD91A0F29B /* TimelineCompileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineCompileTests.swift; path = "../TimelineTests/TimelineCompileTests.swift"; sourceTree = "<group>"; };
 		E8FCDA3CAD39673580869D5E /* TimelineEditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineEditTests.swift; path = "../TimelineTests/TimelineEditTests.swift"; sourceTree = "<group>"; };
@@ -661,6 +663,7 @@
 				A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */,
 				E8FE0175B43FFF4CFB8DA04D /* LoopTakeTests.swift */,
 				E8F4F8EF9611175CC27937DA /* TimelinePlayerTests.swift */,
+				E8FEF12E13660BCE03274257 /* TimelineTimingTests.swift */,
 				E8F950E9C2022D71FCE997D1 /* LayerVoiceTests.swift */,
 				E8FB4174768E14BD91A0F29B /* TimelineCompileTests.swift */,
 				E8FCDA3CAD39673580869D5E /* TimelineEditTests.swift */,
@@ -901,6 +904,7 @@
 				A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */,
 				E8BE0175B43FFF4CFB8DA04D /* LoopTakeTests.swift in Sources */,
 				E8B4F8EF9611175CC27937DA /* TimelinePlayerTests.swift in Sources */,
+				E8BEF12E13660BCE03274257 /* TimelineTimingTests.swift in Sources */,
 				E8B950E9C2022D71FCE997D1 /* LayerVoiceTests.swift in Sources */,
 				E8BB4174768E14BD91A0F29B /* TimelineCompileTests.swift in Sources */,
 				E8BCDA3CAD39673580869D5E /* TimelineEditTests.swift in Sources */,

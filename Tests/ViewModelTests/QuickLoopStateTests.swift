@@ -18,8 +18,9 @@ struct QuickLoopStateTests {
         let sequencer = SequencerState(defaults: isolatedDefaults())
         let state: PerformanceState
 
-        init() {
-            state = PerformanceState(sink: sink, sequencer: sequencer, clock: clock, logger: logger)
+        init(layerLead: Double = 0) {
+            state = PerformanceState(sink: sink, layerLead: layerLead, sequencer: sequencer, clock: clock,
+                                     logger: logger)
         }
 
         var loops: QuickLoopState { state.quickLoopState }
@@ -188,6 +189,23 @@ struct QuickLoopStateTests {
     }
 
     /// Both layers play together, each on a voice of its own.
+    /// Layers are heard a moment after their time on the clock. A chord
+    /// played to what is heard goes where it was heard, not that moment
+    /// later, so it is in time with the layer when both play back.
+    @Test func aTakePlayedToWhatIsHeardLandsWhereItWasHeard() throws {
+        let rig = Rig(layerLead: 0.125)                // a quarter of a beat at 120
+        rig.recordFirstLoop()                          // one bar; playing from its top
+        // The loop's second beat is heard a quarter of a beat late, and
+        // the key is pressed with it.
+        rig.clock.advance(beats: 1)
+        rig.loops.triggerTapped()
+        rig.clock.advance(beats: 0.25)
+        rig.play(.IV, beats: 1)
+        rig.loops.triggerTapped()
+        #expect(rig.timeline.layers.count == 2)
+        #expect(rig.timeline.layers.last?.notes.map(\.start) == [TimelineTime.ticksPerBeat])
+    }
+
     @Test func layersPlayTogether() {
         let rig = Rig()
         rig.recordFirstLoop()

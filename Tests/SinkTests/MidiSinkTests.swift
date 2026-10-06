@@ -68,17 +68,17 @@ struct MidiSinkTests {
     @Test func aPitchTwoNotesShareEndsWithTheLastOfThem() {
         let (sink, backend) = makeSubject()
         let first = NoteID.next(), second = NoteID.next()
-        sink.noteOn(first, note: 60, sound: NoteSound())
-        sink.noteOn(second, note: 60, sound: NoteSound())
-        sink.noteOff(first)
+        sink.noteOn(first, note: 60, sound: NoteSound(), at: 0)
+        sink.noteOn(second, note: 60, sound: NoteSound(), at: 0)
+        sink.noteOff(first, at: 0)
         #expect(backend.noteOffCalls.isEmpty)
-        sink.noteOff(second)
+        sink.noteOff(second, at: 0)
         #expect(backend.noteOffCalls.map(\.note) == [60])
     }
 
     @Test func endingANoteThatIsNotSoundingSendsNothing() {
         let (sink, backend) = makeSubject()
-        sink.noteOff(.next())
+        sink.noteOff(.next(), at: 0)
         #expect(backend.calls.isEmpty)
     }
 

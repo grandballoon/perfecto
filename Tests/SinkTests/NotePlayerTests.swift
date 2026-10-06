@@ -188,4 +188,36 @@ struct NotePlayerTests {
         #expect(sink.sounds.map(\.preset) == [.warmPad, .sawLead])
         #expect(sink.changes.map(\.preset) == [.sawLead])                 // the layer's note is left as it was
     }
+
+    // MARK: – Time
+
+    /// A strum's notes are stamped with the moments they are due, exactly
+    /// the interval apart, however late the clock gets round to them.
+    @Test func aStrumsNotesAreStampedExactlyTheIntervalApart() {
+        let sink = RecordingNoteSink()
+        let player = NotePlayer([sink], clock: clock)
+        clock.advance(seconds: 1)
+        player.playChord(strummed([60, 64, 67, 72], interval: 0.03))
+        clock.advance(seconds: 0.5)                                       // all three later notes in one late step
+        #expect(sink.startTimes.count == 4)
+        for (index, time) in sink.startTimes.enumerated() {
+            #expect(abs(time - (1 + 0.03 * Double(index))) < 1e-9)
+        }
+    }
+
+    /// What the clock plays is sounded its player's lead after the
+    /// clock's time, starts and ends alike.
+    @Test func aLeadPutsEveryNoteThatMuchLater() {
+        let sink = RecordingNoteSink()
+        let player = NotePlayer([sink], clock: clock, lead: 0.05)
+        clock.advance(seconds: 2)
+        player.playChord(.block([60, 64]))
+        clock.advance(seconds: 0.25)
+        player.setFilter(FilterSettings(isOn: true, brightness: 0.5))
+        clock.advance(seconds: 0.25)
+        player.stopChord()
+        #expect(sink.startTimes == [2.05, 2.05])
+        #expect(sink.changeTimes == [2.3, 2.3])
+        #expect(sink.endTimes == [2.55, 2.55])
+    }
 }
