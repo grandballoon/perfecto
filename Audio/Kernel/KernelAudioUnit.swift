@@ -16,7 +16,7 @@ import PerfectoKernelHost
 final class KernelAudioUnit: AUAudioUnit {
 
     static let componentDescription = AudioComponentDescription(
-        componentType: kAudioUnitType_MusicEffect,
+        componentType: kAudioUnitType_Generator,
         componentSubType: fourCharCode("pfkn"),
         componentManufacturer: fourCharCode("Pfct"),
         componentFlags: 0,
@@ -31,7 +31,7 @@ final class KernelAudioUnit: AUAudioUnit {
                                          name: "Perfecto: Kernel", version: 1)
             isRegistered = true
         }
-        let node = AVAudioUnitEffect(audioComponentDescription: componentDescription)
+        let node = AVAudioUnitGenerator(audioComponentDescription: componentDescription)
         guard let unit = node.auAudioUnit as? KernelAudioUnit else {
             preconditionFailure("the kernel's Audio Unit was registered, so the engine makes that one")
         }

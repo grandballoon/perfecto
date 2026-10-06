@@ -6,10 +6,10 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Perfecto</string>
-	<key>CFBundleIconName</key>
-	<string>AppIcon</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -22,12 +22,12 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Perfecto connects to MIDI hosts on your local network so you can play into a DAW wirelessly.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_apple-midi._udp</string>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Perfecto connects to MIDI hosts on your local network so you can play into a DAW wirelessly.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Mic Sample mode records a short audio clip that you play back via the chord buttons.</string>
 	<key>UIBackgroundModes</key>
