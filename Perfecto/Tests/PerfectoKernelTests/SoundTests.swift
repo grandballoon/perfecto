@@ -51,6 +51,15 @@ struct SoundTests {
         #expect(narrow[1] > 0.5)
     }
 
+    /// A narrow pulse, which sits mostly to one side of zero, still peaks
+    /// at the patch's level (and a little over, as every sharp edge made of
+    /// a limited number of partials does).
+    @Test(arguments: [0.1, 0.2, 0.5, 0.8] as [Float])
+    func aPulsePeaksAtTheLevelWhateverItsWidth(width: Float) {
+        let peak = held(.wave(PerfectoWavePulse, pulseWidth: width, level: 0.5), note: 45).loudest(settled)
+        #expect(peak > 0.5 * 0.97 && peak < 0.5 * 1.2, "\(peak)")
+    }
+
     /// A wave given as partials has those partials, and peaks at the
     /// patch's level whatever they add up to.
     @Test func aWaveOfPartialsHasThemAndPeaksAtTheLevel() {

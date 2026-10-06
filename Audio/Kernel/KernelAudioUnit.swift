@@ -80,13 +80,26 @@ final class KernelAudioUnit: AUAudioUnit {
     /// Frames rendered since the unit was last readied to render.
     var time: UInt64 { perfecto_kernel_time(host.kernel) }
 
-    /// Starts `note` (a MIDI note) under `id` on frame `time`; a frame
+    /// The most sounds the kernel holds.
+    static var soundCount: Int { Int(perfecto_kernel_sound_count()) }
+
+    /// Makes `patch` sound number `number`, for notes to name. It builds
+    /// the patch's waves, so it is for loading sounds before the engine
+    /// starts, never while the unit is rendering.
+    func setSound(_ number: Int, to patch: SynthPatch) {
+        var patch = patch.kernelPatch
+        perfecto_kernel_set_sound(host.kernel, Int32(number), &patch)
+    }
+
+    /// Starts `note` (a MIDI note) under `id` on frame `time`, in sound
+    /// number `sound` and at `brightness` (0 dark to 1 open); a frame
     /// already rendered means as soon as possible. Returns false if the
     /// kernel has too many events waiting and dropped this one.
     @discardableResult
-    func noteOn(_ id: UInt64, note: Int, velocity: Float, at time: UInt64 = 0) -> Bool {
+    func noteOn(_ id: UInt64, note: Int, velocity: Float, sound: Int = 0, brightness: Float = 1,
+                at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOn,
-                           note: Int32(note), velocity: velocity, sound: 0, brightness: 1))
+                           note: Int32(note), velocity: velocity, sound: Int32(sound), brightness: brightness))
     }
 
     /// Ends the note `id` on frame `time`.
@@ -94,6 +107,13 @@ final class KernelAudioUnit: AUAudioUnit {
     func noteOff(_ id: UInt64, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOff, note: 0, velocity: 0,
                            sound: 0, brightness: 1))
+    }
+
+    /// Glides the sounding note `id` to `brightness` from frame `time`.
+    @discardableResult
+    func noteChange(_ id: UInt64, brightness: Float, at time: UInt64 = 0) -> Bool {
+        send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteChange, note: 0, velocity: 0,
+                           sound: 0, brightness: brightness))
     }
 
     private func send(_ event: PerfectoEvent) -> Bool {

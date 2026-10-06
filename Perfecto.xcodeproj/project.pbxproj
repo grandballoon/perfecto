@@ -31,6 +31,7 @@
 		E8B197FA1D57ABB822959484 /* Sound.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8F197FA1D57ABB822959484 /* Sound.cpp */; };
 		E8B5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm in Sources */ = {isa = PBXBuildFile; fileRef = E8F5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm */; };
 		E8BE8A78251193D9BD0E142D /* KernelAudioUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FE8A78251193D9BD0E142D /* KernelAudioUnit.swift */; };
+		E8BA457D71297BEF20FFDA85 /* KernelSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FA457D71297BEF20FFDA85 /* KernelSound.swift */; };
 		E8B2A0AE0A179D25589B20F1 /* VoiceAllocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F2A0AE0A179D25589B20F1 /* VoiceAllocator.swift */; };
 		E8BF0267B2CE4205D25359B1 /* MasterBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FF0267B2CE4205D25359B1 /* MasterBus.swift */; };
 		E8BDB07604A24044BB230946 /* SharedReverb.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FDB07604A24044BB230946 /* SharedReverb.swift */; };
@@ -181,6 +182,7 @@
 		E8F197FA1D57ABB822959484 /* Sound.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Sound.cpp; path = "../Perfecto/Sources/PerfectoKernel/Sound.cpp"; sourceTree = "<group>"; };
 		E8F5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = PerfectoKernelHost.mm; path = "Kernel/PerfectoKernelHost.mm"; sourceTree = "<group>"; };
 		E8FE8A78251193D9BD0E142D /* KernelAudioUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KernelAudioUnit.swift; path = "Kernel/KernelAudioUnit.swift"; sourceTree = "<group>"; };
+		E8FA457D71297BEF20FFDA85 /* KernelSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KernelSound.swift; path = "Kernel/KernelSound.swift"; sourceTree = "<group>"; };
 		E8F2A0AE0A179D25589B20F1 /* VoiceAllocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceAllocator.swift; sourceTree = "<group>"; };
 		E8FF0267B2CE4205D25359B1 /* MasterBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterBus.swift; sourceTree = "<group>"; };
 		E8FDB07604A24044BB230946 /* SharedReverb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedReverb.swift; sourceTree = "<group>"; };
@@ -373,6 +375,7 @@
 				E8F197FA1D57ABB822959484 /* Sound.cpp */,
 				E8F5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm */,
 				E8FE8A78251193D9BD0E142D /* KernelAudioUnit.swift */,
+				E8FA457D71297BEF20FFDA85 /* KernelSound.swift */,
 				E8F2A0AE0A179D25589B20F1 /* VoiceAllocator.swift */,
 				E8FF0267B2CE4205D25359B1 /* MasterBus.swift */,
 				E8FDB07604A24044BB230946 /* SharedReverb.swift */,
@@ -910,6 +913,7 @@
 				E8B197FA1D57ABB822959484 /* Sound.cpp in Sources */,
 				E8B5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm in Sources */,
 				E8BE8A78251193D9BD0E142D /* KernelAudioUnit.swift in Sources */,
+				E8BA457D71297BEF20FFDA85 /* KernelSound.swift in Sources */,
 				E8B2A0AE0A179D25589B20F1 /* VoiceAllocator.swift in Sources */,
 				E8BF0267B2CE4205D25359B1 /* MasterBus.swift in Sources */,
 				E8BDB07604A24044BB230946 /* SharedReverb.swift in Sources */,

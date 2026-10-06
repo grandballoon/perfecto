@@ -29,9 +29,11 @@ Partial partial(const PerfectoOperator &op, int n) {
     case PerfectoWaveSawtooth:
         return {0, -2 / (pi * n)};
     case PerfectoWavePulse: {
+        // With its offset gone, a pulse of width w swings between
+        // 2(1 - w) and -2w; it is scaled so the larger of the two is 1.
         const double width = std::clamp(static_cast<double>(op.pulse_width), 0.01, 0.99);
-        return {2 / (pi * n) * std::sin(2 * pi * n * width),
-                2 / (pi * n) * (1 - std::cos(2 * pi * n * width))};
+        const double scale = 1 / (pi * n * std::max(width, 1 - width));
+        return {scale * std::sin(2 * pi * n * width), scale * (1 - std::cos(2 * pi * n * width))};
     }
     case PerfectoWavePartials:
         return {0, n <= PerfectoPartialCount ? op.partials[n - 1] : 0};
