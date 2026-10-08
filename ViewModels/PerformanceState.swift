@@ -188,6 +188,9 @@ final class PerformanceState {
     let effects: EffectsState
     /// The solo strip: notes that fit the chord, played over it.
     let solo: SoloState
+    /// The computer keyboard, as a way to play the keys, the joystick and
+    /// the solo strip.
+    let keyboard: KeyboardState
     let micSample: MicSampleState
     /// Whether the app may use the mic, for the sample and the vocoder.
     let micAccess: MicAccess
@@ -233,12 +236,14 @@ final class PerformanceState {
     /// `micGate` says whether the mic sample may be recorded.
     /// `sequencer` is the app's sequencer and its saved timeline; tests pass
     /// one with a store of its own.
+    /// `keyboard` is the computer keyboard and its saved map, likewise.
     init(sink: any ChordEventSink,
          chordListener: (any ChordEventSink)? = nil,
          layerSink: (() -> any ChordEventSink)? = nil,
          layerLead: Double = 0,
          soloSink: (any ChordEventSink)? = nil,
          sequencer: SequencerState? = nil,
+         keyboard: KeyboardState? = nil,
          liveSound: (any SoundControl & EffectsControl)? = nil,
          output: AudioOutput? = nil,
          micGate: any PermissionGate = NoopPermissionGate(),
@@ -258,6 +263,7 @@ final class PerformanceState {
         self.effects      = EffectsState(arpeggiator: arpeggiator, audio: liveSound,
                                          effectsListener: effectsListener, logger: logger)
         self.solo         = SoloState(sink: soloSink, logger: logger)
+        self.keyboard     = keyboard ?? KeyboardState(logger: logger)
         self.sequencerState = sequencer ?? SequencerState(logger: logger)
         self.quickLoopState = QuickLoopState(logger: logger)
         self.micAccess = MicAccess(gate: micGate)
@@ -277,6 +283,7 @@ final class PerformanceState {
         self.effects.onPlayedChange = { [weak self] in self?.quickLoopState.effectsChanged() }
         self.quickLoopState.host = self
         self.solo.host = self
+        self.keyboard.host = self
         // The strip may have taken the colors' place, and a finger on them
         // gone with them.
         self.solo.onArrange = { [weak self] in self?.clearColor() }
@@ -610,3 +617,5 @@ extension PerformanceState: LoopHost {
         NotePlaying(key: key, octave: octave, preset: synthPreset, effects: effects.asPlayed)
     }
 }
+
+extension PerformanceState: KeyboardHost {}

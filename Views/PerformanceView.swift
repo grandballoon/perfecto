@@ -41,6 +41,7 @@ struct PerformanceView: View {
             }
         }
         .ignoresSafeArea(edges: .bottom)
+        .background(KeyboardInput(keyboard: state.keyboard))
         .environment(sidePanel)
     }
 

@@ -74,6 +74,11 @@ enum LogEvent {
     case solo_switched(isOn: Bool)
     case solo_note_played(note: Int)
 
+    // Computer keyboard
+    /// `key` nil: the action was left with no key.
+    case keyboard_key_chosen(action: String, key: String?)
+    case keyboard_map_reset
+
     // Mic sample
     case sample_record_started
     /// `seconds` 0: nothing audible was recorded.
@@ -227,6 +232,12 @@ extension LogEvent: Encodable {
         case let .solo_note_played(note):
             try c.encode("solo_note_played", forKey: Key("type"))
             try c.encode(note, forKey: Key("note"))
+        case let .keyboard_key_chosen(action, key):
+            try c.encode("keyboard_key_chosen", forKey: Key("type"))
+            try c.encode(action, forKey: Key("action"))
+            try c.encode(key, forKey: Key("key"))
+        case .keyboard_map_reset:
+            try c.encode("keyboard_map_reset", forKey: Key("type"))
         case let .loop_record_started(track):
             try c.encode("loop_record_started", forKey: Key("type"))
             try c.encode(track, forKey: Key("track"))

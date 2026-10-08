@@ -10,7 +10,7 @@ Stack: iOS 17+, iPhone (portrait + landscape), Swift 6, SwiftUI, an audio kernel
 
 **The same app runs on the Mac**, built with Mac Catalyst (the iPad's idiom, so every control looks as it does on the phone).
 There its "Perfecto" MIDI source is on the machine the DAW runs on, so no network session is opened (`MidiNetwork`), and the MIDI button silences the app's own sound as on the phone (`AudioOutput.isExternalSynth`).
-A mouse is one finger, and the layouts are still the phone's: a way to play from the desk and layouts for it are to come.
+A mouse is one finger, and the layouts are still the phone's: layouts for the desk are to come.
 
 ## Architecture
 
@@ -78,6 +78,12 @@ The cells ascend from the key's tonic whatever the chord (`soloNotes`), so a cel
 The chord it plays over is the one sounding, or the last one played once the keys are let go (`PerformanceState.soloChord`); a note being held rings on when the chord changes.
 `SoloStripView` draws the cells where `SoloStripCells` puts them and reads its fingers against the same frames, with the chord keys' own tracking (`KeyTouches`), so it is played with several fingers and by sliding.
 A loop does not record what the strip plays yet, and `docs/solo-strip.md` has what else is undecided.
+
+**The computer keyboard is one more finger.**
+Its keys are chord keys, the joystick and the solo strip's cells, by a map that is changed key by key in Setup and remembered (`KeyboardMap`: the home row, the arrows and the number row to start with).
+`KeyboardInput` is the window's first responder and hands each key to `KeyboardState`, which presses and releases through `PerformanceState`'s and `SoloState`'s own calls (`KeyboardHost`), so modes, loops and effects know nothing of it.
+Color keys held together add up (`JoystickDirection.combined`), a key has no place on its chord key and so plays no slide, and every key is let go when the app stops being in front.
+A key that plays nothing is passed on to the system, as is any key pressed with Command, Control or Option.
 
 **Sequences and loops are one timeline** (`docs/sequencer-spec.md` has the design and what is still to build). A `Timeline` is notes in layers, in ticks (480 to a quarter note), so anything played loosely is kept as played; a note is a chord at a time, with its own key, octave, sound and effects or the live ones, setting by setting. Edits are changes to that value (`TimelineEdits`), and `compile` turns a layer into the chords to play, for playback and the MIDI export alike. `TimelinePlayer` runs the timeline against the clock under whatever mode is on (it is not a mode), each layer through a `LayerVoice` of its own: an arpeggiator and a `NotePlayer`, so layers overlap one another and the keys. `SequencerState` owns the timeline (undo, saving) and says which layer is on screen; its edits apply to the notes on the selected steps. A note belongs to the step whose line its start is nearest and is on every step it is drawn across (`TimelineNote.step`, `steps`), so a chord played a little early is on its beat and what an edit changes is what the grid shows selected. `StepGridShape` arranges the steps in rows of a beat by the time signature, and `Layer.chits` cuts the notes into the pieces drawn, so the grid, its touches and the edits cannot disagree. `SequencerStep` is only the old saved format now. Play mode's LOOP button (`QuickLoopState`) records what the keys play as a `LoopTake` and adds it as a layer: the first loop sets the length and the tempo (`Timeline.fit`), later ones fold onto it. A loop is notes played again, not recorded audio, so it can be opened and edited in the sequencer.
 

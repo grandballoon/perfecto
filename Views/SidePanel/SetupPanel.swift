@@ -56,6 +56,9 @@ struct SetupPanel: View {
                     }
                 }
             }
+
+            // Where there is a keyboard to play: the Mac.
+            if ProcessInfo.processInfo.isMacCatalystApp { KeyboardMapEditor() }
         }
     }
 
