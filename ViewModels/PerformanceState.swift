@@ -22,6 +22,29 @@ enum ChordGridLayout: CaseIterable {
     }
 }
 
+/// How the seven chord keys are arranged on screen.
+enum ChordKeyArrangement: CaseIterable {
+    /// The staggered Nashville grid, four keys over three.
+    case grid
+    /// The root in the centre, the other six around it.
+    case circle
+    /// All seven in one row.
+    case row
+}
+
+extension ChordGridLayout {
+    /// The arrangement this layout gives a screen held upright or on its
+    /// side. Every screen that shows the chord keys asks here, so they all
+    /// show the layout chosen.
+    func arrangement(isLandscape: Bool) -> ChordKeyArrangement {
+        switch self {
+        case .grid:          return .grid
+        case .circle:        return .circle
+        case .horizontalBar: return isLandscape ? .row : .grid
+        }
+    }
+}
+
 /// Which input surface colors the chords. The two ship side by side for
 /// on-device comparison; only one is on screen at a time.
 enum ColorSurface: CaseIterable {
@@ -32,6 +55,48 @@ enum ColorSurface: CaseIterable {
         switch self {
         case .joystick: return "Joystick"
         case .grid:     return "Grid"
+        }
+    }
+}
+
+extension ColorSurface {
+    /// The shape the surface takes on the play screen.
+    var shape: SurfaceShape {
+        switch self {
+        case .joystick: return .bar
+        case .grid:     return .grid
+        }
+    }
+}
+
+/// What the play screen's input surface, the one beside the chord keys, is
+/// for. The effect slider takes the chord colors' place for now, so only
+/// one of them can be played at a time.
+enum PlaySurface: CaseIterable {
+    /// Colors the chords (`ColorSurface`).
+    case color
+    /// Plays the effects that are on (`EffectsState.slider`).
+    case effects
+
+    var displayName: String {
+        switch self {
+        case .color:   return "Chord color"
+        case .effects: return "Effect slider"
+        }
+    }
+}
+
+/// The two shapes the play screen's input surface comes in: a strip, or a
+/// taller pad. They are the chord colors' shapes (the joystick bar and the
+/// chord grid), which the effect slider borrows.
+enum SurfaceShape: CaseIterable {
+    case bar
+    case grid
+
+    var displayName: String {
+        switch self {
+        case .bar:  return "Bar"
+        case .grid: return "Grid"
         }
     }
 }
@@ -57,13 +122,37 @@ final class PerformanceState {
     }
 
     private(set) var mode: any PerformanceMode = PlayMode()
-    /// The surface on screen. Switching resets both surfaces to neutral.
+    /// What the play screen's input surface is for. Switching leaves the
+    /// chord colors neutral, since a finger on them may have gone with them.
+    var playSurface: PlaySurface = .color {
+        didSet {
+            guard playSurface != oldValue else { return }
+            clearColor()
+        }
+    }
+    /// The shape of the effect slider while it is the play surface.
+    var effectSliderShape: SurfaceShape = .bar
+    /// The shape of whatever the play surface is showing. The solo strip
+    /// in the colors' place is a bar.
+    var surfaceShape: SurfaceShape {
+        if solo.takesColorsPlace { return .bar }
+        switch playSurface {
+        case .color:   return colorSurface.shape
+        case .effects: return effectSliderShape
+        }
+    }
+    /// The chord-color surface on screen. Switching resets both surfaces to neutral.
     var colorSurface: ColorSurface = .joystick {
         didSet {
             guard colorSurface != oldValue else { return }
-            joystickDirection = .center
-            gridPosition = nil
+            clearColor()
         }
+    }
+
+    /// Leaves both color surfaces neutral.
+    private func clearColor() {
+        joystickDirection = .center
+        gridPosition = nil
     }
     private(set) var joystickDirection: JoystickDirection = .center
     /// Where a finger is on the chord grid; nil when none is.
@@ -97,6 +186,8 @@ final class PerformanceState {
     let sequencerState: SequencerState
     let quickLoopState: QuickLoopState
     let effects: EffectsState
+    /// The solo strip: notes that fit the chord, played over it.
+    let solo: SoloState
     let micSample: MicSampleState
     /// Whether the app may use the mic, for the sample and the vocoder.
     let micAccess: MicAccess
@@ -136,6 +227,9 @@ final class PerformanceState {
     /// its chords' own sound. Without one, layers share `sink`.
     /// `layerLead` is the lead those sinks were made with (see
     /// `NotePlayer`), so a loop recorded over them lands where it was heard.
+    /// `soloSink` sounds the solo strip's notes beside the keys' chord:
+    /// production passes a `NotePlayer` of its own on the same note sinks.
+    /// Without one the strip is silent.
     /// `micGate` says whether the mic sample may be recorded.
     /// `sequencer` is the app's sequencer and its saved timeline; tests pass
     /// one with a store of its own.
@@ -143,6 +237,7 @@ final class PerformanceState {
          chordListener: (any ChordEventSink)? = nil,
          layerSink: (() -> any ChordEventSink)? = nil,
          layerLead: Double = 0,
+         soloSink: (any ChordEventSink)? = nil,
          sequencer: SequencerState? = nil,
          liveSound: (any SoundControl & EffectsControl)? = nil,
          output: AudioOutput? = nil,
@@ -162,6 +257,7 @@ final class PerformanceState {
         self.logger       = logger
         self.effects      = EffectsState(arpeggiator: arpeggiator, audio: liveSound,
                                          effectsListener: effectsListener, logger: logger)
+        self.solo         = SoloState(sink: soloSink, logger: logger)
         self.sequencerState = sequencer ?? SequencerState(logger: logger)
         self.quickLoopState = QuickLoopState(logger: logger)
         self.micAccess = MicAccess(gate: micGate)
@@ -180,6 +276,10 @@ final class PerformanceState {
         }
         self.effects.onPlayedChange = { [weak self] in self?.quickLoopState.effectsChanged() }
         self.quickLoopState.host = self
+        self.solo.host = self
+        // The strip may have taken the colors' place, and a finger on them
+        // gone with them.
+        self.solo.onArrange = { [weak self] in self?.clearColor() }
         // A sample just recorded is what the keys play next.
         self.micSample.onRecorded = { [weak self] in self?.setSynthPreset(.micSample) }
         attach(sequencerState)
@@ -481,6 +581,23 @@ final class PerformanceState {
         sink.playChord(event)
         quickLoopState.chordStarted(event, pitch: pitch)
         logger?.log(.chord_played(notes: voicing.notes, source: source))
+    }
+}
+
+extension PerformanceState: SoloHost {
+    /// The chord that is sounding, as it sounds. With none, the last one
+    /// played, read in the key and octave set now (the tonic's triad before
+    /// any has been), so the strip can still be played once the keys are let go.
+    var soloChord: ChordContext {
+        if activeDegree != nil, let currentContext { return currentContext }
+        let spec = currentContext?.spec ?? ChordSpec(degree: .I, color: .base)
+        return performanceContext(key: key, octave: octave, spec: spec)
+    }
+
+    /// The keys' preset, with the effects as they are set: a slide on a
+    /// chord key plays that chord, not the run over it.
+    var soloSound: NoteSound {
+        NoteSound(preset: synthPreset, effects: effects.asSet)
     }
 }
 

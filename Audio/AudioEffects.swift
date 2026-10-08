@@ -16,6 +16,8 @@ struct ChorusSettings: Equatable, Codable, Sendable, SlidePlayed {
         played.amount = slide
         return played
     }
+
+    var place: Float { amount }
 }
 
 /// The reverb's controls, as plain data: the kernel realizes them.
@@ -37,6 +39,8 @@ struct ReverbSettings: Equatable, Codable, Sendable, SlidePlayed {
         played.mix = slide
         return played
     }
+
+    var place: Float { mix }
 }
 
 /// The vocoder's controls, as plain data. While it is on, the mic is open:
@@ -57,6 +61,8 @@ struct VocoderSettings: Equatable, Codable, Sendable, SlidePlayed {
         played.amount = slide
         return played
     }
+
+    var place: Float { amount }
 }
 
 /// The filter's controls, as plain data: the kernel realizes them.
@@ -74,6 +80,8 @@ struct FilterSettings: Equatable, Codable, Sendable, SlidePlayed {
         played.brightness = slide
         return played
     }
+
+    var place: Float { brightness }
 }
 
 /// Something that follows the sound effects as they are played: each call

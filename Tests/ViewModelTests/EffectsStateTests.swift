@@ -340,6 +340,99 @@ struct EffectsStateTests {
         #expect(switches(logger).isEmpty)
     }
 
+    // MARK: – The effect slider
+
+    @Test func theEffectSliderPlaysOneEffectsControl() {
+        let (effects, audio, _) = makeState()
+        effects.filter = FilterSettings(isOn: true, brightness: 0.8, followsSlide: false)
+        effects.reverb.isOn = true
+        audio.reset()
+        effects.sliderMoved(.filter, to: 0.25)
+        effects.sliderMoved(.filter, to: 0.5)
+        effects.sliderMoved(.filter, to: nil)
+
+        #expect(audio.filter.map(\.brightness) == [0.25, 0.5, 0.8])
+        #expect(audio.reverb.isEmpty)
+        #expect(effects.filter.brightness == 0.8)
+    }
+
+    /// A finger on a lane is the more deliberate: it plays over whatever
+    /// the finger on the key is doing, and lifting hands the effect back.
+    @Test func theEffectSliderPlaysOverTheSlideAndTheZones() {
+        let (effects, audio, _) = makeState()
+        effects.filter.isOn = true
+        effects.reverb.isOn = true
+        effects.zones = KeyZoneSettings(isOn: true, zones: [KeyZone(effect: .reverb, value: 1), KeyZone()])
+        effects.slide = 0.2
+        effects.sliderMoved(.filter, to: 0.9)
+        effects.sliderMoved(.reverb, to: 0.4)
+        #expect(effects.asPlayed.filter.brightness == 0.9)
+        #expect(effects.asPlayed.reverb.mix == 0.4)
+
+        effects.slide = 0.3
+        #expect(audio.filter.last?.brightness == 0.9)
+
+        effects.sliderMoved(.filter, to: nil)
+        effects.sliderMoved(.reverb, to: nil)
+        #expect(effects.asPlayed.filter.brightness == 0.3)
+        #expect(effects.asPlayed.reverb.mix == 1)
+    }
+
+    @Test func theEffectSliderDoesNotSwitchAnEffectOn() {
+        let (effects, _, _) = makeState()
+        effects.sliderMoved(.chorus, to: 1)
+        #expect(effects.asPlayed.chorus == ChorusSettings())
+    }
+
+    @Test func theEffectSliderHasALaneForEachEffectThatIsOn() {
+        let (effects, _, _) = makeState()
+        #expect(effects.slidable.isEmpty)
+        effects.reverb.isOn = true
+        effects.arpeggiator.isOn = true
+        #expect(effects.slidable == [.arpeggiator, .reverb])
+    }
+
+    /// A lane shows where its control is: as set, as the keys play it, or
+    /// under the finger on it.
+    @Test func aLaneIsWhereItsControlIsPlayed() {
+        let (effects, _, _) = makeState()
+        effects.filter = FilterSettings(isOn: true, brightness: 0.8)
+        effects.arpeggiator = ArpeggiatorSettings(isOn: true, cycle: .bar)
+        #expect(effects.place(of: .filter) == 0.8)
+        #expect(effects.place(of: .arpeggiator) == ArpeggioCycle.bar.slide)
+
+        effects.slide = 0.25
+        #expect(effects.place(of: .filter) == 0.25)
+        effects.sliderMoved(.filter, to: 0.6)
+        #expect(effects.place(of: .filter) == 0.6)
+    }
+
+    @Test func theEffectSliderPlaysTheArpeggiatorsCycle() {
+        let (effects, _, _) = makeState()
+        effects.arpeggiator = ArpeggiatorSettings(isOn: true, cycle: .bar)
+        effects.sliderMoved(.arpeggiator, to: 0.99)
+        #expect(effects.asPlayed.arpeggiator.cycle == .halfBeat)
+        #expect(EffectKind.arpeggiator.reading(at: 0.99) == "½")
+        #expect(EffectKind.filter.reading(at: 0.625) == "63%")
+    }
+
+    @Test func theEffectSliderIsPlayedNotSetAndItsTouchesAreLogged() {
+        let (effects, _, logger) = makeState()
+        effects.reverb.isOn = true
+        var set = 0, played = 0
+        effects.onSetChange = { set += 1 }
+        effects.onPlayedChange = { played += 1 }
+        effects.sliderMoved(.reverb, to: 0.2)
+        effects.sliderMoved(.reverb, to: 0.2)
+        effects.sliderMoved(.reverb, to: 1.5)
+        effects.sliderMoved(.reverb, to: nil)
+
+        #expect(set == 0 && played == 3)
+        #expect(effects.asSet.reverb.mix == ReverbSettings().mix)
+        let touches = logger.events.compactMap { if case let .effect_slider_touched(effect) = $0 { effect } else { nil } }
+        #expect(touches == [.reverb])
+    }
+
     /// Every cycle's own slide plays it, so a zone can name a cycle.
     @Test func everyCycleHasASlideThatPlaysIt() {
         for cycle in ArpeggioCycle.allCases {

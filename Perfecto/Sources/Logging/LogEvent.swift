@@ -67,6 +67,12 @@ enum LogEvent {
     case sound_changed(preset: String)
     case effect_switched(effect: EffectKind, isOn: Bool)
     case key_zones_switched(isOn: Bool)
+    /// A finger came down on `effect`'s lane of the effect slider.
+    case effect_slider_touched(effect: EffectKind)
+
+    // Solo strip
+    case solo_switched(isOn: Bool)
+    case solo_note_played(note: Int)
 
     // Mic sample
     case sample_record_started
@@ -212,6 +218,15 @@ extension LogEvent: Encodable {
         case let .key_zones_switched(isOn):
             try c.encode("key_zones_switched", forKey: Key("type"))
             try c.encode(isOn, forKey: Key("isOn"))
+        case let .effect_slider_touched(effect):
+            try c.encode("effect_slider_touched", forKey: Key("type"))
+            try c.encode(effect, forKey: Key("effect"))
+        case let .solo_switched(isOn):
+            try c.encode("solo_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .solo_note_played(note):
+            try c.encode("solo_note_played", forKey: Key("type"))
+            try c.encode(note, forKey: Key("note"))
         case let .loop_record_started(track):
             try c.encode("loop_record_started", forKey: Key("type"))
             try c.encode(track, forKey: Key("track"))

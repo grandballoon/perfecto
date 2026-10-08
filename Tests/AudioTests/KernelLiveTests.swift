@@ -57,7 +57,7 @@ struct KernelLiveTests {
         graph.unit.setSound(0, to: SynthPreset.micSample.patch)
         let format = try #require(AVAudioFormat(standardFormatWithSampleRate: rate, channels: 1))
         let source = Tone(hz: 440, rate: rate).node(format)
-        try graph.start(sampleRate: rate, listeningTo: source)
+        try graph.start(sampleRate: rate, listeningTo: .node(source))
         defer { graph.stop() }
 
         graph.unit.startCapture(0)

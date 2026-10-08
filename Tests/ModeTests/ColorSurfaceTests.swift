@@ -66,6 +66,30 @@ struct ColorSurfaceTests {
         #expect(state.color(for: .I) == .base)
     }
 
+    /// The effect slider takes the color surface's place, so the color a
+    /// finger was holding there goes with it.
+    @Test func theEffectSliderLeavesTheChordsUncolored() {
+        let sink = RecordingSink()
+        let state = PerformanceState(sink: sink, clock: ManualClock())
+        state.joystickMoved(to: .right)
+        state.playSurface = .effects
+        #expect(state.color(for: .I) == .base)
+        state.press(degree: .I)
+        #expect(sink.playCalls.last?.notes == [60, 64, 67])
+    }
+
+    /// The screen is laid out by the shape of whichever surface it shows.
+    @Test func thePlaySurfaceHasTheShapeOfWhatItShows() {
+        let state = PerformanceState(sink: RecordingSink(), clock: ManualClock())
+        state.effectSliderShape = .grid
+        #expect(state.surfaceShape == .bar)
+        state.colorSurface = .grid
+        state.effectSliderShape = .bar
+        #expect(state.surfaceShape == .grid)
+        state.playSurface = .effects
+        #expect(state.surfaceShape == .bar)
+    }
+
     /// Steps edited on the grid carry a grid color, which the sequencer plays
     /// as stored even after the surface is switched back.
     @Test func sequencerPlaysAGridStep() {

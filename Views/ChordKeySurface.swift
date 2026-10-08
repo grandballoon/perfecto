@@ -31,13 +31,15 @@ struct ChordKeySurface<Content: View>: View {
 }
 
 extension View {
-    /// Marks this view as the key for `degree` on the enclosing `ChordKeySurface`.
+    /// Marks this view as the key for `degree` on the surface around it
+    /// (`ChordKeySurface`, or `DegreeSelector`).
     func chordKey(_ degree: Degree) -> some View {
         anchorPreference(key: ChordKeyFrames.self, value: .bounds) { [degree: $0] }
     }
 }
 
-private struct ChordKeyFrames: PreferenceKey {
+/// Where each key marked with `chordKey(_:)` is.
+struct ChordKeyFrames: PreferenceKey {
     static var defaultValue: [Degree: Anchor<CGRect>] { [:] }
 
     static func reduce(value: inout [Degree: Anchor<CGRect>],

@@ -6,23 +6,19 @@ struct PerformanceView: View {
 
     /// The menu. Its panel lies over part of this screen, and whatever stays
     /// visible beside it stays playable.
-    @State private var sidePanel = SidePanelState()
+    @State private var sidePanel: SidePanelState
 
-    private let topRow:    [(Degree, Color)] = [
-        (.I, .orange),
-        (.ii, .orange),
-        (.iii, .orange),
-        (.IV, .orange),
-    ]
-    private let bottomRow: [(Degree, Color)] = [
-        (.V, .orange),
-        (.vi, .orange),
-        (.viiDim, .orange),
-    ]
+    /// `sidePanel` is the menu as the screen first shows it: closed, unless
+    /// a screen is wanted with it already open (the UI spec's drawings).
+    init(sidePanel: SidePanelState = SidePanelState()) {
+        _sidePanel = State(initialValue: sidePanel)
+    }
 
     /// Landscape panels' inset from the screen edges and from each other.
     private static let edgeMargin: CGFloat = 16
     private static let midiChitWidth: CGFloat = 64
+    /// The solo strip's width where it stands upright beside the chord keys.
+    private static let soloRibbonWidth: CGFloat = 64
 
     var body: some View {
         GeometryReader { geo in
@@ -32,7 +28,7 @@ struct PerformanceView: View {
                 if isLandscape {
                     landscapeLayout(geo: geo)
                 } else {
-                    portraitLayout
+                    portraitLayout(geo: geo)
                 }
 
                 SidePanel(containerWidth: geo.size.width)
@@ -50,7 +46,7 @@ struct PerformanceView: View {
 
     // MARK: – Portrait layout
 
-    private var portraitLayout: some View {
+    private func portraitLayout(geo: GeometryProxy) -> some View {
         VStack(spacing: 0) {
             // The OLED shares the top row with the menu button, inset past
             // it and top-aligned with it.
@@ -82,19 +78,14 @@ struct PerformanceView: View {
                 // high under the function buttons.
                 Spacer()
 
-                if state.chordGridLayout == .circle {
-                    CircleChordGridView()
-                        .environment(state)
-                        .padding(.horizontal, 20)
-                } else {
-                    chordGrid
-                        .padding(.horizontal, 20)
-                }
+                keysAndSolo(state.chordGridLayout.arrangement(isLandscape: false),
+                            screenHeight: geo.size.height)
+                    .padding(.horizontal, 20)
 
-                // Bottom input: the joystick strip or the chord grid
-                ColorSurfaceView()
+                // Bottom input: the chord colors or the effect slider
+                PlaySurfaceView()
                     .environment(state)
-                    .frame(height: ColorSurfaceView.portraitHeight(state.colorSurface))
+                    .frame(height: state.surfaceShape.portraitHeight)
                     .padding(.horizontal, 20)
                     .padding(.top, 24)
                     .padding(.bottom, 40)
@@ -114,39 +105,50 @@ struct PerformanceView: View {
                 .frame(width: geo.size.width, height: geo.size.height)
         } else {
         HStack(spacing: 0) {
-                // With the horizontal chord row, the joystick bar stands
-                // upright along the leading edge so the row can take the
-                // width a half-screen bar would have used.
+                // With the horizontal chord row, a bar stands upright along
+                // the leading edge so the row can take the width a
+                // half-screen bar would have used.
                 let barIsVertical = state.chordGridLayout == .horizontalBar
-                    && state.colorSurface == .joystick
+                    && state.surfaceShape == .bar
                 let leftW = barIsVertical
-                    ? Self.edgeMargin + ColorSurfaceView.barThickness
+                    ? Self.edgeMargin + SurfaceShape.barThickness
                     : geo.size.width / 2
                 let panelH = geo.size.height
+                // A panel of its own for the play surface has room to
+                // spare above it, which the solo strip takes before the
+                // chord keys have to give anything up.
+                let soloInPanel = !barIsVertical && state.solo.placementByKeys != nil
 
                 if barIsVertical {
                     // Left panel: the upright bar, starting below the
                     // menu button. Its trailing gap is the right panel's
                     // own leading margin.
-                    ColorSurfaceView(barAxis: .vertical)
+                    PlaySurfaceView(barAxis: .vertical)
                         .environment(state)
                         .padding(.leading, Self.edgeMargin)
                         .padding(.top, SidePanelLayout.buttonTop + SidePanelLayout.buttonSize + 8)
                         .padding(.bottom, Self.edgeMargin)
                         .frame(width: leftW, height: panelH)
                 } else {
-                    // Left panel: input control. The coloration bar stays
-                    // horizontal here (as in portrait) and keeps the same
-                    // thickness; the chord grid fills the panel. Both sit at
+                    // Left panel: input control. A bar stays horizontal
+                    // here (as in portrait) and keeps the same thickness;
+                    // a grid fills the panel. Both sit at
                     // the bottom so their lower margin lines up with the
                     // function buttons in the right panel.
                     VStack(spacing: 8) {
-                        Spacer(minLength: 0)
-                        ColorSurfaceView()
+                        if soloInPanel {
+                            // Starting below the menu button.
+                            SoloStripView(axis: .horizontal)
+                                .padding(.top, SidePanelLayout.buttonTop + SidePanelLayout.buttonSize + 8
+                                         - Self.edgeMargin)
+                        } else {
+                            Spacer(minLength: 0)
+                        }
+                        PlaySurfaceView()
                             .environment(state)
                             .frame(maxWidth: .infinity)
-                            .frame(maxHeight: state.colorSurface == .grid
-                                   ? .infinity : ColorSurfaceView.barThickness)
+                            .frame(maxHeight: state.surfaceShape == .grid
+                                   ? .infinity : SurfaceShape.barThickness)
                     }
                     .padding(Self.edgeMargin)
                     .frame(width: leftW, height: panelH)
@@ -158,19 +160,14 @@ struct PerformanceView: View {
                         .padding(.bottom, 8)
                     LoopBar()
                         .padding(.bottom, 8)
-                    switch state.chordGridLayout {
-                    case .horizontalBar:
-                        ChordRowView()
-                            .environment(state)
-                            .frame(maxHeight: .infinity)
-                            .padding(.vertical, 8)
-                    case .circle:
-                        CircleChordGridView()
-                            .environment(state)
+                    let arrangement = state.chordGridLayout.arrangement(isLandscape: true)
+                    switch arrangement {
+                    case .row, .circle:
+                        keysAndSolo(arrangement, screenHeight: panelH, soloIsElsewhere: soloInPanel)
                             .padding(.vertical, 8)
                     case .grid:
                         Spacer()
-                        chordGrid
+                        keysAndSolo(arrangement, screenHeight: panelH, soloIsElsewhere: soloInPanel)
                         Spacer()
                     }
                     functionButtons
@@ -201,11 +198,14 @@ struct PerformanceView: View {
             .onLongPressGesture(minimumDuration: 3) { shareLogs() }
     }
 
-    /// The mode toggle takes the row; MIDI keeps to a narrow fixed width.
+    /// The mode toggle takes the row; SOLO and MIDI keep to a narrow fixed width.
     private var functionButtons: some View {
         @Bindable var state = state
+        @Bindable var solo = state.solo
         return HStack(spacing: 10) {
             modeSegToggle
+            toggleButton(label: "SOLO", isOn: $solo.isOn)
+                .frame(width: Self.midiChitWidth)
             toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
                 .frame(width: Self.midiChitWidth)
         }
@@ -243,21 +243,36 @@ struct PerformanceView: View {
         .buttonStyle(.plain)
     }
 
-    private var chordGrid: some View {
+    /// The chord keys, played: pressed as the fingers on them are.
+    private func chordKeys(_ arrangement: ChordKeyArrangement) -> some View {
         ChordKeySurface {
-            VStack(spacing: 10) {
-                HStack(spacing: 10) {
-                    ForEach(topRow, id: \.0) { degree, color in
-                        ChordButton(degree: degree, label: degreeNumeral(key: state.key, degree: degree), color: color)
-                    }
-                }
-                HStack(spacing: 10) {
-                    ForEach(bottomRow, id: \.0) { degree, color in
-                        ChordButton(degree: degree, label: degreeNumeral(key: state.key, degree: degree), color: color)
-                    }
-                    Spacer()
-                }
+            ChordKeysView(arrangement: arrangement, key: state.key, lit: state.heldDegrees)
+        }
+    }
+
+    /// The chord keys, and the solo strip where it is by them: under them,
+    /// across the handle that sets how much of their height it takes, or
+    /// upright along their trailing edge. `soloIsElsewhere` says the screen
+    /// has found the strip room of its own.
+    @ViewBuilder
+    private func keysAndSolo(_ arrangement: ChordKeyArrangement, screenHeight: CGFloat,
+                             soloIsElsewhere: Bool = false) -> some View {
+        switch soloIsElsewhere ? nil : state.solo.placementByKeys {
+        case .underKeys?:
+            VStack(spacing: 0) {
+                chordKeys(arrangement)
+                SoloStripHandle(screenHeight: screenHeight)
+                SoloStripView(axis: .horizontal)
+                    .frame(height: screenHeight * state.solo.share)
             }
+        case .besideKeys?:
+            HStack(spacing: 10) {
+                chordKeys(arrangement)
+                SoloStripView(axis: .vertical)
+                    .frame(width: Self.soloRibbonWidth)
+            }
+        default:
+            chordKeys(arrangement)
         }
     }
 

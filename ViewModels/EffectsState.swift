@@ -9,8 +9,9 @@ import Observation
 /// The effects are also played: while a chord key is held, the finger's
 /// place on it (`slide`) stands in for one set value of every effect that
 /// follows it (`SlidePlayed`), and the key zone the finger is in (`zones`)
-/// holds its effect on. What is passed on is always the effect as played;
-/// the settings here stay as they were set.
+/// holds its effect on. A finger on the effect slider (`slider`) plays one
+/// effect's control by itself, whatever the key says. What is passed on is
+/// always the effect as played; the settings here stay as they were set.
 @Observable
 @MainActor
 final class EffectsState {
@@ -105,7 +106,37 @@ final class EffectsState {
     /// bottom of the key; nil while the zones are off or no key is held.
     private(set) var zone: Int?
 
-    /// Every effect as it sounds now, the slide and the key zones applied:
+    /// Where a finger on the effect slider holds each effect's played
+    /// control, as a place on the slide (0...1); an effect with no finger
+    /// on its lane has no entry. Change it with `sliderMoved`.
+    private(set) var slider: [EffectKind: Float] = [:]
+
+    /// A finger on the effect slider is at `place` (0...1) on `effect`'s
+    /// lane (nil: lifted). While it is there it plays the effect's control,
+    /// over the slide and the key zones; lifting returns to what they play.
+    /// An effect that is off is not switched on by it.
+    func sliderMoved(_ effect: EffectKind, to place: Float?) {
+        let place = place.map { $0.clamped(to: 0...1) }
+        guard place != slider[effect] else { return }
+        if slider[effect] == nil { logger?.log(.effect_slider_touched(effect: effect)) }
+        slider[effect] = place
+        send(effect)
+        onPlayedChange?()
+    }
+
+    /// The effects that are on, in the order the effect slider shows them:
+    /// each has a lane there.
+    var slidable: [EffectKind] { EffectKind.allCases.filter { set($0).isOn } }
+
+    /// Where `effect`'s played control is now, as a place on the slide:
+    /// under the finger on its lane of the effect slider, or where it is
+    /// played from the keys.
+    func place(of effect: EffectKind) -> Float {
+        slider[effect] ?? played(set(effect)).place
+    }
+
+    /// Every effect as it sounds now, the slide, the key zones and the
+    /// effect slider applied:
     /// what a chord played now is played with.
     var asPlayed: NoteEffects {
         NoteEffects(arpeggiator: played(arpeggiator), filter: played(filter),
@@ -146,22 +177,27 @@ final class EffectsState {
     /// The effect the zone under the finger holds on, if it has one.
     private var zoneEffect: EffectKind? { zone.flatMap { zones.zones[$0].effect } }
 
-    /// `set` as it sounds now: held on by the zone under the finger if that
-    /// is its zone, played by the slide otherwise.
+    /// `set` as it sounds now: played by the finger on its lane of the
+    /// effect slider if there is one, held on by the zone under the finger
+    /// on the key if that is its zone, played by the slide otherwise.
     private func played<Settings: SlidePlayed>(_ set: Settings) -> Settings {
+        if set.isOn, let place = slider[Settings.kind] { return set.playing(place) }
         guard let zone, zones.zones[zone].effect == Settings.kind else { return set.played(by: slide) }
         return set.held(at: zones.zones[zone].value)
     }
 
-    private func follows(_ effect: EffectKind) -> Bool {
+    /// `effect`'s settings, as set.
+    private func set(_ effect: EffectKind) -> any SlidePlayed {
         switch effect {
-        case .arpeggiator: return arpeggiator.isPlayed
-        case .filter:      return filter.isPlayed
-        case .chorus:      return chorus.isPlayed
-        case .reverb:      return reverb.isPlayed
-        case .vocoder:     return vocoder.isPlayed
+        case .arpeggiator: return arpeggiator
+        case .filter:      return filter
+        case .chorus:      return chorus
+        case .reverb:      return reverb
+        case .vocoder:     return vocoder
         }
     }
+
+    private func follows(_ effect: EffectKind) -> Bool { set(effect).isPlayed }
 
     private func send(_ effect: EffectKind) {
         switch effect {

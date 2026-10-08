@@ -6,7 +6,8 @@
 /// to 1 at the top. While the effect is on and follows it, the slide plays
 /// the control. A key zone (`KeyZoneSettings`) holds the control at one
 /// place on the slide instead, and switches the effect on to do it. Either
-/// way, lifting the key returns to the set values.
+/// way, lifting the key returns to the set values. The effect slider
+/// (`EffectsState.slider`) plays the same control from a surface of its own.
 protocol SlidePlayed {
     /// Which effect these are the settings of.
     static var kind: EffectKind { get }
@@ -15,6 +16,9 @@ protocol SlidePlayed {
     var followsSlide: Bool { get }
     /// These settings with the played control at `slide` (0...1).
     func playing(_ slide: Float) -> Self
+    /// Where the played control is, as a place on the slide (0...1): a
+    /// slide to there would play these settings as they are.
+    var place: Float { get }
 }
 
 extension SlidePlayed {

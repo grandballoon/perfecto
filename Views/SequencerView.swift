@@ -6,7 +6,7 @@ struct SequencerView: View {
 
     /// Guards the undo snapshot so one color-bar drag produces one undo step.
     @State private var stepColorEditActive = false
-    /// Same guard for the degree-ring drag: one gesture → one undo step.
+    /// Same guard for a drag on the degree keys: one gesture → one undo step.
     @State private var stepDegreeEditActive = false
     /// Transient color-bar highlight — like Play mode, a section lights only
     /// while actively dragged and clears (`.center`) on release, so no button
@@ -14,7 +14,7 @@ struct SequencerView: View {
     @State private var stepColorTransient: JoystickDirection = .center
     /// The chord grid's equivalent: a cell lights only while dragged.
     @State private var stepGridTransient: GridPosition? = nil
-    /// Step entry: while on, a chord chosen on the ring goes on the selected
+    /// Step entry: while on, a chord chosen on the keys goes on the selected
     /// step and the selection moves to the next, so a progression is entered
     /// by choosing its chords in order.
     @State private var isEnteringSteps = false
@@ -509,7 +509,7 @@ struct SequencerView: View {
         let primary = seqState.primaryNote
         // The grid needs a row per mode, so it is taller than the strip.
         let surfaceHeight: CGFloat = perfState.colorSurface == .grid
-            ? (boxed ? 168 : ColorSurfaceView.portraitHeight(.grid))
+            ? (boxed ? 168 : SurfaceShape.grid.portraitHeight)
             : colorBarHeight
 
         return VStack(alignment: .leading, spacing: 10) {
@@ -520,35 +520,11 @@ struct SequencerView: View {
             }
             noteControls
 
-            // Chord-degree (scale-number) ring — the same circular layout as the
-            // Play-mode chord ring, filling the free space above the coloration
-            // bar. It sets the degree of the selected notes, and puts a chord on
-            // a selected step that has none; nothing is highlighted on a rest.
-            DegreeRingView(
-                key: primary?.playing.key ?? perfState.key,
-                selected: primary?.chord.degree,
-                onChange: { degree in
-                    guard !seqState.selectedSteps.isEmpty else { return }
-                    // One undo snapshot per drag: take it on the first change,
-                    // clear the flag when the gesture ends.
-                    if !stepDegreeEditActive {
-                        seqState.snapshot()
-                        stepDegreeEditActive = true
-                    }
-                    // As on the keys, a coloration held while the degree is
-                    // chosen is the chord's.
-                    seqState.editSelectedChords {
-                        ChordSpec(degree: degree, color: heldColor(for: degree) ?? $0.color)
-                    }
-                },
-                onEnd: {
-                    if stepDegreeEditActive, isEnteringSteps { seqState.advanceSelection() }
-                    stepDegreeEditActive = false
-                }
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .scaleEffect(1.1)
-            .padding(.vertical, 4)
+            // The chord keys, in the layout Play mode shows them in, filling
+            // the free space above the coloration bar. They set the degree of
+            // the selected notes, and put a chord on a selected step that has
+            // none; nothing is highlighted on a rest.
+            degreeSelector(primary, arrangement: perfState.chordGridLayout.arrangement(isLandscape: boxed))
 
             // Chord-coloration input — the same surface Play mode shows (the
             // joystick strip or the chord grid). It edits the selected steps'
@@ -586,6 +562,39 @@ struct SequencerView: View {
                     .padding(.bottom, surfaceHeight + 12)
             }
         }
+    }
+
+    // MARK: – Step degree
+
+    private func degreeSelector(_ primary: TimelineNote?, arrangement: ChordKeyArrangement) -> some View {
+        DegreeSelector(
+            arrangement: arrangement,
+            key: primary?.playing.key ?? perfState.key,
+            selected: primary?.chord.degree,
+            onChange: { degree in
+                guard !seqState.selectedSteps.isEmpty else { return }
+                // One undo snapshot per drag: take it on the first change,
+                // clear the flag when the gesture ends.
+                if !stepDegreeEditActive {
+                    seqState.snapshot()
+                    stepDegreeEditActive = true
+                }
+                // As on the keys, a coloration held while the degree is
+                // chosen is the chord's.
+                seqState.editSelectedChords {
+                    ChordSpec(degree: degree, color: heldColor(for: degree) ?? $0.color)
+                }
+            },
+            onEnd: {
+                if stepDegreeEditActive, isEnteringSteps { seqState.advanceSelection() }
+                stepDegreeEditActive = false
+            }
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // The ring is a square in a wider space, so it can grow a little
+        // past its share; the other arrangements already fill theirs.
+        .scaleEffect(arrangement == .circle ? 1.1 : 1)
+        .padding(.vertical, 4)
     }
 
     // MARK: – Step color surfaces

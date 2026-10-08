@@ -9,7 +9,7 @@ import SwiftUI
 /// direction in the sequencer). The only state it keeps is the section under
 /// the finger during a drag, so `onChange` fires once per section crossed
 /// whether or not the caller changes `selected` (same contract as
-/// `DegreeRingView`).
+/// `DegreeSelector`).
 struct ChordColorBar: View {
 
     let axis: Axis

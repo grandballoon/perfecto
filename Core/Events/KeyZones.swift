@@ -70,4 +70,37 @@ extension EffectKind {
         case .vocoder:     return "Vocoder"
         }
     }
+
+    /// The label where there is room for three letters.
+    var abbreviation: String {
+        switch self {
+        case .arpeggiator: return "ARP"
+        case .filter:      return "FLT"
+        case .chorus:      return "CHO"
+        case .reverb:      return "REV"
+        case .vocoder:     return "VOC"
+        }
+    }
+
+    /// The name of the effect's played control (`SlidePlayed`).
+    var playedControl: String {
+        switch self {
+        case .arpeggiator: return "cycle"
+        case .filter:      return "brightness"
+        case .chorus:      return "amount"
+        case .reverb:      return "mix"
+        case .vocoder:     return "amount"
+        }
+    }
+
+    /// What the played control reads at `place` on the slide (0...1): the
+    /// arpeggiator's cycle in beats, a percentage for the others.
+    func reading(at place: Float) -> String {
+        switch self {
+        case .arpeggiator:
+            return ArpeggioCycle.played(by: place).label
+        case .filter, .chorus, .reverb, .vocoder:
+            return "\(Int((place.clamped(to: 0...1) * 100).rounded()))%"
+        }
+    }
 }

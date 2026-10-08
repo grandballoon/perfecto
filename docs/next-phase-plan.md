@@ -190,7 +190,8 @@ Still open: `LooperMode`/`LooperView` reach `Looper` directly, loops capture onl
 
 ### H. Smaller couplings
 
-- Ring geometry (angles, 0.38/0.27/0.22 ratios, `nearest()`) is copied between `CircleChordGridView` and `DegreeRingView`.
+- ~~Ring geometry (angles, 0.38/0.27/0.22 ratios, `nearest()`) is copied between `CircleChordGridView` and `DegreeRingView`.~~
+  Fixed: every arrangement of the chord keys is drawn by `ChordKeysView`, which Play mode and the sequencer's `DegreeSelector` share.
   Bar heights and paddings are kept in sync between `PerformanceView` and `SequencerView` only by comments.
   A metrics enum beside the view (as `SidePanelLayout` is) is the pattern to follow.
 - MIDI channel and velocity are literals in `MidiSink` and again in `SequencerMidiRenderer`.

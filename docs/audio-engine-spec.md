@@ -156,6 +156,9 @@ A Bluetooth mic forces the call-quality profile for input and output alike, so t
   An engine running in real time does not render an effect with nothing connected to its input (found 2026-10-06: the app was silent on a device, while every offline test passed), and it refuses an input connection to a generator.
   So `AudioGraph` always connects a source of silence, a player node that never plays, and adds the mic beside it while something is recorded.
   `KernelLiveTests` runs that graph in real time on the simulator.
+  An engine that has opened the mic cannot start again in a session that only plays, though the mic is disconnected (found 2026-10-07: the app stopped on a phone as each recording of the mic sample ended, with error `'what'` from starting the hardware unit).
+  So `AudioGraph` leaves an engine once the mic is let go and starts a new one, with the same unit in it.
+  The simulator's session always has an input and does not show this; `AudioOutputLiveTests` opens and closes the mic through the app's own output, and is to be run on a phone.
 - Events reach the kernel through a queue of its own, not the Audio Unit's MIDI events (corrected 2026-10-06, when the skeleton was built): MIDI cannot carry a note's id or its sound, and a queue inside the kernel is the same on every platform. It is a fixed ring one thread writes and the render thread reads, with no lock; the kernel keeps what has arrived in time order until its frame.
 - The render block is Objective-C++ (`PerfectoKernelHost`), so nothing on the render thread passes through Swift.
 - An `AudioSession` type owns the session: category, buffer size, input choice, route changes, interruptions, and External Synth mode. Nothing else touches `AVAudioSession`. The engine is not restarted on a route change while External Synth is on (the open bug in the phase plan).

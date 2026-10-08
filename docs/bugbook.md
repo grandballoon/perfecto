@@ -168,3 +168,10 @@ Tests/LoggingTests/LoggerTests.swift:28:24 Cannot find 'JSONSerialization' in sc
 **Fix:** Add `.defaultToSpeaker` to the session options and add an explicit `mode: .default` parameter. Also add `assertionFailure` alongside the `print` so startup failures crash debug builds immediately instead of silently producing a silent app.
 
 ---
+
+## App stops when a mic sample recording ends — engine cannot start after the mic
+**Error:** On a phone, tapping stop on a mic sample recording ends the app (Debug): `[AudioOutput] could not start: Error Domain=com.apple.coreaudio.avfaudio Code=2003329396 UserInfo={failed call=err = PerformCommand(*ioNode, kAUStartIO, NULL, 0)}`.
+**Cause:** When a recording ends, the session goes back to `.playback` and the engine is started again without the mic. An `AVAudioEngine` whose `inputNode` has been asked for keeps an input on its hardware unit for good, connected or not, and the unit cannot start in a session that has no input. The simulator's session always has an input, so nothing failed there.
+**Fix:** `AudioGraph` leaves an engine that has opened the mic for a new one on the next start that is not for the mic; only the kernel's unit is taken along. `AudioOutputLiveTests` records through the real output and session, and fails on a phone without the fix.
+
+---

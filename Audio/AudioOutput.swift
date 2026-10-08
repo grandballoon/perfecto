@@ -17,7 +17,6 @@ final class AudioOutput {
     private let graph = AudioGraph()
     private let session: AudioSession
     private let logger: (any Logger)?
-    private var observer: (any NSObjectProtocol)?
     /// Whether the mic is open to the kernel for a recording.
     private var isRecording = false {
         didSet { if isListening != (oldValue || isVocoding) { restart() } }
@@ -26,14 +25,15 @@ final class AudioOutput {
     /// mic connected.
     private var isListening: Bool { isRecording || isVocoding }
 
-    init(logger: (any Logger)? = nil) {
+    /// The mic sample is kept at `sampleURL`: nil keeps none.
+    init(sampleURL: URL? = SampleRecorder.keptSampleURL, logger: (any Logger)? = nil) {
         self.logger = logger
         session = AudioSession(logger: logger)
         // The sounds and the sample kept from last time are loaded before
         // the engine first renders.
         sink = KernelSink(unit: graph.unit)
         sampleRecorder = SampleRecorder(unit: graph.unit, capture: SynthPreset.micCapture,
-                                        url: SampleRecorder.keptSampleURL, logger: logger)
+                                        url: sampleURL, logger: logger)
         start()
 
         sampleRecorder.listen = { [weak self] listening in
@@ -41,11 +41,7 @@ final class AudioOutput {
         }
         session.onRouteChange = { [weak self] in self?.restart() }
         // The engine stops itself when the hardware's format changes.
-        observer = NotificationCenter.default.addObserver(
-            forName: .AVAudioEngineConfigurationChange, object: graph.engine, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.restart() }
-        }
+        graph.onConfigurationChange = { [weak self] in self?.restart() }
     }
 
     /// While on, the engine is stopped and the audio session given up, so
@@ -81,7 +77,7 @@ final class AudioOutput {
             if !cancelsEcho { try graph.setEchoCancelling(false) }
             try session.activate(recording: isListening)
             if cancelsEcho { try graph.setEchoCancelling(true) }
-            try graph.start(sampleRate: session.sampleRate, listeningTo: isListening ? graph.microphone : nil)
+            try graph.start(sampleRate: session.sampleRate, listeningTo: isListening ? .microphone : nil)
             logger?.log(.audio_engine_started)
             sampleRecorder.engineStarted()
         } catch {

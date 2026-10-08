@@ -85,6 +85,8 @@ struct ArpeggiatorSettings: Equatable, Codable, Sendable, SlidePlayed {
         played.cycle = .played(by: slide)
         return played
     }
+
+    var place: Float { cycle.slide }
 }
 
 /// Plays chords one note at a time, in tempo. It sits between whatever
