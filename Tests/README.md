@@ -33,7 +33,8 @@ The kernel's tests render it offline with no engine, and are built so that any m
 `KernelLiveTests` runs the app's engine graph in real time on the simulator (no audio session): an engine treats a unit differently there than offline, and that difference once made the app silent.
 `SampleRecorderTests` records and plays the mic sample through an offline engine that hears a tone.
 `AudioOutputLiveTests` is the exception to the rule below: it opens and closes the mic through the app's own `AudioOutput`, with the real audio session.
-On the simulator it passes whatever the engine does, since a session there always has an input; run it on a phone after changing `AudioGraph`, `AudioOutput` or `AudioSession`.
+Both are in `LiveAudioTests`, which runs them one at a time: on a Mac, opening the mic changes the hardware's format and stops every engine running on it, another test's among them.
+On the simulator `AudioOutputLiveTests` passes whatever the engine does, since a session there always has an input; run it on a phone after changing `AudioGraph`, `AudioOutput` or `AudioSession`.
 
 ## Recording-double pattern
 
@@ -59,8 +60,10 @@ clock.tick()  // advance clock manually to test timing-dependent modes
 cd Perfecto && swift test
 ```
 
-**App tests (require device or simulator):**
+**App tests (on a simulator, a device, or the Mac):**
 Use Xcode → Product → Test (⌘U), or select the PerfectoTests scheme.
+The app is also built for the Mac with Mac Catalyst, and the same tests run there with `-destination 'platform=macOS,variant=Mac Catalyst'`, with no simulator to start.
+On the Mac the live audio tests use the real hardware and the real mic, and the UI spec's test is skipped, since a Mac's window does not turn.
 
 ## The UI spec
 

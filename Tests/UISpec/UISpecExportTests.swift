@@ -17,7 +17,10 @@ struct UISpecExportTests {
     private let folder = URL(fileURLWithPath: ProcessInfo.processInfo.environment["UI_SPEC_DIR"]
                              ?? NSTemporaryDirectory() + "perfecto-ui-spec")
 
-    @Test func everyScreenIsDrawnAsShapesAndText() async throws {
+    /// The spec is of the phone's screens, upright and on its side, and a
+    /// Mac's window does not turn.
+    @Test(.disabled(if: ProcessInfo.processInfo.isMacCatalystApp, "a Mac's window does not turn"))
+    func everyScreenIsDrawnAsShapesAndText() async throws {
         let pdfs = folder.appendingPathComponent("pdf")
         try? FileManager.default.removeItem(at: pdfs)
         try FileManager.default.createDirectory(at: pdfs, withIntermediateDirectories: true)

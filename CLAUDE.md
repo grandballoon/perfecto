@@ -8,6 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Stack: iOS 17+, iPhone (portrait + landscape), Swift 6, SwiftUI, an audio kernel of our own in C++ (no audio library), MVVM with `@Observable`, CoreMIDI.
 
+**The same app runs on the Mac**, built with Mac Catalyst (the iPad's idiom, so every control looks as it does on the phone).
+There its "Perfecto" MIDI source is on the machine the DAW runs on, so no network session is opened (`MidiNetwork`), and the MIDI button silences the app's own sound as on the phone (`AudioOutput.isExternalSynth`).
+A mouse is one finger, and the layouts are still the phone's: a way to play from the desk and layouts for it are to come.
+
 ## Architecture
 
 The codebase is split into strict layers with no upward dependencies:
@@ -145,7 +149,7 @@ Swift Testing (`@Test`, `#expect`) is the default for all new test files.
 )
 ```
 
-Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/` and the kernel's in `Perfecto/Tests/PerfectoKernelTests/` (both run on the Mac with `swift test` in `Perfecto/`); app tests live in `Tests/` (run with `xcodebuild … test` on a simulator; see `Tests/README.md`).
+Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/` and the kernel's in `Perfecto/Tests/PerfectoKernelTests/` (both run on the Mac with `swift test` in `Perfecto/`); app tests live in `Tests/` (run with `xcodebuild … test` on a simulator or on the Mac as a Catalyst app; see `Tests/README.md`).
 
 ## Audio session
 

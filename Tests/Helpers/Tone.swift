@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreAudio
 @testable import Perfecto
 
 /// A sine for an engine to hear. It is read on the render thread, one
