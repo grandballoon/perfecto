@@ -7,6 +7,7 @@ final class RecordingVoice: TimelineVoice {
 
     enum Call: Equatable {
         case play(TimedChord)
+        case change(TimedChord)
         case stop
     }
 
@@ -23,6 +24,7 @@ final class RecordingVoice: TimelineVoice {
     }
 
     func play(_ chord: TimedChord) { calls.append(.play(chord)) }
+    func change(to chord: TimedChord) { calls.append(.change(chord)) }
     func stop() { calls.append(.stop) }
     func reset() { calls = [] }
 }

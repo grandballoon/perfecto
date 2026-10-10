@@ -112,6 +112,9 @@ final class SequencerState {
     private var undoStack: [EditState] = []
     private let undoLimit = 50
     var canUndo: Bool { !undoStack.isEmpty }
+    /// The layer whose effects the last edit changed, while nothing else
+    /// has been edited since: more changes to them join that undo step.
+    private var effectsEdited: Layer.ID?
 
     private let defaults: UserDefaults
     private let logger: (any Logger)?
@@ -165,6 +168,7 @@ final class SequencerState {
     /// Call immediately *before* mutating the pattern, the loop or the
     /// selection to make the change undoable.
     func snapshot() {
+        effectsEdited = nil
         undoStack.append(EditState(timeline: timeline,
                                    selectedSteps: selectedSteps,
                                    primaryStep: primaryStep))
@@ -173,6 +177,7 @@ final class SequencerState {
 
     func undo() {
         guard let previous = undoStack.popLast() else { return }
+        effectsEdited = nil
         timeline = previous.timeline
         showALayerThatExists()
         selectedSteps = previous.selectedSteps
@@ -264,7 +269,11 @@ final class SequencerState {
             let empty = selectedSteps.filter {
                 $0 < stepCount && layer.indicesOfNotes(on: edited([$0])).isEmpty
             }
-            layer.edit(notesOn: steps) { $0.chord = change($0.chord) }
+            layer.edit(notesOn: steps) {
+                $0.chord = change($0.chord)
+                // Notes played from the net give way to the chord chosen.
+                if case .notes = $0.pitch { $0.pitch = .chord }
+            }
             layer.place(change(ChordSpec(degree: .I, color: .base)), onSteps: empty)
         }
     }
@@ -394,9 +403,16 @@ final class SequencerState {
     /// Makes `notes` the whole sequence: one layer, `bars` long. For a first
     /// loop recorded from the keys.
     func startLoop(_ notes: [TimelineNote], bars: Int) {
+        startLoop([notes], bars: bars)
+    }
+
+    /// Makes `lines` the whole sequence, a layer each, `bars` long: a first
+    /// loop in which more than one line was played. With no lines it is
+    /// one empty layer.
+    func startLoop(_ lines: [[TimelineNote]], bars: Int) {
         snapshot()
         var started = Timeline(signature: timeline.signature, barCount: max(bars, 1))
-        started.layers = [Layer(notes: notes)]
+        started.layers = lines.isEmpty ? [Layer()] : lines.map { Layer(notes: $0) }
         timeline = started
         layerID = started.layers[0].id
         selectedSteps = []
@@ -419,6 +435,27 @@ final class SequencerState {
             }
         }
         timeline = edited
+        save()
+    }
+
+    /// The effects layer `id` is played with of its own; nil while its
+    /// notes follow the ones set for the keys.
+    func effects(ofLayer id: Layer.ID) -> NoteEffects? {
+        timeline.layer(id)?.effects
+    }
+
+    /// Changes the effects layer `id` is played with, which are its own
+    /// from here on: notes that followed the effects set for the keys
+    /// (`live`) start from them. A run of changes to one layer, as a slider
+    /// makes, is one step to undo.
+    func editEffects(ofLayer id: Layer.ID, following live: NoteEffects, _ change: (inout NoteEffects) -> Void) {
+        guard let index = timeline.layers.firstIndex(where: { $0.id == id }) else { return }
+        if effectsEdited != id {
+            snapshot()
+            effectsEdited = id
+            logger?.log(.loop_effects_edited(track: index))
+        }
+        timeline.edit(layer: id) { $0.editEffects(following: live, change) }
         save()
     }
 

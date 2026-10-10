@@ -17,7 +17,7 @@ struct ColorSurfaceView: View {
         case .grid:
             // Labels follow the held chord; with none held, the tonic's.
             ChordGridPad(
-                key: state.key,
+                key: state.playedKey,
                 degree: state.activeDegree ?? .I,
                 selected: state.gridPosition,
                 onChange: { state.gridMoved(to: $0) },

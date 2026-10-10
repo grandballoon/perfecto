@@ -206,7 +206,10 @@ enum ArpeggioCycle: String, Codable   { case halfBeat, beat, twoBeats, bar }
 Key zones:
 
 ```swift
-struct KeyZone { var effect: EffectKind?; var value: Float = 0.5 }   // value: a place on the slide
+struct KeyZone {
+    var effect: EffectKind?; var value: Float = 0.5   // value: a place on the slide
+    var key: Key?; var octave: Int?                   // nil: the key or octave chosen
+}
 
 struct KeyZoneSettings {
     static let counts = 2...4

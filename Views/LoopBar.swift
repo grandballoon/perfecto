@@ -50,6 +50,7 @@ struct LoopBar: View {
         }
         .buttonStyle(.plain)
         .disabled(!canRecord)
+        .hotkeyTip(.loop)
     }
 
     private var loopLabelColor: Color {
@@ -68,6 +69,7 @@ struct LoopBar: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(loops.isRunning ? "Stop loops" : "Play loops")
+        .hotkeyTip(.playStop)
     }
 
     private var layerChits: some View {

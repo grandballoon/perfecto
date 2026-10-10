@@ -45,6 +45,7 @@ extension Timeline {
             case .chord: voicing = chord
             case .lead:  voicing = Voicing(notes: [leadPitch(key: context.key, octave: context.octave,
                                                               degree: note.chord.degree)])
+            case .notes(let notes): voicing = Voicing(notes: notes)
             }
             let end = min(note.end, range.upperBound)
             return TimedChord(

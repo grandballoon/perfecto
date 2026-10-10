@@ -58,6 +58,24 @@ struct SequencerEditingTests {
         #expect(state.timeline.layers[0].notes[0].length == 4 * Self.step)
     }
 
+    /// Notes played from the net are in no key, so a chord chosen for one
+    /// is played in their place, in the key the note kept.
+    @Test func aChordChosenForNotesFromTheNetTakesTheirPlace() {
+        let state = makeState()
+        var played = TimelineNote(start: 0, length: Self.step, chord: ChordSpec(degree: .I, color: .base),
+                                  pitch: .notes([59, 64, 67]))
+        played.playing.key = Key(root: .E, scale: .naturalMinor)
+        state.startLoop([played], bars: 1)
+        state.selectedSteps = [0]
+        state.primaryStep = 0
+
+        state.editSelectedChords { ChordSpec(degree: .IV, color: $0.color) }
+
+        #expect(state.primaryNote?.pitch == .chord)
+        #expect(state.primaryNote?.chord.degree == .IV)
+        #expect(state.primaryNote?.playing.key == Key(root: .E, scale: .naturalMinor))
+    }
+
     @Test func aColorEditKeepsTheDegree() {
         let state = makeState()
         enter(.vi, on: [3], in: state)

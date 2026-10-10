@@ -1,21 +1,28 @@
-/// One band of a chord key's height, and the effect a finger in it plays.
+/// One band of a chord key's height, and what a finger in it plays: an
+/// effect, and the key and octave its chord is in.
 struct KeyZone: Equatable, Sendable {
     /// The effect a finger here switches on; nil leaves every effect as set.
     var effect: EffectKind?
     /// Where the effect's played control is held while a finger is here, as
     /// a place on the slide (0...1): the value a slide to that place would play.
     var value: Float = 0.5
+    /// The key a chord played from here is in; nil is the key chosen.
+    var key: Key?
+    /// The octave a chord played from here is in; nil is the octave chosen.
+    var octave: Int?
 }
 
 /// Key zones: every chord key divided into bands, each with an equal share
 /// of the slide, so where on a key a finger is chooses what it plays. A
 /// finger in a zone switches the zone's effect on, with its played control
 /// (`SlidePlayed`) held at the zone's value, whatever the effect is set to;
-/// out of the zone, or lifted, the effect is as set again.
+/// out of the zone, or lifted, the effect is as set again. A zone can also
+/// have a key and an octave of its own, which a chord played from it is in
+/// (`PerformanceState.playedKey`), so one key plays a chord of each.
 ///
 /// Zones are independent of one another: they can name different effects,
 /// or the same effect at different values (an arpeggio at three speeds),
-/// and a zone with no effect is plain.
+/// and keys far apart; a zone with none of them is plain.
 struct KeyZoneSettings: Equatable, Sendable {
     /// How many zones a key can have.
     static let counts = 2...4

@@ -3,6 +3,9 @@
 @MainActor
 protocol TimelineVoice: AnyObject {
     func play(_ chord: TimedChord)
+    /// The chord being sounded is to sound as `chord` says from now on:
+    /// the same chord, its effects changed under it. It is not struck again.
+    func change(to chord: TimedChord)
     func stop()
 }
 
@@ -17,8 +20,9 @@ protocol TimelineVoice: AnyObject {
 /// call with it.
 ///
 /// The timeline can be changed while it plays. A chord that is sounding
-/// carries on if its note is still there unchanged, and stops if not; new
-/// and changed notes are heard from their next start.
+/// carries on if its note is still there as the same chord, taking up any
+/// change to its effects at once, and stops if not; new and changed notes
+/// are heard from their next start.
 @MainActor
 final class TimelinePlayer {
 
@@ -31,8 +35,8 @@ final class TimelinePlayer {
         }
     }
 
-    /// What notes follow where they have no settings of their own. Changing
-    /// it is heard from each layer's next chord.
+    /// What notes follow where they have no settings of their own. A change
+    /// of effects is heard at once, and the rest from each layer's next chord.
     var live: LiveSettings {
         didSet {
             guard live != oldValue, isPlaying else { return }
@@ -128,6 +132,7 @@ final class TimelinePlayer {
             if let same = layers[id]?.chords.first(where: { $0.start == sounding.start && $0.event == sounding.event }),
                same.end > here {
                 layers[id]?.sounding = same
+                if same.effects != sounding.effects { layers[id]?.voice.change(to: same) }
             } else {
                 silence(id)
             }

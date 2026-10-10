@@ -31,6 +31,19 @@ struct LayerVoiceTests {
         #expect(!sink.sounds[1].filter.isOn)
     }
 
+    /// Effects edited under a chord glide its notes to them, and what was
+    /// left of its recorded slide does not undo the edit.
+    @Test func aChangeReachesTheNotesHeldAndEndsTheSlide() {
+        let sink = RecordingNoteSink()
+        let player = NotePlayer([sink], clock: clock)
+        let voice = LayerVoice(sink: player, sound: player, clock: clock)
+        voice.play(chord([60], effects: bright(0.2), changes: [SoundChange(offset: 480, effects: bright(0.9))]))
+        voice.change(to: chord([60], effects: bright(0.6)))
+        clock.advance(beats: 2)
+        #expect(sink.started == [60])
+        #expect(sink.changes.map(\.filter.brightness) == [0.6])
+    }
+
     /// The effects change at the moments the slide was played, counted in
     /// beats from the chord's start, so they keep their place at any tempo.
     @Test func aRecordedSlideIsPlayedBackInTime() {

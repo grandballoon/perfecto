@@ -45,6 +45,15 @@ final class LayerVoice: TimelineVoice {
         onChord(chord)
     }
 
+    /// The effects were edited under the chord sounding: its notes glide to
+    /// them. What was left of a slide recorded in it is not played this
+    /// time round, since it would undo the edit.
+    func change(to chord: TimedChord) {
+        endSlide()
+        sound?.sound = NoteSound(preset: chord.preset, effects: chord.effects)
+        arpeggiator.settings = chord.effects.arpeggiator
+    }
+
     func stop() {
         endSlide()
         arpeggiator.stopChord()

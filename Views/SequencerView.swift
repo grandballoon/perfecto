@@ -4,6 +4,16 @@ struct SequencerView: View {
     @Environment(PerformanceState.self)  private var perfState
     @Environment(SequencerState.self)   private var seqState
 
+    /// Whether the play screen is on screen beside this one (`DeskLayout`):
+    /// the sequencer is then laid out for the desk, and the mode toggle
+    /// and the MIDI button are there, and not here.
+    var besidePlay = false
+
+    /// How much larger than on a phone the controls are drawn: at a desk
+    /// they are read from further away. The steps and the step's chord keys
+    /// have sizes of their own.
+    private var scale: CGFloat { besidePlay ? 1.5 : 1 }
+
     /// Guards the undo snapshot so one color-bar drag produces one undo step.
     @State private var stepColorEditActive = false
     /// Same guard for a drag on the degree keys: one gesture → one undo step.
@@ -21,7 +31,9 @@ struct SequencerView: View {
 
     var body: some View {
         GeometryReader { geo in
-            if geo.size.width > geo.size.height {
+            if besidePlay {
+                deskBody
+            } else if geo.size.width > geo.size.height {
                 landscapeBody(width: geo.size.width)
             } else {
                 portraitBody
@@ -82,7 +94,7 @@ struct SequencerView: View {
                     SequencerStepGrid(fillsHeight: true)
                 }
                 HStack(spacing: 10) {
-                    playSeqToggle
+                    PhoneScreenToggle()
                     midiButton
                     playCornerButton
                 }
@@ -91,6 +103,84 @@ struct SequencerView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(16)
+    }
+
+    // MARK: – Desk (grid above, controls and the step's chord below)
+
+    /// The height of the desk's lower part: the controls, and the keys and
+    /// the coloration that set the selected steps' chords.
+    private static let deskControlsHeight: CGFloat = 480
+    private static let deskCellHeight: CGFloat = 90
+
+    /// Beside the play screen: the steps, twice as tall as a phone shows
+    /// them, grown upwards from the lower part, which has every control on
+    /// one side and the step's chord keys over its coloration on the other.
+    private var deskBody: some View {
+        let primary = seqState.primaryNote
+        return VStack(spacing: 16) {
+            switch seqState.layout {
+            case .paged:
+                Spacer(minLength: 0)
+                SequencerStepGrid(cellHeight: Self.deskCellHeight)
+            case .scroll:
+                SequencerStepGrid(fillsHeight: true, cellHeight: Self.deskCellHeight)
+            }
+            HStack(alignment: .top, spacing: 16) {
+                // The rows share the height down to the bottom row, so the
+                // controls end against it.
+                VStack(alignment: .leading, spacing: 10) {
+                    Group {
+                        layerTabs
+                        barControls
+                        HStack(alignment: .center, spacing: 12) {
+                            restButton
+                            gateControl(primary)
+                            undoButton
+                        }
+                        noteControls
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    // The tempo and the pattern's actions beside the play
+                    // button, in one row where there is the width for it.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 12) {
+                            bpmControl
+                            deskActions
+                            Spacer(minLength: 0)
+                            playCornerButton
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            deskActions
+                            HStack(spacing: 12) {
+                                bpmControl
+                                Spacer(minLength: 0)
+                                playCornerButton
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+                VStack(spacing: 10) {
+                    degreeSelector(primary, arrangement: perfState.chordGridLayout.arrangement(isLandscape: true))
+                    stepColorSurface(primary)
+                        .frame(height: perfState.colorSurface == .grid ? 168 : 72)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.07)))
+            }
+            .frame(height: Self.deskControlsHeight)
+        }
+        .padding(16)
+    }
+
+    private var deskActions: some View {
+        HStack(spacing: 12) {
+            exportButton
+            clearButton
+            deselectButton
+        }
     }
 
     // MARK: – Transport (portrait)
@@ -113,21 +203,21 @@ struct SequencerView: View {
         HStack(spacing: 0) {
             Button { perfState.setBPM(perfState.bpm - 5) } label: {
                 Image(systemName: "minus")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 14 * scale, weight: .semibold))
                     .foregroundStyle(perfState.bpm > MusicalTime.tempoRange.lowerBound ? Color(white: 0.7) : Color(white: 0.3))
-                    .frame(width: 35, height: 43)
+                    .frame(width: 35 * scale, height: 43 * scale)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             Text("\(Int(perfState.bpm))")
-                .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                .font(.system(size: 15 * scale, weight: .semibold, design: .monospaced))
                 .foregroundStyle(.white)
-                .frame(minWidth: 55)
+                .frame(minWidth: 55 * scale)
             Button { perfState.setBPM(perfState.bpm + 5) } label: {
                 Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 14 * scale, weight: .semibold))
                     .foregroundStyle(perfState.bpm < MusicalTime.tempoRange.upperBound ? Color(white: 0.7) : Color(white: 0.3))
-                    .frame(width: 35, height: 43)
+                    .frame(width: 35 * scale, height: 43 * scale)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -174,9 +264,9 @@ struct SequencerView: View {
             }
         } label: {
             Image(systemName: "square.and.arrow.up")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 13 * scale, weight: .semibold))
                 .foregroundStyle(isEmpty ? Color(white: 0.3) : Color(white: 0.6))
-                .frame(width: 34, height: 29)
+                .frame(width: 34 * scale, height: 29 * scale)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color(white: 0.12)))
         }
         .buttonStyle(.plain)
@@ -187,10 +277,10 @@ struct SequencerView: View {
     private var clearButton: some View {
         Button { clearGrid() } label: {
             Label("Reset", systemImage: "arrow.counterclockwise")
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .font(.system(size: 12 * scale, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color(white: 0.6))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
+                .padding(.horizontal, 12 * scale)
+                .padding(.vertical, 7 * scale)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color(white: 0.12)))
         }
         .buttonStyle(.plain)
@@ -199,11 +289,11 @@ struct SequencerView: View {
     private var deselectButton: some View {
         Button { seqState.deselectAll() } label: {
             Text("Clear")
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .font(.system(size: 12 * scale, weight: .semibold, design: .monospaced))
                 .foregroundStyle(seqState.selectedSteps.isEmpty ? Color(white: 0.3)
                                                                 : Color(white: 0.6))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
+                .padding(.horizontal, 10 * scale)
+                .padding(.vertical, 7 * scale)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color(white: 0.12)))
         }
         .buttonStyle(.plain)
@@ -212,41 +302,9 @@ struct SequencerView: View {
 
     // MARK: – Mode / Key / MIDI (landscape bottom row)
     //
-    // The landscape sequencer owns the whole screen, so it carries its own
-    // compact copies of PerformanceView's PLAY/SEQ, KEY, FX, and MIDI controls.
-    // They keep the standard button height and just narrow horizontally.
-
-    private var playSeqToggle: some View {
-        HStack(spacing: 0) {
-            modeSegButton("PLAY", active: perfState.mode.kind == .play) {
-                perfState.selectMode(.play)
-            }
-            modeSegButton("SEQ", active: perfState.mode.kind == .sequencer) {
-                perfState.selectMode(.sequencer)
-            }
-        }
-        .padding(3)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 9)
-                .fill(Color(white: 0.10))
-                .overlay(RoundedRectangle(cornerRadius: 9)
-                    .stroke(Color(white: 0.22), lineWidth: 1))
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 9))
-    }
-
-    private func modeSegButton(_ label: String, active: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundStyle(active ? Color.black : Color(white: 0.85))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(RoundedRectangle(cornerRadius: 6).fill(active ? Color.orange : Color.clear))
-        }
-        .buttonStyle(.plain)
-    }
+    // The landscape sequencer owns the whole screen, so it carries the
+    // screen's toggle (`PhoneScreenToggle`) and a compact copy of
+    // PerformanceView's MIDI button.
 
     private var midiButton: some View {
         Button { perfState.isExternalSynth.toggle() } label: {
@@ -280,14 +338,14 @@ struct SequencerView: View {
                 removeBarButton
             case .scroll:
                 Text("\(seqState.barCount)")
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .font(.system(size: 11 * scale, weight: .semibold, design: .monospaced))
                     .foregroundStyle(Color(white: 0.6))
                 Spacer(minLength: 0)
             }
             addBarButton
             barsMenu
 
-            Rectangle().fill(Color(white: 0.2)).frame(width: 1, height: 18)
+            Rectangle().fill(Color(white: 0.2)).frame(width: 1, height: 18 * scale)
 
             fieldLabel("LOOP")
             loopToggle
@@ -296,7 +354,7 @@ struct SequencerView: View {
 
     private func fieldLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 9, weight: .medium, design: .monospaced))
+            .font(.system(size: 9 * scale, weight: .medium, design: .monospaced))
             .foregroundStyle(Color(white: 0.35))
             .kerning(1)
     }
@@ -321,10 +379,10 @@ struct SequencerView: View {
         let on = seqState.focusedBar == p
         return Button { seqState.focusedBar = p } label: {
             Text("\(p + 1)")
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(.system(size: 11 * scale, weight: .semibold, design: .monospaced))
                 .foregroundStyle(on ? .black : Color(white: 0.6))
-                .frame(minWidth: 22)
-                .padding(.vertical, 6)
+                .frame(minWidth: 22 * scale)
+                .padding(.vertical, 6 * scale)
                 .background(RoundedRectangle(cornerRadius: 6)
                     .fill(on ? Color.orange : Color(white: 0.13)))
         }
@@ -348,9 +406,9 @@ struct SequencerView: View {
                                 action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 11 * scale, weight: .semibold))
                 .foregroundStyle(Color(white: 0.6))
-                .frame(width: 26, height: 29)
+                .frame(width: 26 * scale, height: 29 * scale)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.13)))
         }
         .buttonStyle(.plain)
@@ -378,10 +436,10 @@ struct SequencerView: View {
                 .disabled(!seqState.canTrimBars)
         } label: {
             Text(seqState.timeline.signature.label)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(.system(size: 11 * scale, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color(white: 0.6))
-                .padding(.horizontal, 8)
-                .frame(height: 29)
+                .padding(.horizontal, 8 * scale)
+                .frame(height: 29 * scale)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.13)))
         }
         .accessibilityLabel("Time signature and bars")
@@ -422,11 +480,11 @@ struct SequencerView: View {
         let on = seqState.layerID == layer.id
         return Button { seqState.showLayer(layer.id) } label: {
             Text("\(index + 1)")
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(.system(size: 11 * scale, weight: .semibold, design: .monospaced))
                 .strikethrough(layer.isMuted)
                 .foregroundStyle(on ? .black : Color(white: layer.isMuted ? 0.35 : 0.6))
-                .frame(minWidth: 26)
-                .padding(.vertical, 6)
+                .frame(minWidth: 26 * scale)
+                .padding(.vertical, 6 * scale)
                 .background(RoundedRectangle(cornerRadius: 6)
                     .fill(on ? Color.orange : Color(white: 0.13)))
         }
@@ -444,9 +502,9 @@ struct SequencerView: View {
             Button("Delete", role: .destructive) { seqState.removeLayer(seqState.layerID) }
         } label: {
             Image(systemName: "ellipsis")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 11 * scale, weight: .semibold))
                 .foregroundStyle(Color(white: 0.6))
-                .frame(width: 30, height: 29)
+                .frame(width: 30 * scale, height: 29 * scale)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.13)))
         }
         .accessibilityLabel("Layer actions")
@@ -470,10 +528,10 @@ struct SequencerView: View {
                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .font(.system(size: 10 * scale, weight: .semibold, design: .monospaced))
                 .foregroundStyle(active ? .black : Color(white: 0.6))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
+                .padding(.horizontal, 8 * scale)
+                .padding(.vertical, 5 * scale)
                 .background(RoundedRectangle(cornerRadius: 5)
                     .fill(active ? Color.orange : Color.clear))
                 .contentShape(Rectangle())
@@ -532,15 +590,8 @@ struct SequencerView: View {
             // past the panel's 12pt inset on the sides and bottom so it spans
             // the full width and drops to the same 40pt-from-bottom position
             // as Play mode's, keeping the surface visually identical across modes.
-            Group {
-                switch perfState.colorSurface {
-                case .joystick:
-                    stepColorBar
-                case .grid:
-                    stepColorGrid(degree: primary?.chord.degree ?? .I)
-                }
-            }
-            .frame(height: surfaceHeight)
+            stepColorSurface(primary)
+                .frame(height: surfaceHeight)
             .padding(.horizontal, boxed ? 0 : -12)
             .padding(.bottom, boxed ? 0 : -12)
         }
@@ -603,6 +654,15 @@ struct SequencerView: View {
     private func heldColor(for degree: Degree) -> ChordColor? {
         if stepColorTransient != .center { return .joystick(perfState.joystickMode, stepColorTransient) }
         return stepGridTransient.map { ChordGrid.color(at: $0, key: perfState.key, degree: degree) }
+    }
+
+    /// Whichever surface colors the chords, here coloring the selected steps'.
+    @ViewBuilder
+    private func stepColorSurface(_ primary: TimelineNote?) -> some View {
+        switch perfState.colorSurface {
+        case .joystick: stepColorBar
+        case .grid:     stepColorGrid(degree: primary?.chord.degree ?? .I)
+        }
     }
 
     private var stepColorBar: some View {
@@ -674,7 +734,7 @@ struct SequencerView: View {
         let gate = primary?.gate ?? TimelineNote.enteredGate
         return VStack(alignment: .leading, spacing: 2) {
             Text(lengthLabel(primary))
-                .font(.system(size: 10, design: .monospaced))
+                .font(.system(size: 10 * scale, design: .monospaced))
                 .foregroundStyle(Color(white: 0.4))
             HStack(spacing: 6) {
                 Slider(value: Binding(
@@ -750,11 +810,11 @@ struct SequencerView: View {
             }
         } label: {
             Text("◆ OWN")
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(.system(size: 11 * scale, weight: .semibold, design: .monospaced))
                 .foregroundStyle(!hasSelectedNotes ? Color(white: 0.3)
                                  : hasOwn ? Color.orange : Color(white: 0.7))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 10 * scale)
+                .padding(.vertical, 6 * scale)
                 .background(RoundedRectangle(cornerRadius: 7).fill(Color(white: 0.12)))
         }
         .disabled(!hasSelectedNotes)
@@ -768,10 +828,10 @@ struct SequencerView: View {
     private var stepEntryToggle: some View {
         Button { isEnteringSteps.toggle() } label: {
             Label("ENTRY", systemImage: "arrow.right.to.line")
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(.system(size: 11 * scale, weight: .semibold, design: .monospaced))
                 .foregroundStyle(isEnteringSteps ? Color.black : Color(white: 0.7))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 10 * scale)
+                .padding(.vertical, 6 * scale)
                 .background(RoundedRectangle(cornerRadius: 7)
                     .fill(isEnteringSteps ? Color.orange : Color(white: 0.12)))
         }
@@ -783,10 +843,10 @@ struct SequencerView: View {
     private func editButton(_ label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(.system(size: 11 * scale, weight: .semibold, design: .monospaced))
                 .foregroundStyle(enabled ? Color(white: 0.7) : Color(white: 0.3))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 10 * scale)
+                .padding(.vertical, 6 * scale)
                 .background(RoundedRectangle(cornerRadius: 7).fill(Color(white: 0.12)))
         }
         .buttonStyle(.plain)
@@ -796,10 +856,10 @@ struct SequencerView: View {
     private var undoButton: some View {
         Button { seqState.undo() } label: {
             Label("Undo", systemImage: "arrow.uturn.backward")
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .font(.system(size: 10 * scale, weight: .medium, design: .monospaced))
                 .foregroundStyle(seqState.canUndo ? Color(white: 0.6) : Color(white: 0.25))
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
+                .padding(.horizontal, 9 * scale)
+                .padding(.vertical, 5 * scale)
                 .background(
                     RoundedRectangle(cornerRadius: 7)
                         .fill(Color(white: 0.12))

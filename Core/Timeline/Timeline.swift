@@ -103,6 +103,9 @@ enum NotePitch: Equatable, Codable, Sendable {
     case chord
     /// The scale degree alone, as Lead mode plays it.
     case lead
+    /// These MIDI notes, whatever the chord, key and octave: what was
+    /// played from the net of notes, where no chord says them (the Tonnetz).
+    case notes([Int])
 }
 
 /// The settings a note is played with. Each is either the note's own or,

@@ -47,6 +47,10 @@ extension SpecScreen {
             $0.chordGridLayout = .horizontalBar
             showSolo(in: $0, .colors)
         },
+        SpecScreen(name: "play-piano") {
+            $0.piano.isOn = true
+            showSolo(in: $0, .besideKeys)
+        },
         SpecScreen(name: "play-loops") { state in
             let sequencer = state.sequencerState
             sequencer.addLayers([progression, progression, progression])
@@ -61,6 +65,22 @@ extension SpecScreen {
         SpecScreen(name: "sequencer-keys-bar") {
             $0.chordGridLayout = .horizontalBar
             showSequence(in: $0, layout: .paged)
+        },
+        SpecScreen(name: "tonnetz-net") { $0.show(.tonnetz) },
+        SpecScreen(name: "tonnetz-triad") {
+            $0.show(.tonnetz)
+            $0.tonnetz.view = .triad
+        },
+        // A triad held, with a note outside it and one of its own held over it.
+        SpecScreen(name: "tonnetz-net-held") {
+            $0.show(.tonnetz)
+            $0.tonnetz.holds = true
+            $0.tonnetz.pointerDown(on: .cell(.home))
+            $0.tonnetz.pointerUp()
+            for note in [PitchClass.B, .E] {
+                $0.tonnetz.pointerDown(on: .note(note))
+                $0.tonnetz.pointerUp()
+            }
         },
     ] + SidePanelPage.allCases.map { SpecScreen(name: "menu-\($0.rawValue)", menu: $0) }
 

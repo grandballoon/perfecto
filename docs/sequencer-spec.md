@@ -69,7 +69,7 @@ struct TimelineNote {
     var start: Int                // ticks from the start of the timeline
     var length: Int               // ticks, at least 1
     var chord: ChordSpec          // which chord: degree and color
-    var pitch: NotePitch          // the whole chord, or one note of it (Lead mode)
+    var pitch: NotePitch          // the whole chord, one note of it (Lead mode), or notes given outright (the Tonnetz)
     var articulation: Articulation
     var playing: NotePlaying      // key, octave, sound, effects: each either its own or the live one
     var changes: [SoundChange]    // a slide played while it was held

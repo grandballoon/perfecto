@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The menu's Setup page: how the chord keys, the play surface beside them,
-/// the solo strip and the sequencer's bars are laid out.
+/// the solo strip and the sequencer's bars are laid out, and whether the
+/// piano is shown under them.
 struct SetupPanel: View {
     @Environment(PerformanceState.self) private var state
 
@@ -57,6 +58,8 @@ struct SetupPanel: View {
                 }
             }
 
+            pianoSection
+
             // Where there is a keyboard to play: the Mac.
             if ProcessInfo.processInfo.isMacCatalystApp { KeyboardMapEditor() }
         }
@@ -99,6 +102,45 @@ struct SetupPanel: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: – Piano
+
+    private var pianoSection: some View {
+        @Bindable var piano = state.piano
+        return VStack(alignment: .leading, spacing: 10) {
+            SidePanelSectionLabel("PIANO")
+            VStack(alignment: .leading, spacing: 14) {
+                Toggle(isOn: $piano.isOn) {
+                    Text("Show the piano")
+                        .font(.system(size: 15, design: .monospaced))
+                        .foregroundStyle(.white)
+                }
+                .tint(.orange)
+                if piano.isOn {
+                    ForEach(PianoSource.allCases, id: \.self) { source in
+                        Toggle(isOn: Binding(get: { piano.lit.contains(source) },
+                                             set: { piano.light(source, $0) })) {
+                            HStack(spacing: 8) {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(source.color)
+                                    .frame(width: 12, height: 12)
+                                Text(source.displayName)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundStyle(Color(white: 0.6))
+                            }
+                        }
+                        .tint(.orange)
+                    }
+                }
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
+            Text("A piano's 88 keys along the bottom of the screen, lit with the notes being sounded: each part of the app in its own color, and a key several are sounding in all of theirs. It is only looked at.")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Color(white: 0.3))
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // MARK: – Choices

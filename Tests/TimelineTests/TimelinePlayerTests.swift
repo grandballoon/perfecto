@@ -217,6 +217,24 @@ struct TimelinePlayerTests {
         #expect(rig.voices[0].played.map(\.event.voicing.notes) == [[60, 64, 67], [62, 66, 69]])
     }
 
+    /// Effects edited under a chord that is sounding reach it at once, and
+    /// it is not struck again.
+    @Test func editedEffectsReachTheChordSounding() {
+        let rig = Rig(timeline([note(.I, step: 0, steps: 8)]), live: live, clock: clock)
+        rig.player.start()
+        advance(steps: 2)
+        let id = rig.player.timeline.layers[0].id
+        rig.player.timeline.edit(layer: id) { $0.editEffects(following: NoteEffects()) { $0.reverb.isOn = true } }
+
+        #expect(rig.voices[0].played.count == 1)
+        #expect(rig.voices[0].stopCount == 0)
+        guard case let .change(chord) = rig.voices[0].calls.last else {
+            Issue.record("the chord sounding was not changed")
+            return
+        }
+        #expect(chord.effects.reverb.isOn)
+    }
+
     @Test func removingALayerStopsItAndLeavesTheOthersPlaying() {
         let rig = Rig(timeline([note(.I, step: 0, steps: 16)], [note(.V, step: 0, steps: 16)]),
                       live: live, clock: clock)

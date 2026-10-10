@@ -169,6 +169,24 @@ extension Layer {
         }
     }
 
+    /// The effects the layer's notes are played with of their own: its first
+    /// note's, since the layer is edited as one. Nil for a layer whose
+    /// notes follow the effects set for the keys (or that has none).
+    var effects: NoteEffects? { notes.first?.playing.effects }
+
+    /// Changes the effects of every note of the layer, and of every point
+    /// of a slide recorded in one, so what `change` leaves alone stays as
+    /// it was played. A note that followed the effects set for the keys
+    /// (`live`) starts from them and is its own from here on.
+    mutating func editEffects(following live: NoteEffects, _ change: (inout NoteEffects) -> Void) {
+        for index in notes.indices {
+            var effects = notes[index].playing.effects ?? live
+            change(&effects)
+            notes[index].playing.effects = effects
+            for point in notes[index].changes.indices { change(&notes[index].changes[point].effects) }
+        }
+    }
+
     /// The runs of neighbouring steps in `steps`, each as a range of steps.
     static func runs(of steps: Set<Int>) -> [Range<Int>] {
         var runs: [Range<Int>] = []

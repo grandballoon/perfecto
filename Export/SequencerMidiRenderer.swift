@@ -12,7 +12,8 @@ struct SequencerPattern: Sendable {
 /// Renders a sequence to a Standard MIDI File. It reads the same compiled
 /// chords playback does (`Timeline.compile`), so the file holds exactly what
 /// is heard: the stretch that repeats, once through, each chord from its
-/// start to its end.
+/// start to its end. A note a tied chord holds over from the chord before
+/// is one note in the file, as it is one note heard.
 ///
 /// Every layer that is not muted is a track. Chord names are written as
 /// markers at each change of chord in the first of them. No program change
@@ -39,12 +40,15 @@ enum SequencerMidiRenderer {
         for (index, layer) in layers.enumerated() {
             var events = index == 0 ? header : [MidiEvent(tick: 0, .trackName("Perfecto \(index + 1)"))]
             var lastMarker: String?
-            for chord in timeline.compile(layer: layer.id, live: pattern.live) {
+            let chords = timeline.compile(layer: layer.id, live: pattern.live)
+            for (note, ticks) in notes(of: chords) {
+                events.append(MidiEvent(tick: ticks.lowerBound - range.lowerBound,
+                                        .noteOn(channel: channel, note: note, velocity: velocity)))
+                events.append(MidiEvent(tick: ticks.upperBound - range.lowerBound,
+                                        .noteOff(channel: channel, note: note)))
+            }
+            for chord in chords {
                 let start = chord.start - range.lowerBound
-                for note in chord.event.voicing.notes {
-                    events.append(MidiEvent(tick: start, .noteOn(channel: channel, note: note, velocity: velocity)))
-                    events.append(MidiEvent(tick: chord.end - range.lowerBound, .noteOff(channel: channel, note: note)))
-                }
                 let label = chordLabel(key: chord.event.context.key, spec: chord.event.context.spec)
                 if index == 0, label != lastMarker {
                     events.append(MidiEvent(tick: start, .marker(label)))
@@ -55,5 +59,32 @@ enum SequencerMidiRenderer {
         }
         if tracks.isEmpty { tracks = [MidiTrack(events: header, length: range.count)] }
         return MidiFile(ticksPerQuarter: ticksPerQuarter, tracks: tracks)
+    }
+
+    /// Every note `chords` sound, one line's in order, each from the tick
+    /// it starts to the tick it ends. A tied chord that starts where the
+    /// one before ends holds over the notes the two share, as `NotePlayer`
+    /// does.
+    static func notes(of chords: [TimedChord]) -> [(note: Int, ticks: Range<Int>)] {
+        var notes: [(note: Int, ticks: Range<Int>)] = []
+        /// Where in `notes` the chord before's are, by pitch.
+        var before: [Int: Int] = [:]
+        var beforeEnd: Int?
+        for chord in chords {
+            let holdsOver = chord.event.articulation == .tied && beforeEnd == chord.start
+            var sounded: [Int: Int] = [:]
+            for note in chord.event.voicing.notes {
+                if holdsOver, let held = before[note] {
+                    notes[held].ticks = notes[held].ticks.lowerBound ..< chord.end
+                    sounded[note] = held
+                } else {
+                    sounded[note] = notes.count
+                    notes.append((note, chord.start ..< chord.end))
+                }
+            }
+            before = sounded
+            beforeEnd = chord.end
+        }
+        return notes
     }
 }

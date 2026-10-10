@@ -74,6 +74,18 @@ enum LogEvent {
     case solo_switched(isOn: Bool)
     case solo_note_played(note: Int)
 
+    // Piano
+    case piano_switched(isOn: Bool)
+
+    // Tonnetz
+    /// `triad` as it is named on the net: "C", "Am".
+    case tonnetz_triad_played(triad: String, notes: [Int])
+    /// `move`: "P", "L" or "R".
+    case tonnetz_moved(move: String, to: String)
+    /// A note played by itself.
+    case tonnetz_note_played(note: Int)
+    case tonnetz_hold_switched(isOn: Bool)
+
     // Computer keyboard
     /// `key` nil: the action was left with no key.
     case keyboard_key_chosen(action: String, key: String?)
@@ -90,6 +102,8 @@ enum LogEvent {
     case loop_recorded(track: Int, seconds: Double, setsLength: Bool)
     case loop_take_discarded(track: Int, reason: String)
     case loop_cleared(track: Int)
+    /// A loop's own effects were changed in the Effects panel.
+    case loop_effects_edited(track: Int)
 
     // Export
     case sequencer_midi_exported(stepCount: Int, noteCount: Int, byteCount: Int)
@@ -232,6 +246,23 @@ extension LogEvent: Encodable {
         case let .solo_note_played(note):
             try c.encode("solo_note_played", forKey: Key("type"))
             try c.encode(note, forKey: Key("note"))
+        case let .piano_switched(isOn):
+            try c.encode("piano_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .tonnetz_triad_played(triad, notes):
+            try c.encode("tonnetz_triad_played", forKey: Key("type"))
+            try c.encode(triad, forKey: Key("triad"))
+            try c.encode(notes, forKey: Key("notes"))
+        case let .tonnetz_moved(move, to):
+            try c.encode("tonnetz_moved", forKey: Key("type"))
+            try c.encode(move, forKey: Key("move"))
+            try c.encode(to,   forKey: Key("to"))
+        case let .tonnetz_note_played(note):
+            try c.encode("tonnetz_note_played", forKey: Key("type"))
+            try c.encode(note, forKey: Key("note"))
+        case let .tonnetz_hold_switched(isOn):
+            try c.encode("tonnetz_hold_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
         case let .keyboard_key_chosen(action, key):
             try c.encode("keyboard_key_chosen", forKey: Key("type"))
             try c.encode(action, forKey: Key("action"))
@@ -252,6 +283,9 @@ extension LogEvent: Encodable {
             try c.encode(reason, forKey: Key("reason"))
         case let .loop_cleared(track):
             try c.encode("loop_cleared", forKey: Key("type"))
+            try c.encode(track, forKey: Key("track"))
+        case let .loop_effects_edited(track):
+            try c.encode("loop_effects_edited", forKey: Key("type"))
             try c.encode(track, forKey: Key("track"))
         case let .timeline_audio_exported(seconds, layerCount):
             try c.encode("timeline_audio_exported", forKey: Key("type"))

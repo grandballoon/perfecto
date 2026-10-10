@@ -9,6 +9,46 @@ enum KeyboardAction: Hashable, Codable, Sendable {
     case color(JoystickDirection)
     /// A cell of the solo strip, counted from its low end.
     case solo(cell: Int)
+    /// One of the screen's buttons, tapped.
+    case button(KeyboardButton)
+    /// A move on the Tonnetz, whose triad sounds while the key is held.
+    case tonnetz(TonnetzMove)
+}
+
+/// The buttons of the screen that a key can tap.
+enum KeyboardButton: String, CaseIterable, Hashable, Codable, Sendable {
+    /// Starts a loop's take, or closes the one being recorded.
+    case loop
+    /// Shows or hides the solo strip.
+    case solo
+    /// Silences the app's own sound, or brings it back.
+    case midi
+    /// Starts the loops and the sequence from the top, or stops them.
+    case playStop
+    /// Shows the sequencer.
+    case sequencer
+    /// Shows the Tonnetz.
+    case tonnetz
+    /// Shows the Tonnetz as the net of notes, while it is on screen.
+    case net
+    /// Shows the Tonnetz one triad at a time, while it is on screen.
+    case triad
+    /// Switches the Tonnetz's hold on or off, while it is on screen.
+    case hold
+
+    var displayName: String {
+        switch self {
+        case .loop:      return "Loop"
+        case .solo:      return "Solo"
+        case .midi:      return "MIDI"
+        case .playStop:  return "Play/stop"
+        case .sequencer: return "Sequencer"
+        case .tonnetz:   return "Tonnetz"
+        case .net:       return "Net"
+        case .triad:     return "Triad"
+        case .hold:      return "Hold"
+        }
+    }
 }
 
 /// A key of a computer keyboard: where it is (its HID usage, the same key
@@ -46,6 +86,9 @@ struct KeyboardMap: Equatable, Codable, Sendable {
     static let soloCells = 10
 
     private(set) var keys: [KeyboardAction: KeyboardKey]
+    /// The actions left with no key on purpose (`clear`), which is how they
+    /// are told from actions a saved map is too old to know of.
+    private(set) var cleared: Set<KeyboardAction> = []
 
     func key(for action: KeyboardAction) -> KeyboardKey? { keys[action] }
 
@@ -55,19 +98,38 @@ struct KeyboardMap: Equatable, Codable, Sendable {
 
     /// Makes `key` what plays `action`, in place of whatever either had.
     mutating func assign(_ key: KeyboardKey, to action: KeyboardAction) {
-        if let taken = self.action(for: key.code) { keys[taken] = nil }
+        if let taken = self.action(for: key.code) { clear(taken) }
         keys[action] = key
+        cleared.remove(action)
     }
 
     /// Leaves `action` with no key.
     mutating func clear(_ action: KeyboardAction) {
         keys[action] = nil
+        cleared.insert(action)
+    }
+}
+
+extension KeyboardMap {
+    /// A map saved before an action existed has no key for it. It is given
+    /// the key it starts with, unless that key now plays something else.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        keys = try container.decode([KeyboardAction: KeyboardKey].self, forKey: .keys)
+        cleared = try container.decodeIfPresent(Set<KeyboardAction>.self, forKey: .cleared) ?? []
+        for (action, key) in Self.standard.keys
+        where keys[action] == nil && !cleared.contains(action) && self.action(for: key.code) == nil {
+            keys[action] = key
+        }
     }
 }
 
 extension KeyboardMap {
     /// The chords along the home row from A to J, the joystick on the
-    /// arrows, and the solo strip along the number row.
+    /// arrows, the solo strip along the number row, the buttons on Return
+    /// (loop), Space (play and stop), O (solo), M (MIDI), Q (sequencer),
+    /// Z (Tonnetz), N (net), T (triad) and K (hold: it keeps), and the
+    /// Tonnetz's moves on their own letters, P, L and R.
     static let standard: KeyboardMap = {
         var keys: [KeyboardAction: KeyboardKey] = [:]
         let homeRow = [(4, "A"), (22, "S"), (7, "D"), (9, "F"), (10, "G"), (11, "H"), (13, "J")]
@@ -82,6 +144,18 @@ extension KeyboardMap {
             // The number row runs 1 to 9 and then 0.
             keys[.solo(cell: cell)] = KeyboardKey(code: 30 + cell, name: String((cell + 1) % 10))
         }
+        keys[.button(.loop)] = KeyboardKey(code: 40, characters: "")
+        keys[.button(.playStop)] = KeyboardKey(code: 44, characters: "")
+        keys[.button(.solo)] = KeyboardKey(code: 18, name: "O")
+        keys[.button(.midi)] = KeyboardKey(code: 16, name: "M")
+        keys[.button(.sequencer)] = KeyboardKey(code: 20, name: "Q")
+        keys[.button(.tonnetz)] = KeyboardKey(code: 29, name: "Z")
+        keys[.button(.net)] = KeyboardKey(code: 17, name: "N")
+        keys[.button(.triad)] = KeyboardKey(code: 23, name: "T")
+        keys[.button(.hold)] = KeyboardKey(code: 14, name: "K")
+        keys[.tonnetz(.parallel)] = KeyboardKey(code: 19, name: "P")
+        keys[.tonnetz(.leading)] = KeyboardKey(code: 15, name: "L")
+        keys[.tonnetz(.relative)] = KeyboardKey(code: 21, name: "R")
         return KeyboardMap(keys: keys)
     }()
 }

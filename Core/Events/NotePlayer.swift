@@ -47,8 +47,8 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
     private let sinks: [any NoteSink]
     private let clock: any ClockTickable
     /// The notes started and not yet ended, in the order they started,
-    /// each with where it sits between left and right.
-    private var sounding: [(id: NoteID, pan: Float)] = []
+    /// each with its pitch and where it sits between left and right.
+    private var sounding: [(id: NoteID, note: Int, pan: Float)] = []
 
     /// How far to either side a chord's lowest and highest notes sit: low
     /// to the left and high to the right, as at a keyboard, and little
@@ -74,9 +74,12 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
     private var now: TimeInterval { clock.time + lead }
 
     func playChord(_ event: ChordEvent) {
-        stopChord()
         let notes = event.voicing.notes
-        for (i, note) in notes.enumerated() {
+        // A tied chord's notes that are sounding already are held over.
+        let isTied = event.articulation == .tied
+        end { !(isTied && notes.contains($0)) }
+        let heldOver = Set(sounding.map(\.note))
+        for (i, note) in notes.enumerated() where !heldOver.contains(note) {
             // A note alone is in the middle.
             let pan = notes.count > 1 ? Self.spread * (2 * Float(i) / Float(notes.count - 1) - 1) : 0
             let onset = event.articulation.onset(ofNote: i)
@@ -89,17 +92,23 @@ final class NotePlayer: ChordEventSink, SoundControl, EffectsControl {
     }
 
     func stopChord() {
+        end { _ in true }
+    }
+
+    /// Ends the sounding notes whose pitch `isEnding` says to, and drops
+    /// the notes of a strum still to come.
+    private func end(_ isEnding: (Int) -> Bool) {
         for call in strum { call.cancel() }
         strum = []
-        for note in sounding {
+        for note in sounding where isEnding(note.note) {
             for sink in sinks { sink.noteOff(note.id, at: now) }
         }
-        sounding = []
+        sounding.removeAll { isEnding($0.note) }
     }
 
     private func start(_ note: Int, pan: Float) {
         let id = NoteID.next()
-        sounding.append((id, pan))
+        sounding.append((id, note, pan))
         for sink in sinks { sink.noteOn(id, note: note, sound: sound(at: pan), at: now) }
     }
 

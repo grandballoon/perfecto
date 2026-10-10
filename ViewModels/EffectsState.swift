@@ -106,6 +106,9 @@ final class EffectsState {
     /// bottom of the key; nil while the zones are off or no key is held.
     private(set) var zone: Int?
 
+    /// The key zone the finger playing the chord is in, as it is set.
+    var heldZone: KeyZone? { zone.map { zones.zones[$0] } }
+
     /// Where a finger on the effect slider holds each effect's played
     /// control, as a place on the slide (0...1); an effect with no finger
     /// on its lane has no entry. Change it with `sliderMoved`.
@@ -146,7 +149,16 @@ final class EffectsState {
     /// Every effect as set, whatever is being played: what a note of a
     /// timeline follows when it has no effects of its own.
     var asSet: NoteEffects {
-        NoteEffects(arpeggiator: arpeggiator, filter: filter, chorus: chorus, reverb: reverb, vocoder: vocoder)
+        get {
+            NoteEffects(arpeggiator: arpeggiator, filter: filter, chorus: chorus, reverb: reverb, vocoder: vocoder)
+        }
+        set {
+            arpeggiator = newValue.arpeggiator
+            filter = newValue.filter
+            chorus = newValue.chorus
+            reverb = newValue.reverb
+            vocoder = newValue.vocoder
+        }
     }
 
     /// Whether anything set here needs the mic: the vocoder switched on,
@@ -175,7 +187,7 @@ final class EffectsState {
     // MARK: – Passing the effects on, as played
 
     /// The effect the zone under the finger holds on, if it has one.
-    private var zoneEffect: EffectKind? { zone.flatMap { zones.zones[$0].effect } }
+    private var zoneEffect: EffectKind? { heldZone?.effect }
 
     /// `set` as it sounds now: played by the finger on its lane of the
     /// effect slider if there is one, held on by the zone under the finger

@@ -72,6 +72,26 @@ struct SequencerMidiRendererTests {
         events(file).compactMap { if case let .marker(text) = $0.kind { text } else { nil } }
     }
 
+    // MARK: – Notes played from the net
+
+    /// Notes that came and went one at a time are each one note in the
+    /// file, from where it was pressed to where it was let go.
+    @Test func aNoteATiedChordHoldsOverIsOneNoteInTheFile() {
+        let chord = ChordSpec(degree: .I, color: .base)
+        func tied(_ notes: [Int], _ start: Int, _ length: Int) -> TimelineNote {
+            TimelineNote(start: start, length: length, chord: chord, pitch: .notes(notes), articulation: .tied)
+        }
+        var timeline = Timeline()
+        timeline.layers = [Layer(notes: [
+            tied([60], 0, 480), tied([60, 67], 480, 480), tied([67], 960, 480),
+            // After a gap it is struck again.
+            tied([67], 1560, 120),
+        ])]
+        let file = SequencerMidiRenderer.render(SequencerPattern(timeline: timeline, live: live(cMajor), bpm: 120))
+        #expect(spans(file) == [Span(note: 60, start: 0, end: 960), Span(note: 67, start: 480, end: 1440),
+                                Span(note: 67, start: 1560, end: 1680)])
+    }
+
     // MARK: – Timing
 
     @Test func gateSetsHowLongEachChordSounds() {

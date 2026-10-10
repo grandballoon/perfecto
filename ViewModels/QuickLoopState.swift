@@ -14,10 +14,20 @@ protocol LoopHost: AnyObject {
     /// `NotePlayer`): what is played along to a layer is that much later
     /// on the clock than the place in the layer it was played to.
     var layerLead: Double { get }
-    /// Everything a chord played now is played with: what a loop keeps.
+    /// Everything a chord the keys play now is played with: what a loop keeps.
     var playedNow: NotePlaying { get }
     /// Ends the chord the keys are holding.
     func endChord()
+}
+
+/// A line of chords a loop is recorded from. Each is one chord at a time, as
+/// a layer is, so what each played in a take becomes layers of its own.
+enum LoopLine: CaseIterable {
+    case keys
+    /// The Tonnetz's triads.
+    case tonnetzTriads
+    /// The notes of the Tonnetz played by themselves.
+    case tonnetzNotes
 }
 
 /// One layer of the timeline, as the loop bar shows it.
@@ -27,8 +37,9 @@ struct QuickLoopEntry: Identifiable, Equatable {
     var isPlaying: Bool
 }
 
-/// Play mode's loop: one button records what the keys play as a new layer of
-/// the timeline, the same one the sequencer edits.
+/// Play mode's loop: one button records what is played as new layers of the
+/// timeline, the same one the sequencer edits. What the keys play is one
+/// layer, and so is each line of the Tonnetz that was played (`LoopLine`).
 ///
 /// The first loop, recorded onto an empty timeline, sets its length and the
 /// tempo (`Timeline.fit`): it is taken to be whole bars, and loops from the
@@ -55,7 +66,9 @@ final class QuickLoopState {
     weak var host: (any LoopHost)?
     private let logger: (any Logger)?
 
-    private var take: LoopTake?
+    /// The take being recorded: when it began on the clock, in beats, and
+    /// what each line has played in it.
+    private var take: (start: Double, lines: [LoopLine: LoopTake])?
     /// Where in the timeline the take began, in ticks.
     private var takeOffset = 0
 
@@ -117,22 +130,24 @@ final class QuickLoopState {
         sequencer.removeAllLayers()
     }
 
-    // MARK: – What the keys play, while a take is being recorded
+    // MARK: – What is played, while a take is being recorded
 
-    func chordStarted(_ event: ChordEvent, pitch: NotePitch) {
-        guard let host else { return }
-        take?.chordStarted(event, pitch: pitch, playing: host.playedNow, at: host.clockBeats)
+    /// `line` started a chord, played with `playing`.
+    func chordStarted(_ event: ChordEvent, pitch: NotePitch, playing: NotePlaying, on line: LoopLine = .keys) {
+        guard let host, let start = take?.start else { return }
+        take?.lines[line, default: LoopTake(start: start)]
+            .chordStarted(event, pitch: pitch, playing: playing, at: host.clockBeats)
     }
 
-    func chordEnded() {
+    func chordEnded(on line: LoopLine = .keys) {
         guard let host else { return }
-        take?.chordEnded(at: host.clockBeats)
+        take?.lines[line]?.chordEnded(at: host.clockBeats)
     }
 
-    /// The effects being played changed (a slide, a zone, a setting).
+    /// The effects the keys are played with changed (a slide, a zone, a setting).
     func effectsChanged() {
         guard let host, let effects = host.playedNow.effects else { return }
-        take?.effectsChanged(to: effects, at: host.clockBeats)
+        take?.lines[.keys]?.effectsChanged(to: effects, at: host.clockBeats)
     }
 
     // MARK: – Private
@@ -146,7 +161,7 @@ final class QuickLoopState {
         let length = sequencer.timeline.length
         let lead = Int((host.layerLead * host.bpm / 60 * Double(TimelineTime.ticksPerBeat)).rounded())
         takeOffset = sequencer.timeline.isEmpty ? 0 : (((sequencer.position ?? 0) - lead) % length + length) % length
-        take = LoopTake(start: host.clockBeats)
+        take = (host.clockBeats, [:])
         phase = .recording
         logger?.log(.loop_record_started(track: loops.count))
     }
@@ -165,7 +180,9 @@ final class QuickLoopState {
         let seconds = beats * 60 / host.bpm
         let track = loops.count
 
-        guard !take.isEmpty else {
+        // The lines that played, the keys' first.
+        let lines = LoopLine.allCases.compactMap { take.lines[$0] }
+        guard !lines.isEmpty else {
             logger?.log(.loop_take_discarded(track: track, reason: "nothing played"))
             return
         }
@@ -180,13 +197,16 @@ final class QuickLoopState {
             let fit = Timeline.fit(loopOf: beats, at: host.bpm, signature: signature)
             let ticksPerBeat = Double(fit.bars * signature.ticksPerBar) / beats
             sequencer.isPlaying = false
-            sequencer.startLoop(take.notes(closedAt: end, ticksPerBeat: ticksPerBeat), bars: fit.bars)
+            let layers = lines.map { $0.notes(closedAt: end, ticksPerBeat: ticksPerBeat) }.filter { !$0.isEmpty }
+            sequencer.startLoop(Array(layers.prefix(Self.maxLoops)), bars: fit.bars)
             host.setBPM(fit.bpm)
             sequencer.isPlaying = true
             logger?.log(.loop_recorded(track: track, seconds: seconds, setsLength: true))
         } else {
-            let notes = take.notes(closedAt: end, ticksPerBeat: Double(TimelineTime.ticksPerBeat))
-            let rounds = sequencer.timeline.folded(notes, from: takeOffset)
+            let rounds = lines.flatMap { line in
+                sequencer.timeline.folded(line.notes(closedAt: end, ticksPerBeat: Double(TimelineTime.ticksPerBeat)),
+                                          from: takeOffset)
+            }
             let room = Self.maxLoops - loops.count
             if rounds.count > room {
                 logger?.log(.loop_take_discarded(track: track + room, reason: "no layers left"))

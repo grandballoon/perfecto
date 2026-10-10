@@ -16,7 +16,9 @@ struct KeyboardMapEditor: View {
             group("Chords", Degree.allCases.map { (.chord($0), String($0.rawValue)) })
             group("Chord color", Self.directions.map { (.color($0.0), $0.1) })
             group("Solo strip", (0..<KeyboardMap.soloCells).map { (.solo(cell: $0), String($0 + 1)) })
-            Text("What each key of the computer keyboard plays. Choose one and press the key for it: Delete leaves it with no key, and Escape leaves it as it was. Color keys held together add up, so two arrows make a diagonal.")
+            group("Tonnetz", TonnetzMove.allCases.map { (.tonnetz($0), $0.displayName) }, columns: 2)
+            group("Buttons", KeyboardButton.allCases.map { (.button($0), $0.displayName) }, columns: 2)
+            Text("What each key of the computer keyboard plays or taps. Choose one and press the key for it: Delete leaves it with no key, and Escape leaves it as it was. Color keys held together add up, so two arrows make a diagonal. The Tonnetz's moves are made, and its Net, Triad and Hold buttons tapped, while it is on screen.")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(Color(white: 0.3))
                 .fixedSize(horizontal: false, vertical: true)
@@ -24,12 +26,12 @@ struct KeyboardMapEditor: View {
         }
     }
 
-    private func group(_ title: String, _ actions: [(KeyboardAction, String)]) -> some View {
+    private func group(_ title: String, _ actions: [(KeyboardAction, String)], columns: Int = 3) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(Color(white: 0.45))
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: columns), spacing: 8) {
                 ForEach(actions, id: \.0) { action, label in
                     key(action, label: label)
                 }

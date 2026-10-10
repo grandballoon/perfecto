@@ -8,7 +8,28 @@ We need to implement drum machine support
 
 We need to refactor the Sound architecture to support swap-in, swap-out for different machine sounds.
 
+We should model the sequencer editing function as if the primitive the user were interacting with was time itself.
 
+In other words, don't just show pre-prescribed beats and measures and ask the user to fill them in; compose with a sequence of notes and then stretch its time qualities manually. 
+
+Or, start with a beat the user can configure, not just select from a series of predefined chits. Let them think in measures without tone, or measures separately from tone, any timing they want. Don't ask them to fit into a pre-prescribed idea of measurement or beats; they'll end up discovering them anyway, and they might take a route (like James Brown, on the three's) that they would've missed if you'd forced them somewhere. 
+
+I want to investigate this teenage engineering disc-synth thing I keep seeing on Youtube.
+
+The ring UI on the iphone app in this video makes me think of setting "time-frames" of certain effects on a play session that will kick into a different key, effect, or so on after a certain duration—like pre-setting the "arc" of the thing you're playing, if it were a composition for a film score. 
+https://www.youtube.com/watch?v=06BvIVcBZYE 
+
+The ring-on-a-timer interface is an interesting design choice for loops, too—loops-as-objects, loops-as-keys. I can imagine composing different layers of a particular movement as concentric rings. 
+
+I'll want the ability to decompose tonnetz triads and create loops between them—not just using the triads but the individual notes of the triads, too, including disconnected portions. 
+
+We need to be able to separate key data on two sections of the same chord button—i.e., different octaves on the various segments, different sounds, different notes, different effects. 
+
+The arpeggiator and other effects are applying globally across previously-saved loops and play mode. Each loop needs to retain its own distinct effect settings; they should be editable, but they should not be tied to the global setting of Play mode.
+
+A good mid-point between the sequencer chits and play mode: an 8x8 grid that can be assigned any sound and played live by touch AS WELL AS played in a looping sequence. Save a loop to a layer of the sequencer chit view.
+
+I can see how this cluster of UI elements and effects would turn into a kind of block-based coding for developing unique digital synthesizers. Maybe even more than that.
 
 ## Check on the phone
 
@@ -85,6 +106,22 @@ A first version is built, for trying on the phone: `docs/solo-strip.md` says wha
 - [ ] Sampled instruments (audio engine step 13).
   Waiting on: which instruments, permission to download them, and sfizz or the kernel's own sampler.
   No samples are to be downloaded yet.
+
+## Loop effects (optional)
+
+A loop keeps its own effects and they are edited apart from the keys' (Effects page, "EFFECTS OF").
+Three things are still shared between a loop and the keys:
+
+- [ ] Optional: a reverb and a chorus for each line of notes in the kernel.
+  There is one room and one chorus, so with reverb on for both the keys and a loop at different sizes, the size follows the note played last (likewise the chorus's rate).
+  A line with the effect off no longer moves it.
+  This is the same work as "Reverb per layer" under Smaller gaps.
+- [ ] Optional: keep the mic open while a playing loop has vocoded notes.
+  The mic is open only while the keys' vocoder is on, so switching that off un-vocodes a loop recorded with it.
+  Deciding this means deciding that a loop alone can hold the mic open.
+- [ ] Optional: a loop's effects over MIDI.
+  CC 74, 93 and 91 are sent for the keys' effects alone, on the one channel, so an external synth applies them to loop notes too.
+  It would take a channel for each layer.
 
 ## Smaller gaps
 

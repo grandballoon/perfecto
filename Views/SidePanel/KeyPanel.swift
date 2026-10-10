@@ -57,11 +57,11 @@ struct KeyPanel: View {
             SidePanelSectionLabel("OCTAVE")
             HStack(spacing: 24) {
                 Button {
-                    if state.octave > 2 { state.octave -= 1 }
+                    if state.octave > PerformanceState.octaves.lowerBound { state.octave -= 1 }
                 } label: {
                     Image(systemName: "minus.circle.fill")
                         .font(.system(size: 32))
-                        .foregroundStyle(state.octave > 2 ? Color.orange : Color(white: 0.25))
+                        .foregroundStyle(state.octave > PerformanceState.octaves.lowerBound ? Color.orange : Color(white: 0.25))
                 }
                 .buttonStyle(.plain)
 
@@ -71,11 +71,11 @@ struct KeyPanel: View {
                     .frame(minWidth: 24)
 
                 Button {
-                    if state.octave < 7 { state.octave += 1 }
+                    if state.octave < PerformanceState.octaves.upperBound { state.octave += 1 }
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 32))
-                        .foregroundStyle(state.octave < 7 ? Color.orange : Color(white: 0.25))
+                        .foregroundStyle(state.octave < PerformanceState.octaves.upperBound ? Color.orange : Color(white: 0.25))
                 }
                 .buttonStyle(.plain)
             }

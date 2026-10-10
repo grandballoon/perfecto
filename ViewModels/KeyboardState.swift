@@ -8,11 +8,15 @@ protocol KeyboardHost: AnyObject {
     func release(degree: Degree)
     func joystickMoved(to direction: JoystickDirection)
     var solo: SoloState { get }
+    var tonnetz: TonnetzState { get }
+    /// Does what tapping `button` on screen does.
+    func tap(_ button: KeyboardButton)
 }
 
 /// The computer keyboard as a way to play: its keys are chord keys, the
-/// joystick and the solo strip's cells, by a map that can be changed key by
-/// key (`KeyboardMap`) and is remembered across launches.
+/// joystick, the solo strip's cells, the Tonnetz's moves and some of the
+/// screen's buttons, by a map that can be changed key by key
+/// (`KeyboardMap`) and is remembered across launches.
 ///
 /// A key is one more finger: it presses and releases through the host's own
 /// calls, so the modes, the loops and the effects know nothing of it, and a
@@ -70,6 +74,9 @@ final class KeyboardState {
         case .color:             followColor()
         case .solo(let cell):
             if host?.solo.isOn == true { host?.solo.press(cell: cell) }
+        case .button(let button): host?.tap(button)
+        case .tonnetz(let move):
+            if host?.tonnetz.isShown == true { host?.tonnetz.apply(move) }
         }
         return true
     }
@@ -94,6 +101,12 @@ final class KeyboardState {
         case .chord(let degree): host?.release(degree: degree)
         case .color:             followColor()
         case .solo(let cell):    host?.solo.release([cell])
+        // A button is tapped as its key goes down.
+        case .button:            break
+        // Each move starts from the last one's triad, so there is none to
+        // hand back to: the triad sounds until the last move's key is up.
+        case .tonnetz:
+            if !held.values.contains(where: \.isTonnetzMove) { host?.tonnetz.release() }
         }
     }
 
@@ -106,6 +119,12 @@ final class KeyboardState {
     }
 
     // MARK: – The map
+
+    /// The name of the key that taps `button`, which a pointer over the
+    /// button is shown; nil if it has none.
+    func keyName(for button: KeyboardButton) -> String? {
+        map.key(for: .button(button))?.name
+    }
 
     private func choose(_ key: KeyboardKey, for action: KeyboardAction) {
         choosing = nil
@@ -127,5 +146,11 @@ final class KeyboardState {
     private func save() {
         guard let data = try? JSONEncoder().encode(map) else { return }
         defaults.set(data, forKey: Self.storageKey)
+    }
+}
+
+private extension KeyboardAction {
+    var isTonnetzMove: Bool {
+        if case .tonnetz = self { true } else { false }
     }
 }

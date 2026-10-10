@@ -60,8 +60,10 @@ protocol PerformanceMode: AnyObject {
     var requiresClock: Bool { get }
     func onButtonDown(degree: Degree, state: PerformanceState)
     func onButtonUp(degree: Degree, state: PerformanceState)
-    /// The live chord color changed (joystick or grid moved); modes that
-    /// are sounding a chord re-voice it with `state.color(for:)`.
+    /// The chord a held key plays changed: the live chord color (joystick
+    /// or grid moved), or the key or octave (the finger moved into a key
+    /// zone with its own). Modes that are sounding a chord play it again
+    /// as `state` now has it.
     func onColorChange(state: PerformanceState)
     func onClockTick(state: PerformanceState)
     /// The mode has just become the active one.

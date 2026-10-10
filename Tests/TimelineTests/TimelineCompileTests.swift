@@ -35,6 +35,19 @@ struct TimelineCompileTests {
         #expect(timeline.compile(layer: layer, live: inG)[0].event.voicing.notes == [67, 71, 74])
     }
 
+    /// Notes played from the net are the notes themselves, whatever the
+    /// chord, the key and the octave say.
+    @Test func aNoteOfPitchesSoundsThemWhateverTheChordAndKey() {
+        var played = note(.V, step: 0)
+        played.pitch = .notes([59, 64, 67])
+        played.playing.key = Key(root: .E, scale: .naturalMinor)
+        played.playing.octave = 2
+        let (timeline, layer) = timeline([played])
+        let chord = timeline.compile(layer: layer, live: live)[0]
+        #expect(chord.event.voicing.notes == [59, 64, 67])
+        #expect(chord.event.context.key == Key(root: .E, scale: .naturalMinor))
+    }
+
     /// The same chord number, in the note's own key and octave, whatever is
     /// chosen now.
     @Test func aNotesOwnSettingsWinOverTheLiveOnes() {

@@ -21,6 +21,8 @@ struct SequencerStepGrid: View {
     /// Scroll layout only: take all the height offered, instead of one bar
     /// plus a peek at the next.
     var fillsHeight = false
+    /// How tall a step is. The desk's sequencer draws them twice as tall.
+    var cellHeight: CGFloat = 45
 
     /// True once a drag has left its starting cell; from then on the
     /// gesture is a selection sweep rather than a candidate tap.
@@ -29,7 +31,6 @@ struct SequencerStepGrid: View {
     /// committed. Recomputed from the anchor each frame, so backtracking
     /// shrinks it; it merges into the real selection only on finger lift.
     @State private var sweepPreview: Set<Int> = []
-    private static let cellHeight: CGFloat = 45
     private static let headerHeight: CGFloat = 26
     private static let barGap: CGFloat = 10
     /// The space the paged layout's touches are read in: its origin is the
@@ -55,7 +56,7 @@ struct SequencerStepGrid: View {
     private func geometry(width: CGFloat) -> StepGridGeometry {
         StepGridGeometry(shape: seqState.shape,
                          width: width,
-                         cellHeight: Self.cellHeight,
+                         cellHeight: cellHeight,
                          headerHeight: isScroll ? Self.headerHeight : 0,
                          barGap: isScroll ? Self.barGap : 0)
     }
@@ -190,7 +191,7 @@ struct SequencerStepGrid: View {
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color(white: 0.5))
                 .frame(maxWidth: .infinity)
-                .frame(height: Self.cellHeight)
+                .frame(height: cellHeight)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
                         .strokeBorder(Color(white: 0.2),
@@ -372,6 +373,8 @@ struct SequencerStepGrid: View {
     /// on the steps it is held across, and a dash on a rest.
     private func label(_ head: NoteChit?, hasNote: Bool) -> String {
         guard let head else { return hasNote ? "" : "—" }
+        // Notes played from the net are in no key: they are named themselves.
+        if case .notes(let notes) = head.note.pitch { return netLabel(of: notes) }
         return degreeNumeral(key: head.note.playing.key ?? perfState.key, degree: head.note.chord.degree)
     }
 }

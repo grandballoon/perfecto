@@ -234,4 +234,109 @@ struct PlayModeTests {
         state.selectMode(.strum)
         #expect(state.effects.slide == nil)
     }
+
+    // MARK: – Key zones with a key and an octave of their own
+
+    /// Two zones: C minor at the bottom of every key, D# major two octaves
+    /// down at the top.
+    private func zoned(_ state: PerformanceState) {
+        state.effects.zones.zones = [KeyZone(key: Key(root: .C, scale: .naturalMinor)),
+                                     KeyZone(key: Key(root: .Ds, scale: .major), octave: 2)]
+        state.effects.zones.isOn = true
+    }
+
+    @Test func aChordIsInTheKeyAndOctaveOfTheZoneItIsPlayedFrom() {
+        let (state, sink) = makeState()
+        zoned(state)
+
+        state.slide(on: .I, to: 0.2)
+        state.movePointer(from: nil, to: .I)
+        #expect(sink.playCalls.last?.notes == [60, 63, 67])   // Cm, in the octave chosen
+        #expect(sink.playEvents.last?.context.key == Key(root: .C, scale: .naturalMinor))
+        state.movePointer(from: .I, to: nil)
+
+        state.slide(on: .I, to: 0.8)
+        state.movePointer(from: nil, to: .I)
+        #expect(sink.playCalls.last?.notes == [39, 43, 46])   // D#, octave 2
+        #expect(sink.playEvents.last?.context.octave == 2)
+        #expect(state.playedKey == Key(root: .Ds, scale: .major))
+        state.movePointer(from: .I, to: nil)
+
+        // Nothing chosen was changed, and with no finger down it is what plays.
+        #expect(state.key == Key(root: .C, scale: .major))
+        #expect(state.playedKey == state.key)
+        #expect(state.playedOctave == 4)
+    }
+
+    @Test func aZoneWithNoKeyOfItsOwnPlaysTheKeyChosen() {
+        let (state, sink) = makeState()
+        state.effects.zones.zones = [KeyZone(), KeyZone(octave: 5)]
+        state.effects.zones.isOn = true
+        state.key = Key(root: .D, scale: .major)
+
+        state.slide(on: .I, to: 0.2)
+        state.movePointer(from: nil, to: .I)
+        #expect(sink.playCalls.last?.notes == [62, 66, 69])
+        state.movePointer(from: .I, to: nil)
+
+        state.slide(on: .I, to: 0.8)
+        state.movePointer(from: nil, to: .I)
+        #expect(sink.playCalls.last?.notes == [74, 78, 81])
+    }
+
+    @Test func slidingIntoAnotherZoneChangesTheHeldChord() {
+        let (state, sink) = makeState()
+        zoned(state)
+        state.slide(on: .I, to: 0.2)
+        state.movePointer(from: nil, to: .I)
+        sink.reset()
+
+        state.slide(on: .I, to: 0.3)                          // still the bottom zone
+        #expect(sink.calls.isEmpty)
+
+        state.slide(on: .I, to: 0.8)
+        #expect(sink.playCalls.map(\.notes) == [[39, 43, 46]])
+        #expect(state.heldDegrees == [.I])
+    }
+
+    /// A second finger's chord is in its own zone, and the first finger's
+    /// chord is not played again on the way.
+    @Test func eachFingerPlaysTheZoneItIsIn() {
+        let (state, sink) = makeState()
+        zoned(state)
+        state.slide(on: .I, to: 0.2)
+        state.movePointer(from: nil, to: .I)
+        sink.reset()
+
+        state.slide(on: .V, to: 0.8)
+        state.movePointer(from: nil, to: .V)
+        #expect(sink.playEvents.map(\.context.spec.degree) == [.V])
+        #expect(sink.playEvents.last?.context.key == Key(root: .Ds, scale: .major))
+
+        // Lifting it hands the chord back to the first finger, in its zone.
+        state.movePointer(from: .V, to: nil)
+        #expect(sink.playCalls.last?.notes == [60, 63, 67])
+    }
+
+    /// A latched chord stays in the key it was struck in when the finger lifts.
+    @Test func aDroneKeepsItsZonesKeyOnceTheFingerIsUp() {
+        let (state, sink) = makeState()
+        zoned(state)
+        state.selectMode(.drone)
+        state.slide(on: .I, to: 0.8)
+        state.movePointer(from: nil, to: .I)
+        sink.reset()
+
+        state.movePointer(from: .I, to: nil)
+        #expect(sink.calls.isEmpty)
+    }
+
+    @Test func aLeadNoteIsInItsZonesKeyAndOctave() {
+        let (state, sink) = makeState()
+        zoned(state)
+        state.selectMode(.lead)
+        state.slide(on: .I, to: 0.8)
+        state.movePointer(from: nil, to: .I)
+        #expect(sink.playCalls.last?.notes == [39])
+    }
 }

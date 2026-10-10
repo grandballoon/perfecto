@@ -22,11 +22,15 @@ enum Articulation: Equatable, Codable, Sendable {
     case block
     /// One note at a time, low to high, `interval` seconds apart.
     case strum(interval: Double)
+    /// All notes at once, but a note the line is already sounding is held
+    /// over, not struck again: a line of several notes that come and go
+    /// one at a time (the Tonnetz's single notes).
+    case tied
 
     /// Seconds after the event at which the note at `index` (low to high) starts.
     func onset(ofNote index: Int) -> Double {
         switch self {
-        case .block:               return 0
+        case .block, .tied:        return 0
         case let .strum(interval): return Double(index) * interval
         }
     }

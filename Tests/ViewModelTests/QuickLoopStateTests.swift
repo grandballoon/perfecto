@@ -274,6 +274,27 @@ struct QuickLoopStateTests {
         #expect(rig.sink.lastPlay?.notes == [67])
     }
 
+    /// A chord played from a key zone with a key and an octave of its own
+    /// is recorded in them, so the loop plays it back as it was heard.
+    @Test func aChordFromAKeyZoneIsRecordedInTheZonesKey() {
+        let rig = Rig()
+        rig.state.effects.zones.zones = [KeyZone(), KeyZone(key: Key(root: .Ds, scale: .major), octave: 2)]
+        rig.state.effects.zones.isOn = true
+        rig.loops.triggerTapped()
+        rig.state.slide(on: .I, to: 0.8)
+        rig.state.press(degree: .I)
+        rig.clock.advance(beats: 4)
+        rig.state.release(degree: .I)
+        rig.loops.triggerTapped()
+
+        let note = rig.timeline.layers[0].notes[0]
+        #expect(note.playing.key == Key(root: .Ds, scale: .major))
+        #expect(note.playing.octave == 2)
+        rig.sink.reset()
+        rig.clock.advance(beats: 4.01)                        // round to the loop's start
+        #expect(rig.sink.playCalls.map(\.notes) == [[39, 43, 46]])
+    }
+
     /// A slide played while a chord was held is kept with the note.
     @Test func aSlideInsideAHeldChordIsRecorded() {
         let rig = Rig()
@@ -309,6 +330,99 @@ struct QuickLoopStateTests {
         #expect(note.playing.effects?.arpeggiator.isOn == true)
         rig.clock.advance(beats: 0.7)
         #expect(rig.sink.playCalls.map(\.notes) == [[60], [64], [67]])
+    }
+
+    // MARK: – A loop's effects are its own
+
+    /// The keys and the layers on players of their own, as in the app, so
+    /// what each line's notes sound like can be told apart.
+    @MainActor
+    private final class SoundRig {
+        let keys = RecordingNoteSink()
+        let layers = RecordingNoteSink()
+        let clock = ManualClock()
+        let sequencer = SequencerState(defaults: isolatedDefaults())
+        let state: PerformanceState
+
+        init() {
+            let player = NotePlayer([keys], clock: clock)
+            state = PerformanceState(sink: player,
+                                     layerSink: { [layers, clock] in NotePlayer([layers], clock: clock) },
+                                     sequencer: sequencer, liveSound: player, clock: clock)
+        }
+
+        /// Records a first loop: I held for a bar.
+        func recordLoop() {
+            state.quickLoopState.triggerTapped()
+            state.press(degree: .I)
+            clock.advance(beats: 4)
+            state.release(degree: .I)
+            state.quickLoopState.triggerTapped()
+        }
+    }
+
+    /// A loop recorded dry stays dry, and is not arpeggiated, whatever is
+    /// switched on for the keys while it plays.
+    @Test func effectsSwitchedOnAfterwardsDoNotReachTheLoop() {
+        let rig = SoundRig()
+        rig.recordLoop()
+        rig.layers.reset()
+
+        rig.state.effects.filter = FilterSettings(isOn: true, brightness: 0.2)
+        rig.state.effects.chorus.isOn = true
+        rig.state.effects.reverb = ReverbSettings(isOn: true, mix: 0.9, size: 0.9)
+        rig.state.effects.arpeggiator.isOn = true
+        rig.clock.advance(beats: 4.01)
+
+        #expect(rig.layers.changes.isEmpty)
+        #expect(rig.layers.started == [60, 64, 67])
+        #expect(rig.layers.sounds.allSatisfy {
+            $0.filter == FilterSettings() && $0.chorus == ChorusSettings() && $0.reverb == ReverbSettings()
+        })
+    }
+
+    /// A loop recorded with effects keeps them when the keys' are changed.
+    @Test func aLoopKeepsItsEffectsWhenTheKeysAreChanged() {
+        let rig = SoundRig()
+        let reverb = ReverbSettings(isOn: true, mix: 0.6, size: 0.7)
+        rig.state.effects.reverb = reverb
+        rig.recordLoop()
+        rig.layers.reset()
+
+        rig.state.effects.reverb = ReverbSettings(isOn: false, mix: 0.1, size: 0.1)
+        rig.state.press(degree: .V)
+        rig.state.slide(on: .V, to: 0.9)
+        rig.clock.advance(beats: 4.01)
+        rig.state.release(degree: .V)
+
+        #expect(rig.layers.changes.isEmpty)
+        #expect(!rig.layers.sounds.isEmpty)
+        #expect(rig.layers.sounds.allSatisfy { $0.reverb == reverb })
+    }
+
+    /// A loop's effects are edited by themselves: the loop is heard in
+    /// them, the keys' stay as set, and a run of edits is one undo.
+    @Test func aLoopsEffectsAreEditedApartFromTheKeys() {
+        let rig = SoundRig()
+        rig.recordLoop()
+        let loop = rig.sequencer.timeline.layers[0].id
+        let live = rig.state.effects.asSet
+        rig.layers.reset()
+
+        rig.sequencer.editEffects(ofLayer: loop, following: live) { $0.reverb.isOn = true }
+        rig.sequencer.editEffects(ofLayer: loop, following: live) { $0.reverb.mix = 0.8 }
+
+        // The chord sounding glides to them, and is not struck again.
+        #expect(rig.layers.started.isEmpty)
+        #expect(rig.layers.changes.last?.reverb == ReverbSettings(isOn: true, mix: 0.8))
+        rig.clock.advance(beats: 4.01)
+        #expect(rig.layers.sounds.allSatisfy { $0.reverb == ReverbSettings(isOn: true, mix: 0.8) })
+        #expect(rig.state.effects.asSet == live)
+        rig.state.press(degree: .V)
+        #expect(rig.keys.sounds.allSatisfy { !$0.reverb.isOn })
+
+        rig.sequencer.undo()
+        #expect(rig.sequencer.effects(ofLayer: loop) == NoteEffects())
     }
 
     // MARK: – Layers

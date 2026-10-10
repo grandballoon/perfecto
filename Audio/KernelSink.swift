@@ -14,8 +14,9 @@ import Foundation
 /// (nothing rendered yet), is as soon as possible.
 ///
 /// Two settings are not a note's but the whole mix's: how fast the chorus
-/// wavers, and the size of the reverb's room. They follow the note played
-/// or changed last.
+/// wavers, and the size of the reverb's room. Each follows the note played
+/// or changed last that has that effect on, so a line of notes with no
+/// reverb (the keys, dry) leaves the room a loop is heard in alone.
 @MainActor
 final class KernelSink: NoteSink {
 
@@ -78,11 +79,11 @@ final class KernelSink: NoteSink {
     }
 
     private func setMix(for sound: NoteSound) {
-        if sound.chorus.rate != chorusRate {
+        if sound.chorus.isOn, sound.chorus.rate != chorusRate {
             chorusRate = sound.chorus.rate
             unit.setChorusRate(Self.chorusRates.exponential(at: sound.chorus.rate))
         }
-        if sound.reverb.size != reverbSize {
+        if sound.reverb.isOn, sound.reverb.size != reverbSize {
             reverbSize = sound.reverb.size
             unit.setReverbTail(Self.reverbTails.exponential(at: sound.reverb.size))
             unit.setReverbPredelay(Self.reverbPredelays.exponential(at: sound.reverb.size))

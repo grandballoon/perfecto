@@ -390,6 +390,34 @@ struct TimelineEditTests {
         #expect(shape(timeline.layers[0]) == [[0, 1, 1], [30, 1, 5]])
     }
 
+    // MARK: – A layer's effects
+
+    /// An edit changes every note of the layer, and every point of a slide
+    /// recorded in one, and leaves what it does not name as it was played.
+    @Test func editingALayersEffectsChangesEveryNoteAndKeepsTheRest() {
+        var dark = NoteEffects()
+        dark.filter = FilterSettings(isOn: true, brightness: 0.2)
+        var bright = dark
+        bright.filter.brightness = 0.8
+        var slid = note(I, step: 0, steps: 4)
+        slid.playing.effects = dark
+        slid.changes = [SoundChange(offset: 240, effects: bright)]
+        var layer = Layer(notes: [slid, note(V, step: 4)])
+        #expect(layer.effects == dark)
+
+        var live = NoteEffects()
+        live.chorus.isOn = true
+        layer.editEffects(following: live) { $0.reverb = ReverbSettings(isOn: true, mix: 0.7) }
+
+        #expect(layer.notes.allSatisfy { $0.playing.effects?.reverb == ReverbSettings(isOn: true, mix: 0.7) })
+        #expect(layer.notes[0].playing.effects?.filter.brightness == 0.2)
+        #expect(layer.notes[0].changes.map(\.effects.filter.brightness) == [0.8])
+        #expect(layer.notes[0].changes.allSatisfy { $0.effects.reverb.isOn })
+        // A note that followed the keys' effects starts from them, and is its own now.
+        #expect(layer.notes[1].playing.effects?.chorus.isOn == true)
+        #expect(layer.notes[0].playing.effects?.chorus.isOn == false)
+    }
+
     // MARK: – Loop and layers
 
     @Test func theLoopIsOneStretchFromTheFirstSelectedStepToTheLast() {

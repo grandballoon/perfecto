@@ -104,6 +104,29 @@ struct KernelSinkTests {
         #expect(small < large * 0.2)
     }
 
+    /// The reverb has one room, which is the size the last note in it
+    /// asked for. A note with no reverb is not in it, so playing one (the
+    /// keys, dry, over a loop) leaves the room as it was.
+    @Test func aNoteWithNoReverbLeavesTheRoomAlone() throws {
+        func tail(then dry: ReverbSettings) throws -> Float {
+            let (sink, rig) = try makeSubject()
+            defer { rig.engine.stop() }
+            let (wet, over) = (NoteID.next(), NoteID.next())
+            sink.noteOn(wet, note: 57, sound: NoteSound(preset: .organ,
+                                                        reverb: ReverbSettings(isOn: true, mix: 0.5, size: 1)), at: 0)
+            try rig.render(4800)
+            sink.noteOff(wet, at: 0)
+            sink.noteOn(over, note: 64, sound: NoteSound(preset: .organ, reverb: dry), at: 0)
+            sink.noteOff(over, at: 0)
+            try rig.render(96_000)
+            return loudest(rig.output[72_000...])
+        }
+        let untouched = try tail(then: ReverbSettings(isOn: false, size: 1))
+        let playedOver = try tail(then: ReverbSettings(isOn: false, size: 0))
+        #expect(untouched > 0.001)
+        #expect(abs(playedOver - untouched) < untouched * 0.01)
+    }
+
     /// A change to a held note's sound reaches it: here its brightness.
     @Test func aHeldNotesEffectsCanBeChanged() throws {
         let (sink, rig) = try makeSubject()

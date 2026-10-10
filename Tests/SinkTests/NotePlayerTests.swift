@@ -31,6 +31,38 @@ struct NotePlayerTests {
         #expect(sink.started == [62, 65, 69])
     }
 
+    /// A tied chord holds over the notes that are sounding already: only
+    /// what came or went is heard to.
+    @Test func aTiedChordStartsAndEndsOnlyTheNotesThatChanged() {
+        let sink = RecordingNoteSink()
+        let player = NotePlayer([sink], clock: clock)
+        let tied = { ChordEvent(voicing: Voicing(notes: $0), articulation: .tied, context: .cMajorI) }
+        player.playChord(tied([60]))
+        player.playChord(tied([60, 67]))
+        #expect(sink.started == [60, 67])
+        #expect(sink.sounding == [60, 67])
+
+        sink.reset()
+        player.playChord(tied([62, 67]))
+        let kinds = sink.calls.map { if case .on = $0 { "on" } else { "off" } }
+        #expect(kinds == ["off", "on"])
+        #expect(sink.started == [62])
+
+        player.stopChord()
+        #expect(sink.calls.count == 4)
+    }
+
+    /// A chord that is not tied strikes every note again, whatever was sounding.
+    @Test func aBlockChordAfterATiedOneStrikesEveryNote() {
+        let sink = RecordingNoteSink()
+        let player = NotePlayer([sink], clock: clock)
+        player.playChord(ChordEvent(voicing: Voicing(notes: [60, 67]), articulation: .tied, context: .cMajorI))
+        sink.reset()
+        player.playChord(.block([60, 67]))
+        #expect(sink.started == [60, 67])
+        #expect(sink.calls.count == 4)
+    }
+
     @Test func stoppingEndsEveryNoteAndASecondStopDoesNothing() {
         let sink = RecordingNoteSink()
         let player = NotePlayer([sink], clock: clock)
