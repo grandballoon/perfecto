@@ -225,6 +225,15 @@ The left stick is the joystick, in the nearest of its eight directions (`Gamepad
 Setup shows the buttons' map while a controller is connected (`KeyboardMapEditor`, the keyboard's own editor).
 The triggers and the right stick are read only as buttons, or not at all, for now.
 
+**A MIDI controller is drawn at the desk with what it is doing.**
+It is one more pane in the sequencer's place (`DeskPane.controller`, CTRL), and only there, since a controller is played at a desk.
+MIDI says nothing of what a device looks like: CoreMIDI gives its name and ports, and a controller of MIDI 1.0 has no way to say what controls it has, so each device is a `ControllerLayout` written for it and recognized by its name (`ControllerLayout.alesisV61`, the first V61, measured in centimetres on its panel).
+A control has a kind, a frame and the message it sends from the factory (`MidiAddress`), or none (the V61's octave buttons send nothing).
+`MidiInput` hears every MIDI source but the app's own and hands `ControllerState` what they send (`MidiMessage`, parsed on CoreMIDI's thread and passed to the main thread in order).
+`ControllerState` reads a message against each control's binding, and a note no control has is a key; the keys' octave shift is worked out from the notes (`ControllerKeys`).
+While learning, a control chosen on the drawing takes the next message heard as its own, and no other control keeps it; the learned bindings are saved by layout.
+It plays nothing yet: it is what the controller is doing, for what is to be played from it (`docs/midi-controller.md`).
+
 **The piano shows what is sounding, as a pianist would play it.**
 It is a piano's 88 keys along the bottom of the window, under whatever screen is there, switched on in Setup; the screen is laid out in what it leaves (`PerformanceView`).
 It is a display, not an instrument: `PianoState` hears notes as the audio and MIDI do, through one more `NoteSink` on each line of notes (`PianoState.line`), so it knows nothing of chords, modes or effects and shows the notes actually sounded (an arpeggio one at a time, a strum as it spreads, a note that slides on the key it has slid to).
@@ -323,7 +332,7 @@ Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/` and the kernel's in `P
 
 ## MIDI
 
-App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100 fixed in v1. The chorus and the reverb are sent as CC 93 and 91 while each is on; no other CC messages (the delay sends none). No MIDI input, program change, or clock sync in v1.
+App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100 fixed in v1. The chorus and the reverb are sent as CC 93 and 91 while each is on; no other CC messages (the delay sends none). No program change or clock sync in v1. MIDI input is heard from every source but the app's own, and only drawn so far (the MIDI controller pane); nothing is played from it yet.
 
 ## V1 scope
 
@@ -337,6 +346,7 @@ App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100
 - The Trautonium: two bars, each a voice whose pitch follows the finger along it and whose loudness follows it across, landing on the notes of the key
 - The chord–scale tree: from a chord, every chord of the scales it is at home in, played by pressing it, and on from there
 - The piano: 88 keys along the bottom of the screen, lit with the notes each part of the app is sounding
+- A MIDI controller at the desk: the Alesis V61 drawn and lit with what it sends, its controls taught what they send by learning
 - The computer keyboard and a game controller: each plays the chord keys, the joystick and the screen's buttons by a map that Setup changes
 - Effects: two arpeggios (up and down), chorus, reverb, delay, vocoder; each is switched from the effect strip on the play screen or from a zone of the chord keys, and the arpeggio's cycle and the vocoder's amount can be played by sliding on a key, as can a chord's inversion
 - The effect strip: a field for each effect that is on, on the play screen, each changed by a swipe

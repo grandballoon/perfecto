@@ -108,13 +108,15 @@ enum PhoneScreen: CaseIterable {
     }
 }
 
-/// What the desk shows beside the keys' column (`DeskLayout`).
+/// What the desk shows beside the keys' column (`DeskLayout`). The MIDI
+/// controller is drawn only there, since it is played at a desk.
 enum DeskPane: CaseIterable {
     case sequencer
     case tonnetz
     case pads
     case trautonium
     case tree
+    case controller
 
     var displayName: String {
         switch self {
@@ -123,6 +125,7 @@ enum DeskPane: CaseIterable {
         case .pads:       return "PADS"
         case .trautonium: return "BARS"
         case .tree:       return "TREE"
+        case .controller: return "CTRL"
         }
     }
 }
@@ -306,6 +309,9 @@ final class PerformanceState {
     let keyboard: KeyboardState
     /// A game controller, as one more way to play them.
     let gamepad: GamepadState
+    /// A MIDI controller, drawn at the desk with what it is doing
+    /// (`DeskPane.controller`). It plays nothing yet.
+    let controller: ControllerState
     /// The piano along the bottom of the screen, lit with what is sounding.
     let piano: PianoState
     let micSample: MicSampleState
@@ -370,7 +376,8 @@ final class PerformanceState {
     /// `sequencer` is the app's sequencer and its saved timeline; tests pass
     /// one with a store of its own.
     /// `keyboard` is the computer keyboard and its saved map, likewise,
-    /// and `gamepad` a game controller and its.
+    /// and `gamepad` a game controller and its, and `controller` a MIDI
+    /// controller and the bindings it has learned.
     /// `piano` is the piano whose lines the sinks above were made with
     /// (`PianoState.line`); without one the piano stays dark.
     init(sink: any ChordEventSink,
@@ -388,6 +395,7 @@ final class PerformanceState {
          sequencer: SequencerState? = nil,
          keyboard: KeyboardState? = nil,
          gamepad: GamepadState? = nil,
+         controller: ControllerState? = nil,
          piano: PianoState? = nil,
          liveSound: (any SoundControl & EffectsControl)? = nil,
          output: AudioOutput? = nil,
@@ -423,6 +431,7 @@ final class PerformanceState {
         self.tree         = ChordScaleTreeState(sink: treeSink, logger: logger)
         self.keyboard     = keyboard ?? KeyboardState(logger: logger)
         self.gamepad      = gamepad ?? GamepadState(logger: logger)
+        self.controller   = controller ?? ControllerState(logger: logger)
         self.piano        = piano ?? PianoState(logger: logger)
         self.sequencerState = sequencer ?? SequencerState(logger: logger)
         self.quickLoopState = QuickLoopState(logger: logger)
@@ -485,7 +494,7 @@ final class PerformanceState {
         case .pads:       return .pads
         case .trautonium: return .trautonium
         case .tree:       return .tree
-        case .sequencer:  break
+        case .sequencer, .controller: break
         }
         switch mode.kind {
         case .play:      return .play

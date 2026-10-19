@@ -7,6 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E7C300000000000000000012 /* ControllerStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C300000000000000000011 /* ControllerStateTests.swift */; };
+		E7C300000000000000000010 /* MidiMessageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C30000000000000000000F /* MidiMessageTests.swift */; };
+		E7C30000000000000000000E /* ControllerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C30000000000000000000D /* ControllerView.swift */; };
+		E7C30000000000000000000C /* ControllerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C30000000000000000000B /* ControllerState.swift */; };
+		E7C30000000000000000000A /* AlesisV61.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C300000000000000000009 /* AlesisV61.swift */; };
+		E7C300000000000000000008 /* ControllerKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C300000000000000000007 /* ControllerKeys.swift */; };
+		E7C300000000000000000006 /* ControllerLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C300000000000000000005 /* ControllerLayout.swift */; };
+		E7C300000000000000000004 /* MidiInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C300000000000000000003 /* MidiInput.swift */; };
+		E7C300000000000000000002 /* MidiMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C300000000000000000001 /* MidiMessage.swift */; };
 		05B00B09A2EC9FA4D40A43F0 /* JoystickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A005FBDBD201E0E82068BD1 /* JoystickView.swift */; };
 		127D4567FB6CAA5C37D09E0A /* PerformanceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F62B3A63EFEA69395677B0 /* PerformanceState.swift */; };
 		132354CBD3FCEB8F5BBBDBEC /* Key.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */; };
@@ -236,6 +245,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E7C300000000000000000011 /* ControllerStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControllerStateTests.swift; sourceTree = "<group>"; };
+		E7C30000000000000000000F /* MidiMessageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiMessageTests.swift; sourceTree = "<group>"; };
+		E7C30000000000000000000D /* ControllerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControllerView.swift; sourceTree = "<group>"; };
+		E7C30000000000000000000B /* ControllerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControllerState.swift; sourceTree = "<group>"; };
+		E7C300000000000000000009 /* AlesisV61.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlesisV61.swift; sourceTree = "<group>"; };
+		E7C300000000000000000007 /* ControllerKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControllerKeys.swift; sourceTree = "<group>"; };
+		E7C300000000000000000005 /* ControllerLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControllerLayout.swift; sourceTree = "<group>"; };
+		E7C300000000000000000003 /* MidiInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiInput.swift; sourceTree = "<group>"; };
+		E7C300000000000000000001 /* MidiMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiMessage.swift; sourceTree = "<group>"; };
 		044A454352EB036A9EF35C95 /* PerformanceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMode.swift; sourceTree = "<group>"; };
 		0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Key.swift; sourceTree = "<group>"; };
 		1118CE8ABE0D40F8660377C7 /* Perfecto.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Perfecto.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -510,6 +528,7 @@
 				E7F100000000000000000005 /* ChordScaleTreeState.swift */,
 				E7C1000000000000000000A3 /* KeyboardState.swift */,
 				E7C1000000000000000000C3 /* GamepadState.swift */,
+				E7C30000000000000000000B /* ControllerState.swift */,
 				E8FFFCCAAF520152247BF944 /* MicAccess.swift */,
 				E8FEF3A41FC4500DAB8F0938 /* MicSampleState.swift */,
 				E9F62B3A63EFEA69395677B0 /* PerformanceState.swift */,
@@ -606,6 +625,11 @@
 			children = (
 				C1B000000000000000000003 /* MidiAnnouncerSink.swift */,
 				C1B000000000000000000005 /* MidiNetwork.swift */,
+				E7C300000000000000000009 /* AlesisV61.swift */,
+				E7C300000000000000000007 /* ControllerKeys.swift */,
+				E7C300000000000000000005 /* ControllerLayout.swift */,
+				E7C300000000000000000003 /* MidiInput.swift */,
+				E7C300000000000000000001 /* MidiMessage.swift */,
 				E3CE90D83CA87B4296BF0C5F /* MidiSink.swift */,
 			);
 			path = MIDI;
@@ -677,6 +701,7 @@
 				E7E100000000000000000003 /* PianoKeys.swift */,
 				E7C1000000000000000000A5 /* KeyboardInput.swift */,
 				E7C1000000000000000000C5 /* GamepadInput.swift */,
+				E7C30000000000000000000D /* ControllerView.swift */,
 				E7A000000000000000000017 /* ChordGridPad.swift */,
 				AA9900112233445566779911 /* ChordColorBar.swift */,
 				E7B000000000000000000003 /* ChordKeySurface.swift */,
@@ -775,6 +800,7 @@
 			children = (
 				C1B000000000000000000007 /* MidiAnnouncerSinkTests.swift */,
 				CCDD000000000000000000D1 /* MidiSinkTests.swift */,
+				E7C30000000000000000000F /* MidiMessageTests.swift */,
 				E8FB154083B5CE327B3E8205 /* NotePlayerTests.swift */,
 			);
 			path = SinkTests;
@@ -921,6 +947,7 @@
 				E7F100000000000000000009 /* ChordScaleTreeStateTests.swift */,
 				E7C1000000000000000000A9 /* KeyboardStateTests.swift */,
 				E7C1000000000000000000C7 /* GamepadStateTests.swift */,
+				E7C300000000000000000011 /* ControllerStateTests.swift */,
 				E7E000000000000000000009 /* SidePanelStateTests.swift */,
 				QQVT0000000000000000CCDD /* QuickLoopStateTests.swift */,
 				D5E9A4000000000000000F01 /* SequencerBarsTests.swift */,
@@ -1056,6 +1083,7 @@
 				CCDD000000000000000000BF /* RecordingMidiBackend.swift in Sources */,
 				C1B000000000000000000008 /* MidiAnnouncerSinkTests.swift in Sources */,
 				CCDD000000000000000000D2 /* MidiSinkTests.swift in Sources */,
+				E7C300000000000000000010 /* MidiMessageTests.swift in Sources */,
 				E8BB154083B5CE327B3E8205 /* NotePlayerTests.swift in Sources */,
 				CCDD00000000000000003308 /* LoggerTests.swift in Sources */,
 				EE2200000000000000001106 /* MicrophonePermissionTests.swift in Sources */,
@@ -1075,6 +1103,7 @@
 				E7F10000000000000000000A /* ChordScaleTreeStateTests.swift in Sources */,
 				E7C1000000000000000000AA /* KeyboardStateTests.swift in Sources */,
 				E7C1000000000000000000C8 /* GamepadStateTests.swift in Sources */,
+				E7C300000000000000000012 /* ControllerStateTests.swift in Sources */,
 				E7E000000000000000000010 /* SidePanelStateTests.swift in Sources */,
 				E7F000000000000000000012 /* ArpeggiatorTests.swift in Sources */,
 				E7D000000000000000000B12 /* SynthPresetTests.swift in Sources */,
@@ -1142,6 +1171,7 @@
 				E7E100000000000000000004 /* PianoKeys.swift in Sources */,
 				E7C1000000000000000000A6 /* KeyboardInput.swift in Sources */,
 				E7C1000000000000000000C6 /* GamepadInput.swift in Sources */,
+				E7C30000000000000000000E /* ControllerView.swift in Sources */,
 				E7A000000000000000000018 /* ChordGridPad.swift in Sources */,
 				AA9900112233445566779900 /* ChordColorBar.swift in Sources */,
 				E7B000000000000000000004 /* ChordKeySurface.swift in Sources */,
@@ -1174,6 +1204,11 @@
 				E8BD17E5F1BA786921BB086C /* ClockSchedule.swift in Sources */,
 				C1B000000000000000000004 /* MidiAnnouncerSink.swift in Sources */,
 				C1B000000000000000000006 /* MidiNetwork.swift in Sources */,
+				E7C30000000000000000000A /* AlesisV61.swift in Sources */,
+				E7C300000000000000000008 /* ControllerKeys.swift in Sources */,
+				E7C300000000000000000006 /* ControllerLayout.swift in Sources */,
+				E7C300000000000000000004 /* MidiInput.swift in Sources */,
+				E7C300000000000000000002 /* MidiMessage.swift in Sources */,
 				54162D074B2BE4D64E2E8ABA /* MidiSink.swift in Sources */,
 				4208FE1C625C18BCAA7F3F4E /* ModeSheet.swift in Sources */,
 				4C7D889678D3C5BE552DAEEF /* PerformanceMode.swift in Sources */,
@@ -1228,6 +1263,7 @@
 				E7F100000000000000000006 /* ChordScaleTreeState.swift in Sources */,
 				E7C1000000000000000000A4 /* KeyboardState.swift in Sources */,
 				E7C1000000000000000000C4 /* GamepadState.swift in Sources */,
+				E7C30000000000000000000C /* ControllerState.swift in Sources */,
 				E8BFFCCAAF520152247BF944 /* MicAccess.swift in Sources */,
 				E8BEF3A41FC4500DAB8F0938 /* MicSampleState.swift in Sources */,
 				E8B1BE3336A652BE1C722000 /* RenderGuard.cpp in Sources */,

@@ -51,6 +51,7 @@ struct PerfectoApp: App {
     }()
 
     @State private var gamepadInput = GamepadInput()
+    @State private var midiInput = MidiInput()
 
     var body: some Scene {
         WindowGroup {
@@ -61,6 +62,7 @@ struct PerfectoApp: App {
                 .onAppear {
                     MidiSink.logTopology()
                     gamepadInput.play(state.gamepad)
+                    midiInput.play(state.controller)
                 }
         }
         // On the Mac: room for the desk's layout (`DeskLayout`).

@@ -3,8 +3,8 @@ import UIKit
 
 /// The desk's arrangement: a window with room for it shows the keys and the
 /// sequencer side by side, and the menu as a column beside them. The
-/// Tonnetz, the pads, the Trautonium's bars or the chord–scale tree take
-/// the sequencer's place when chosen (`DeskPane`).
+/// Tonnetz, the pads, the Trautonium's bars, the chord–scale tree or the
+/// MIDI controller take the sequencer's place when chosen (`DeskPane`).
 ///
 /// It is the phone's own screens put next to one another, chosen by one
 /// threshold, and nothing else is built on it: the layout as a whole is to
@@ -141,6 +141,9 @@ struct PerformanceView: View {
                         .padding(16)
                 case .tree:
                     ChordScaleTreeView()
+                        .padding(16)
+                case .controller:
+                    ControllerView()
                         .padding(16)
                 }
             }
@@ -515,7 +518,7 @@ struct PerformanceView: View {
                                     switch $0 {
                                     case .sequencer: return .sequencer
                                     case .tonnetz:   return .tonnetz
-                                    case .pads, .trautonium, .tree: return nil
+                                    case .pads, .trautonium, .tree, .controller: return nil
                                     }
                                 },
                                 selection: $state.deskPane)

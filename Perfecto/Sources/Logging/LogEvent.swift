@@ -129,6 +129,14 @@ enum LogEvent {
     /// `name` nil: the controller went, and there is none now.
     case gamepad_connected(name: String?)
 
+    // MIDI controller
+    /// The MIDI sources the app hears are now `sources`, by name.
+    case midi_input_connected(sources: [String])
+    case midi_input_failed(status: Int32)
+    /// A control of the controller was taught what it sends: "CC 21 · ch 1".
+    case controller_control_learned(control: String, address: String)
+    case controller_learned_forgotten(layout: String)
+
     // Mic sample
     case sample_record_started
     /// `seconds` 0: nothing audible was recorded.
@@ -363,6 +371,19 @@ extension LogEvent: Encodable {
         case let .gamepad_connected(name):
             try c.encode("gamepad_connected", forKey: Key("type"))
             try c.encode(name, forKey: Key("name"))
+        case let .midi_input_connected(sources):
+            try c.encode("midi_input_connected", forKey: Key("type"))
+            try c.encode(sources, forKey: Key("sources"))
+        case let .midi_input_failed(status):
+            try c.encode("midi_input_failed", forKey: Key("type"))
+            try c.encode(status, forKey: Key("status"))
+        case let .controller_control_learned(control, address):
+            try c.encode("controller_control_learned", forKey: Key("type"))
+            try c.encode(control, forKey: Key("control"))
+            try c.encode(address, forKey: Key("address"))
+        case let .controller_learned_forgotten(layout):
+            try c.encode("controller_learned_forgotten", forKey: Key("type"))
+            try c.encode(layout, forKey: Key("layout"))
         case let .loop_record_started(track):
             try c.encode("loop_record_started", forKey: Key("type"))
             try c.encode(track, forKey: Key("track"))
