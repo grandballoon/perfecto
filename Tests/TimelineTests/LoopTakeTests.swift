@@ -53,19 +53,19 @@ struct LoopTakeTests {
     /// A slide played while the chord was held is kept, as the points it
     /// passed through.
     @Test func aSlideInsideAHeldChordIsRecorded() {
-        var bright = NoteEffects()
-        bright.filter = FilterSettings(isOn: true, brightness: 0.9)
+        var voiced = NoteEffects()
+        voiced.vocoder = VocoderSettings(isOn: true, amount: 0.9)
         var take = LoopTake(start: 0)
-        take.effectsChanged(to: bright, at: 0)                      // nothing held: ignored
+        take.effectsChanged(to: voiced, at: 0)                      // nothing held: ignored
         take.chordStarted(event(.I), pitch: .chord, playing: asPlayed, at: 0)
         take.effectsChanged(to: NoteEffects(), at: 0.2)             // no change: ignored
-        take.effectsChanged(to: bright, at: 0.5)
-        take.effectsChanged(to: bright, at: 0.6)                    // the same again: ignored
+        take.effectsChanged(to: voiced, at: 0.5)
+        take.effectsChanged(to: voiced, at: 0.6)                    // the same again: ignored
         take.chordEnded(at: 1)
         take.effectsChanged(to: NoteEffects(), at: 1.5)             // nothing held: ignored
 
         let note = take.notes(closedAt: 2, ticksPerBeat: 480)[0]
-        #expect(note.changes == [SoundChange(offset: 240, effects: bright)])
+        #expect(note.changes == [SoundChange(offset: 240, effects: voiced)])
     }
 
     // MARK: – Fitting the first loop

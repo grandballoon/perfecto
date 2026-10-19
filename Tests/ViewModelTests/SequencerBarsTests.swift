@@ -155,7 +155,7 @@ struct SequencerBarsTests {
         state.selectedSteps = [4, 5, 6, 7]
         state.loopSelection()
         state.deselectAll()
-        state.toggleStepSelection(12)
+        state.select([12], primary: 12)
         #expect(state.loopSteps == [4, 5, 6, 7])
     }
 

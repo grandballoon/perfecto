@@ -111,6 +111,31 @@ struct SequencerEditingTests {
         #expect(!state.canJoin)
     }
 
+    /// Join and Split are one button: Split only where there is nothing to join.
+    @Test func theSelectionIsOfferedJoinBeforeSplit() {
+        let state = makeState()
+        enter(.I, on: [0, 1, 2, 3, 4, 5], in: state)
+        #expect(state.joinEdit == .join)              // separate notes
+        state.selectedSteps = [0, 1, 2]
+        state.joinOrSplitSelected()
+        #expect(drawn(state).first == [0, 3, 1])
+        #expect(state.joinEdit == .split)             // one held note
+        state.selectedSteps = [1, 2]
+        #expect(state.joinEdit == .split)             // part of one held note
+
+        state.selectedSteps = [0, 1, 2, 3, 4]         // a held note and others beside it
+        #expect(state.joinEdit == .join)
+        state.joinOrSplitSelected()
+        #expect(drawn(state) == [[0, 5, 1], [5, 1, 1]])
+        state.joinOrSplitSelected()
+        #expect(drawn(state).count == 6)
+
+        state.selectedSteps = [5]                     // one step: neither
+        #expect(state.joinEdit == nil)
+        state.joinOrSplitSelected()
+        #expect(drawn(state).count == 6)
+    }
+
     // MARK: – Length
 
     @Test func aNoteIsMadeAStepLongerAndShorter() {
@@ -199,6 +224,19 @@ struct SequencerEditingTests {
         state.selectedSteps = [0, 2]
         state.editSelectedPlaying { $0.octave = 5 }
         #expect(state.timeline.layers[0].notes.map(\.playing.octave) == [5, nil, 5])
+    }
+
+    @Test func aSwipeThroughSeveralValuesIsOneUndo() {
+        let state = makeState()
+        enter(.I, on: [0, 1], in: state)
+        state.selectedSteps = [0, 1]
+        state.primaryStep = 0
+        // As the step editor's fields do: one snapshot, then every value passed.
+        state.snapshot()
+        for octave in [5, 6, 7] { state.changeSelectedPlaying { $0.octave = octave } }
+        #expect(state.timeline.layers[0].notes.map(\.playing.octave) == [7, 7])
+        state.undo()
+        #expect(state.timeline.layers[0].notes.map(\.playing.octave) == [nil, nil])
     }
 
     // MARK: – Step entry

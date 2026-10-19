@@ -35,10 +35,10 @@ struct KeyboardStateTests {
         let (state, keys, _) = makeState()
         #expect(state.keyboard.keyDown(a))
         #expect(keys.playCalls.last?.notes == [60, 64, 67])
-        #expect(state.heldDegrees == [.I])
+        #expect(state.heldKeys == [.degree(.I)])
 
         #expect(state.keyboard.keyUp(code: a.code))
-        #expect(state.heldDegrees.isEmpty)
+        #expect(state.heldKeys.isEmpty)
         #expect(keys.stopCount == 1)
     }
 
@@ -56,7 +56,7 @@ struct KeyboardStateTests {
         let (state, keys, _) = makeState()
         state.keyboard.keyDown(a)
         #expect(state.keyboard.keyDown(a))   // the system's repeat
-        #expect(state.heldDegrees == [.I])
+        #expect(state.heldKeys == [.degree(.I)])
         #expect(keys.playCalls.count == 1)
     }
 
@@ -98,7 +98,7 @@ struct KeyboardStateTests {
         state.keyboard.keyDown(a)
         state.keyboard.keyDown(up)
         state.keyboard.releaseAll()
-        #expect(state.heldDegrees.isEmpty)
+        #expect(state.heldKeys.isEmpty)
         #expect(state.joystickDirection == .center)
         // The keys were let go, so their lifting later is nothing.
         #expect(!state.keyboard.keyUp(code: a.code))
@@ -306,7 +306,7 @@ struct KeyboardStateTests {
         #expect(state.keyboard.map.key(for: .chord(.I)) == x)
 
         state.keyboard.keyDown(x)
-        #expect(state.heldDegrees == [.I])
+        #expect(state.heldKeys == [.degree(.I)])
         // The key it had plays nothing now.
         #expect(!state.keyboard.keyDown(a))
     }
@@ -337,7 +337,7 @@ struct KeyboardStateTests {
         state.keyboard.choosing = .chord(.ii)
         state.keyboard.keyDown(a)   // A is now ii's key, and still down as I
         state.keyboard.keyUp(code: a.code)
-        #expect(state.heldDegrees.isEmpty)
+        #expect(state.heldKeys.isEmpty)
     }
 
     @Test func theMapIsRememberedAndCanBeReset() {

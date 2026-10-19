@@ -170,10 +170,10 @@ struct NotePlayerTests {
         let sink = RecordingNoteSink()
         let player = NotePlayer([sink], clock: clock)
         player.sound.preset = .bell
-        player.setReverb(ReverbSettings(isOn: true, mix: 0.7))
+        player.setReverb(ReverbSettings(isOn: true))
         player.playChord(.block([60, 64]))
         #expect(sink.sounds.count == 2)
-        #expect(sink.sounds.allSatisfy { $0.preset == .bell && $0.reverb.mix == 0.7 && $0.reverb.isOn })
+        #expect(sink.sounds.allSatisfy { $0.preset == .bell && $0.reverb.isOn })
         #expect(sink.changes.isEmpty)
     }
 
@@ -183,15 +183,27 @@ struct NotePlayerTests {
         let sink = RecordingNoteSink()
         let player = NotePlayer([sink], clock: clock)
         player.playChord(.block([60, 64, 67]))
-        player.setFilter(FilterSettings(isOn: true, brightness: 0.3))
+        player.setVocoder(VocoderSettings(isOn: true, amount: 0.3))
         #expect(sink.changes.count == 3)
-        #expect(sink.changes.allSatisfy { $0.filter.brightness == 0.3 })
-        player.setFilter(FilterSettings(isOn: true, brightness: 0.3))     // the same again
+        #expect(sink.changes.allSatisfy { $0.vocoder.amount == 0.3 })
+        player.setVocoder(VocoderSettings(isOn: true, amount: 0.3))     // the same again
         #expect(sink.changes.count == 3)
 
         player.stopChord()
         player.setChorus(ChorusSettings(isOn: true))                      // nothing held: nothing to change
         #expect(sink.changes.count == 3)
+    }
+
+    /// The brightness a chord is played with is its notes', and sliding
+    /// reaches the notes held.
+    @Test func notesAreAsBrightAsTheyArePlayed() {
+        let sink = RecordingNoteSink()
+        let player = NotePlayer([sink], clock: clock)
+        player.setBrightness(0.4)
+        player.playChord(.block([60, 64]))
+        #expect(sink.sounds.map(\.brightness) == [0.4, 0.4])
+        player.setBrightness(0.7)
+        #expect(sink.changes.map(\.brightness) == [0.7, 0.7])
     }
 
     /// A new chord's sound is its own: the chord still sounding keeps the
@@ -216,7 +228,7 @@ struct NotePlayerTests {
         layer.sound.preset = .warmPad
         layer.playChord(.block([48]))
         keys.playChord(.block([72]))
-        keys.setFilter(FilterSettings(isOn: true, brightness: 0.1))
+        keys.setVocoder(VocoderSettings(isOn: true, amount: 0.1))
         #expect(sink.sounds.map(\.preset) == [.warmPad, .sawLead])
         #expect(sink.changes.map(\.preset) == [.sawLead])                 // the layer's note is left as it was
     }
@@ -245,7 +257,7 @@ struct NotePlayerTests {
         clock.advance(seconds: 2)
         player.playChord(.block([60, 64]))
         clock.advance(seconds: 0.25)
-        player.setFilter(FilterSettings(isOn: true, brightness: 0.5))
+        player.setVocoder(VocoderSettings(isOn: true, amount: 0.5))
         clock.advance(seconds: 0.25)
         player.stopChord()
         #expect(sink.startTimes == [2.05, 2.05])
@@ -267,7 +279,7 @@ struct NotePlayerTests {
         // A change of sound leaves each note where it sits.
         sink.reset()
         player.playChord(.block([60, 67]))
-        player.setFilter(FilterSettings(isOn: true, brightness: 0.4))
+        player.setVocoder(VocoderSettings(isOn: true, amount: 0.4))
         #expect(sink.changes.map(\.pan) == [-NotePlayer.spread, NotePlayer.spread])
     }
 }

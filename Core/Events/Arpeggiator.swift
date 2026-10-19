@@ -1,30 +1,32 @@
-/// The order an arpeggio visits a chord's notes.
+/// The order an arpeggio visits a chord's notes. There are two, which the
+/// screen offers as two effects: Arpeggio 1 goes up and Arpeggio 2 down.
 enum ArpeggioPattern: String, CaseIterable, Identifiable, Codable, Sendable {
-    case up, down, upDown, random
+    case up, down
 
     var id: Self { self }
 
     var label: String {
         switch self {
-        case .up:     return "Up"
-        case .down:   return "Down"
-        case .upDown: return "Up/Down"
-        case .random: return "Random"
+        case .up:   return "Arpeggio 1"
+        case .down: return "Arpeggio 2"
         }
     }
 
     /// One pass over a chord of `count` notes: their positions (0 is the
-    /// lowest) in playing order. Up/Down turns round without repeating the
-    /// top or bottom note; Random plays every note once, in a new order each
-    /// pass.
+    /// lowest) in playing order.
     func pass(count: Int) -> [Int] {
         let ascending = Array(0..<count)
         switch self {
-        case .up:     return ascending
-        case .down:   return ascending.reversed()
-        case .upDown: return ascending + ascending.dropFirst().dropLast().reversed()
-        case .random: return ascending.shuffled()
+        case .up:   return ascending
+        case .down: return ascending.reversed()
         }
+    }
+
+    /// A pattern saved when there were others (up and down in turn, random)
+    /// goes up.
+    init(from decoder: any Decoder) throws {
+        let name = try decoder.singleValueContainer().decode(String.self)
+        self = ArpeggioPattern(rawValue: name) ?? .up
     }
 }
 
@@ -85,8 +87,6 @@ struct ArpeggiatorSettings: Equatable, Codable, Sendable, SlidePlayed {
         played.cycle = .played(by: slide)
         return played
     }
-
-    var place: Float { cycle.slide }
 }
 
 /// Plays chords one note at a time, in tempo. It sits between whatever

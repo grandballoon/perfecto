@@ -111,13 +111,20 @@ final class MidiAnnouncerSink: ChordEventSink {
             stopChord()
             return
         }
+        // ChordLink v1 has root position and two inversions. A chord rolled
+        // further is stated as the one of them with the same notes, and
+        // released if there is none, as a grid color is.
+        guard let stated = ChordWire.stated(ctx.inversion, octave: ctx.octave, key: ctx.key, spec: ctx.spec) else {
+            stopChord()
+            return
+        }
         let frame = ChordWire.encodeChord(ChordAnnouncement(
             key: ctx.key,
             degree: ctx.spec.degree,
             joystickMode: joystickMode,
             joystickDirection: joystickDirection,
-            inversion: ctx.inversion,
-            octave: ctx.octave,
+            inversion: stated.inversion,
+            octave: stated.octave,
             voiceLeading: ctx.voiceLeading,
             voicing: event.voicing
         ))

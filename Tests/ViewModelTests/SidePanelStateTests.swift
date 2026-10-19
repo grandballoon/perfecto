@@ -31,6 +31,27 @@ import Testing
         #expect(panel.page == .effects)
     }
 
+    @Test func theEffectsPageStartsAtTheKeys() {
+        #expect(SidePanelState().effectsTarget == .keys)
+    }
+
+    @Test func askingForAPadsEffectsOpensTheEffectsPageAtThem() {
+        let panel = SidePanelState()
+        panel.show(.key)
+        panel.showEffects(of: .pad)
+        #expect(panel.page == .effects)
+        #expect(panel.effectsTarget == .pad)
+    }
+
+    @Test func theEffectsPageKeepsWhoseEffectsItShowedWhileTheMenuIsClosed() {
+        let panel = SidePanelState()
+        panel.showEffects(of: .pad)
+        panel.toggle()
+        panel.toggle()
+        #expect(panel.page == .effects)
+        #expect(panel.effectsTarget == .pad)
+    }
+
     @Test(arguments: SidePanelPage.allCases)
     func theMenuReopensAtThePageItWasLeftOn(page: SidePanelPage) {
         let panel = SidePanelState()

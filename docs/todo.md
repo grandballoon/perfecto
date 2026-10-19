@@ -31,6 +31,16 @@ A good mid-point between the sequencer chits and play mode: an 8x8 grid that can
 
 I can see how this cluster of UI elements and effects would turn into a kind of block-based coding for developing unique digital synthesizers. Maybe even more than that.
 
+
+- [ ] Make sure the trautonium can output to MIDI
+- [ ] Double check the recent builds for "things you might not expect" and make sure they're covered.
+
+
+## Desktop improvements
+
+- [ ] Enlarge the chord coloration text in sequencer view
+- [ ] Get to parity with join/split chit selector state
+
 ## Check on the phone
 
 Nothing below has been heard or seen on a device except that the keys make sound and the sequencer screen looks right.
@@ -120,8 +130,42 @@ Three things are still shared between a loop and the keys:
   The mic is open only while the keys' vocoder is on, so switching that off un-vocodes a loop recorded with it.
   Deciding this means deciding that a loop alone can hold the mic open.
 - [ ] Optional: a loop's effects over MIDI.
-  CC 74, 93 and 91 are sent for the keys' effects alone, on the one channel, so an external synth applies them to loop notes too.
+  CC 93 and 91 are sent for the keys' effects alone, on the one channel, so an external synth applies them to loop notes too.
   It would take a channel for each layer.
+
+## Pads (optional)
+
+A first version is built: the PADS screen, a grid of 4 to 8 rows and columns, each pad a chord in a sound of its own, played together or in sequence.
+Three things were left out:
+
+- [ ] Optional: a loop does not record what the pads play, and the pads' sequence is not part of the timeline, so it is not exported.
+  Saving the sequence as a layer of the sequencer would cover both.
+- [ ] Optional: a pad holds a chord only.
+  It has no single lead note and no strum, and nothing that is not a chord (a recording, a drum).
+- [ ] Optional: no key of the computer keyboard shows the PADS screen, or plays a pad.
+
+## Game controller (optional)
+
+A first version is built: a controller's buttons play by a map of their own, and its left stick is the joystick.
+It has not been played on a real controller yet, on the Mac or a phone.
+Three things were left out:
+
+- [ ] Optional: the triggers are buttons and the right stick does nothing.
+  How far a trigger is pulled, or where the right stick is, could play the slide.
+- [ ] Optional: a button is named as an Xbox controller has it (A, B, X, Y), whatever the controller.
+- [ ] Optional: a button cannot be left with nothing to play, short of giving it to something else, since there is no key like Delete to say so.
+
+## Inversion
+
+A first version is built: the key strip's voicing field (the octave and the inversion as one, set or played like a whammy bar), the slide (Setup, "Slide plays inversion") and a key zone's own inversion all roll a chord through its inversions, as the Orchid's voicing dial does.
+
+- [ ] The dial may end up as a second slider of its own, outside both the chord keys and the piano octave's keys, in place of the key strip's field or the slide.
+- [ ] That slider and the coloration picker (the joystick or the chord grid) might then be subsumed into one new UI pattern: one surface for which notes a chord has and where they sit.
+- [ ] The Orchid's split mode has no equivalent: the piano octave always runs from C to B, with no break point that can be moved.
+- [ ] A pad has no inversion of its own (`PadSound`), so a pad given the keys' chord is in root position.
+- [ ] ChordLink v1 cannot say a chord rolled past the second inversion when no inversion it has gives the same notes (a four-note chord's third inversion), and a release is sent.
+  A wider field needs a version bump in both repos.
+- [ ] The slide plays the inversion in nine bands of a key, which is cramped on the piano octave's black keys.
 
 ## Smaller gaps
 
@@ -129,7 +173,7 @@ Three things are still shared between a loop and the keys:
 - [ ] Voice-stealing is no longer logged (the kernel steals on the render thread).
 - [ ] A chord is not sounded when it is entered in the sequencer, only when playback reaches it.
 - [ ] Audio export is only in the sequencer's share menu; consider one in Play mode, and a smaller format for messaging.
-- [ ] Voice leading and inversion per note have no field in the timeline.
+- [ ] Voice leading per note has no field in the timeline (the inversion has: `NotePlaying.inversion`).
 - [ ] Looping a scattered set of steps was dropped for one stretch of time; say if it matters.
 - [ ] Reverb per layer, if one room for everything proves too limiting.
 

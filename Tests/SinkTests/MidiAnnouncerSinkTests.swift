@@ -62,6 +62,40 @@ struct MidiAnnouncerSinkTests {
         #expect(transport.frames.last == ChordWire.encodeRelease())
     }
 
+    /// ChordLink v1 has root position and two inversions. A chord rolled
+    /// further is announced as the one of them with the same notes.
+    @Test func aRolledChordIsAnnouncedAsTheInversionWithItsNotes() {
+        let transport = RecordingSysExTransport()
+        let sink = MidiAnnouncerSink(transport: transport)
+        let rolled = performanceContext(key: Key(root: .C, scale: .major), octave: 4,
+                                        spec: ChordSpec(degree: .I, color: .joystick(.default, .center)),
+                                        inversion: Inversion(steps: -1))
+
+        sink.playChord(.block(rolled.voicing(after: nil).notes, context: rolled))
+
+        guard case let .chord(announcement)? = transport.frames.last.flatMap(ChordWire.decode) else {
+            Issue.record("frame did not decode as a chord")
+            return
+        }
+        #expect(announcement.inversion == .second)
+        #expect(announcement.octave == 3)
+        #expect(announcement.voicing.notes == [55, 60, 64])
+    }
+
+    /// A third inversion is none of them, so the announcer releases, as it
+    /// does for a grid color.
+    @Test func anInversionNoFrameHasAnnouncesARelease() {
+        let transport = RecordingSysExTransport()
+        let sink = MidiAnnouncerSink(transport: transport)
+        let third = performanceContext(key: Key(root: .C, scale: .major), octave: 4,
+                                       spec: ChordSpec(degree: .I, color: .joystick(.default, .right)),
+                                       inversion: Inversion(steps: 3))
+
+        sink.playChord(.block(third.voicing(after: nil).notes, context: third))
+
+        #expect(transport.frames == [ChordWire.encodeRelease()])
+    }
+
     // MARK: – Through sequencer playback
 
     /// A sequencer step plays its own color; the frame must announce that

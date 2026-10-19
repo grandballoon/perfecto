@@ -115,31 +115,46 @@ enum NotePitch: Equatable, Codable, Sendable {
 struct NotePlaying: Equatable, Codable, Sendable {
     var key: Key?
     var octave: Int?
+    /// How far its chord is rolled from root position.
+    var inversion: Inversion?
     var preset: SynthPreset?
     var effects: NoteEffects?
 
     /// Whether anything is the note's own.
-    var hasOwn: Bool { key != nil || octave != nil || preset != nil || effects != nil }
+    var hasOwn: Bool { key != nil || octave != nil || inversion != nil || preset != nil || effects != nil }
 }
 
 /// Every effect's settings, as one note is played with them.
 struct NoteEffects: Equatable, Codable, Sendable {
     var arpeggiator = ArpeggiatorSettings()
-    var filter = FilterSettings()
     var chorus = ChorusSettings()
     var reverb = ReverbSettings()
+    var delay = DelaySettings()
     var vocoder = VocoderSettings()
+    /// How much of the note's top end comes through, from 0 (dark) to 1
+    /// (all of it, the sound as its preset makes it). It is not an effect
+    /// with settings but only ever played: by the slide, when Setup says
+    /// the slide plays it (`EffectsState.slidePlaysBrightness`).
+    var brightness: Float = 1
 }
 
 extension NoteEffects {
-    /// A timeline saved before there was a vocoder has none.
+    /// Whether any effect is on.
+    var hasAnyOn: Bool {
+        arpeggiator.isOn || chorus.isOn || reverb.isOn || delay.isOn || vocoder.isOn
+    }
+
+    /// A timeline saved before there was a delay or a vocoder has none, and one saved
+    /// while there was a filter has that too, which is left unread. One
+    /// saved before notes had a brightness is fully bright.
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         arpeggiator = try container.decode(ArpeggiatorSettings.self, forKey: .arpeggiator)
-        filter = try container.decode(FilterSettings.self, forKey: .filter)
         chorus = try container.decode(ChorusSettings.self, forKey: .chorus)
         reverb = try container.decode(ReverbSettings.self, forKey: .reverb)
+        delay = try container.decodeIfPresent(DelaySettings.self, forKey: .delay) ?? DelaySettings()
         vocoder = try container.decodeIfPresent(VocoderSettings.self, forKey: .vocoder) ?? VocoderSettings()
+        brightness = try container.decodeIfPresent(Float.self, forKey: .brightness) ?? 1
     }
 }
 

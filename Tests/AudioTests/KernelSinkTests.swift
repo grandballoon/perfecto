@@ -59,35 +59,81 @@ struct KernelSinkTests {
         #expect(strength(of: e4 * 3, in: settled) > 0.02)
     }
 
-    @Test func aDarkFilterTakesTheTopOffItsOwnNoteOnly() throws {
-        func third(filter: FilterSettings) throws -> Double {
+    /// An effect that is off takes none of the note; the chorus and the
+    /// reverb, on, take the one amount each has.
+    @Test func effectsThatAreOffAreNotHeard() {
+        let off = NoteSound(vocoder: VocoderSettings(isOn: false, amount: 0.9))
+        #expect(KernelSink.playing(off) == KernelAudioUnit.Playing(chorus: 0, reverb: 0, vocoder: 0))
+        let on = NoteSound(chorus: ChorusSettings(isOn: true), reverb: ReverbSettings(isOn: true),
+                           vocoder: VocoderSettings(isOn: true, amount: 0.4))
+        #expect(KernelSink.playing(on) == KernelAudioUnit.Playing(chorus: ChorusSettings.amount,
+                                                                  reverb: ReverbSettings.mix, vocoder: 0.4))
+    }
+
+    /// A note is as far from its pitch and as loud as its sound says, from
+    /// its start and when it is changed.
+    @Test func aNoteIsBentAndAsLoudAsItsSoundSays() throws {
+        #expect(KernelSink.playing(NoteSound()).bend == 0)
+        #expect(KernelSink.playing(NoteSound()).level == 1)
+        #expect(KernelSink.playing(NoteSound(bend: -2.5, level: 0.3)) == KernelAudioUnit.Playing(bend: -2.5, level: 0.3))
+
+        let (sink, rig) = try makeSubject()
+        defer { rig.engine.stop() }
+        let id = NoteID.next()
+        sink.noteOn(id, note: 45, sound: NoteSound(preset: .organ, bend: 12), at: 0)
+        try rig.render(24_000)
+        let struck = rig.output[12_000..<24_000]
+        #expect(strength(of: a3, in: struck) > 10 * strength(of: a3 / 2, in: struck))
+
+        sink.noteChange(id, sound: NoteSound(preset: .organ, bend: 12, level: 0.25), at: 0)
+        try rig.render(48_000)
+        let quieter = strength(of: a3, in: rig.output[36_000..<48_000]) / strength(of: a3, in: struck)
+        #expect(abs(quieter - 0.25) < 0.02)
+    }
+
+    /// A note played dark loses its high partials and keeps its low ones.
+    @Test func aDarkNoteIsHeardDark() throws {
+        func heard(brightness: Float) throws -> ArraySlice<Float> {
             let (sink, rig) = try makeSubject()
             defer { rig.engine.stop() }
-            sink.noteOn(.next(), note: 57, sound: NoteSound(preset: .sawLead, filter: filter), at: 0)
+            sink.noteOn(.next(), note: 57, sound: NoteSound(preset: .sawLead, brightness: brightness), at: 0)
             try rig.render(48_000)
-            return strength(of: a3 * 8, in: rig.output[24_000..<48_000])
+            return rig.output[24_000..<48_000]
         }
-        let open = try third(filter: FilterSettings(isOn: false, brightness: 0))      // off: fully open
-        let dark = try third(filter: FilterSettings(isOn: true, brightness: 0))
-        #expect(dark < open * 0.2)
+        let (open, dark) = (try heard(brightness: 1), try heard(brightness: 0))
+        #expect(strength(of: a3 * 8, in: dark) < strength(of: a3 * 8, in: open) / 10)
+        #expect(strength(of: a3, in: dark) > strength(of: a3, in: open) / 2)
+        #expect(KernelSink.playing(NoteSound(brightness: 0.4)).brightness == 0.4)
     }
 
-    /// An effect that is off takes none of the note, whatever it is set to.
-    @Test func effectsThatAreOffAreNotHeard() {
-        let off = NoteSound(filter: FilterSettings(isOn: false, brightness: 0.2),
-                            chorus: ChorusSettings(isOn: false, amount: 0.9),
-                            reverb: ReverbSettings(isOn: false, mix: 0.9))
-        #expect(KernelSink.playing(off) == KernelAudioUnit.Playing(brightness: 1, chorus: 0, reverb: 0))
-        let on = NoteSound(filter: FilterSettings(isOn: true, brightness: 0.2),
-                           chorus: ChorusSettings(isOn: true, amount: 0.9),
-                           reverb: ReverbSettings(isOn: true, mix: 0.4))
-        #expect(KernelSink.playing(on) == KernelAudioUnit.Playing(brightness: 0.2, chorus: 0.9, reverb: 0.4))
+    /// A note with the delay on is echoed a dotted eighth later at the
+    /// tempo, and one without is not.
+    @Test func aNoteIsEchoedInTimeWithTheTempo() throws {
+        func heard(delay: Bool, bpm: Double) throws -> [Float] {
+            let (sink, rig) = try makeSubject()
+            defer { rig.engine.stop() }
+            sink.setTempo(bpm)
+            let id = NoteID.next()
+            sink.noteOn(id, note: 57, sound: NoteSound(preset: .organ, delay: DelaySettings(isOn: delay)), at: 0)
+            try rig.render(2400)
+            sink.noteOff(id, at: 0)
+            try rig.render(48_000)
+            return rig.output
+        }
+        // At 120 the echo is 0.375 s after the note; at 90, half a second.
+        // Where it is not, there is only what is left of the note dying away.
+        let fast = try heard(delay: true, bpm: 120)
+        #expect(loudest(fast[18_500..<20_000]) > 0.01)
+        let slow = try heard(delay: true, bpm: 90)
+        #expect(loudest(slow[18_500..<20_000]) < 0.003)
+        #expect(loudest(slow[24_500..<26_000]) > 0.01)
+        #expect(loudest(try heard(delay: false, bpm: 120)[18_500...]) < 0.003)
+        #expect(KernelSink.playing(NoteSound(delay: DelaySettings(isOn: true))).delay == DelaySettings.amount)
     }
 
-    /// A note with reverb rings on after it ends; its room is as long as
-    /// the note's own setting says.
+    /// A note with reverb rings on after it ends, and one without does not.
     @Test func aNotesReverbRingsOnAfterIt() throws {
-        func tail(reverb: ReverbSettings) throws -> Float {
+        func heard(reverb: ReverbSettings) throws -> [Float] {
             let (sink, rig) = try makeSubject()
             defer { rig.engine.stop() }
             let id = NoteID.next()
@@ -95,50 +141,31 @@ struct KernelSinkTests {
             try rig.render(4800)
             sink.noteOff(id, at: 0)
             try rig.render(96_000)
-            return loudest(rig.output[72_000...])
+            return rig.output
         }
-        #expect(try tail(reverb: ReverbSettings(isOn: false)) == 0)
-        let small = try tail(reverb: ReverbSettings(isOn: true, mix: 0.5, size: 0))
-        let large = try tail(reverb: ReverbSettings(isOn: true, mix: 0.5, size: 1))
-        #expect(large > 0.001)
-        #expect(small < large * 0.2)
+        #expect(loudest(try heard(reverb: ReverbSettings(isOn: false))[72_000...]) == 0)
+        #expect(loudest(try heard(reverb: ReverbSettings(isOn: true))[48_000...]) > 0.001)
     }
 
-    /// The reverb has one room, which is the size the last note in it
-    /// asked for. A note with no reverb is not in it, so playing one (the
-    /// keys, dry, over a loop) leaves the room as it was.
-    @Test func aNoteWithNoReverbLeavesTheRoomAlone() throws {
-        func tail(then dry: ReverbSettings) throws -> Float {
+    /// A change to a held note's sound reaches it: here its reverb, which
+    /// the note rings on in once it has it.
+    @Test func aHeldNotesEffectsCanBeChanged() throws {
+        func heard(changing: Bool) throws -> [Float] {
             let (sink, rig) = try makeSubject()
             defer { rig.engine.stop() }
-            let (wet, over) = (NoteID.next(), NoteID.next())
-            sink.noteOn(wet, note: 57, sound: NoteSound(preset: .organ,
-                                                        reverb: ReverbSettings(isOn: true, mix: 0.5, size: 1)), at: 0)
+            let id = NoteID.next()
+            sink.noteOn(id, note: 57, sound: NoteSound(preset: .organ), at: 0)
             try rig.render(4800)
-            sink.noteOff(wet, at: 0)
-            sink.noteOn(over, note: 64, sound: NoteSound(preset: .organ, reverb: dry), at: 0)
-            sink.noteOff(over, at: 0)
-            try rig.render(96_000)
-            return loudest(rig.output[72_000...])
+            if changing {
+                sink.noteChange(id, sound: NoteSound(preset: .organ, reverb: ReverbSettings(isOn: true)), at: 0)
+            }
+            try rig.render(24_000)
+            sink.noteOff(id, at: 0)
+            try rig.render(120_000)
+            return rig.output
         }
-        let untouched = try tail(then: ReverbSettings(isOn: false, size: 1))
-        let playedOver = try tail(then: ReverbSettings(isOn: false, size: 0))
-        #expect(untouched > 0.001)
-        #expect(abs(playedOver - untouched) < untouched * 0.01)
-    }
-
-    /// A change to a held note's sound reaches it: here its brightness.
-    @Test func aHeldNotesEffectsCanBeChanged() throws {
-        let (sink, rig) = try makeSubject()
-        defer { rig.engine.stop() }
-        let id = NoteID.next()
-        sink.noteOn(id, note: 57, sound: NoteSound(preset: .sawLead, filter: FilterSettings(isOn: true, brightness: 0)), at: 0)
-        try rig.render(24_000)
-        sink.noteChange(id, sound: NoteSound(preset: .sawLead, filter: FilterSettings(isOn: true, brightness: 1)), at: 0)
-        try rig.render(72_000)
-        let before = strength(of: a3 * 8, in: rig.output[12_000..<24_000])
-        let after = strength(of: a3 * 8, in: rig.output[48_000..<72_000])
-        #expect(after > before * 5)
+        #expect(loudest(try heard(changing: false)[96_000...]) == 0)
+        #expect(loudest(try heard(changing: true)[72_000...]) > 0.001)
     }
 
     /// A chord of four notes in any preset, on its own, stays under what

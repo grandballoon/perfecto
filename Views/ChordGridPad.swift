@@ -19,7 +19,7 @@ struct ChordGridPad: View {
     /// Called as the drag crosses into a new cell.
     let onChange: (GridPosition) -> Void
     /// Called when the drag ends. Play mode lifts back to the triad; the
-    /// sequencer keeps the chosen cell, so it passes `nil`.
+    /// sequencer leaves the step its cell and closes its undo step.
     var onEnd: (() -> Void)? = nil
 
     @State private var lastPosition: GridPosition? = nil

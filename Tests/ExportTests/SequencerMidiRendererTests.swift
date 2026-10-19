@@ -242,7 +242,10 @@ struct SequencerMidiRendererTests {
 
     @Test func completingAnExportIsLogged() {
         let logger = RecordingLogger()
-        let state = PerformanceState(sink: RecordingSink(), clock: ManualClock(), logger: logger)
+        // A sequence of its own: one empty bar, whatever the app has saved.
+        let state = PerformanceState(sink: RecordingSink(),
+                                     sequencer: SequencerState(defaults: isolatedDefaults()),
+                                     clock: ManualClock(), logger: logger)
         state.sequencerMidiExport.onExport(12, 345)
         guard case let .sequencer_midi_exported(stepCount, noteCount, byteCount) = logger.events.last else {
             Issue.record("expected a sequencer_midi_exported event")

@@ -46,7 +46,7 @@ struct ClockResolutionTests {
         let clock = ManualClock()               // ticksPerBeat = 4
         let (state, sink) = makeState(clock: clock)
         state.setMode(RepeatMode())
-        state.press(degree: .I)                 // initial chord
+        state.press(.degree(.I))                 // initial chord
         sink.reset()
 
         clock.tick(); clock.tick(); clock.tick()
@@ -63,7 +63,7 @@ struct ClockResolutionTests {
         let clock = ManualClock()
         let (state, sink) = makeState(clock: clock)
         state.setMode(RepeatMode())
-        state.press(degree: .I)
+        state.press(.degree(.I))
         for _ in 0..<4 { clock.tick() }
         sink.reset()
 
@@ -78,9 +78,9 @@ struct ClockResolutionTests {
         let clock = ManualClock()
         let (state, sink) = makeState(clock: clock)
         state.setMode(RepeatMode())
-        state.press(degree: .I)
+        state.press(.degree(.I))
         for _ in 0..<4 { clock.tick() }
-        state.release(degree: .I)
+        state.release(.degree(.I))
         sink.reset()
 
         clock.advance(seconds: 1)
@@ -156,6 +156,20 @@ struct ClockResolutionTests {
         #expect(playhead == [0, 1, 1, 2, 2, 3])
     }
 
+    /// What keeps time with the tempo is told it at the start and each
+    /// time it is set, as it is kept in range.
+    @Test func theTempoIsPassedOnToWhatKeepsTimeWithIt() {
+        final class Listener: TempoControl {
+            var tempos: [Double] = []
+            func setTempo(_ bpm: Double) { tempos.append(bpm) }
+        }
+        let listener = Listener()
+        let state = PerformanceState(sink: RecordingSink(), tempoListener: listener, clock: ManualClock())
+        state.setBPM(90)
+        state.setBPM(1000)
+        #expect(listener.tempos == [MusicalTime.defaultTempo, 90, MusicalTime.tempoRange.upperBound])
+    }
+
     @Test func tempoStaysInTheSupportedRange() {
         let clock = ManualClock()
         let (state, _) = makeState(clock: clock)
@@ -181,7 +195,7 @@ struct StopSoundingTests {
 
     @Test func stopSoundingReachesSinkButKeepsGesture() {
         let (state, sink) = makeState()
-        state.startChord(degree: .I)
+        state.startChord(.degree(.I))
         sink.reset()
 
         state.stopSounding()
@@ -195,7 +209,7 @@ struct StopSoundingTests {
 
     @Test func endChordClearsGestureUnlikeStopSounding() {
         let (state, _) = makeState()
-        state.startChord(degree: .I)
+        state.startChord(.degree(.I))
 
         state.endChord()
 

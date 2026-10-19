@@ -1,46 +1,47 @@
-/// The chorus's controls, as plain data: the kernel realizes them.
-/// Both amounts run 0...1.
-struct ChorusSettings: Equatable, Codable, Sendable, SlidePlayed {
+/// The chorus: one sound, on or off. The kernel realizes it.
+struct ChorusSettings: Equatable, Codable, Sendable, EffectSettings {
     static var kind: EffectKind { .chorus }
 
-    var isOn = false
-    /// How much chorus is mixed in: 0 is none, 1 is the full effect.
-    var amount: Float = 0.6
+    /// How much chorus is mixed into a note that has it: 0 is none, 1 is
+    /// the full effect.
+    static let amount: Float = 0.6
     /// How fast the pitch wavers, from slow (0) to fast (1).
-    var rate: Float = 0.35
-    /// The slide plays the amount.
-    var followsSlide = false
+    static let rate: Float = 0.35
 
-    func playing(_ slide: Float) -> ChorusSettings {
-        var played = self
-        played.amount = slide
-        return played
-    }
-
-    var place: Float { amount }
+    var isOn = false
 }
 
-/// The reverb's controls, as plain data: the kernel realizes them.
-/// Both amounts run 0...1.
-struct ReverbSettings: Equatable, Codable, Sendable, SlidePlayed {
+/// The reverb: one room, on or off. The kernel realizes it.
+struct ReverbSettings: Equatable, Codable, Sendable, EffectSettings {
     static var kind: EffectKind { .reverb }
 
-    var isOn = false
-    /// How much of the sound goes into the reverb rather than straight out:
-    /// 0 is dry, 1 is reverb alone.
-    var mix: Float = 0.3
+    /// How much of a note that has it goes into the reverb rather than
+    /// straight out: 0 is dry, 1 is reverb alone.
+    static let mix: Float = 0.3
     /// The size of the room, from a short tail (0) to a long one (1).
-    var size: Float = 0.4
-    /// The slide plays the mix.
-    var followsSlide = false
+    static let size: Float = 0.4
 
-    func playing(_ slide: Float) -> ReverbSettings {
-        var played = self
-        played.mix = slide
-        return played
-    }
+    var isOn = false
+}
 
-    var place: Float { mix }
+/// The delay: echoes in time with the tempo, on or off. The kernel
+/// realizes it.
+struct DelaySettings: Equatable, Codable, Sendable, EffectSettings {
+    static var kind: EffectKind { .delay }
+
+    /// How loud the first echo of a note that has it is beside the note:
+    /// 0 is none, 1 is as loud.
+    static let amount: Float = 0.35
+    /// The beats between one echo and the next: a dotted eighth note, which
+    /// falls between the beats and the half-beats.
+    static let beats = 0.75
+    /// How loud each echo is beside the one before it.
+    static let feedback: Float = 0.4
+
+    /// The seconds between echoes at `bpm`.
+    static func seconds(atBPM bpm: Double) -> Double { beats * 60 / bpm }
+
+    var isOn = false
 }
 
 /// The vocoder's controls, as plain data. While it is on, the mic is open:
@@ -61,38 +62,26 @@ struct VocoderSettings: Equatable, Codable, Sendable, SlidePlayed {
         played.amount = slide
         return played
     }
-
-    var place: Float { amount }
 }
 
-/// The filter's controls, as plain data: the kernel realizes them.
-struct FilterSettings: Equatable, Codable, Sendable, SlidePlayed {
-    static var kind: EffectKind { .filter }
-
-    var isOn = false
-    /// How much of the sound's top end comes through: 0 is dark, 1 is all of it.
-    var brightness: Float = 1
-    /// The slide plays the brightness.
-    var followsSlide = true
-
-    func playing(_ slide: Float) -> FilterSettings {
-        var played = self
-        played.brightness = slide
-        return played
-    }
-
-    var place: Float { brightness }
+/// Something that keeps time with the tempo: the delay, whose echoes are
+/// a length of the beat apart.
+@MainActor
+protocol TempoControl: AnyObject {
+    func setTempo(_ bpm: Double)
 }
 
 /// Something that follows the sound effects as they are played: each call
 /// carries an effect as it sounds now, the slide and the key zones already
 /// applied.
 /// The keys' `NotePlayer` makes them its notes' sound; `MidiSink` sends the
-/// amounts on as controllers.
+/// chorus and the reverb on as controllers.
 @MainActor
 protocol EffectsControl: AnyObject {
-    func setFilter(_ played: FilterSettings)
     func setChorus(_ played: ChorusSettings)
     func setReverb(_ played: ReverbSettings)
+    func setDelay(_ played: DelaySettings)
     func setVocoder(_ played: VocoderSettings)
+    /// How bright the notes are, from 0 (dark) to 1 (all of their sound).
+    func setBrightness(_ played: Float)
 }

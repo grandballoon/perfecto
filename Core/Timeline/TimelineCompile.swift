@@ -1,8 +1,9 @@
-/// What is chosen now: the key, octave, sound and effects a note follows
-/// wherever it has none of its own.
+/// What is chosen now: the key, octave, inversion, sound and effects a note
+/// follows wherever it has none of its own.
 struct LiveSettings: Equatable, Sendable {
     var key: Key
     var octave: Int
+    var inversion = Inversion.root
     var preset: SynthPreset
     var effects: NoteEffects
 }
@@ -23,7 +24,7 @@ struct TimedChord: Equatable {
 extension Timeline {
 
     /// The layer `id` as it is played: its notes inside the stretch that
-    /// repeats, in order, each with its key, octave, sound and effects
+    /// repeats, in order, each with its key, octave, inversion, sound and effects
     /// settled (its own, or the live one). A note that runs past the end of
     /// that stretch is cut there.
     ///
@@ -37,7 +38,8 @@ extension Timeline {
             guard range.contains(note.start) else { return nil }
             let context = performanceContext(key: note.playing.key ?? live.key,
                                              octave: note.playing.octave ?? live.octave,
-                                             spec: note.chord)
+                                             spec: note.chord,
+                                             inversion: note.playing.inversion ?? live.inversion)
             let chord = context.voicing(after: previous)
             previous = chord
             let voicing: Voicing
@@ -55,6 +57,19 @@ extension Timeline {
                 preset: note.playing.preset ?? live.preset,
                 effects: note.playing.effects ?? live.effects,
                 changes: note.changes.filter { note.start + $0.offset < end })
+        }
+    }
+}
+
+extension Timeline {
+    /// Whether any of its notes is played with the delay on, at its start
+    /// or at a point of a slide: by its own effects, or by `live`'s where
+    /// it has none.
+    func hasEchoes(live: LiveSettings) -> Bool {
+        layers.contains { layer in
+            layer.notes.contains { note in
+                (note.playing.effects ?? live.effects).delay.isOn || note.changes.contains { $0.effects.delay.isOn }
+            }
         }
     }
 }

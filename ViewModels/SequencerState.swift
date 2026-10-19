@@ -197,16 +197,13 @@ final class SequencerState {
 
     // MARK: – Selection
 
-    /// Tap: select an unselected step, deselect a selected one.
-    func toggleStepSelection(_ idx: Int) {
+    /// A tap or a finished sweep: selects `indices` and nothing else, so
+    /// what was selected before is let go.
+    func select(_ indices: Set<Int>, primary: Int) {
+        guard selectedSteps != indices || primaryStep != primary else { return }
         snapshot()
-        if selectedSteps.contains(idx) {
-            selectedSteps.remove(idx)
-            if primaryStep == idx { primaryStep = selectedSteps.min() }
-        } else {
-            selectedSteps.insert(idx)
-            primaryStep = idx
-        }
+        selectedSteps = indices
+        primaryStep = primary
     }
 
     /// Deselects every step.
@@ -215,16 +212,6 @@ final class SequencerState {
         snapshot()
         selectedSteps = []
         primaryStep = nil
-    }
-
-    /// Commits a finished drag sweep: adds `indices` to the selection.
-    /// Sweeps only ever highlight — a step that is already selected stays
-    /// selected when the finger passes over it again.
-    func addToSelection(_ indices: Set<Int>, primary: Int) {
-        guard !indices.isSubset(of: selectedSteps) || primaryStep != primary else { return }
-        snapshot()
-        selectedSteps.formUnion(indices)
-        primaryStep = primary
     }
 
     // MARK: – Editing the selected notes
@@ -287,12 +274,14 @@ final class SequencerState {
         edit { $0.rest(onSteps: steps) }
     }
 
-    /// Whether Join would change anything: two selected steps side by side
-    /// with a note to hold across them.
+    /// Whether Join would change what the grid draws: two selected steps
+    /// side by side with a note to hold across them, which is not held
+    /// across them already. A note made only a little longer inside its
+    /// last step is drawn as it was, so that is not offered.
     var canJoin: Bool {
         var joined = layer
         joined.join(steps: selectedSteps)
-        return joined != layer
+        return joined.notes.map(\.steps) != layer.notes.map(\.steps)
     }
 
     /// Makes each run of selected steps one held note.
@@ -316,6 +305,23 @@ final class SequencerState {
         snapshot()
         let steps = selectedSteps
         edit { $0.split(steps: steps) }
+    }
+
+    /// Which of Join and Split the selection is offered, since the two are
+    /// one button: Join while anything selected could be joined, so Split
+    /// only where every run of selected steps is one held note already.
+    /// Nil where neither would change anything.
+    var joinEdit: JoinEdit? {
+        canJoin ? .join : canSplit ? .split : nil
+    }
+
+    /// Joins or splits the selection, whichever it is offered (`joinEdit`).
+    func joinOrSplitSelected() {
+        switch joinEdit {
+        case .join:  joinSelected()
+        case .split: splitSelected()
+        case nil:    break
+        }
     }
 
     /// Whether a selected note was played off the grid's lines.
@@ -352,6 +358,13 @@ final class SequencerState {
     func editSelectedPlaying(_ change: (inout NotePlaying) -> Void) {
         guard !selectedNotes.isEmpty else { return }
         snapshot()
+        changeSelectedPlaying(change)
+    }
+
+    /// The same, with the undo snapshot the caller's, so one swipe through
+    /// several values is one step.
+    func changeSelectedPlaying(_ change: (inout NotePlaying) -> Void) {
+        guard !selectedNotes.isEmpty else { return }
         let steps = editedSteps
         edit { $0.edit(notesOn: steps) { change(&$0.playing) } }
     }
@@ -657,5 +670,24 @@ final class SequencerState {
     private struct SavedSteps: Codable {
         var steps: [SequencerStep]
         var loopSteps: [Int]?
+    }
+}
+
+/// What the sequencer's one Join and Split button does to the selection.
+enum JoinEdit {
+    case join, split
+
+    var label: String {
+        switch self {
+        case .join:  "JOIN"
+        case .split: "SPLIT"
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .join:  "Join the selected steps"
+        case .split: "Split the selected notes"
+        }
     }
 }

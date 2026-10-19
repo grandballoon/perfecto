@@ -25,6 +25,22 @@ struct PianoStateTests {
         #expect(piano.lights.isEmpty)
     }
 
+    /// A note that slides is lit on the key it has slid to.
+    @Test func aBentNoteIsLitOnTheKeyNearestItsPitch() {
+        let bars = player(.trautonium)
+        bars.startNotes(in: NoteSound(bend: 0.6))
+        bars.playChord(.block([60]))
+        #expect(piano.lights == [61: [.trautonium]])
+
+        bars.sound.bend = 4.4
+        #expect(piano.lights == [64: [.trautonium]])
+        bars.sound.bend = -2
+        #expect(piano.lights == [58: [.trautonium]])
+
+        bars.stopChord()
+        #expect(piano.lights.isEmpty)
+    }
+
     @Test func aNoteSeveralSourcesSoundIsLitByEachInAFixedOrder() {
         let solo = player(.solo), keys = player(.keys)
         solo.playChord(.block([67]))
@@ -80,13 +96,24 @@ struct PianoStateTests {
         #expect(switches == [true, false])
     }
 
+    @Test func switchingThePianoOffPutsItBackAlongTheBottom() {
+        let logger = RecordingLogger()
+        let piano = PianoState(logger: logger)
+        piano.isOn = true
+        piano.isExpanded = true
+        piano.isOn = false
+        #expect(!piano.isExpanded)
+        let expansions = logger.events.compactMap { if case let .piano_expanded(isExpanded) = $0 { isExpanded } else { nil } }
+        #expect(expansions == [true, false])
+    }
+
     /// The app's own wiring: what the keys play reaches the piano through
     /// the arpeggiator, like every other note sink.
     @Test func theKeysOfAPerformanceLightThePiano() {
         let state = PerformanceState(sink: player(.keys), piano: piano, clock: clock)
-        state.press(degree: .I)
+        state.press(.degree(.I))
         #expect(Set(state.piano.lights.keys) == [60, 64, 67])
-        state.release(degree: .I)
+        state.release(.degree(.I))
         #expect(state.piano.lights.isEmpty)
     }
 }

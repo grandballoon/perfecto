@@ -29,6 +29,7 @@ enum TimelineAudioRenderer {
         let engine = AVAudioEngine()
         let made = KernelAudioUnit.makeNode()
         let sink = KernelSink(unit: made.unit) { UInt64(max(0, ($0 * sampleRate).rounded())) }
+        sink.setTempo(bpm)
         if let sample, !sample.samples.isEmpty { made.unit.load(sample, into: SynthPreset.micCapture) }
         engine.attach(made.node)
         engine.connect(made.node, to: engine.outputNode, format: format)
@@ -101,10 +102,16 @@ enum TimelineAudioRenderer {
         player.stop()
 
         // The tail: until what is left of the last notes has died away.
-        var tail = 0.0
+        // Between two echoes of the delay there is nothing, so with echoes
+        // it has died away once it has been quiet for as long as they are
+        // apart.
+        let quietFor = timeline.hasEchoes(live: live) ? DelaySettings.seconds(atBPM: bpm) : 0
+        var (tail, quiet) = (0.0, 0.0)
         while tail < longestTail {
-            tail += Double(blockFrames) / sampleRate
-            if try renderBlock() < silence { break }
+            let block = Double(blockFrames) / sampleRate
+            tail += block
+            quiet = try renderBlock() < silence ? quiet + block : 0
+            if quiet > quietFor { break }
         }
         return Double(written) / sampleRate
     }

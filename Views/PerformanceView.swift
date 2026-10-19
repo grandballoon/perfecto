@@ -3,7 +3,8 @@ import UIKit
 
 /// The desk's arrangement: a window with room for it shows the keys and the
 /// sequencer side by side, and the menu as a column beside them. The
-/// Tonnetz takes the sequencer's place when it is chosen (`DeskPane`).
+/// Tonnetz, the pads, the Trautonium's bars or the chord–scale tree take
+/// the sequencer's place when chosen (`DeskPane`).
 ///
 /// It is the phone's own screens put next to one another, chosen by one
 /// threshold, and nothing else is built on it: the layout as a whole is to
@@ -43,20 +44,36 @@ struct PerformanceView: View {
 
     var body: some View {
         // The piano, while it is shown, is the bottom of the window from
-        // edge to edge, and the screen is laid out in what is left above it.
+        // edge to edge, under a phone's notch too, and the screen is laid
+        // out in what is left above it. Expanded, it lies over the whole
+        // window, and the screen stays laid out as it was under it, so
+        // nothing there changes or stops.
         GeometryReader { window in
-            VStack(spacing: 0) {
-                screen
-                if state.piano.isOn {
-                    PianoView()
-                        .frame(height: PianoKeys.height(forWidth: window.size.width))
-                        .padding(.bottom, window.safeAreaInsets.bottom)
+            let insets = window.safeAreaInsets
+            ZStack {
+                VStack(spacing: 0) {
+                    screen
+                    if state.piano.isOn {
+                        Group {
+                            if state.piano.isExpanded { Color.black } else { PianoView() }
+                        }
+                        .frame(height: PianoKeys.height(
+                            forWidth: window.size.width + insets.leading + insets.trailing))
+                        .ignoresSafeArea(edges: .horizontal)
+                        .padding(.bottom, insets.bottom)
                         .background(Color.black)
+                    }
+                }
+                .ignoresSafeArea(edges: .bottom)
+                if state.piano.isOn && state.piano.isExpanded {
+                    PianoView(isExpanded: true)
+                        .ignoresSafeArea()
+                        .transition(.move(edge: .bottom))
                 }
             }
-            .ignoresSafeArea(edges: .bottom)
         }
         .showingHotkeyTips()
+        .showingVoicingPad()
         .background(KeyboardInput(keyboard: state.keyboard))
         .environment(sidePanel)
     }
@@ -116,6 +133,15 @@ struct PerformanceView: View {
                 case .tonnetz:
                     TonnetzView()
                         .padding(16)
+                case .pads:
+                    PadsView()
+                        .padding(16)
+                case .trautonium:
+                    TrautoniumView()
+                        .padding(16)
+                case .tree:
+                    ChordScaleTreeView()
+                        .padding(16)
                 }
             }
             .frame(width: paneWidth)
@@ -132,7 +158,7 @@ struct PerformanceView: View {
         VStack(spacing: 0) {
             // The OLED shares the top row with the menu button, inset past
             // it and top-aligned with it.
-            oledDisplay
+            displayAndSound
                 .padding(.leading, 66)
                 .padding(.trailing, 24)
                 .padding(.top, 12)
@@ -147,8 +173,39 @@ struct PerformanceView: View {
                 .padding(.bottom, 12)
 
             if !besideSequencer, state.deskPane == .tonnetz {
-                // The Tonnetz has the screen, whatever the mode under it.
+                // The Tonnetz has the screen, whatever the mode under it,
+                // under the effects it is played with.
+                EffectStrip()
+                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
                 TonnetzView()
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 20)
+            } else if !besideSequencer, state.deskPane == .pads {
+                // So have the pads.
+                PadsView()
+                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
+                    .padding(.bottom, 40)
+            } else if !besideSequencer, state.deskPane == .trautonium {
+                // And the Trautonium's bars, under the key they are in and
+                // the effects they are played with.
+                if state.showsKeyStrip {
+                    KeyStrip()
+                        .padding(.horizontal, 20)
+                        .padding(.top, 4)
+                }
+                EffectStrip()
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                TrautoniumView()
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 40)
+            } else if !besideSequencer, state.deskPane == .tree {
+                // And the chord–scale tree, under its own controls.
+                ChordScaleTreeView()
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
                     .padding(.bottom, 20)
@@ -160,6 +217,14 @@ struct PerformanceView: View {
             } else {
                 LoopBar()
                     .padding(.horizontal, 20)
+                if state.showsKeyStrip {
+                    KeyStrip()
+                        .padding(.horizontal, 20)
+                        .padding(.top, 10)
+                }
+                EffectStrip()
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
 
                 // Push the chord ring toward the bottom so it falls under the
                 // thumb when the phone is held normally, rather than sitting
@@ -170,7 +235,7 @@ struct PerformanceView: View {
                             screenHeight: geo.size.height)
                     .padding(.horizontal, 20)
 
-                // Bottom input: the chord colors or the effect slider
+                // Bottom input: the chord colors
                 PlaySurfaceView()
                     .environment(state)
                     .frame(height: state.surfaceShape.portraitHeight)
@@ -188,7 +253,8 @@ struct PerformanceView: View {
         if state.deskPane == .tonnetz {
             // The Tonnetz has the whole screen, as the sequencer does, and
             // its controls share the one row with the screen's own, inset
-            // past the menu button and level with it.
+            // past the menu button and level with it. The effects it is
+            // played with are a row under them.
             @Bindable var state = state
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
@@ -201,7 +267,72 @@ struct PerformanceView: View {
                 }
                 .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
                          - Self.edgeMargin)
+                EffectStrip()
                 TonnetzBoard()
+            }
+            .padding(Self.edgeMargin)
+            .frame(width: geo.size.width, height: geo.size.height)
+        } else if state.deskPane == .pads {
+            // So have the pads, with their editor beside the grid.
+            @Bindable var state = state
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    PhoneScreenToggle()
+                        .frame(width: Self.landscapeToggleWidth)
+                    PadsControls()
+                    toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
+                        .frame(width: Self.midiChitWidth)
+                        .hotkeyTip(.midi)
+                }
+                .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
+                         - Self.edgeMargin)
+                HStack(spacing: 12) {
+                    PadsBoard()
+                    if state.pads.isEditing {
+                        PadEditor()
+                            .frame(width: geo.size.width * 0.42)
+                    }
+                }
+            }
+            .padding(Self.edgeMargin)
+            .frame(width: geo.size.width, height: geo.size.height)
+        } else if state.deskPane == .trautonium {
+            // And the Trautonium's bars, which lie along the screen. The key
+            // they are in shares the one row with the screen's own, and
+            // the effects they are played with are a row under it.
+            @Bindable var state = state
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    PhoneScreenToggle()
+                        .frame(width: Self.landscapeToggleWidth)
+                    if state.showsKeyStrip { KeyStrip() } else { Spacer(minLength: 0) }
+                    toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
+                        .frame(width: Self.midiChitWidth)
+                        .hotkeyTip(.midi)
+                }
+                .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
+                         - Self.edgeMargin)
+                EffectStrip()
+                TrautoniumView()
+            }
+            .padding(Self.edgeMargin)
+            .frame(width: geo.size.width, height: geo.size.height)
+        } else if state.deskPane == .tree {
+            // And the chord–scale tree, whose controls share the one row
+            // with the screen's own.
+            @Bindable var state = state
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    PhoneScreenToggle()
+                        .frame(width: Self.landscapeToggleWidth)
+                    TreeControls()
+                    toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
+                        .frame(width: Self.midiChitWidth)
+                        .hotkeyTip(.midi)
+                }
+                .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
+                         - Self.edgeMargin)
+                ChordScaleTreeView(showsControls: false)
             }
             .padding(Self.edgeMargin)
             .frame(width: geo.size.width, height: geo.size.height)
@@ -211,6 +342,8 @@ struct PerformanceView: View {
             SequencerView()
                 .environment(state.sequencerState)
                 .frame(width: geo.size.width, height: geo.size.height)
+        } else if state.chordGridLayout.arrangement(isLandscape: true) == .circle {
+            ringLandscapeLayout(geo: geo)
         } else {
         HStack(spacing: 0) {
                 // With the horizontal chord row, a bar stands upright along
@@ -264,13 +397,19 @@ struct PerformanceView: View {
 
                 // Right panel: OLED + chord grid + function buttons
                 VStack(spacing: 0) {
-                    oledDisplay
+                    displayAndSound
                         .padding(.bottom, 8)
                     LoopBar()
                         .padding(.bottom, 8)
+                    if state.showsKeyStrip {
+                        KeyStrip()
+                            .padding(.bottom, 8)
+                    }
+                    EffectStrip()
+                        .padding(.bottom, 8)
                     let arrangement = state.chordGridLayout.arrangement(isLandscape: true)
                     switch arrangement {
-                    case .row, .circle:
+                    case .row, .circle, .octave:
                         keysAndSolo(arrangement, screenHeight: panelH, soloIsElsewhere: soloInPanel)
                             .padding(.vertical, 8)
                     case .grid:
@@ -286,7 +425,64 @@ struct PerformanceView: View {
         }
     }
 
+    /// The circle's own arrangement on a phone on its side. The ring has
+    /// the trailing half to itself, as large as it can be, under the sound
+    /// it is played in. Everything else is the top of the leading half,
+    /// over the chord colors.
+    private func ringLandscapeLayout(geo: GeometryProxy) -> some View {
+        let half = geo.size.width / 2
+        return HStack(spacing: 0) {
+            VStack(spacing: 8) {
+                // Inset past the menu button.
+                oledDisplay
+                    .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
+                             - Self.edgeMargin)
+                // The key strip is the highest row there is room for, so
+                // the voicing's pad, which reaches down from its field as
+                // far as the octaves above the one chosen, ends over the
+                // chord colors and not on them.
+                if state.showsKeyStrip { KeyStrip() }
+                functionButtons()
+                LoopBar()
+                EffectStrip()
+                // The solo strip has what room is left over the chord
+                // colors, so the ring gives up none of its own.
+                if state.solo.placementByKeys != nil {
+                    SoloStripView(axis: .horizontal)
+                } else {
+                    Spacer(minLength: 0)
+                }
+                PlaySurfaceView()
+                    .environment(state)
+                    .frame(maxWidth: .infinity)
+                    .frame(maxHeight: state.surfaceShape == .grid
+                           ? .infinity : SurfaceShape.barThickness)
+            }
+            .padding(Self.edgeMargin)
+            .frame(width: half, height: geo.size.height)
+
+            VStack(spacing: 8) {
+                SoundField()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: KeyStrip.height)
+                chordKeys(.circle)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .padding(Self.edgeMargin)
+            .frame(width: geo.size.width - half, height: geo.size.height)
+        }
+    }
+
     // MARK: – Shared subviews
+
+    /// The note display, and the sound field at its end, as tall as it is.
+    private var displayAndSound: some View {
+        HStack(spacing: 8) {
+            oledDisplay
+            SoundField()
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
 
     private var oledDisplay: some View {
         Text(state.activeVoicingText)
@@ -315,7 +511,13 @@ struct PerformanceView: View {
         return HStack(spacing: 10) {
             if besideSequencer {
                 SegmentedToggle(choices: DeskPane.allCases, label: \.displayName,
-                                hotkey: { $0 == .sequencer ? .sequencer : .tonnetz },
+                                hotkey: {
+                                    switch $0 {
+                                    case .sequencer: return .sequencer
+                                    case .tonnetz:   return .tonnetz
+                                    case .pads, .trautonium, .tree: return nil
+                                    }
+                                },
                                 selection: $state.deskPane)
             } else {
                 PhoneScreenToggle()
@@ -330,10 +532,10 @@ struct PerformanceView: View {
     }
 
     /// The chord keys, played: pressed as the fingers on them are, and
-    /// named in the key being played (a key zone can have its own).
+    /// named in the key they are in (a key zone can have its own).
     private func chordKeys(_ arrangement: ChordKeyArrangement) -> some View {
         ChordKeySurface {
-            ChordKeysView(arrangement: arrangement, key: state.playedKey, lit: state.heldDegrees)
+            ChordKeysView(arrangement: arrangement, key: state.homeKey, lit: state.heldKeys)
         }
     }
 
@@ -387,7 +589,8 @@ struct PerformanceView: View {
 }
 
 /// The toggle that chooses what a phone's screen shows: the keys, the
-/// sequencer or the Tonnetz. None is on under a mode that is none of them.
+/// sequencer, the Tonnetz, the pads, the Trautonium's bars or the
+/// chord–scale tree. None is on under a mode that is none of them.
 struct PhoneScreenToggle: View {
     @Environment(PerformanceState.self) private var state
 
@@ -398,7 +601,7 @@ struct PhoneScreenToggle: View {
                             switch $0 {
                             case .sequencer: return .sequencer
                             case .tonnetz:   return .tonnetz
-                            case .play, nil: return nil
+                            case .play, .pads, .trautonium, .tree, nil: return nil
                             }
                         },
                         selection: Binding(get: { state.phoneScreen },

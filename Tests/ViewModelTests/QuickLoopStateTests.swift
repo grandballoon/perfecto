@@ -28,9 +28,9 @@ struct QuickLoopStateTests {
 
         /// Holds `degree` for `beats`, then lets go.
         func play(_ degree: Degree, beats: Double) {
-            state.press(degree: degree)
+            state.press(.degree(degree))
             clock.advance(beats: beats)
-            state.release(degree: degree)
+            state.release(.degree(degree))
         }
 
         /// Records a first loop: I for two beats, V for two.
@@ -114,6 +114,19 @@ struct QuickLoopStateTests {
         #expect(rig.sink.playCalls.map(\.notes) == [[60, 64, 67], [67, 71, 74], [60, 64, 67]])
     }
 
+    /// A finished loop keeps the inversion its chords were played in.
+    @Test func aLoopKeepsTheInversionItWasPlayedIn() {
+        let rig = Rig()
+        rig.state.inversion = .first
+        rig.recordFirstLoop()
+        rig.state.inversion = .root
+        rig.sink.reset()
+        rig.clock.advance(beats: 4.01)
+
+        #expect(rig.timeline.layers[0].notes.allSatisfy { $0.playing.inversion == .first })
+        #expect(rig.sink.playCalls.map(\.notes) == [[71, 74, 79], [64, 67, 72]])
+    }
+
     /// A finished loop keeps its key, octave and sound whatever is chosen later.
     @Test func aLoopKeepsWhatItWasPlayedWith() {
         let rig = Rig()
@@ -131,10 +144,28 @@ struct QuickLoopStateTests {
         #expect(note.playing.effects == NoteEffects())
     }
 
+    /// A chord from the octave's key for a note outside the key is kept
+    /// in the key it was borrowed from, so it plays back as it was heard.
+    @Test func aBorrowedChordIsRecordedInItsOwnKey() {
+        let rig = Rig()
+        rig.loops.triggerTapped()
+        rig.state.press(.root(.As))
+        rig.clock.advance(beats: 4)
+        rig.state.release(.root(.As))
+        rig.loops.triggerTapped()
+
+        let note = rig.timeline.layers[0].notes[0]
+        #expect(note.chord.degree == .viiDim)
+        #expect(note.playing.key == Key(root: .C, scale: .mixolydian))
+        rig.sink.reset()
+        rig.clock.advance(beats: 4.01)
+        #expect(rig.sink.playCalls.map(\.notes) == [[70, 74, 77]])
+    }
+
     @Test func aKeyStillHeldWhenTheTakeClosesEndsThere() {
         let rig = Rig()
         rig.loops.triggerTapped()
-        rig.state.press(degree: .I)
+        rig.state.press(.degree(.I))
         rig.clock.advance(beats: 4)
         rig.loops.triggerTapped()
 
@@ -281,10 +312,10 @@ struct QuickLoopStateTests {
         rig.state.effects.zones.zones = [KeyZone(), KeyZone(key: Key(root: .Ds, scale: .major), octave: 2)]
         rig.state.effects.zones.isOn = true
         rig.loops.triggerTapped()
-        rig.state.slide(on: .I, to: 0.8)
-        rig.state.press(degree: .I)
+        rig.state.slide(on: .degree(.I), to: 0.8)
+        rig.state.press(.degree(.I))
         rig.clock.advance(beats: 4)
-        rig.state.release(degree: .I)
+        rig.state.release(.degree(.I))
         rig.loops.triggerTapped()
 
         let note = rig.timeline.layers[0].notes[0]
@@ -298,20 +329,20 @@ struct QuickLoopStateTests {
     /// A slide played while a chord was held is kept with the note.
     @Test func aSlideInsideAHeldChordIsRecorded() {
         let rig = Rig()
-        rig.state.effects.filter.isOn = true
+        rig.state.effects.vocoder = VocoderSettings(isOn: true, followsSlide: true)
         rig.loops.triggerTapped()
-        rig.state.slide(on: .I, to: 0.2)
-        rig.state.press(degree: .I)
+        rig.state.slide(on: .degree(.I), to: 0.2)
+        rig.state.press(.degree(.I))
         rig.clock.advance(beats: 2)
-        rig.state.slide(on: .I, to: 0.8)
+        rig.state.slide(on: .degree(.I), to: 0.8)
         rig.clock.advance(beats: 2)
-        rig.state.release(degree: .I)
+        rig.state.release(.degree(.I))
         rig.loops.triggerTapped()
 
         let note = rig.timeline.layers[0].notes[0]
-        #expect(note.playing.effects?.filter.brightness == 0.2)
+        #expect(note.playing.effects?.vocoder.amount == 0.2)
         #expect(note.changes.map(\.offset) == [960])
-        #expect(note.changes.first?.effects.filter.brightness == 0.8)
+        #expect(note.changes.first?.effects.vocoder.amount == 0.8)
     }
 
     /// A chord that was arpeggiated is recorded as the chord, with the
@@ -354,9 +385,9 @@ struct QuickLoopStateTests {
         /// Records a first loop: I held for a bar.
         func recordLoop() {
             state.quickLoopState.triggerTapped()
-            state.press(degree: .I)
+            state.press(.degree(.I))
             clock.advance(beats: 4)
-            state.release(degree: .I)
+            state.release(.degree(.I))
             state.quickLoopState.triggerTapped()
         }
     }
@@ -368,36 +399,57 @@ struct QuickLoopStateTests {
         rig.recordLoop()
         rig.layers.reset()
 
-        rig.state.effects.filter = FilterSettings(isOn: true, brightness: 0.2)
         rig.state.effects.chorus.isOn = true
-        rig.state.effects.reverb = ReverbSettings(isOn: true, mix: 0.9, size: 0.9)
+        rig.state.effects.reverb = ReverbSettings(isOn: true)
         rig.state.effects.arpeggiator.isOn = true
         rig.clock.advance(beats: 4.01)
 
         #expect(rig.layers.changes.isEmpty)
         #expect(rig.layers.started == [60, 64, 67])
         #expect(rig.layers.sounds.allSatisfy {
-            $0.filter == FilterSettings() && $0.chorus == ChorusSettings() && $0.reverb == ReverbSettings()
+            $0.chorus == ChorusSettings() && $0.reverb == ReverbSettings()
         })
     }
 
     /// A loop recorded with effects keeps them when the keys' are changed.
     @Test func aLoopKeepsItsEffectsWhenTheKeysAreChanged() {
         let rig = SoundRig()
-        let reverb = ReverbSettings(isOn: true, mix: 0.6, size: 0.7)
+        let reverb = ReverbSettings(isOn: true)
         rig.state.effects.reverb = reverb
         rig.recordLoop()
         rig.layers.reset()
 
-        rig.state.effects.reverb = ReverbSettings(isOn: false, mix: 0.1, size: 0.1)
-        rig.state.press(degree: .V)
-        rig.state.slide(on: .V, to: 0.9)
+        rig.state.effects.reverb = ReverbSettings(isOn: false)
+        rig.state.press(.degree(.V))
+        rig.state.slide(on: .degree(.V), to: 0.9)
         rig.clock.advance(beats: 4.01)
-        rig.state.release(degree: .V)
+        rig.state.release(.degree(.V))
 
         #expect(rig.layers.changes.isEmpty)
         #expect(!rig.layers.sounds.isEmpty)
         #expect(rig.layers.sounds.allSatisfy { $0.reverb == reverb })
+    }
+
+    /// With the slide playing brightness, a key struck low is heard dark
+    /// and a slide up it sweeps the chord, and the loop plays both again.
+    @Test func theBrightnessAChordIsPlayedWithIsHeardAndKeptByItsLoop() {
+        let rig = SoundRig()
+        rig.state.effects.slidePlaysBrightness = true
+        rig.state.quickLoopState.triggerTapped()
+        rig.state.slide(on: .degree(.I), to: 0.2)
+        rig.state.press(.degree(.I))
+        rig.clock.advance(beats: 2)
+        rig.state.slide(on: .degree(.I), to: 0.8)
+        rig.clock.advance(beats: 2)
+        rig.state.release(.degree(.I))
+        rig.state.quickLoopState.triggerTapped()
+        #expect(rig.keys.sounds.map(\.brightness) == [0.2, 0.2, 0.2])
+        #expect(rig.keys.changes.map(\.brightness) == [0.8, 0.8, 0.8])
+
+        rig.layers.reset()
+        rig.clock.advance(beats: 4.01)
+        #expect(!rig.layers.sounds.isEmpty && rig.layers.sounds.allSatisfy { $0.brightness == 0.2 })
+        #expect(!rig.layers.changes.isEmpty && rig.layers.changes.allSatisfy { $0.brightness == 0.8 })
     }
 
     /// A loop's effects are edited by themselves: the loop is heard in
@@ -410,15 +462,15 @@ struct QuickLoopStateTests {
         rig.layers.reset()
 
         rig.sequencer.editEffects(ofLayer: loop, following: live) { $0.reverb.isOn = true }
-        rig.sequencer.editEffects(ofLayer: loop, following: live) { $0.reverb.mix = 0.8 }
+        rig.sequencer.editEffects(ofLayer: loop, following: live) { $0.chorus.isOn = true }
 
         // The chord sounding glides to them, and is not struck again.
         #expect(rig.layers.started.isEmpty)
-        #expect(rig.layers.changes.last?.reverb == ReverbSettings(isOn: true, mix: 0.8))
+        #expect(rig.layers.changes.last.map { $0.reverb.isOn && $0.chorus.isOn } == true)
         rig.clock.advance(beats: 4.01)
-        #expect(rig.layers.sounds.allSatisfy { $0.reverb == ReverbSettings(isOn: true, mix: 0.8) })
+        #expect(rig.layers.sounds.allSatisfy { $0.reverb.isOn && $0.chorus.isOn })
         #expect(rig.state.effects.asSet == live)
-        rig.state.press(degree: .V)
+        rig.state.press(.degree(.V))
         #expect(rig.keys.sounds.allSatisfy { !$0.reverb.isOn })
 
         rig.sequencer.undo()

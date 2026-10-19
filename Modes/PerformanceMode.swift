@@ -45,25 +45,28 @@ enum ModeSurface {
 /// One way of turning chord-button presses into sound.
 ///
 /// Button contract (enforced by `PerformanceState`, so modes can rely on it):
-/// - Several degrees may be held at once (several fingers). The most recent
+/// - Several keys may be held at once (several fingers). The most recent
 ///   press is the active one. Releasing an older press is not reported.
-/// - Releasing the active degree while older presses are still held makes the
+/// - Releasing the active key while older presses are still held makes the
 ///   most recent of them active again: it arrives as a new `onButtonDown`,
 ///   with no `onButtonUp` in between, so the chord changes without a gap.
-/// - `onButtonUp` is called only when the last held degree is released.
-///   Every `onButtonDown(degree)` is therefore eventually followed by one
-///   `onButtonUp` for the same degree, unless another `onButtonDown`
+/// - `onButtonUp` is called only when the last held key is released.
+///   Every `onButtonDown(key)` is therefore eventually followed by one
+///   `onButtonUp` for the same key, unless another `onButtonDown`
 ///   supersedes it first.
+///
+/// A mode is told which key (`ChordKey`), and gives it back to the state to
+/// play (`startChord`), which works out its chord as the keys are then.
 @MainActor
 protocol PerformanceMode: AnyObject {
     var kind: ModeKind { get }
     var requiresClock: Bool { get }
-    func onButtonDown(degree: Degree, state: PerformanceState)
-    func onButtonUp(degree: Degree, state: PerformanceState)
+    func onButtonDown(key: ChordKey, state: PerformanceState)
+    func onButtonUp(key: ChordKey, state: PerformanceState)
     /// The chord a held key plays changed: the live chord color (joystick
     /// or grid moved), or the key or octave (the finger moved into a key
-    /// zone with its own). Modes that are sounding a chord play it again
-    /// as `state` now has it.
+    /// zone with its own). Modes that are sounding a chord play its key
+    /// again, as `state` now has it.
     func onColorChange(state: PerformanceState)
     func onClockTick(state: PerformanceState)
     /// The mode has just become the active one.

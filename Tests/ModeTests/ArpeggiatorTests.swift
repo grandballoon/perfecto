@@ -29,7 +29,7 @@ struct ArpeggiatorTests {
 
     @Test func whileOffChordsSoundWhole() {
         let (state, sink, clock) = makeState(isOn: false)
-        state.press(degree: .I)
+        state.press(.degree(.I))
         clock.advance(beats: 4)
         #expect(notes(sink) == [[60, 64, 67]])
         #expect(clock.pendingCount == 0)
@@ -39,13 +39,13 @@ struct ArpeggiatorTests {
 
     @Test func theFirstNoteSoundsOnThePress() {
         let (state, sink, _) = makeState()
-        state.press(degree: .I)
+        state.press(.degree(.I))
         #expect(notes(sink) == [[60]])
     }
 
     @Test func theNotesShareTheCycleEvenly() {
         let (state, sink, clock) = makeState()
-        state.press(degree: .I)
+        state.press(.degree(.I))
 
         clock.advance(beats: 1.0 / 3 - Self.moment)
         #expect(notes(sink) == [[60]])
@@ -58,7 +58,7 @@ struct ArpeggiatorTests {
     @Test(arguments: [(ArpeggioCycle.halfBeat, 0.5), (.beat, 1.0), (.twoBeats, 2.0), (.bar, 4.0)])
     func onePassTakesTheCycle(cycle: ArpeggioCycle, beats: Double) {
         let (state, sink, clock) = makeState(cycle: cycle)
-        state.press(degree: .I)
+        state.press(.degree(.I))
 
         clock.advance(beats: beats - Self.moment)
         #expect(notes(sink) == [[60], [64], [67]])
@@ -71,7 +71,7 @@ struct ArpeggiatorTests {
     @Test func aChordWithMoreNotesTakesTheSameTime() {
         let (state, sink, clock) = makeState()
         state.joystickMoved(to: .right)             // I becomes Cmaj7: 60 64 67 71
-        state.press(degree: .I)
+        state.press(.degree(.I))
 
         clock.advance(beats: 1 - Self.moment)
         #expect(notes(sink) == [[60], [64], [67], [71]])
@@ -83,7 +83,7 @@ struct ArpeggiatorTests {
     /// The same, with the coloration added while the chord is held.
     @Test func colouringAHeldChordKeepsThePassLength() {
         let (state, sink, clock) = makeState()
-        state.press(degree: .I)
+        state.press(.degree(.I))
         clock.advance(beats: 2)
         sink.reset()
 
@@ -99,25 +99,13 @@ struct ArpeggiatorTests {
     @Test(arguments: [
         (ArpeggioPattern.up,     [60, 64, 67, 60, 64, 67, 60]),
         (.down,                  [67, 64, 60, 67, 64, 60, 67]),
-        (.upDown,                [60, 64, 67, 64, 60, 64, 67]),
     ])
     func thePatternSetsTheOrder(pattern: ArpeggioPattern, expected: [Int]) {
         let (state, sink, clock) = makeState(pattern: pattern)
-        state.press(degree: .I)
+        state.press(.degree(.I))
         let notesPerBeat = pattern.pass(count: 3).count
         clock.advance(beats: Double(expected.count - 1) / Double(notesPerBeat))
         #expect(notes(sink) == expected.map { [$0] })
-    }
-
-    @Test func randomPlaysEveryNoteOnceEachPass() {
-        let (state, sink, clock) = makeState(pattern: .random)
-        state.press(degree: .I)
-        clock.advance(beats: 3 - Self.moment)
-        let played = notes(sink).map { $0[0] }
-        #expect(played.count == 9)
-        for pass in stride(from: 0, to: 9, by: 3) where played.count == 9 {
-            #expect(played[pass..<pass + 3].sorted() == [60, 64, 67])
-        }
     }
 
     @Test(arguments: ArpeggioPattern.allCases, 0...6)
@@ -130,8 +118,8 @@ struct ArpeggiatorTests {
 
     @Test func releasingEndsThePattern() {
         let (state, sink, clock) = makeState()
-        state.press(degree: .I)
-        state.release(degree: .I)
+        state.press(.degree(.I))
+        state.release(.degree(.I))
         #expect(sink.calls.last == .stop)
         #expect(clock.pendingCount == 0)
         sink.reset()
@@ -141,9 +129,9 @@ struct ArpeggiatorTests {
 
     @Test func aNewChordStartsThePatternAgainAtOnce() {
         let (state, sink, clock) = makeState()
-        state.press(degree: .I)
+        state.press(.degree(.I))
         clock.advance(beats: 1.0 / 3)               // 60, 64
-        state.movePointer(from: .I, to: .IV)
+        state.movePointer(from: .degree(.I), to: .degree(.IV))
         clock.advance(beats: 1.0 / 3)
         #expect(notes(sink) == [[60], [64], [65], [69]])
         #expect(clock.pendingCount == 1)
@@ -151,7 +139,7 @@ struct ArpeggiatorTests {
 
     @Test func everyNoteCarriesItsChordsContext() {
         let (state, sink, clock) = makeState()
-        state.press(degree: .IV)
+        state.press(.degree(.IV))
         clock.advance(beats: 1 - Self.moment)
         #expect(sink.playEvents.count == 3)
         #expect(sink.playEvents.allSatisfy { $0.context.spec.degree == .IV && $0.articulation == .block })
@@ -159,7 +147,7 @@ struct ArpeggiatorTests {
 
     @Test func switchingItOnOrOffReSoundsTheHeldChord() {
         let (state, sink, clock) = makeState(isOn: false)
-        state.press(degree: .I)
+        state.press(.degree(.I))
         state.effects.arpeggiator.isOn = true
         clock.advance(beats: 1.0 / 3)
         state.effects.arpeggiator.isOn = false
@@ -173,7 +161,7 @@ struct ArpeggiatorTests {
     /// the new spacing.
     @Test func changingTheCycleChangesTheSpeedFromTheNextNote() {
         let (state, sink, clock) = makeState()
-        state.press(degree: .I)
+        state.press(.degree(.I))
         state.effects.arpeggiator.cycle = .bar
         #expect(notes(sink) == [[60]])
 
@@ -193,19 +181,19 @@ struct ArpeggiatorTests {
         let (state, sink, clock) = makeState()
         state.effects.arpeggiator.followsSlide = true
 
-        state.slide(on: .I, to: 0)                 // the bottom of the key: a bar per pass
-        state.movePointer(from: nil, to: .I)
+        state.slide(on: .degree(.I), to: 0)                 // the bottom of the key: a bar per pass
+        state.movePointer(from: nil, to: .degree(.I))
         clock.advance(beats: 4.0 / 3)
         #expect(notes(sink) == [[60], [64]])
 
-        state.slide(on: .I, to: 1)                 // the top: half a beat per pass
+        state.slide(on: .degree(.I), to: 1)                 // the top: half a beat per pass
         clock.advance(beats: 4.0 / 3)              // the note already due, at the old speed
         #expect(notes(sink) == [[60], [64], [67]])
         clock.advance(beats: 0.5)
         #expect(notes(sink) == [[60], [64], [67], [60], [64], [67]])
 
-        state.movePointer(from: .I, to: nil)
-        state.press(degree: .I)
+        state.movePointer(from: .degree(.I), to: nil)
+        state.press(.degree(.I))
         sink.reset()
         clock.advance(beats: 1)
         #expect(notes(sink) == [[64], [67], [60]])
@@ -216,11 +204,11 @@ struct ArpeggiatorTests {
     @Test func aWaveringSlideNeverStallsTheNotes() {
         let (state, sink, clock) = makeState()
         state.effects.arpeggiator.followsSlide = true
-        state.slide(on: .I, to: 0.6)               // a beat per pass
-        state.movePointer(from: nil, to: .I)
+        state.slide(on: .degree(.I), to: 0.6)               // a beat per pass
+        state.movePointer(from: nil, to: .degree(.I))
 
         for step in 0..<20 {
-            state.slide(on: .I, to: step.isMultiple(of: 2) ? 0.4 : 0.6)
+            state.slide(on: .degree(.I), to: step.isMultiple(of: 2) ? 0.4 : 0.6)
             clock.advance(beats: 0.01)
         }
         clock.advance(beats: 1.0 / 3 - 0.2)
@@ -234,26 +222,26 @@ struct ArpeggiatorTests {
         let (state, sink, clock) = makeState(isOn: false)
         state.effects.zones = KeyZoneSettings(isOn: true, zones: [
             KeyZone(),
-            KeyZone(effect: .arpeggiator, value: ArpeggioCycle.bar.slide),
-            KeyZone(effect: .arpeggiator, value: ArpeggioCycle.halfBeat.slide),
+            KeyZone(effect: .arpeggio(.up), value: ArpeggioCycle.bar.slide),
+            KeyZone(effect: .arpeggio(.up), value: ArpeggioCycle.halfBeat.slide),
         ])
 
-        state.slide(on: .I, to: 0.1)               // the plain zone: the chord whole
-        state.movePointer(from: nil, to: .I)
+        state.slide(on: .degree(.I), to: 0.1)               // the plain zone: the chord whole
+        state.movePointer(from: nil, to: .degree(.I))
         clock.advance(beats: 4)
         #expect(notes(sink) == [[60, 64, 67]])
-        state.movePointer(from: .I, to: nil)
+        state.movePointer(from: .degree(.I), to: nil)
 
         sink.reset()
-        state.slide(on: .I, to: 0.5)               // a bar per pass
-        state.movePointer(from: nil, to: .I)
+        state.slide(on: .degree(.I), to: 0.5)               // a bar per pass
+        state.movePointer(from: nil, to: .degree(.I))
         clock.advance(beats: 4.0 / 3)
         #expect(notes(sink) == [[60], [64]])
-        state.movePointer(from: .I, to: nil)
+        state.movePointer(from: .degree(.I), to: nil)
 
         sink.reset()
-        state.slide(on: .I, to: 0.9)               // half a beat per pass
-        state.movePointer(from: nil, to: .I)
+        state.slide(on: .degree(.I), to: 0.9)               // half a beat per pass
+        state.movePointer(from: nil, to: .degree(.I))
         clock.advance(beats: 0.4)
         #expect(notes(sink) == [[60], [64], [67]])
     }
@@ -263,15 +251,15 @@ struct ArpeggiatorTests {
     @Test func liftingFromAnArpeggiatorZoneJustStops() {
         let (state, sink, _) = makeState(isOn: false)
         state.effects.zones.isOn = true            // the top zone arpeggiates
-        state.slide(on: .I, to: 0.9)
-        state.movePointer(from: nil, to: .I)
-        state.movePointer(from: .I, to: nil)
+        state.slide(on: .degree(.I), to: 0.9)
+        state.movePointer(from: nil, to: .degree(.I))
+        state.movePointer(from: .degree(.I), to: nil)
 
         #expect(notes(sink) == [[60]])
         #expect(sink.stopCount == 1)
 
-        state.slide(on: .I, to: 0.9)
-        state.movePointer(from: nil, to: .I)
+        state.slide(on: .degree(.I), to: 0.9)
+        state.movePointer(from: nil, to: .degree(.I))
         state.setMode(PlayMode())
         #expect(notes(sink) == [[60], [60]])
     }
@@ -281,10 +269,10 @@ struct ArpeggiatorTests {
     @Test func slidingBetweenZonesReSoundsTheHeldChord() {
         let (state, sink, _) = makeState(isOn: false)
         state.effects.zones.isOn = true
-        state.slide(on: .I, to: 0.1)
-        state.movePointer(from: nil, to: .I)
-        state.slide(on: .I, to: 0.9)
-        state.slide(on: .I, to: 0.1)
+        state.slide(on: .degree(.I), to: 0.1)
+        state.movePointer(from: nil, to: .degree(.I))
+        state.slide(on: .degree(.I), to: 0.9)
+        state.slide(on: .degree(.I), to: 0.1)
         #expect(notes(sink) == [[60, 64, 67], [60], [60, 64, 67]])
     }
 
@@ -317,9 +305,9 @@ struct ArpeggiatorTests {
         let state = PerformanceState(sink: noteSink, chordListener: listener, clock: clock)
         state.effects.arpeggiator.isOn = true
 
-        state.press(degree: .I)
+        state.press(.degree(.I))
         clock.advance(beats: 2)
-        state.release(degree: .I)
+        state.release(.degree(.I))
 
         #expect(listener.calls.map(\.isPlay) == [true, false])
         #expect(listener.playCalls.map(\.notes) == [[60, 64, 67]])

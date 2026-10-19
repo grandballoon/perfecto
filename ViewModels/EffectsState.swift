@@ -1,17 +1,25 @@
 import Observation
 
 /// The effects' controls: the arpeggiator, which changes which notes play
-/// and when, and the filter, chorus, reverb and vocoder, which change how
+/// and when, and the chorus, reverb, delay and vocoder, which change how
 /// they sound.
 /// Views edit the settings here; each change is passed straight on to the
 /// part that realizes it.
 ///
 /// The effects are also played: while a chord key is held, the finger's
 /// place on it (`slide`) stands in for one set value of every effect that
-/// follows it (`SlidePlayed`), and the key zone the finger is in (`zones`)
-/// holds its effect on. A finger on the effect slider (`slider`) plays one
-/// effect's control by itself, whatever the key says. What is passed on is
+/// follows it (`SlidePlayed`), and the key zone the finger is in (`zones`,
+/// or that key's own, `keyZones`) holds its effect on. What is passed on is
 /// always the effect as played; the settings here stay as they were set.
+///
+/// The slide can also play how bright the notes are (`slidePlaysBrightness`,
+/// a switch in Setup): dark at the bottom of a key and the whole sound at
+/// its top. That is not an effect: it has no settings, no field and no zone.
+/// Nor is the chord's inversion, which the slide can play as well
+/// (`slidePlaysInversion`, `slideRoll`).
+///
+/// The play screen has a field for each effect that is on (`slots`), which
+/// switches the effects by the same settings.
 @Observable
 @MainActor
 final class EffectsState {
@@ -29,17 +37,7 @@ final class EffectsState {
             onSetChange?()
             onPlayedChange?()
             sendArpeggiator()
-            logSwitch(.arpeggiator, from: oldValue.isOn, to: arpeggiator.isOn)
-        }
-    }
-
-    var filter = FilterSettings() {
-        didSet {
-            guard filter != oldValue else { return }
-            onSetChange?()
-            onPlayedChange?()
-            sendFilter()
-            logSwitch(.filter, from: oldValue.isOn, to: filter.isOn)
+            switched(.arpeggiator, from: oldValue.isOn, to: arpeggiator.isOn)
         }
     }
 
@@ -49,7 +47,7 @@ final class EffectsState {
             onSetChange?()
             onPlayedChange?()
             sendChorus()
-            logSwitch(.chorus, from: oldValue.isOn, to: chorus.isOn)
+            switched(.chorus, from: oldValue.isOn, to: chorus.isOn)
         }
     }
 
@@ -59,7 +57,17 @@ final class EffectsState {
             onSetChange?()
             onPlayedChange?()
             sendReverb()
-            logSwitch(.reverb, from: oldValue.isOn, to: reverb.isOn)
+            switched(.reverb, from: oldValue.isOn, to: reverb.isOn)
+        }
+    }
+
+    var delay = DelaySettings() {
+        didSet {
+            guard delay != oldValue else { return }
+            onSetChange?()
+            onPlayedChange?()
+            sendDelay()
+            switched(.delay, from: oldValue.isOn, to: delay.isOn)
         }
     }
 
@@ -69,37 +77,114 @@ final class EffectsState {
             onSetChange?()
             onPlayedChange?()
             sendVocoder()
-            logSwitch(.vocoder, from: oldValue.isOn, to: vocoder.isOn)
+            switched(.vocoder, from: oldValue.isOn, to: vocoder.isOn)
         }
     }
 
+    /// Whether the slide plays how bright the notes are. Off, and with no
+    /// finger on a key, every note is as bright as its preset makes it.
+    var slidePlaysBrightness = false {
+        didSet {
+            guard slidePlaysBrightness != oldValue else { return }
+            sendBrightness()
+            onPlayedChange?()
+            logger?.log(.slide_brightness_switched(isOn: slidePlaysBrightness))
+        }
+    }
+
+    /// Whether the slide plays the chord's inversion (`InversionSlide`): the
+    /// middle of a key is the inversion as set, and the chord is rolled
+    /// further up above it and further down below.
+    var slidePlaysInversion = false {
+        didSet {
+            guard slidePlaysInversion != oldValue else { return }
+            slideRoll = rollHeld(from: nil)
+            onPlayedChange?()
+            logger?.log(.slide_inversion_switched(isOn: slidePlaysInversion))
+        }
+    }
+
+    /// The steps the finger playing the chord rolls it from the inversion
+    /// set, by its place on the key; 0 while the slide does not play the
+    /// inversion, no key is held, or the key has no place on it.
+    private(set) var slideRoll = 0
+
+    /// The steps the finger rolls the chord where it is now, given the
+    /// steps it did before.
+    private func rollHeld(from current: Int?) -> Int {
+        slidePlaysInversion ? InversionSlide.steps(at: place, from: current) : 0
+    }
+
     /// The bands every chord key is divided into, and the effect each plays.
+    /// Its switch is the key zones' as a whole: off, no key has any, its
+    /// own (`keyZones`) included.
     var zones = KeyZoneSettings() {
         didSet {
             guard zones != oldValue else { return }
-            zone = zones.zone(at: slide, from: nil)
-            for effect in EffectKind.allCases where (oldValue.zones + zones.zones).contains(where: { $0.effect == effect }) {
-                send(effect)
-            }
-            if zones.isOn != oldValue.isOn { logger?.log(.key_zones_switched(isOn: zones.isOn)) }
+            let switched = zones.isOn != oldValue.isOn
+            // The keys' own zones go on and off with the switch.
+            zonesChanged(oldValue.zones + zones.zones + (switched ? keyZones.values.flatMap(\.zones) : []))
+            if switched { logger?.log(.key_zones_switched(isOn: zones.isOn)) }
             onSetChange?()
         }
     }
 
-    /// How far up its key the finger playing the chord is, from 0 at the
-    /// bottom to 1 at the top; nil while no key is held.
-    var slide: Float? {
+    /// The zones of the keys that have their own. While a key's are on it
+    /// is divided by them alone, in place of every key's (`zones`), so an
+    /// effect can be on one key, or on one part of one key.
+    var keyZones: [Degree: KeyZoneSettings] = [:] {
         didSet {
-            guard slide != oldValue else { return }
-            let left = zoneEffect
-            let wasIn = zone
-            zone = zones.zone(at: slide, from: zone)
-            let zoned = zone == wasIn ? [] : [left, zoneEffect]
-            for effect in EffectKind.allCases where follows(effect) || zoned.contains(effect) {
-                send(effect)
+            guard keyZones != oldValue else { return }
+            for key in Degree.allCases where keyZones[key] != oldValue[key] {
+                let (old, new) = (oldValue[key] ?? .ofOneKey, keyZones[key] ?? .ofOneKey)
+                zonesChanged(old.zones + new.zones)
+                if new.isOn != old.isOn { logger?.log(.key_own_zones_switched(degree: key.rawValue, isOn: new.isOn)) }
             }
-            onPlayedChange?()
+            onSetChange?()
         }
+    }
+
+    /// The zones the key for `key` is divided into: its own while they are
+    /// on, every key's otherwise (and for no key in particular). While the
+    /// key zones are off they are every key's, which are off.
+    func zones(of key: Degree?) -> KeyZoneSettings {
+        if zones.isOn, let key, let own = keyZones[key], own.isOn { return own }
+        return zones
+    }
+
+    /// How far up its key the finger playing the chord is, from 0 at the
+    /// bottom to 1 at the top; nil while no key is held, and for a key
+    /// with no place on it.
+    var slide: Float? {
+        get { place }
+        set { hold(heldKey, at: newValue) }
+    }
+
+    /// The chord key being played, whose zones the finger is read against;
+    /// nil while none is.
+    private(set) var heldKey: Degree?
+
+    private var place: Float?
+
+    /// The chord is now played from `key`, by a finger at `slide` on it
+    /// (nil: the key has no place, or no key is held). The two change as
+    /// one step, so a finger is never read against another key's zones.
+    func hold(_ key: Degree?, at slide: Float?) {
+        guard key != heldKey || slide != place else { return }
+        let was = heldZone
+        // A zone holds on to a finger at its edge, not to one on another key.
+        let isSameKey = key == heldKey
+        let current = isSameKey ? zone : nil
+        heldKey = key
+        place = slide
+        zone = zoneHeld(from: current)
+        slideRoll = rollHeld(from: isSameKey ? slideRoll : nil)
+        let zoned = heldZone == was ? [] : [was?.effect?.kind, heldZone?.effect?.kind]
+        for effect in EffectKind.allCases where follows(effect) || zoned.contains(effect) {
+            send(effect)
+        }
+        if slidePlaysBrightness { sendBrightness() }
+        onPlayedChange?()
     }
 
     /// The key zone the finger playing the chord is in, counted from the
@@ -107,56 +192,85 @@ final class EffectsState {
     private(set) var zone: Int?
 
     /// The key zone the finger playing the chord is in, as it is set.
-    var heldZone: KeyZone? { zone.map { zones.zones[$0] } }
+    var heldZone: KeyZone? { zone.map { zones(of: heldKey).zones[$0] } }
 
-    /// Where a finger on the effect slider holds each effect's played
-    /// control, as a place on the slide (0...1); an effect with no finger
-    /// on its lane has no entry. Change it with `sliderMoved`.
-    private(set) var slider: [EffectKind: Float] = [:]
-
-    /// A finger on the effect slider is at `place` (0...1) on `effect`'s
-    /// lane (nil: lifted). While it is there it plays the effect's control,
-    /// over the slide and the key zones; lifting returns to what they play.
-    /// An effect that is off is not switched on by it.
-    func sliderMoved(_ effect: EffectKind, to place: Float?) {
-        let place = place.map { $0.clamped(to: 0...1) }
-        guard place != slider[effect] else { return }
-        if slider[effect] == nil { logger?.log(.effect_slider_touched(effect: effect)) }
-        slider[effect] = place
-        send(effect)
-        onPlayedChange?()
+    /// The zone of the held key that the finger is in, given the one it
+    /// was in before.
+    private func zoneHeld(from current: Int?) -> Int? {
+        let zones = zones(of: heldKey)
+        if place == nil, heldKey != nil { return zones.whole }
+        return zones.zone(at: place, from: current)
     }
 
-    /// The effects that are on, in the order the effect slider shows them:
-    /// each has a lane there.
-    var slidable: [EffectKind] { EffectKind.allCases.filter { set($0).isOn } }
-
-    /// Where `effect`'s played control is now, as a place on the slide:
-    /// under the finger on its lane of the effect slider, or where it is
-    /// played from the keys.
-    func place(of effect: EffectKind) -> Float {
-        slider[effect] ?? played(set(effect)).place
+    /// Zones were set to something new: the finger is read against them
+    /// again, and every effect that `changed` (the zones as they were and
+    /// as they are) names is passed on.
+    private func zonesChanged(_ changed: [KeyZone]) {
+        zone = zoneHeld(from: nil)
+        for effect in EffectKind.allCases where changed.contains(where: { $0.effect?.kind == effect }) {
+            send(effect)
+        }
     }
 
-    /// Every effect as it sounds now, the slide, the key zones and the
-    /// effect slider applied:
+    /// The play screen's effect fields: the effects that are on, each in
+    /// its place in the row. They follow the settings, however an effect
+    /// is switched.
+    private(set) var slots = EffectSlots()
+
+    /// The effect in each slot as it is set; nil is an empty slot.
+    var slotChoices: [EffectChoice?] {
+        let set = asSet
+        return slots.kinds.map { $0.flatMap(set.choice(of:)) }
+    }
+
+    /// Changes `slot` to `choice`: the effect it had is switched off and
+    /// the chosen one on (nil: none is). A choice whose effect another slot
+    /// has is not taken.
+    func setSlot(_ slot: Int, to choice: EffectChoice?) {
+        guard slots.kinds.indices.contains(slot) else { return }
+        let was = slots.kinds[slot]
+        slots.put(choice?.kind, in: slot)
+        guard slots.kinds[slot] == choice?.kind else { return }
+        var set = asSet
+        if let was, was != choice?.kind { set.switchOff(was) }
+        if let choice { set.switchOn(choice) }
+        asSet = set
+    }
+
+    /// Adds an empty slot to the row, for one more effect.
+    func addSlot() { slots.add() }
+
+    /// The finger changing a slot has lifted: the row closes up over the
+    /// slots left empty.
+    func settleSlots() { slots.settle() }
+
+    /// Every effect as it sounds now, the slide and the key zones applied:
     /// what a chord played now is played with.
     var asPlayed: NoteEffects {
-        NoteEffects(arpeggiator: played(arpeggiator), filter: played(filter),
-                    chorus: played(chorus), reverb: played(reverb), vocoder: played(vocoder))
+        NoteEffects(arpeggiator: playedArpeggiator,
+                    chorus: played(chorus), reverb: played(reverb), delay: played(delay),
+                    vocoder: played(vocoder),
+                    brightness: playedBrightness)
+    }
+
+    /// How bright a note played now is: where the finger is on its key,
+    /// while the slide plays that.
+    private var playedBrightness: Float {
+        slidePlaysBrightness ? slide ?? 1 : 1
     }
 
     /// Every effect as set, whatever is being played: what a note of a
     /// timeline follows when it has no effects of its own.
     var asSet: NoteEffects {
         get {
-            NoteEffects(arpeggiator: arpeggiator, filter: filter, chorus: chorus, reverb: reverb, vocoder: vocoder)
+            NoteEffects(arpeggiator: arpeggiator, chorus: chorus, reverb: reverb, delay: delay,
+                        vocoder: vocoder)
         }
         set {
             arpeggiator = newValue.arpeggiator
-            filter = newValue.filter
             chorus = newValue.chorus
             reverb = newValue.reverb
+            delay = newValue.delay
             vocoder = newValue.vocoder
         }
     }
@@ -164,10 +278,16 @@ final class EffectsState {
     /// Whether anything set here needs the mic: the vocoder switched on,
     /// or a key zone that switches it on.
     var hearsTheMic: Bool {
-        vocoder.isOn || (zones.isOn && zones.zones.contains { $0.effect == .vocoder })
+        vocoder.isOn || allZones.contains { $0.zones.contains { $0.effect == .vocoder } }
     }
 
-    var isAnyOn: Bool { arpeggiator.isOn || filter.isOn || chorus.isOn || reverb.isOn || vocoder.isOn || zones.isOn }
+    var isAnyOn: Bool { asSet.hasAnyOn || zones.isOn }
+
+    /// The zones a key can be divided into now: every key's, and those of
+    /// each key that has its own.
+    private var allZones: [KeyZoneSettings] {
+        zones.isOn ? [zones] + keyZones.values.filter(\.isOn) : []
+    }
 
     private let arpeggiatorSink: Arpeggiator
     private let controls: [any EffectsControl]
@@ -186,25 +306,28 @@ final class EffectsState {
 
     // MARK: – Passing the effects on, as played
 
-    /// The effect the zone under the finger holds on, if it has one.
-    private var zoneEffect: EffectKind? { heldZone?.effect }
+    /// `set` as it sounds now: held on by the zone under the finger if
+    /// that is its zone, played by the slide otherwise.
+    private func played<Settings: EffectSettings>(_ set: Settings) -> Settings {
+        guard let held = heldZone, held.effect?.kind == Settings.kind else { return set.played(by: slide) }
+        return set.held(at: held.value)
+    }
 
-    /// `set` as it sounds now: played by the finger on its lane of the
-    /// effect slider if there is one, held on by the zone under the finger
-    /// on the key if that is its zone, played by the slide otherwise.
-    private func played<Settings: SlidePlayed>(_ set: Settings) -> Settings {
-        if set.isOn, let place = slider[Settings.kind] { return set.playing(place) }
-        guard let zone, zones.zones[zone].effect == Settings.kind else { return set.played(by: slide) }
-        return set.held(at: zones.zones[zone].value)
+    /// The arpeggiator as it sounds now. A zone that holds it on also says
+    /// which of the two arpeggios it plays.
+    private var playedArpeggiator: ArpeggiatorSettings {
+        var played = played(arpeggiator)
+        if let pattern = heldZone?.effect?.pattern { played.pattern = pattern }
+        return played
     }
 
     /// `effect`'s settings, as set.
-    private func set(_ effect: EffectKind) -> any SlidePlayed {
+    private func set(_ effect: EffectKind) -> any EffectSettings {
         switch effect {
         case .arpeggiator: return arpeggiator
-        case .filter:      return filter
         case .chorus:      return chorus
         case .reverb:      return reverb
+        case .delay:       return delay
         case .vocoder:     return vocoder
         }
     }
@@ -214,20 +337,15 @@ final class EffectsState {
     private func send(_ effect: EffectKind) {
         switch effect {
         case .arpeggiator: sendArpeggiator()
-        case .filter:      sendFilter()
         case .chorus:      sendChorus()
         case .reverb:      sendReverb()
+        case .delay:       sendDelay()
         case .vocoder:     sendVocoder()
         }
     }
 
     private func sendArpeggiator() {
-        arpeggiatorSink.settings = played(arpeggiator)
-    }
-
-    private func sendFilter() {
-        let played = played(filter)
-        for control in controls { control.setFilter(played) }
+        arpeggiatorSink.settings = playedArpeggiator
     }
 
     private func sendChorus() {
@@ -240,13 +358,25 @@ final class EffectsState {
         for control in controls { control.setReverb(played) }
     }
 
+    private func sendDelay() {
+        let played = played(delay)
+        for control in controls { control.setDelay(played) }
+    }
+
     private func sendVocoder() {
         let played = played(vocoder)
         for control in controls { control.setVocoder(played) }
     }
 
-    private func logSwitch(_ effect: EffectKind, from wasOn: Bool, to isOn: Bool) {
+    private func sendBrightness() {
+        let played = playedBrightness
+        for control in controls { control.setBrightness(played) }
+    }
+
+    /// `effect` was set: if that switched it, its slot follows.
+    private func switched(_ effect: EffectKind, from wasOn: Bool, to isOn: Bool) {
         guard isOn != wasOn else { return }
+        slots.follow(effect, isOn: isOn)
         logger?.log(.effect_switched(effect: effect, isOn: isOn))
     }
 }

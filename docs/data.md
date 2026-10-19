@@ -41,7 +41,7 @@ struct Key { let root: PitchClass; let scale: ScaleType }
 
 enum Degree: Int { case I = 1, ii, iii, IV, V, vi, viiDim }   // raw values are saved
 
-enum Inversion { case root, first, second }
+struct Inversion { var steps: Int }   // steps rolled from root position; .root, .first and .second are 0, 1 and 2
 ```
 
 Which chord, independent of key and voicing:
@@ -138,10 +138,11 @@ struct NoteID: Hashable { var number: UInt64; static func next() -> NoteID }
 
 struct NoteSound {
     var preset = SynthPreset.initial
-    var filter = FilterSettings()
     var chorus = ChorusSettings()
     var reverb = ReverbSettings()
+    var delay = DelaySettings()
     var vocoder = VocoderSettings()
+    var brightness: Float = 1      // 0 dark ... 1 the whole sound
     var pan: Float = 0             // -1 left ... 1 right
 }
 
@@ -163,26 +164,32 @@ Implementations of `NoteSink`: `KernelSink`, `MidiSink`.
 
 ## 4. Effects
 
-`Audio/AudioEffects.swift`, `Core/Events/Arpeggiator.swift`, `Core/Events/SlidePlayed.swift`, `Core/Events/KeyZones.swift`.
+`Audio/AudioEffects.swift`, `Core/Events/Arpeggiator.swift`, `Core/Events/SlidePlayed.swift`, `Core/Events/EffectChoice.swift`, `Core/Events/KeyZones.swift`.
 
 ```swift
-enum EffectKind: String, Codable { case arpeggiator, filter, chorus, reverb, vocoder }
+enum EffectKind: String, Codable { case arpeggiator, chorus, reverb, vocoder }
 
-protocol SlidePlayed {
+protocol EffectSettings {
     static var kind: EffectKind { get }
     var isOn: Bool { get set }
+    var isPlayed: Bool { get }                  // whether a slide would change how it sounds
+    func played(by slide: Float?) -> Self       // as it sounds with a finger at slide
+    func held(at value: Float) -> Self          // as it sounds from a key zone: switched on
+}
+
+protocol SlidePlayed: EffectSettings {
     var followsSlide: Bool { get }
     func playing(_ slide: Float) -> Self   // these settings with the played control at slide (0...1)
-    var place: Float { get }               // where the played control is now, on the slide
 }
 ```
 
-Every settings struct is `Equatable, Codable, Sendable, SlidePlayed`; all amounts run 0...1.
+Every settings struct is `Equatable, Codable, Sendable, EffectSettings`; all amounts run 0...1.
+The chorus and the reverb are each one sound, on or off: their amounts are constants, not settings.
+The arpeggiator and the vocoder are `SlidePlayed`.
 
 ```swift
-struct FilterSettings  { var isOn = false; var brightness: Float = 1; var followsSlide = true }
-struct ChorusSettings  { var isOn = false; var amount: Float = 0.6; var rate: Float = 0.35; var followsSlide = false }
-struct ReverbSettings  { var isOn = false; var mix: Float = 0.3; var size: Float = 0.4; var followsSlide = false }
+struct ChorusSettings  { var isOn = false; static let amount: Float = 0.6; static let rate: Float = 0.35 }
+struct ReverbSettings  { var isOn = false; static let mix: Float = 0.3; static let size: Float = 0.4 }
 struct VocoderSettings { var isOn = false; var amount: Float = 1; var followsSlide = false }
 
 struct ArpeggiatorSettings {
@@ -191,23 +198,32 @@ struct ArpeggiatorSettings {
     var cycle: ArpeggioCycle = .beat
     var followsSlide = false
 }
-enum ArpeggioPattern: String, Codable { case up, down, upDown, random }
+enum ArpeggioPattern: String, Codable { case up, down }   // Arpeggio 1 and Arpeggio 2; a saved pattern that is gone decodes as up
 enum ArpeggioCycle: String, Codable   { case halfBeat, beat, twoBeats, bar }
 ```
 
 | Effect | Played control |
 | --- | --- |
 | Arpeggiator | `cycle` |
-| Filter | `brightness` |
-| Chorus | `amount` |
-| Reverb | `mix` |
 | Vocoder | `amount` |
+
+An effect as it is offered where one is chosen (the play screen's effect fields, a key zone):
+
+```swift
+enum EffectChoice { case arpeggio(ArpeggioPattern), chorus, reverb, vocoder }   // kind: EffectKind
+
+struct EffectSlots {                       // the play screen's effect fields
+    var kinds: [EffectKind?]               // the effect in each; nil is an empty field; never none
+    var canAdd: Bool
+    func choices(for slot: Int) -> [EffectChoice?]
+}
+```
 
 Key zones:
 
 ```swift
 struct KeyZone {
-    var effect: EffectKind?; var value: Float = 0.5   // value: a place on the slide
+    var effect: EffectChoice?; var value: Float = 0.5 // value: a place on the slide
     var key: Key?; var octave: Int?                   // nil: the key or octave chosen
 }
 
@@ -222,11 +238,13 @@ What follows the sound effects as played (`NotePlayer`, `MidiSink`):
 
 ```swift
 @MainActor protocol EffectsControl: AnyObject {
-    func setFilter(_ played: FilterSettings)
     func setChorus(_ played: ChorusSettings)
     func setReverb(_ played: ReverbSettings)
+    func setDelay(_ played: DelaySettings)
     func setVocoder(_ played: VocoderSettings)
+    func setBrightness(_ played: Float)
 }
+protocol TempoControl { func setTempo(_ bpm: Double) }   // KernelSink: the delay's echoes are 0.75 of a beat apart
 ```
 
 ## 5. Sounds
@@ -236,21 +254,28 @@ What follows the sound effects as played (`NotePlayer`, `MidiSink`):
 ```swift
 enum SynthPreset: String, Codable {
     case electricPiano, glassKeys, organ, clav         // keys
-    case sinePad, warmPad, strings                     // pads
-    case pluck, bell, kalimba                          // plucked
-    case sawLead, squareLead, brass, synthBass         // synth
+    case sinePad, warmPad, strings, pulsePad, sweepPad // pads
+    case pluck, bell, kalimba, marimba                 // plucked
+    case sawLead, squareLead, soloLead, driveLead, flute, superSaw, polySynth, brass, stab, crunch // synth
+    case synthBass, subBass, fmBass, reeseBass, wobbleBass, acidBass  // bass
     case micSample                                     // recorded
     static let initial = SynthPreset.sinePad
     static let micCapture = 0
     var patch: SynthPatch
-    enum Category: String { case keys, pads, plucked, synth, recorded }
+    enum Category: String { case keys, pads, plucked, synth, bass, recorded }
 }
 
 struct SynthPatch {
     var oscillators: [Oscillator] = []   // at most 2
     var fm: FM? = nil
     var sample: Sample? = nil            // with one, oscillators and FM are not heard
+    var unison: Unison? = nil            // several copies of the sources, out of tune with each other
+    var driftCents: Float = 0            // how far each oscillator wanders, differently for every note
+    var noise: Sweep? = nil              // noise beside the sources, as a share of the level
+    var glide: Float = 0                 // seconds to slide in from the note before, when there is no gap
+    var drive: Float = 0                 // 0...1, into a soft limit after the filter
     var filter: Filter? = nil
+    var lfo: LFO? = nil                  // moves a held note: pitch, pulse width, cutoff
     var envelope: Envelope
     var level: Float
 
@@ -259,6 +284,8 @@ struct SynthPatch {
     struct Oscillator { var wave: Wave; var level: Float = 1; var octave: Int = 0; var detuneCents: Float = 0 }
     struct FM         { var carrier: Float = 1; var modulator: Float; var index: Sweep; var level: Float = 1 }
     struct Filter     { var cutoff: Sweep; var resonance: Float = 0; var isSteep = true }
+    struct Unison     { var voices: Int; var spreadCents: Float }   // at most 7
+    struct LFO        { var rate: Float; var rise: Float = 0; var pitchCents: Float = 0; var pulseWidth: Float = 0; var cutoffOctaves: Float = 0 }
     struct Envelope   { var attack, decay, sustain, release: Float }
     struct Sample     { var capture: Int; var root: Int = 60 }
 }
@@ -270,7 +297,7 @@ struct Recording { var samples: [Float]; var sampleRate: Double }   // one chann
 `KernelAudioUnit.Playing` is a note's numbers as the kernel takes them:
 
 ```swift
-struct Playing { var brightness: Float = 1; var chorus: Float = 0; var reverb: Float = 0; var vocoder: Float = 0 }
+struct Playing { var brightness: Float = 1; var chorus: Float = 0; var reverb: Float = 0; var vocoder: Float = 0; var delay: Float = 0 }
 ```
 
 ## 6. The audio kernel (C interface)
@@ -295,7 +322,11 @@ typedef struct {
 typedef struct {
     PerfectoOperator operators[2];
     bool modulates;  PerfectoSweep index;                 // operator 2 bends operator 1, or is mixed with it
+    int32_t unison;  float spread;                        // copies of the operators (at most 7), across ±spread cents
+    float drift;                                          // cents each operator wanders, differently for every note
+    PerfectoSweep noise;  float glide;  float drive;      // noise beside the operators; seconds of glide; 0...1 of drive
     bool filtered;   PerfectoSweep cutoff;  float resonance;  bool steep;
+    PerfectoLfo lfo;                                      // { rate, rise, pitch, pulse_width, cutoff }
     float attack, decay, sustain, release;
     float level;
     bool sampled;    int32_t capture;  float root;        // a capture in place of the operators
@@ -313,7 +344,7 @@ typedef struct {
     int32_t note;         // MIDI note; or which capture
     float velocity;
     int32_t sound;        // which sound; or what to record
-    float brightness, pan, chorus, reverb, vocoder;
+    float brightness, pan, chorus, reverb, vocoder, delay;
 } PerfectoEvent;
 ```
 
@@ -403,10 +434,12 @@ struct NotePlaying: Codable {           // nil = whatever is chosen now
 
 struct NoteEffects: Codable {
     var arpeggiator = ArpeggiatorSettings()
-    var filter = FilterSettings()
     var chorus = ChorusSettings()
     var reverb = ReverbSettings()
+    var delay = DelaySettings()         // absent in older saved timelines
     var vocoder = VocoderSettings()     // absent in older saved timelines
+    var brightness: Float = 1           // played by the slide; absent in older saved timelines
+    // a saved "filter", and a saved chorus's or reverb's amounts, are left unread
 }
 
 struct SoundChange: Codable { var offset: Int; var effects: NoteEffects }   // offset: ticks after the note's start
@@ -497,8 +530,8 @@ enum ModeSurface { case chords, sequencer }
 @MainActor protocol PerformanceMode: AnyObject {
     var kind: ModeKind { get }
     var requiresClock: Bool { get }
-    func onButtonDown(degree: Degree, state: PerformanceState)
-    func onButtonUp(degree: Degree, state: PerformanceState)
+    func onButtonDown(key: ChordKey, state: PerformanceState)
+    func onButtonUp(key: ChordKey, state: PerformanceState)
     func onColorChange(state: PerformanceState)
     func onClockTick(state: PerformanceState)     // default: nothing
     func activate(state: PerformanceState)        // default: nothing
@@ -580,7 +613,7 @@ Its cases, by group:
 | Sinks | `sink_attached`, `sink_detached`, `sink_error` |
 | Performance | `mode_changed`, `mode_clock_required`, `chord_button_pressed`, `chord_played`, `chord_stopped` |
 | Sequencer | `sequencer_bars_changed`, `sequencer_signature_changed`, `sequencer_loop_changed` |
-| Sound | `sound_changed`, `effect_switched`, `key_zones_switched`, `effect_slider_touched` |
+| Sound | `sound_changed`, `effect_switched`, `key_zones_switched` |
 | Mic sample | `sample_record_started`, `sample_recorded` |
 | Looper | `loop_record_started`, `loop_recorded`, `loop_take_discarded`, `loop_cleared` |
 | Export | `sequencer_midi_exported`, `timeline_audio_exported` |
@@ -612,13 +645,11 @@ final class PerformanceState {
     var bpm: Double                       // 120, within MusicalTime.tempoRange
     var mode: any PerformanceMode
     var chordGridLayout: ChordGridLayout
-    var playSurface: PlaySurface
     var colorSurface: ColorSurface
-    var effectSliderShape: SurfaceShape
     var joystickDirection: JoystickDirection
     var gridPosition: GridPosition?
     var activeDegree: Degree?
-    var heldDegrees: [Degree]             // oldest first; the last is the active press
+    var heldKeys: [ChordKey]              // oldest first; the last is the active press
     var currentVoicing: Voicing?
     var isExternalSynth: Bool
 
@@ -632,21 +663,19 @@ final class PerformanceState {
 enum ChordGridLayout     { case grid, circle, horizontalBar }   // chosen in Setup
 enum ChordKeyArrangement { case grid, circle, row }             // what a layout gives a screen
 enum ColorSurface        { case joystick, grid }
-enum PlaySurface         { case color, effects }
 enum SurfaceShape        { case bar, grid }
 ```
 
 ```swift
 final class EffectsState {
     var arpeggiator: ArpeggiatorSettings   // as set
-    var filter: FilterSettings
     var chorus: ChorusSettings
     var reverb: ReverbSettings
     var vocoder: VocoderSettings
     var zones: KeyZoneSettings
     var slide: Float?                      // the active key's slide; nil while no key is held
     var zone: Int?                         // the zone the finger is in
-    var slider: [EffectKind: Float]        // a finger's place on each effect slider lane
+    var slots: EffectSlots                 // the play screen's effect fields
 }
 ```
 

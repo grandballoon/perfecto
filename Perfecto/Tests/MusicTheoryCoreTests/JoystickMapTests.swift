@@ -148,4 +148,18 @@ struct JoystickMapTests {
         // Cø7 = C-Eb-Gb-Bb
         #expect(notes(mode: .chromatic, dir: .left) == [60, 63, 66, 70])
     }
+
+    // MARK: – A color's place on the joystick
+
+    @Test func aJoystickColorHasItsDirectionInItsOwnModeOnly() {
+        let color = ChordColor.joystick(.extended, .upRight)
+        #expect(color.direction(in: .extended) == .upRight)
+        #expect(color.direction(in: .default) == nil)
+    }
+
+    @Test func thePlainChordAndAGridColorHaveNoDirection() {
+        #expect(ChordColor.base.direction(in: .default) == nil)
+        #expect(ChordColor.joystick(.chromatic, .center).direction(in: .chromatic) == nil)
+        #expect(ChordColor.grid(.seventh, nil).direction(in: .default) == nil)
+    }
 }

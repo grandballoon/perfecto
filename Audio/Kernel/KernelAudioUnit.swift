@@ -115,6 +115,13 @@ final class KernelAudioUnit: AUAudioUnit {
         /// How much of the note goes to the vocoder and is not heard
         /// itself, from 0 (none) to 1 (all of it).
         var vocoder: Float = 0
+        /// How much of the note is echoed, from 0 (none) to 1 (the first
+        /// echo as loud as the note).
+        var delay: Float = 0
+        /// How far the note is from its pitch, in semitones.
+        var bend: Float = 0
+        /// How loud the note is beside itself played whole, from 0 to 1.
+        var level: Float = 1
     }
 
     /// Starts `note` (a MIDI note) under `id` on frame `time`, in sound
@@ -127,14 +134,15 @@ final class KernelAudioUnit: AUAudioUnit {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOn,
                            note: Int32(note), velocity: velocity, sound: Int32(sound),
                            brightness: playing.brightness, pan: pan,
-                           chorus: playing.chorus, reverb: playing.reverb, vocoder: playing.vocoder))
+                           chorus: playing.chorus, reverb: playing.reverb, vocoder: playing.vocoder,
+                           delay: playing.delay, bend: playing.bend, level: playing.level))
     }
 
     /// Ends the note `id` on frame `time`.
     @discardableResult
     func noteOff(_ id: UInt64, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOff, note: 0, velocity: 0,
-                           sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0))
+                           sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1))
     }
 
     /// Glides the sounding note `id` to `playing` from frame `time`.
@@ -142,7 +150,8 @@ final class KernelAudioUnit: AUAudioUnit {
     func noteChange(_ id: UInt64, to playing: Playing, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteChange, note: 0, velocity: 0,
                            sound: 0, brightness: playing.brightness, pan: 0,
-                           chorus: playing.chorus, reverb: playing.reverb, vocoder: playing.vocoder))
+                           chorus: playing.chorus, reverb: playing.reverb, vocoder: playing.vocoder,
+                           delay: playing.delay, bend: playing.bend, level: playing.level))
     }
 
     // MARK: – The mix
@@ -174,6 +183,16 @@ final class KernelAudioUnit: AUAudioUnit {
         perfecto_kernel_set_reverb_damping(host.kernel, hz)
     }
 
+    /// The seconds between one echo of the delay and the next, and how
+    /// loud each echo is beside the one before it: one delay for every note.
+    func setDelayTime(_ seconds: Float) {
+        perfecto_kernel_set_delay_time(host.kernel, seconds)
+    }
+
+    func setDelayFeedback(_ share: Float) {
+        perfecto_kernel_set_delay_feedback(host.kernel, share)
+    }
+
     /// Frames between an event's frame and its sound leaving the unit: the
     /// kernel's limiter looks that far ahead.
     var latencyFrames: Int { Int(perfecto_kernel_latency(host.kernel)) }
@@ -193,7 +212,7 @@ final class KernelAudioUnit: AUAudioUnit {
     func startCapture(_ capture: Int, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: 0, type: PerfectoEventCaptureStart, note: Int32(capture),
                            velocity: 0, sound: Int32(PerfectoCaptureInput.rawValue), brightness: 1, pan: 0,
-                           chorus: 0, reverb: 0, vocoder: 0))
+                           chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1))
     }
 
     /// Ends the recording on frame `time`. It is playable from the render
@@ -201,7 +220,7 @@ final class KernelAudioUnit: AUAudioUnit {
     @discardableResult
     func stopCapture(at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: 0, type: PerfectoEventCaptureStop, note: 0,
-                           velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0))
+                           velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1))
     }
 
     /// The capture being recorded into, if one is. A recording ends by

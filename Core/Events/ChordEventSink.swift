@@ -9,6 +9,15 @@ struct ChordContext: Equatable {
     let inversion: Inversion
     let voiceLeading: Bool
 
+    /// Whether this is `other`'s chord voiced another way (in another
+    /// octave, or rolled to another inversion), and the same in every
+    /// other way.
+    func isRevoiced(from other: ChordContext) -> Bool {
+        self != other
+            && ChordContext(key: key, spec: spec, octave: other.octave, inversion: other.inversion,
+                            voiceLeading: voiceLeading) == other
+    }
+
     /// The notes this context produces, voice-led from `previous` when enabled.
     func voicing(after previous: Voicing?) -> Voicing {
         computeVoicing(key: key, spec: spec, inversion: inversion, octave: octave,

@@ -18,11 +18,11 @@ struct SequencerView: View {
     @State private var stepColorEditActive = false
     /// Same guard for a drag on the degree keys: one gesture → one undo step.
     @State private var stepDegreeEditActive = false
-    /// Transient color-bar highlight — like Play mode, a section lights only
-    /// while actively dragged and clears (`.center`) on release, so no button
-    /// stays lit by default.
+    /// The section of the color bar a finger is holding, `.center` with none:
+    /// the coloration a degree chosen meanwhile is given. What is lit is the
+    /// selected step's own coloration (`litDirection`), not this.
     @State private var stepColorTransient: JoystickDirection = .center
-    /// The chord grid's equivalent: a cell lights only while dragged.
+    /// The chord grid's equivalent: the cell a finger is holding.
     @State private var stepGridTransient: GridPosition? = nil
     /// Step entry: while on, a chord chosen on the keys goes on the selected
     /// step and the selection moves to the next, so a progression is entered
@@ -39,6 +39,8 @@ struct SequencerView: View {
                 portraitBody
             }
         }
+        // A tap on the screen that is on nothing selects no steps.
+        .background { Color.clear.deselectsOnTap(seqState) }
     }
 
     // MARK: – Portrait (stacked)
@@ -138,6 +140,7 @@ struct SequencerView: View {
                             undoButton
                         }
                         noteControls
+                        StepPlayingFields()
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     // The tempo and the pattern's actions beside the play
@@ -577,6 +580,7 @@ struct SequencerView: View {
                 undoButton
             }
             noteControls
+            StepPlayingFields()
 
             // The chord keys, in the layout Play mode shows them in, filling
             // the free space above the coloration bar. They set the degree of
@@ -660,30 +664,35 @@ struct SequencerView: View {
     @ViewBuilder
     private func stepColorSurface(_ primary: TimelineNote?) -> some View {
         switch perfState.colorSurface {
-        case .joystick: stepColorBar
-        case .grid:     stepColorGrid(degree: primary?.chord.degree ?? .I)
+        case .joystick: stepColorBar(primary)
+        case .grid:     stepColorGrid(primary)
         }
     }
 
-    private var stepColorBar: some View {
-        ChordColorBar(
+    /// The bar is lit at the selected step's coloration. A press on the lit
+    /// section takes the coloration off, back to the plain chord; a finger
+    /// that slides on from there colors the chord again.
+    private func stepColorBar(_ primary: TimelineNote?) -> some View {
+        let lit = primary?.chord.color.direction(in: perfState.joystickMode) ?? .center
+        return ChordColorBar(
             axis: .horizontal,
             mode: perfState.joystickMode,
-            selected: stepColorTransient,
+            selected: lit,
             onChange: { direction in
                 guard !seqState.selectedSteps.isEmpty else { return }
                 // One undo snapshot per drag: take it on the first change,
                 // clear the flag when the gesture ends.
-                if !stepColorEditActive {
+                let isPress = !stepColorEditActive
+                if isPress {
                     seqState.snapshot()
                     stepColorEditActive = true
                 }
-                stepColorTransient = direction
+                let takesOff = isPress && direction == lit
+                stepColorTransient = takesOff ? .center : direction
                 // Use the mode the labels were drawn from, so playback and
                 // the note's coloration tag match what the bar showed.
-                seqState.editSelectedChords {
-                    ChordSpec(degree: $0.degree, color: .joystick(perfState.joystickMode, direction))
-                }
+                let color: ChordColor = takesOff ? .base : .joystick(perfState.joystickMode, direction)
+                seqState.editSelectedChords { ChordSpec(degree: $0.degree, color: color) }
             },
             onEnd: {
                 stepColorTransient = .center
@@ -693,23 +702,29 @@ struct SequencerView: View {
     }
 
     /// Each selected step resolves the cell against its own degree, as live
-    /// playback resolves it against the degree that plays.
-    private func stepColorGrid(degree: Degree) -> some View {
-        ChordGridPad(
-            key: perfState.key,
+    /// playback resolves it against the degree that plays. The grid is lit
+    /// at the selected step's coloration, and a press on the lit cell takes
+    /// it off, as on the bar.
+    private func stepColorGrid(_ primary: TimelineNote?) -> some View {
+        let key = perfState.key
+        let degree = primary?.chord.degree ?? .I
+        let lit = primary.flatMap { ChordGrid.position(of: $0.chord.color, key: key, degree: degree) }
+        return ChordGridPad(
+            key: key,
             degree: degree,
-            selected: stepGridTransient,
+            selected: lit,
             onChange: { position in
                 guard !seqState.selectedSteps.isEmpty else { return }
-                if !stepColorEditActive {
+                let isPress = !stepColorEditActive
+                if isPress {
                     seqState.snapshot()
                     stepColorEditActive = true
                 }
-                stepGridTransient = position
-                let key = perfState.key
+                let takesOff = isPress && position == lit
+                stepGridTransient = takesOff ? nil : position
                 seqState.editSelectedChords {
                     ChordSpec(degree: $0.degree,
-                              color: ChordGrid.color(at: position, key: key, degree: $0.degree))
+                              color: takesOff ? .base : ChordGrid.color(at: position, key: key, degree: $0.degree))
                 }
             },
             onEnd: {
@@ -769,8 +784,7 @@ struct SequencerView: View {
     /// what the selected notes keep of their own, and step entry.
     private var noteControls: some View {
         HStack(spacing: 8) {
-            editButton("JOIN", enabled: seqState.canJoin) { seqState.joinSelected() }
-            editButton("SPLIT", enabled: seqState.canSplit) { seqState.splitSelected() }
+            joinButton
             editButton("SNAP", enabled: seqState.canSnap) { seqState.snapSelected() }
             Spacer(minLength: 0)
             ownSettingsMenu
@@ -778,13 +792,28 @@ struct SequencerView: View {
         }
     }
 
-    /// A note follows the key, octave, sound and effects chosen now unless
-    /// it has its own. Keeping one sets it to what is chosen now, so a
-    /// note's key is changed by choosing the key and keeping it; following
-    /// gives it up again.
+    /// Join and Split are one button, named for what it would do to the
+    /// selection (`SequencerState.joinEdit`). It keeps the width of the
+    /// longer name, so the buttons beside it stay where they are.
+    private var joinButton: some View {
+        let edit = seqState.joinEdit
+        return editButton(JoinEdit.split.label, enabled: edit != nil) { seqState.joinOrSplitSelected() }
+            .hidden()
+            .overlay {
+                editButton((edit ?? .join).label, enabled: edit != nil) { seqState.joinOrSplitSelected() }
+                    .frame(maxWidth: .infinity)
+                    .accessibilityLabel((edit ?? .join).accessibilityLabel)
+            }
+    }
+
+    /// A note follows the key, octave, inversion, sound and effects chosen now unless
+    /// it has its own. Keeping one sets it to what is chosen now, and
+    /// following gives it up again. A note's own key, octave and inversion
+    /// are also set to anything by a swipe (`StepPlayingFields`).
     private var ownSettingsMenu: some View {
         let playing = seqState.primaryNote?.playing
         let (liveKey, liveOctave) = (perfState.key, perfState.octave)
+        let liveInversion = perfState.inversion
         let (livePreset, liveEffects) = (perfState.synthPreset, perfState.effects.asSet)
         let hasOwn = playing?.hasOwn ?? false
         return Menu {
@@ -797,6 +826,14 @@ struct SequencerView: View {
                 Button("Keep octave \(liveOctave)") { seqState.editSelectedPlaying { $0.octave = liveOctave } }
                 Button("Follow the octave chosen") { seqState.editSelectedPlaying { $0.octave = nil } }
                     .disabled(playing?.octave == nil)
+            }
+            Section(playing?.inversion.map { "Inversion: its own, \($0.label)" }
+                    ?? "Inversion: follows the inversion chosen") {
+                Button("Keep inversion \(liveInversion.label)") {
+                    seqState.editSelectedPlaying { $0.inversion = liveInversion }
+                }
+                Button("Follow the inversion chosen") { seqState.editSelectedPlaying { $0.inversion = nil } }
+                    .disabled(playing?.inversion == nil)
             }
             Section(playing?.preset.map { "Sound: its own, \($0.name)" } ?? "Sound: follows the sound chosen") {
                 Button("Keep \(livePreset.name)") { seqState.editSelectedPlaying { $0.preset = livePreset } }
@@ -818,7 +855,7 @@ struct SequencerView: View {
                 .background(RoundedRectangle(cornerRadius: 7).fill(Color(white: 0.12)))
         }
         .disabled(!hasSelectedNotes)
-        .accessibilityLabel("The note's own key, octave, sound and effects")
+        .accessibilityLabel("The note's own key, octave, inversion, sound and effects")
     }
 
     private func keyName(_ key: Key) -> String {

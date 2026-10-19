@@ -38,4 +38,11 @@ public enum ChordColor: Hashable, Codable, Sendable {
         case let .grid(height, mode):     return height == .triad && mode == nil
         }
     }
+
+    /// The joystick direction that gives the color in `mode`, or nil if none
+    /// does: the base triad, another mode's color, or a cell of the grid.
+    public func direction(in mode: JoystickMode) -> JoystickDirection? {
+        guard case .joystick(mode, let direction) = self, direction != .center else { return nil }
+        return direction
+    }
 }

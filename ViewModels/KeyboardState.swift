@@ -4,8 +4,8 @@ import Observation
 /// What a computer keyboard plays through.
 @MainActor
 protocol KeyboardHost: AnyObject {
-    func press(degree: Degree)
-    func release(degree: Degree)
+    func press(_ key: ChordKey)
+    func release(_ key: ChordKey)
     func joystickMoved(to direction: JoystickDirection)
     var solo: SoloState { get }
     var tonnetz: TonnetzState { get }
@@ -17,6 +17,10 @@ protocol KeyboardHost: AnyObject {
 /// joystick, the solo strip's cells, the Tonnetz's moves and some of the
 /// screen's buttons, by a map that can be changed key by key
 /// (`KeyboardMap`) and is remembered across launches.
+///
+/// A game controller's buttons are keys too, by a map of their own
+/// (`GamepadState`): what is saved where, and the keys it starts with, are
+/// all that tell one set of keys from another.
 ///
 /// A key is one more finger: it presses and releases through the host's own
 /// calls, so the modes, the loops and the effects know nothing of it, and a
@@ -44,15 +48,22 @@ final class KeyboardState {
     /// a key lifted ends what it started, whatever the map says by then.
     private var held: [Int: KeyboardAction] = [:]
 
+    private let storageKey: String
+    private let standard: KeyboardMap
     private let defaults: UserDefaults
     private let logger: (any Logger)?
-    private static let storageKey = "keyboardMap"
 
-    init(defaults: UserDefaults = .standard, logger: (any Logger)? = nil) {
+    /// `storageKey` is where the map is saved, and `standard` the map there
+    /// is until one is.
+    init(saved storageKey: String = "keyboardMap", standard: KeyboardMap = .standard,
+         defaults: UserDefaults = .standard, logger: (any Logger)? = nil) {
+        self.storageKey = storageKey
+        self.standard = standard
         self.defaults = defaults
         self.logger = logger
-        map = defaults.data(forKey: Self.storageKey)
-            .flatMap { try? JSONDecoder().decode(KeyboardMap.self, from: $0) } ?? .standard
+        map = defaults.data(forKey: storageKey)
+            .flatMap { try? JSONDecoder().decode(KeyboardMap.self, from: $0) }?
+            .completed(from: standard) ?? standard
     }
 
     // MARK: – Keys
@@ -70,7 +81,7 @@ final class KeyboardState {
         guard let action = map.action(for: key.code) else { return false }
         held[key.code] = action
         switch action {
-        case .chord(let degree): host?.press(degree: degree)
+        case .chord(let degree): host?.press(.degree(degree))
         case .color:             followColor()
         case .solo(let cell):
             if host?.solo.isOn == true { host?.solo.press(cell: cell) }
@@ -98,7 +109,7 @@ final class KeyboardState {
 
     private func release(_ action: KeyboardAction) {
         switch action {
-        case .chord(let degree): host?.release(degree: degree)
+        case .chord(let degree): host?.release(.degree(degree))
         case .color:             followColor()
         case .solo(let cell):    host?.solo.release([cell])
         // A button is tapped as its key goes down.
@@ -139,13 +150,13 @@ final class KeyboardState {
     /// Goes back to the keys the app starts with.
     func reset() {
         choosing = nil
-        map = .standard
+        map = standard
         logger?.log(.keyboard_map_reset)
     }
 
     private func save() {
         guard let data = try? JSONEncoder().encode(map) else { return }
-        defaults.set(data, forKey: Self.storageKey)
+        defaults.set(data, forKey: storageKey)
     }
 }
 

@@ -71,6 +71,45 @@ struct StepGridGeometryTests {
         #expect(page.frame(of: 16..<18) == CGRect(x: 0, y: 0, width: 156, height: 45))
     }
 
+    /// The selection's box is the one around its cells, in its bar.
+    @Test func aSelectionIsBoxedByItsCells() {
+        #expect(page.bounds(of: [5, 6, 7]) == CGRect(x: 81, y: 51, width: 237, height: 45))
+        #expect(page.bounds(of: [5, 10]) == CGRect(x: 81, y: 51, width: 156, height: 96))
+        #expect(page.bounds(of: [16, 17]) == CGRect(x: 0, y: 0, width: 156, height: 45))
+    }
+
+    /// The tip is over the selection, across its middle, a gutter away.
+    @Test func aTipIsOverTheSelection() {
+        let tip = page.frame(ofTip: CGSize(width: 60, height: 32), by: page.bounds(of: [5, 6]))
+        #expect(tip == CGRect(x: 129, y: 13, width: 60, height: 32))
+    }
+
+    /// The top row has nothing of the bar over it, so its tip is under it.
+    @Test func aTipIsUnderASelectionInTheTopRow() {
+        let tip = page.frame(ofTip: CGSize(width: 60, height: 32), by: page.bounds(of: [1, 2]))
+        #expect(tip == CGRect(x: 129, y: 51, width: 60, height: 32))
+    }
+
+    /// With every row selected the tip lies on the selection's top edge.
+    @Test func aTipLiesOnASelectionOfEveryRow() {
+        let tip = page.frame(ofTip: CGSize(width: 60, height: 32), by: page.bounds(of: Set(0..<16)))
+        #expect(tip == CGRect(x: 129, y: 6, width: 60, height: 32))
+    }
+
+    /// A tip wider than what it is over stays inside the bar.
+    @Test func aTipStaysInsideTheBar() {
+        let size = CGSize(width: 120, height: 32)
+        #expect(page.frame(ofTip: size, by: page.bounds(of: [4])).minX == 0)
+        #expect(page.frame(ofTip: size, by: page.bounds(of: [7])).maxX == 318)
+    }
+
+    /// A bar's cells start under its header, bar after bar down the column.
+    @Test func aBarsCellsStartUnderItsHeader() {
+        #expect(page.cellsTop(ofBar: 0) == 0)
+        #expect(column.cellsTop(ofBar: 0) == 26)
+        #expect(column.cellsTop(ofBar: 2) == 494)  // two bars of 234, and a header
+    }
+
     /// 7/8 is rows of 4, 4, 4 and 2 steps: the bar is four rows high, and a
     /// touch beside the short row lands on its last step.
     @Test func aShortLastRowIsStillARow() {

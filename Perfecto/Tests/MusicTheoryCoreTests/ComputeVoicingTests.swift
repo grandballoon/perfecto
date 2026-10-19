@@ -64,6 +64,100 @@ struct ComputeVoicingTests {
         #expect(result.notes == [67, 72, 76])
     }
 
+    private func cMajor(_ inversion: Inversion, color: ChordColor = .joystick(.default, .center)) -> [Int] {
+        computeVoicing(key: Key(root: .C, scale: .major), spec: ChordSpec(degree: .I, color: color),
+                       inversion: inversion, octave: 4, voiceLeading: false, previousVoicing: nil).notes
+    }
+
+    /// Each step up takes the lowest note up an octave, so a triad is an
+    /// octave higher after three.
+    @Test func anInversionGoesOnUpPastTheSecond() {
+        #expect(cMajor(Inversion(steps: 3)) == [72, 76, 79])
+        #expect(cMajor(Inversion(steps: 4)) == [76, 79, 84])
+        #expect(cMajor(Inversion.second.rolled(by: 2)) == cMajor(Inversion(steps: 4)))
+    }
+
+    /// Each step down takes the highest note down an octave.
+    @Test func anInversionBelowRootPositionRollsTheChordDown() {
+        #expect(cMajor(Inversion(steps: -1)) == [55, 60, 64])
+        #expect(cMajor(Inversion(steps: -2)) == [52, 55, 60])
+        #expect(cMajor(Inversion(steps: -3)) == [48, 52, 55])
+    }
+
+    /// A four-note chord takes four steps to the octave, and has a third
+    /// inversion on the way.
+    @Test func aFourNoteChordHasAThirdInversion() {
+        let maj7 = ChordColor.joystick(.default, .right)
+        #expect(cMajor(Inversion(steps: 3), color: maj7) == [71, 72, 76, 79])
+        #expect(cMajor(Inversion(steps: 4), color: maj7) == [72, 76, 79, 83])
+    }
+
+    /// However far a chord is rolled, it is the same notes in other octaves.
+    @Test func rollingKeepsTheChordsPitchClasses() {
+        let ninth = ChordColor.grid(.ninth, nil)
+        let root = Set(cMajor(.root, color: ninth).map { $0 % 12 })
+        for steps in -8...8 {
+            let rolled = cMajor(Inversion(steps: steps), color: ninth)
+            #expect(Set(rolled.map { $0 % 12 }) == root)
+            #expect(rolled == rolled.sorted())
+        }
+    }
+
+    // MARK: – Chords wider than an octave
+
+    private let ninth = ChordColor.joystick(.extended, .upRight)   // C9: C E G B♭ D
+
+    /// The notes above the octave are not inverted: the 9th stays on top
+    /// while the four notes under it take turns in the bass.
+    @Test func aNinthStaysOnTopWhileTheNotesUnderItAreInverted() {
+        #expect(cMajor(.root, color: ninth) == [60, 64, 67, 70, 74])
+        #expect(cMajor(.first, color: ninth) == [64, 67, 70, 72, 74])
+        // The E rolled up would pass the 9th, which goes up an octave.
+        #expect(cMajor(.second, color: ninth) == [67, 70, 72, 76, 86])
+        #expect(cMajor(Inversion(steps: 3), color: ninth) == [70, 72, 76, 79, 86])
+    }
+
+    /// A turn of the notes within the octave is an octave, whatever the
+    /// chord has above them, up and down.
+    @Test func aTurnOfTheInvertedNotesIsAnOctaveForEveryColor() {
+        for mode in JoystickMode.allCases {
+            for direction in JoystickDirection.allCases {
+                let color = ChordColor.joystick(mode, direction)
+                let shape = chordShape(key: Key(root: .C, scale: .major),
+                                       spec: ChordSpec(degree: .I, color: color)).intervals
+                let turn = shape.filter { $0 < 12 }.count
+                let root = cMajor(.root, color: color)
+                #expect(cMajor(Inversion(steps: turn), color: color) == root.map { $0 + 12 })
+                #expect(cMajor(Inversion(steps: -2 * turn), color: color) == root.map { $0 - 24 })
+            }
+        }
+    }
+
+    /// No note above the octave is ever in the bass or among the inverted
+    /// notes, so a chord is never rolled into a cluster of its extensions.
+    @Test func theNotesAboveTheOctaveAreAlwaysOnTop() {
+        for mode in JoystickMode.allCases {
+            for direction in JoystickDirection.allCases {
+                let color = ChordColor.joystick(mode, direction)
+                let shape = chordShape(key: Key(root: .C, scale: .major),
+                                       spec: ChordSpec(degree: .I, color: color)).intervals
+                let above = Set(shape.filter { $0 >= 12 }.map { $0 % 12 })
+                let below = shape.filter { $0 < 12 }.count
+                for steps in -8...8 {
+                    let rolled = cMajor(Inversion(steps: steps), color: color)
+                    #expect(rolled.count == shape.count)
+                    #expect(Set(rolled.suffix(shape.count - below).map { $0 % 12 }) == above)
+                }
+            }
+        }
+    }
+
+    /// Going down, the 9th comes down with the chord it is over.
+    @Test func aNinthRolledDownKeepsItsNinthOnTop() {
+        #expect(cMajor(Inversion(steps: -1), color: ninth) == [58, 60, 64, 67, 74])
+        #expect(cMajor(Inversion(steps: -4), color: ninth) == [48, 52, 55, 58, 62])
+    }
+
     @Test func secondInversionOnFourNoteChord() {
         // Cmaj7 [60,64,67,71] → second inversion → [67,71,72,76]
         let result = computeVoicing(

@@ -25,17 +25,17 @@ struct SoloStateTests {
 
     @Test func theStripOffersTheNotesThatFitTheChordHeld() {
         let (state, _, _) = makeState()
-        state.press(degree: .I)
+        state.press(.degree(.I))
         #expect(pitches(state, 6) == [60, 62, 64, 67, 69, 72])   // C major pentatonic
 
-        state.movePointer(from: .I, to: .ii)
+        state.movePointer(from: .degree(.I), to: .degree(.ii))
         #expect(pitches(state, 5) == [60, 62, 65, 67, 69])       // D minor pentatonic, from C up
     }
 
     @Test func theStripFollowsTheChordsColor() {
         let (state, _, _) = makeState()
         state.joystickMoved(to: .up)   // Flip 3rd: C minor
-        state.press(degree: .I)
+        state.press(.degree(.I))
         #expect(pitches(state, 5) == [60, 63, 65, 67, 69])
     }
 
@@ -46,8 +46,8 @@ struct SoloStateTests {
 
     @Test func aChordLetGoIsStillPlayedOverInTheKeySetNow() {
         let (state, _, _) = makeState()
-        state.press(degree: .V)
-        state.release(degree: .V)
+        state.press(.degree(.V))
+        state.release(.degree(.V))
         #expect(pitches(state, 5) == [62, 65, 67, 69, 71])       // G: G A B D F, from C up
 
         state.key = Key(root: .D, scale: .major)
@@ -60,7 +60,7 @@ struct SoloStateTests {
 
     @Test func aCellSoundsItsNoteBesideTheKeysChord() {
         let (state, keys, solo) = makeState()
-        state.press(degree: .I)
+        state.press(.degree(.I))
         keys.reset()
 
         state.solo.press(cell: 3)
@@ -112,11 +112,11 @@ struct SoloStateTests {
 
     @Test func aNoteHeldRingsOnWhenTheChordChanges() {
         let (state, _, solo) = makeState()
-        state.press(degree: .I)
+        state.press(.degree(.I))
         state.solo.press(cell: 2)   // E
         solo.reset()
 
-        state.movePointer(from: .I, to: .ii)
+        state.movePointer(from: .degree(.I), to: .degree(.ii))
 
         #expect(solo.calls.isEmpty)
         // The next cell pressed is the new chord's.
@@ -141,11 +141,10 @@ struct SoloStateTests {
         let clock = ManualClock()
         let state = PerformanceState(sink: RecordingSink(), soloSink: NotePlayer([notes], clock: clock), clock: clock)
         state.effects.reverb.isOn = true
-        state.effects.filter.isOn = true
-        state.effects.filter.followsSlide = true
-        // A slide on the chord key plays the chord's filter, not the run's.
-        state.slide(on: .I, to: 1)
-        state.press(degree: .I)
+        state.effects.vocoder = VocoderSettings(isOn: true, followsSlide: true)
+        // A slide on the chord key plays the chord's vocoder, not the run's.
+        state.slide(on: .degree(.I), to: 0.3)
+        state.press(.degree(.I))
 
         state.solo.press(cell: 1)
 

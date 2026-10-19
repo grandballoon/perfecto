@@ -78,6 +78,27 @@ struct ScaleTests {
     // MARK: – Base triads for all degrees of C major
 
     // C major: I=C, ii=Dm, iii=Em, IV=F, V=G, vi=Am, vii°=Bdim
+    // MARK: – The notes of a key
+
+    @Test func aKeyHasItsScalesNotesInEveryOctave() {
+        let key = Key(root: .D, scale: .major)
+        #expect((60...72).filter(key.has) == [61, 62, 64, 66, 67, 69, 71])
+        #expect(key.has(2) && key.has(0) == false)
+    }
+
+    @Test func thePitchNearestIsANoteOfTheKeyAndTheLowerOfTwoAsNear() {
+        let key = Key(root: .C, scale: .major)
+        #expect(key.note(nearest: 60.4) == 60)
+        #expect(key.note(nearest: 61.2) == 62)
+        #expect(key.note(nearest: 61) == 60)                 // as near C as D
+        #expect(key.note(nearest: 64.6) == 65)               // a semitone apart
+        #expect(key.note(nearest: 59.9) == 60)
+        // The widest gap a scale has.
+        let pentatonic = Key(root: .A, scale: .minorPentatonic)
+        #expect(pentatonic.note(nearest: 58.4) == 57)
+        #expect(pentatonic.note(nearest: 58.6) == 60)
+    }
+
     @Test func cMajorBaseTriads() {
         let key = Key(root: .C, scale: .major)
         let cases: [(Degree, [Int])] = [

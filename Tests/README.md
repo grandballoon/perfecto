@@ -47,7 +47,7 @@ let sink  = RecordingSink()
 let clock = ManualClock()
 let state = PerformanceState(sink: sink, clock: clock)
 
-state.press(degree: .I)
+state.press(.degree(.I))
 #expect(sink.playCalls.first?.notes == [60, 64, 67])  // Cmaj
 
 clock.tick()  // advance clock manually to test timing-dependent modes

@@ -18,18 +18,31 @@ struct ChordKeyLayoutTests {
         // The row needs the width of a phone on its side.
         #expect(ChordGridLayout.horizontalBar.arrangement(isLandscape: false) == .grid)
         #expect(ChordGridLayout.horizontalBar.arrangement(isLandscape: true) == .row)
+        #expect(ChordGridLayout.octave.arrangement(isLandscape: false) == .octave)
+        #expect(ChordGridLayout.octave.arrangement(isLandscape: true) == .octave)
     }
 
     @Test func aFingerChoosesTheKeyItIsNearest() {
-        let frames: [Degree: CGRect] = [
-            .I: CGRect(x: 0, y: 0, width: 40, height: 80),
-            .ii: CGRect(x: 48, y: 0, width: 40, height: 80),
+        let frames: [Degree: KeyShape] = [
+            .I: .rect(CGRect(x: 0, y: 0, width: 40, height: 80)),
+            .ii: .rect(CGRect(x: 48, y: 0, width: 40, height: 80)),
         ]
         #expect(DegreeSelector.nearest(to: CGPoint(x: 20, y: 40), in: frames) == .I)
         #expect(DegreeSelector.nearest(to: CGPoint(x: 46, y: 40), in: frames) == .ii)
         // Well outside every key, it is still the nearest one's.
         #expect(DegreeSelector.nearest(to: CGPoint(x: 300, y: 200), in: frames) == .ii)
         #expect(DegreeSelector.nearest(to: CGPoint(x: 20, y: 40), in: [:]) == nil)
+    }
+
+    /// A key's outline is a shape in its view's frame, which is what it is
+    /// drawn as and what fingers are read against.
+    @Test func aSegmentIsOfTheRingThatFillsItsView() {
+        let frame = CGRect(x: 10, y: 20, width: 200, height: 240)
+        let outline = KeyOutline.segment(angles: 0...1, inner: 0.5)
+        #expect(outline.shape(in: frame)
+                == .segment(RingSegment(center: CGPoint(x: 110, y: 140), radii: 50...100, angles: 0...1)))
+        #expect(KeyOutline.rect.shape(in: frame) == .rect(frame))
+        #expect(KeyOutline.disc.shape(in: frame) == .disc(frame))
     }
 
     /// A phone upright and on its side.

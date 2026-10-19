@@ -24,90 +24,95 @@ struct SequencerSelectionTests {
         #expect(state.primaryStep == 0)
     }
 
-    // MARK: – Tap toggling
+    // MARK: – Taps
+
+    /// What a tap on a step does.
+    private func tap(_ step: Int, in state: SequencerState) {
+        state.select([step], primary: step)
+    }
 
     @Test func tapSelectsStep() {
         let state = emptySelection()
-        state.toggleStepSelection(5)
+        tap(5, in: state)
         #expect(state.selectedSteps == [5])
         #expect(state.primaryStep == 5)
     }
 
-    @Test func tapOnSelectedStepDeselectsIt() {
+    @Test func aTapSelectsItsStepAndNoOther() {
         let state = emptySelection()
-        state.toggleStepSelection(5)
-        state.toggleStepSelection(5)
-        #expect(state.selectedSteps.isEmpty)
-        #expect(state.primaryStep == nil)
-    }
-
-    @Test func multipleTapsAccumulateSelection() {
-        let state = emptySelection()
-        state.toggleStepSelection(1)
-        state.toggleStepSelection(9)
-        state.toggleStepSelection(14)
-        #expect(state.selectedSteps == [1, 9, 14])
+        tap(1, in: state)
+        tap(9, in: state)
+        tap(14, in: state)
+        #expect(state.selectedSteps == [14])
         #expect(state.primaryStep == 14)
     }
 
-    @Test func deselectingPrimaryFallsBackToAnotherSelectedStep() {
+    @Test func aTapOnTheSelectedStepLeavesItSelected() {
         let state = emptySelection()
-        state.toggleStepSelection(3)
-        state.toggleStepSelection(7)
-        state.toggleStepSelection(7)   // deselect the current primary
-        #expect(state.selectedSteps == [3])
-        #expect(state.primaryStep == 3)
+        tap(5, in: state)
+        tap(5, in: state)
+        #expect(state.selectedSteps == [5])
+        #expect(state.primaryStep == 5)
+    }
+
+    @Test func aTapOnOneStepOfASweepSelectsThatStepAlone() {
+        let state = emptySelection()
+        state.select([0, 1, 2], primary: 2)
+        tap(1, in: state)
+        #expect(state.selectedSteps == [1])
+        #expect(state.primaryStep == 1)
     }
 
     @Test func deselectAllEmptiesSelectionAndPrimary() {
         let state = emptySelection()
-        state.toggleStepSelection(2)
-        state.toggleStepSelection(11)
+        state.select([2, 11], primary: 11)
         state.deselectAll()
         #expect(state.selectedSteps.isEmpty)
         #expect(state.primaryStep == nil)
     }
 
+    /// Deselecting is a change of what is selected, not of the notes.
+    @Test func deselectAllLeavesTheNotesAsTheyWere() {
+        let state = emptySelection()
+        tap(4, in: state)
+        state.editSelectedChords { ChordSpec(degree: .V, color: $0.color) }
+        let timeline = state.timeline
+        state.deselectAll()
+        #expect(state.timeline == timeline)
+        #expect(state.steps[4].degree == .V)
+    }
+
     // MARK: – Drag sweeps
 
-    @Test func sweepAddsToExistingSelection() {
+    @Test func aSweepSelectsItsStepsAndNoOthers() {
         let state = emptySelection()
-        state.toggleStepSelection(12)
-        state.addToSelection([0, 1, 2], primary: 2)
-        #expect(state.selectedSteps == [0, 1, 2, 12])
+        tap(12, in: state)
+        state.select([0, 1, 2], primary: 2)
+        #expect(state.selectedSteps == [0, 1, 2])
         #expect(state.primaryStep == 2)
     }
 
-    @Test func sweepOverSelectedStepDoesNotDeselectIt() {
+    @Test func aSweepOverASelectedStepKeepsIt() {
         let state = emptySelection()
-        state.toggleStepSelection(1)
-        state.addToSelection([0, 1, 2], primary: 2)
-        #expect(state.selectedSteps.contains(1))
+        tap(1, in: state)
+        state.select([0, 1, 2], primary: 2)
+        #expect(state.selectedSteps == [0, 1, 2])
     }
 
     // MARK: – Undo
 
     @Test func undoRevertsTapSelection() {
         let state = emptySelection()
-        state.toggleStepSelection(5)
+        tap(5, in: state)
         state.undo()
         #expect(state.selectedSteps.isEmpty)
         #expect(state.primaryStep == nil)
     }
 
-    @Test func undoRevertsTapDeselection() {
-        let state = emptySelection()
-        state.toggleStepSelection(5)
-        state.toggleStepSelection(5)
-        state.undo()
-        #expect(state.selectedSteps == [5])
-        #expect(state.primaryStep == 5)
-    }
-
     @Test func undoRevertsSweep() {
         let state = emptySelection()
-        state.toggleStepSelection(12)
-        state.addToSelection([0, 1, 2], primary: 2)
+        tap(12, in: state)
+        state.select([0, 1, 2], primary: 2)
         state.undo()
         #expect(state.selectedSteps == [12])
         #expect(state.primaryStep == 12)
@@ -115,8 +120,7 @@ struct SequencerSelectionTests {
 
     @Test func undoRevertsDeselectAll() {
         let state = emptySelection()
-        state.toggleStepSelection(3)
-        state.toggleStepSelection(9)
+        state.select([3, 9], primary: 9)
         state.deselectAll()
         state.undo()
         #expect(state.selectedSteps == [3, 9])
@@ -129,11 +133,11 @@ struct SequencerSelectionTests {
         #expect(!state.canUndo)
     }
 
-    @Test func redundantSweepIsNotUndoable() {
+    @Test func aTapOnTheSelectedStepIsNotUndoable() {
         let state = emptySelection()
-        state.toggleStepSelection(2)
-        state.addToSelection([2], primary: 2)   // no-op: already selected, same primary
-        state.undo()   // reverts the tap, since the sweep pushed nothing
+        tap(2, in: state)
+        tap(2, in: state)   // no-op: already the selection, same primary
+        state.undo()   // reverts the first tap, since the second pushed nothing
         #expect(state.selectedSteps.isEmpty)
         #expect(!state.canUndo)
     }
@@ -141,8 +145,7 @@ struct SequencerSelectionTests {
     @Test func aChordEditAppliesToEverySelectedStepAcrossBars() {
         let state = emptySelection()
         state.addBar()
-        state.toggleStepSelection(3)
-        state.toggleStepSelection(20)   // on the second bar
+        state.select([3, 20], primary: 20)   // 20 is on the second bar
         state.editSelectedChords { ChordSpec(degree: .vi, color: $0.color) }
         #expect(state.steps[3].degree == .vi)
         #expect(state.steps[20].degree == .vi)
@@ -151,7 +154,7 @@ struct SequencerSelectionTests {
 
     @Test func clearPatternIsOneUndoStep() {
         let state = emptySelection()
-        state.toggleStepSelection(4)
+        tap(4, in: state)
         state.steps[4] = SequencerStep(degree: .V)
         state.clearPattern()
         #expect(state.selectedSteps.isEmpty)
@@ -164,7 +167,7 @@ struct SequencerSelectionTests {
 
     @Test func undoRestoresStepsAndSelectionTogether() {
         let state = emptySelection()
-        state.toggleStepSelection(7)
+        tap(7, in: state)
         state.snapshot()   // as the step editor does before a chord edit
         state.steps[7] = SequencerStep(degree: .IV)
         state.undo()

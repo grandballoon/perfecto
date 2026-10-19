@@ -111,16 +111,22 @@ struct KeyboardMap: Equatable, Codable, Sendable {
 }
 
 extension KeyboardMap {
-    /// A map saved before an action existed has no key for it. It is given
-    /// the key it starts with, unless that key now plays something else.
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         keys = try container.decode([KeyboardAction: KeyboardKey].self, forKey: .keys)
         cleared = try container.decodeIfPresent(Set<KeyboardAction>.self, forKey: .cleared) ?? []
-        for (action, key) in Self.standard.keys
-        where keys[action] == nil && !cleared.contains(action) && self.action(for: key.code) == nil {
-            keys[action] = key
+    }
+
+    /// A map saved before an action existed has no key for it. It is given
+    /// the key it starts with (`standard`'s), unless that key now plays
+    /// something else.
+    func completed(from standard: KeyboardMap) -> KeyboardMap {
+        var map = self
+        for (action, key) in standard.keys
+        where map.keys[action] == nil && !cleared.contains(action) && map.action(for: key.code) == nil {
+            map.keys[action] = key
         }
+        return map
     }
 }
 

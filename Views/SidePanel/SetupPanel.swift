@@ -1,8 +1,10 @@
 import SwiftUI
 
-/// The menu's Setup page: how the chord keys, the play surface beside them,
-/// the solo strip and the sequencer's bars are laid out, and whether the
-/// piano is shown under them.
+/// The menu's Setup page: how the chord keys, the chord colors beside them,
+/// the solo strip and the sequencer's bars are laid out, whether the play
+/// screen has the key strip, whether a finger's place on a chord key plays
+/// its brightness, the size of the grid of pads, and whether the piano is
+/// shown under them.
 struct SetupPanel: View {
     @Environment(PerformanceState.self) private var state
 
@@ -13,29 +15,15 @@ struct SetupPanel: View {
         VStack(alignment: .leading, spacing: 24) {
             chordLayoutSection
 
-            choiceSection("PLAY SURFACE",
-                          detail: "What the surface beside the chord keys plays: the chord's color, or the effects that are on. Only one is on screen at a time.") {
-                Picker("Plays", selection: $state.playSurface) {
-                    ForEach(PlaySurface.allCases, id: \.self) { surface in
-                        Text(surface.displayName).tag(surface)
-                    }
-                }
-            }
+            keyStripSection
+
+            keySlideSection
 
             choiceSection("SOLO STRIP",
                           detail: "Where the SOLO button puts the strip of notes that fit the chord, for runs over it: under the chord keys, which give up some of their height (drag the handle between them); upright beside them; or in the chord colors' place. On its side, a phone with room beside the keys puts the strip there.") {
                 Picker("Place", selection: $solo.placement) {
                     ForEach(SoloPlacement.allCases, id: \.self) { placement in
                         Text(placement.displayName).tag(placement)
-                    }
-                }
-            }
-
-            choiceSection("EFFECT SLIDER",
-                          detail: "A lane for each effect that is on, playing the control a slide on the keys would: a finger's place along the lane is its value, and lifting returns to the value set. As a bar it has the joystick strip's shape; as a grid, the chord grid's, with more room for each lane.") {
-                Picker("Shape", selection: $state.effectSliderShape) {
-                    ForEach(SurfaceShape.allCases, id: \.self) { shape in
-                        Text(shape.displayName).tag(shape)
                     }
                 }
             }
@@ -58,10 +46,16 @@ struct SetupPanel: View {
                 }
             }
 
+            padsSection
+
             pianoSection
 
             // Where there is a keyboard to play: the Mac.
-            if ProcessInfo.processInfo.isMacCatalystApp { KeyboardMapEditor() }
+            if ProcessInfo.processInfo.isMacCatalystApp { KeyboardMapEditor(keyboard: state.keyboard) }
+            // While there is a controller to play.
+            if let controller = state.gamepad.controller {
+                KeyboardMapEditor(gamepad: state.gamepad, named: controller)
+            }
         }
     }
 
@@ -104,6 +98,99 @@ struct SetupPanel: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: – Key strip
+
+    private var keyStripSection: some View {
+        @Bindable var state = state
+        return VStack(alignment: .leading, spacing: 10) {
+            SidePanelSectionLabel("KEY STRIP")
+            Toggle(isOn: $state.showsKeyStrip) {
+                Text("Show the key strip")
+                    .font(.system(size: 15, design: .monospaced))
+                    .foregroundStyle(.white)
+            }
+            .tint(.orange)
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
+            Text("The key, the octave and the inversion on the play screen, so they can be changed while playing. A swipe to the right along the key is a semitone up, to the left a semitone down. The octave and the inversion are one field: while a finger is on it, moving along takes a chord's lowest note up an octave, or its highest note down one (a 9th, 11th or 13th stays on top), and moving up or down takes the whole chord up or down an octave. A chord that is being held follows the finger. With the pin beside it off, the field is played and not set: the chords go back to where they were when the finger lifts. The scale is on the Key page.")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Color(white: 0.3))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: – Key slide
+
+    private var keySlideSection: some View {
+        @Bindable var effects = state.effects
+        return VStack(alignment: .leading, spacing: 10) {
+            SidePanelSectionLabel("KEY SLIDE")
+            Toggle(isOn: $effects.slidePlaysBrightness) {
+                Text("Slide plays brightness")
+                    .font(.system(size: 15, design: .monospaced))
+                    .foregroundStyle(.white)
+            }
+            .tint(.orange)
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
+            Text("Where a finger is on a chord key plays how bright its chord is: dark at the bottom of the key, and the whole sound at the top. Sliding while the chord is held sweeps it, and a loop keeps what was played.")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Color(white: 0.3))
+                .fixedSize(horizontal: false, vertical: true)
+            Toggle(isOn: $effects.slidePlaysInversion) {
+                Text("Slide plays inversion")
+                    .font(.system(size: 15, design: .monospaced))
+                    .foregroundStyle(.white)
+            }
+            .tint(.orange)
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
+            Text("Where a finger is on a chord key plays how its chord is voiced: as the key strip's inversion has it in the middle of the key, with the lowest note taken up an octave for each step above that, and the highest note down an octave for each step below. Sliding while the chord is held rolls it, striking only the note that moves.")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Color(white: 0.3))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: – Pads
+
+    private var padsSection: some View {
+        let pads = state.pads
+        return VStack(alignment: .leading, spacing: 10) {
+            SidePanelSectionLabel("PADS")
+            VStack(alignment: .leading, spacing: 14) {
+                padsChoice("Rows", options: Array(PadGrid.sizes), label: \.description,
+                           selection: Binding(get: { pads.grid.rows }, set: { pads.setRows($0) }))
+                padsChoice("Columns", options: Array(PadGrid.sizes), label: \.description,
+                           selection: Binding(get: { pads.grid.columns }, set: { pads.setColumns($0) }))
+                padsChoice("Step of the sequence", options: PadRate.allCases, label: \.label,
+                           selection: Binding(get: { pads.grid.rate }, set: { pads.setRate($0) }))
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
+            Text("The grid of pads on the PADS screen, each with a sound of its own. A pad keeps its place when the grid changes size, and one left outside a smaller grid comes back when the grid is made larger again. In sequence, the pads are played one to a step, along each row from the top, at the tempo; a pad with no sound is a rest.")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Color(white: 0.3))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func padsChoice<Option: Hashable>(_ name: String, options: [Option],
+                                              label: KeyPath<Option, String>,
+                                              selection: Binding<Option>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(name)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(Color(white: 0.6))
+            Picker(name, selection: selection) {
+                ForEach(options, id: \.self) { option in
+                    Text(option[keyPath: label]).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+
     // MARK: – Piano
 
     private var pianoSection: some View {
@@ -136,7 +223,7 @@ struct SetupPanel: View {
             }
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
-            Text("A piano's 88 keys along the bottom of the screen, lit with the notes being sounded: each part of the app in its own color, and a key several are sounding in all of theirs. It is only looked at.")
+            Text("A piano's 88 keys along the bottom of the screen, lit with the notes being sounded: each part of the app in its own color, and a key several are sounding in all of theirs. It is only looked at: pinch it to see fewer keys or more, drag it along, and double-tap it or use its corner button to give it the whole screen.")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(Color(white: 0.3))
                 .fixedSize(horizontal: false, vertical: true)

@@ -23,14 +23,14 @@ struct ColorSurfaceTests {
 
     @Test func noFingerOnTheGridPlaysTheTriad() {
         let (state, sink) = makeGridState()
-        state.press(degree: .I)
+        state.press(.degree(.I))
         #expect(sink.playCalls.last?.notes == [60, 64, 67])
         #expect(state.activeVoicingText == "C maj")
     }
 
     @Test func movingOnTheGridWhileHeldRevoicesTheChord() {
         let (state, sink) = makeGridState()
-        state.press(degree: .V)
+        state.press(.degree(.V))
         state.gridMoved(to: seventh(state, .V))
         #expect(sink.playCalls.last?.notes == [67, 71, 74, 77])   // G7
         #expect(state.activeVoicingText == "G 7")
@@ -44,7 +44,7 @@ struct ColorSurfaceTests {
     @Test func gridPositionResolvesAgainstThePressedDegree() {
         let (state, sink) = makeGridState()
         state.gridMoved(to: seventh(state, .ii))
-        state.press(degree: .ii)
+        state.press(.degree(.ii))
         #expect(sink.playCalls.last?.notes == [62, 65, 69, 72])   // Dmin7
         #expect(state.color(for: .ii) == .grid(.seventh, nil))
     }
@@ -66,28 +66,12 @@ struct ColorSurfaceTests {
         #expect(state.color(for: .I) == .base)
     }
 
-    /// The effect slider takes the color surface's place, so the color a
-    /// finger was holding there goes with it.
-    @Test func theEffectSliderLeavesTheChordsUncolored() {
-        let sink = RecordingSink()
-        let state = PerformanceState(sink: sink, clock: ManualClock())
-        state.joystickMoved(to: .right)
-        state.playSurface = .effects
-        #expect(state.color(for: .I) == .base)
-        state.press(degree: .I)
-        #expect(sink.playCalls.last?.notes == [60, 64, 67])
-    }
-
-    /// The screen is laid out by the shape of whichever surface it shows.
+    /// The screen is laid out by the shape of the color surface it shows.
     @Test func thePlaySurfaceHasTheShapeOfWhatItShows() {
         let state = PerformanceState(sink: RecordingSink(), clock: ManualClock())
-        state.effectSliderShape = .grid
         #expect(state.surfaceShape == .bar)
         state.colorSurface = .grid
-        state.effectSliderShape = .bar
         #expect(state.surfaceShape == .grid)
-        state.playSurface = .effects
-        #expect(state.surfaceShape == .bar)
     }
 
     /// Steps edited on the grid carry a grid color, which the sequencer plays

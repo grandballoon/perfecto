@@ -1,9 +1,13 @@
 import SwiftUI
 
-/// The Setup page's section for the computer keyboard: what each key plays,
-/// changed a key at a time.
+/// The Setup page's section for a set of keys that play by a map (the
+/// computer keyboard's, or a game controller's buttons): what each key
+/// plays, changed a key at a time.
 struct KeyboardMapEditor: View {
-    @Environment(PerformanceState.self) private var state
+    let title: String
+    let keyboard: KeyboardState
+    let detail: String
+    let resetLabel: String
 
     private static let directions: [(JoystickDirection, String)] = [
         (.upLeft, "↖"), (.up, "↑"), (.upRight, "↗"), (.left, "←"),
@@ -12,17 +16,17 @@ struct KeyboardMapEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SidePanelSectionLabel("KEYBOARD")
+            SidePanelSectionLabel(title)
             group("Chords", Degree.allCases.map { (.chord($0), String($0.rawValue)) })
             group("Chord color", Self.directions.map { (.color($0.0), $0.1) })
             group("Solo strip", (0..<KeyboardMap.soloCells).map { (.solo(cell: $0), String($0 + 1)) })
             group("Tonnetz", TonnetzMove.allCases.map { (.tonnetz($0), $0.displayName) }, columns: 2)
             group("Buttons", KeyboardButton.allCases.map { (.button($0), $0.displayName) }, columns: 2)
-            Text("What each key of the computer keyboard plays or taps. Choose one and press the key for it: Delete leaves it with no key, and Escape leaves it as it was. Color keys held together add up, so two arrows make a diagonal. The Tonnetz's moves are made, and its Net, Triad and Hold buttons tapped, while it is on screen.")
+            Text(detail)
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(Color(white: 0.3))
                 .fixedSize(horizontal: false, vertical: true)
-            SidePanelChip(label: "Reset keys", selected: false) { state.keyboard.reset() }
+            SidePanelChip(label: resetLabel, selected: false) { keyboard.reset() }
         }
     }
 
@@ -40,7 +44,6 @@ struct KeyboardMapEditor: View {
     }
 
     private func key(_ action: KeyboardAction, label: String) -> some View {
-        let keyboard = state.keyboard
         let choosing = keyboard.choosing == action
         return Button {
             keyboard.choosing = choosing ? nil : action
@@ -64,5 +67,21 @@ struct KeyboardMapEditor: View {
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+extension KeyboardMapEditor {
+    /// The computer keyboard's keys.
+    init(keyboard: KeyboardState) {
+        self.init(title: "KEYBOARD", keyboard: keyboard,
+                  detail: "What each key of the computer keyboard plays or taps. Choose one and press the key for it: Delete leaves it with no key, and Escape leaves it as it was. Color keys held together add up, so two arrows make a diagonal. The Tonnetz's moves are made, and its Net, Triad and Hold buttons tapped, while it is on screen.",
+                  resetLabel: "Reset keys")
+    }
+
+    /// A game controller's buttons.
+    init(gamepad: GamepadState, named name: String) {
+        self.init(title: "CONTROLLER", keyboard: gamepad.buttons,
+                  detail: "What each button of \(name) plays or taps. Choose one and press the button for it, or choose it again to leave it as it was. A button given to something else leaves what it had. The left stick is the chord color, whatever the buttons are.",
+                  resetLabel: "Reset buttons")
     }
 }

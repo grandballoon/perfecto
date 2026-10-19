@@ -150,6 +150,13 @@ final class QuickLoopState {
         take?.lines[.keys]?.effectsChanged(to: effects, at: host.clockBeats)
     }
 
+    /// The effects `line` is played with were set to `effects`: a line
+    /// other than the keys', which is played with the effects as set.
+    func effectsChanged(to effects: NoteEffects, on line: LoopLine) {
+        guard let host else { return }
+        take?.lines[line]?.effectsChanged(to: effects, at: host.clockBeats)
+    }
+
     // MARK: – Private
 
     private func beginRecording() {

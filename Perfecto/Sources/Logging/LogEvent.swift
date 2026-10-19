@@ -13,7 +13,7 @@ enum ChordSource: String, Codable {
 }
 
 enum EffectKind: String, Codable, CaseIterable {
-    case arpeggiator, filter, chorus, reverb, vocoder
+    case arpeggiator, chorus, reverb, delay, vocoder
 }
 
 enum ChordLinkFrameKind: String, Codable {
@@ -52,6 +52,18 @@ enum LogEvent {
     // Performance
     case mode_changed(from: String, to: String)
     case mode_clock_required(mode: String, clockRunning: Bool)
+    /// The key was changed, from the Key page or the key strip: "D Dorian".
+    case key_changed(key: String)
+    /// The keys' octave was changed, from the Key page or the key strip.
+    case octave_changed(octave: Int)
+    /// The keys' inversion was changed, from the key strip: steps up from
+    /// root position, below 0 down.
+    case inversion_changed(steps: Int)
+    /// Whether the voicing field keeps what it is set to was switched.
+    case voicing_keep_switched(isOn: Bool)
+    /// The voicing field's finger holds the chords this far from the
+    /// voicing as set (octaves up, steps rolled); 0 and 0 once it lifts.
+    case voicing_bent(octaves: Int, steps: Int)
     case chord_button_pressed(degree: Int, key: String, color: String, resultingNotes: [Int])
     case chord_played(notes: [Int], source: ChordSource)
     case chord_stopped(notes: [Int], source: ChordSource)
@@ -67,8 +79,12 @@ enum LogEvent {
     case sound_changed(preset: String)
     case effect_switched(effect: EffectKind, isOn: Bool)
     case key_zones_switched(isOn: Bool)
-    /// A finger came down on `effect`'s lane of the effect slider.
-    case effect_slider_touched(effect: EffectKind)
+    /// The zones one chord key has of its own were switched.
+    case key_own_zones_switched(degree: Int, isOn: Bool)
+    /// Whether the slide plays the notes' brightness was switched.
+    case slide_brightness_switched(isOn: Bool)
+    /// Whether the slide plays the chord's inversion was switched.
+    case slide_inversion_switched(isOn: Bool)
 
     // Solo strip
     case solo_switched(isOn: Bool)
@@ -76,6 +92,8 @@ enum LogEvent {
 
     // Piano
     case piano_switched(isOn: Bool)
+    /// The piano was given the whole screen, or put back along its bottom.
+    case piano_expanded(isExpanded: Bool)
 
     // Tonnetz
     /// `triad` as it is named on the net: "C", "Am".
@@ -86,10 +104,30 @@ enum LogEvent {
     case tonnetz_note_played(note: Int)
     case tonnetz_hold_switched(isOn: Bool)
 
+    // Trautonium
+    /// `bar`: 0 is the low bar, 1 the high one.
+    case trautonium_note_played(bar: Int, note: Int)
+
+    // Chord–scale tree
+    /// The tree went to the chord `to` names ("Dm7").
+    case tree_moved(to: String)
+    case tree_size_switched(sevenths: Bool)
+
+    // Pads
+    case pad_played(row: Int, column: Int, notes: [Int])
+    /// `chord` as the display names it ("D min7"); nil: the pad was cleared.
+    case pad_assigned(row: Int, column: Int, chord: String?)
+    case pads_sequence_switched(isOn: Bool)
+    case pads_resized(rows: Int, columns: Int)
+
     // Computer keyboard
     /// `key` nil: the action was left with no key.
     case keyboard_key_chosen(action: String, key: String?)
     case keyboard_map_reset
+
+    // Game controller
+    /// `name` nil: the controller went, and there is none now.
+    case gamepad_connected(name: String?)
 
     // Mic sample
     case sample_record_started
@@ -237,9 +275,32 @@ extension LogEvent: Encodable {
         case let .key_zones_switched(isOn):
             try c.encode("key_zones_switched", forKey: Key("type"))
             try c.encode(isOn, forKey: Key("isOn"))
-        case let .effect_slider_touched(effect):
-            try c.encode("effect_slider_touched", forKey: Key("type"))
-            try c.encode(effect, forKey: Key("effect"))
+        case let .slide_brightness_switched(isOn):
+            try c.encode("slide_brightness_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .slide_inversion_switched(isOn):
+            try c.encode("slide_inversion_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .inversion_changed(steps):
+            try c.encode("inversion_changed", forKey: Key("type"))
+            try c.encode(steps, forKey: Key("steps"))
+        case let .voicing_keep_switched(isOn):
+            try c.encode("voicing_keep_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .voicing_bent(octaves, steps):
+            try c.encode("voicing_bent", forKey: Key("type"))
+            try c.encode(octaves, forKey: Key("octaves"))
+            try c.encode(steps, forKey: Key("steps"))
+        case let .key_changed(key):
+            try c.encode("key_changed", forKey: Key("type"))
+            try c.encode(key, forKey: Key("key"))
+        case let .octave_changed(octave):
+            try c.encode("octave_changed", forKey: Key("type"))
+            try c.encode(octave, forKey: Key("octave"))
+        case let .key_own_zones_switched(degree, isOn):
+            try c.encode("key_own_zones_switched", forKey: Key("type"))
+            try c.encode(degree, forKey: Key("degree"))
+            try c.encode(isOn,   forKey: Key("isOn"))
         case let .solo_switched(isOn):
             try c.encode("solo_switched", forKey: Key("type"))
             try c.encode(isOn, forKey: Key("isOn"))
@@ -249,6 +310,19 @@ extension LogEvent: Encodable {
         case let .piano_switched(isOn):
             try c.encode("piano_switched", forKey: Key("type"))
             try c.encode(isOn, forKey: Key("isOn"))
+        case let .piano_expanded(isExpanded):
+            try c.encode("piano_expanded", forKey: Key("type"))
+            try c.encode(isExpanded, forKey: Key("isExpanded"))
+        case let .trautonium_note_played(bar, note):
+            try c.encode("trautonium_note_played", forKey: Key("type"))
+            try c.encode(bar,  forKey: Key("bar"))
+            try c.encode(note, forKey: Key("note"))
+        case let .tree_moved(to):
+            try c.encode("tree_moved", forKey: Key("type"))
+            try c.encode(to, forKey: Key("to"))
+        case let .tree_size_switched(sevenths):
+            try c.encode("tree_size_switched", forKey: Key("type"))
+            try c.encode(sevenths, forKey: Key("sevenths"))
         case let .tonnetz_triad_played(triad, notes):
             try c.encode("tonnetz_triad_played", forKey: Key("type"))
             try c.encode(triad, forKey: Key("triad"))
@@ -263,12 +337,32 @@ extension LogEvent: Encodable {
         case let .tonnetz_hold_switched(isOn):
             try c.encode("tonnetz_hold_switched", forKey: Key("type"))
             try c.encode(isOn, forKey: Key("isOn"))
+        case let .pad_played(row, column, notes):
+            try c.encode("pad_played", forKey: Key("type"))
+            try c.encode(row,    forKey: Key("row"))
+            try c.encode(column, forKey: Key("column"))
+            try c.encode(notes,  forKey: Key("notes"))
+        case let .pad_assigned(row, column, chord):
+            try c.encode("pad_assigned", forKey: Key("type"))
+            try c.encode(row,    forKey: Key("row"))
+            try c.encode(column, forKey: Key("column"))
+            try c.encode(chord,  forKey: Key("chord"))
+        case let .pads_sequence_switched(isOn):
+            try c.encode("pads_sequence_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .pads_resized(rows, columns):
+            try c.encode("pads_resized", forKey: Key("type"))
+            try c.encode(rows,    forKey: Key("rows"))
+            try c.encode(columns, forKey: Key("columns"))
         case let .keyboard_key_chosen(action, key):
             try c.encode("keyboard_key_chosen", forKey: Key("type"))
             try c.encode(action, forKey: Key("action"))
             try c.encode(key, forKey: Key("key"))
         case .keyboard_map_reset:
             try c.encode("keyboard_map_reset", forKey: Key("type"))
+        case let .gamepad_connected(name):
+            try c.encode("gamepad_connected", forKey: Key("type"))
+            try c.encode(name, forKey: Key("name"))
         case let .loop_record_started(track):
             try c.encode("loop_record_started", forKey: Key("type"))
             try c.encode(track, forKey: Key("track"))

@@ -48,6 +48,21 @@ struct TimelineCompileTests {
         #expect(chord.event.context.key == Key(root: .E, scale: .naturalMinor))
     }
 
+    /// A note with no inversion of its own is rolled as the keys are now,
+    /// and one with its own keeps it.
+    @Test func aNoteFollowsTheLiveInversionUnlessItHasItsOwn() {
+        var own = note(.I, step: 4)
+        own.playing.inversion = Inversion(steps: -1)
+        let (timeline, layer) = timeline([note(.I, step: 0), own])
+        var rolled = live
+        rolled.inversion = .first
+
+        let chords = timeline.compile(layer: layer, live: rolled)
+        #expect(chords.map(\.event.voicing.notes) == [[64, 67, 72], [55, 60, 64]])
+        #expect(chords.map(\.event.context.inversion) == [.first, Inversion(steps: -1)])
+        #expect(own.playing.hasOwn)
+    }
+
     /// The same chord number, in the note's own key and octave, whatever is
     /// chosen now.
     @Test func aNotesOwnSettingsWinOverTheLiveOnes() {
@@ -90,9 +105,9 @@ struct TimelineCompileTests {
     @Test func aStrumAndASlideAreCarriedThrough() {
         var played = note(.I, step: 0, steps: 4)
         played.articulation = .strum(interval: 0.06)
-        var bright = NoteEffects()
-        bright.filter = FilterSettings(isOn: true, brightness: 0.2)
-        played.changes = [SoundChange(offset: 100, effects: bright), SoundChange(offset: 5000, effects: bright)]
+        var voiced = NoteEffects()
+        voiced.vocoder = VocoderSettings(isOn: true, amount: 0.2)
+        played.changes = [SoundChange(offset: 100, effects: voiced), SoundChange(offset: 5000, effects: voiced)]
         let (timeline, layer) = timeline([played])
         let chord = timeline.compile(layer: layer, live: live)[0]
         #expect(chord.event.articulation == .strum(interval: 0.06))

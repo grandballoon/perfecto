@@ -396,9 +396,7 @@ struct TonnetzStateTests {
         #expect(rig.layers.started == [60, 67])
     }
 
-    /// The Tonnetz is never arpeggiated, so its loop is not either, whatever
-    /// is set for the keys.
-    @Test func aLoopOfTheTonnetzKeepsItsSoundAndIsNotArpeggiated() {
+    @Test func aLoopOfTheTonnetzKeepsItsSoundAndTheEffectsItWasPlayedWith() {
         let rig = Rig()
         rig.state.effects.arpeggiator.isOn = true
         rig.state.effects.reverb.isOn = true
@@ -410,15 +408,104 @@ struct TonnetzStateTests {
         #expect(playing.preset == rig.state.synthPreset)
         #expect(playing.octave == 4)
         #expect(playing.effects?.reverb.isOn == true)
-        #expect(playing.effects?.arpeggiator.isOn == false)
+        #expect(playing.effects?.arpeggiator.isOn == true)
+    }
+
+    @Test func anEffectSetInsideATriadIsKeptByItsLoop() {
+        let rig = Rig()
+        rig.loops.triggerTapped()
+        rig.tonnetz.pointerDown(on: .cell(.home))
+        rig.clock.advance(beats: 2)
+        rig.state.effects.reverb.isOn = true
+        rig.clock.advance(beats: 2)
+        rig.tonnetz.pointerUp()
+        rig.loops.triggerTapped()
+
+        let note = rig.timeline.layers[0].notes[0]
+        #expect(note.playing.effects?.reverb.isOn == false)
+        #expect(note.changes.map(\.effects.reverb.isOn) == [true])
+    }
+
+    // MARK: – Effects
+
+    @Test func aTriadIsArpeggiatedWhileTheArpeggiatorIsOn() {
+        let rig = Rig()
+        rig.state.effects.arpeggiator.isOn = true
+
+        rig.tonnetz.pointerDown(on: .cell(.home))
+        rig.clock.advance(beats: 1)
+
+        // One pass over the triad a beat, and the first note of the next.
+        #expect(rig.triads.playCalls.map(\.notes) == [[60], [64], [67], [60]])
+
+        rig.tonnetz.pointerUp()
+        rig.clock.advance(beats: 1)
+        #expect(rig.triads.playCalls.count == 4)
+    }
+
+    @Test func theNotesHeldAreArpeggiatedWhileTheArpeggiatorIsOn() {
+        let rig = Rig()
+        rig.state.effects.arpeggiator.isOn = true
+        rig.tonnetz.holds = true
+        rig.play(.note(.C), beats: 0)
+        rig.play(.note(.G), beats: 0)
+        rig.notes.reset()
+
+        rig.clock.advance(beats: 1)
+
+        #expect(rig.notes.playCalls.map(\.notes) == [[67], [60]])
+        #expect(rig.triads.calls.isEmpty)
+    }
+
+    @Test func theArpeggiatorSwitchedOnReachesATriadThatIsHeld() {
+        let rig = Rig()
+        rig.tonnetz.pointerDown(on: .cell(.home))
+        #expect(rig.triads.playCalls.map(\.notes) == [[60, 64, 67]])
+
+        rig.state.effects.arpeggiator.isOn = true
+        #expect(rig.triads.lastPlay?.notes == [60])
+
+        rig.state.effects.arpeggiator.isOn = false
+        #expect(rig.triads.lastPlay?.notes == [60, 64, 67])
+    }
+
+    @Test func anEffectSetReachesTheNotesOfATriadThatIsHeld() {
+        let notes = RecordingNoteSink()
+        let clock = ManualClock()
+        let state = PerformanceState(sink: RecordingSink(), tonnetzSink: NotePlayer([notes], clock: clock),
+                                     clock: clock)
+        state.tonnetz.press(.home)
+        #expect(notes.sounds.allSatisfy { !$0.reverb.isOn })
+
+        state.effects.reverb.isOn = true
+
+        // Not struck again: the three notes are changed where they sound.
+        #expect(notes.started.count == 3)
+        #expect(notes.changes.count == 3)
+        #expect(notes.changes.allSatisfy { $0.reverb.isOn })
+    }
+
+    /// A slide on a chord key plays the keys' chord, not the Tonnetz.
+    @Test func aSlideOnAChordKeyDoesNotPlayTheTonnetzsEffects() {
+        let rig = Rig()
+        rig.state.effects.arpeggiator.followsSlide = true
+        rig.state.effects.arpeggiator.isOn = true
+        rig.tonnetz.pointerDown(on: .cell(.home))
+        rig.triads.reset()
+
+        rig.state.effects.hold(.I, at: 1)
+        rig.clock.advance(beats: 1)
+
+        // Still a pass a beat, as set.
+        #expect(rig.triads.playCalls.count == 3)
     }
 
     @Test func theKeysAndTheTonnetzPlayedInOneTakeAreALayerEach() {
         let rig = Rig()
         rig.loops.triggerTapped()
-        rig.state.press(degree: .V)
+        rig.state.press(.degree(.V))
         rig.play(.cell(.home), beats: 4)
-        rig.state.release(degree: .V)
+        rig.state.release(.degree(.V))
         rig.loops.triggerTapped()
 
         #expect(rig.timeline.layers.map { $0.notes.map(\.pitch) } == [[.chord], [.notes([60, 64, 67])]])

@@ -193,19 +193,19 @@ struct TimelineEditTests {
 
     /// A slide played across a cut carries on in the second note.
     @Test func splittingKeepsASlideOnBothSidesOfTheCut() {
-        var bright = NoteEffects()
-        bright.reverb.mix = 0.9
-        var brighter = bright
-        brighter.reverb.mix = 1
+        var some = NoteEffects()
+        some.vocoder.amount = 0.5
+        var more = some
+        more.vocoder.amount = 0.9
         var held = note(I, step: 0, steps: 4)
-        held.changes = [SoundChange(offset: 60, effects: bright), SoundChange(offset: 300, effects: brighter)]
+        held.changes = [SoundChange(offset: 60, effects: some), SoundChange(offset: 300, effects: more)]
         var layer = Layer(notes: [held])
         layer.split(steps: [2])                                           // cuts at 240 and 360
         #expect(layer.notes.map(\.start) == [0, 240, 360])
-        #expect(layer.notes[0].changes == [SoundChange(offset: 60, effects: bright)])
-        #expect(layer.notes[1].playing.effects == bright)
-        #expect(layer.notes[1].changes == [SoundChange(offset: 60, effects: brighter)])
-        #expect(layer.notes[2].playing.effects == brighter)
+        #expect(layer.notes[0].changes == [SoundChange(offset: 60, effects: some)])
+        #expect(layer.notes[1].playing.effects == some)
+        #expect(layer.notes[1].changes == [SoundChange(offset: 60, effects: more)])
+        #expect(layer.notes[2].playing.effects == more)
         #expect(layer.notes[2].changes.isEmpty)
     }
 
@@ -395,23 +395,23 @@ struct TimelineEditTests {
     /// An edit changes every note of the layer, and every point of a slide
     /// recorded in one, and leaves what it does not name as it was played.
     @Test func editingALayersEffectsChangesEveryNoteAndKeepsTheRest() {
-        var dark = NoteEffects()
-        dark.filter = FilterSettings(isOn: true, brightness: 0.2)
-        var bright = dark
-        bright.filter.brightness = 0.8
+        var low = NoteEffects()
+        low.vocoder = VocoderSettings(isOn: true, amount: 0.2)
+        var high = low
+        high.vocoder.amount = 0.8
         var slid = note(I, step: 0, steps: 4)
-        slid.playing.effects = dark
-        slid.changes = [SoundChange(offset: 240, effects: bright)]
+        slid.playing.effects = low
+        slid.changes = [SoundChange(offset: 240, effects: high)]
         var layer = Layer(notes: [slid, note(V, step: 4)])
-        #expect(layer.effects == dark)
+        #expect(layer.effects == low)
 
         var live = NoteEffects()
         live.chorus.isOn = true
-        layer.editEffects(following: live) { $0.reverb = ReverbSettings(isOn: true, mix: 0.7) }
+        layer.editEffects(following: live) { $0.reverb = ReverbSettings(isOn: true) }
 
-        #expect(layer.notes.allSatisfy { $0.playing.effects?.reverb == ReverbSettings(isOn: true, mix: 0.7) })
-        #expect(layer.notes[0].playing.effects?.filter.brightness == 0.2)
-        #expect(layer.notes[0].changes.map(\.effects.filter.brightness) == [0.8])
+        #expect(layer.notes.allSatisfy { $0.playing.effects?.reverb == ReverbSettings(isOn: true) })
+        #expect(layer.notes[0].playing.effects?.vocoder.amount == 0.2)
+        #expect(layer.notes[0].changes.map(\.effects.vocoder.amount) == [0.8])
         #expect(layer.notes[0].changes.allSatisfy { $0.effects.reverb.isOn })
         // A note that followed the keys' effects starts from them, and is its own now.
         #expect(layer.notes[1].playing.effects?.chorus.isOn == true)

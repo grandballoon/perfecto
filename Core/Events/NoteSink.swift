@@ -19,24 +19,35 @@ struct NoteID: Hashable, Sendable {
     }
 }
 
-/// The sound a note is played with: which preset, and how much of each
-/// sound effect. A note carries its own, so a loop keeps the sound it was
-/// played with while the keys play another over it.
+/// The sound a note is played with: which preset, how much of each sound
+/// effect, how bright, how loud, and how far bent from its pitch. A note
+/// carries its own, so a loop keeps the sound it was played with while the
+/// keys play another over it.
 struct NoteSound: Equatable, Sendable {
     var preset = SynthPreset.initial
-    var filter = FilterSettings()
     var chorus = ChorusSettings()
     var reverb = ReverbSettings()
+    var delay = DelaySettings()
     var vocoder = VocoderSettings()
+    /// How much of the note's top end comes through, from 0 (dark) to 1
+    /// (all of it).
+    var brightness: Float = 1
     /// Where the note sits between left (-1) and right (1). A chord's
     /// notes are spread a little by whoever plays it (`NotePlayer`).
     var pan: Float = 0
+    /// How far the note is from its pitch, in semitones up (below 0,
+    /// down). A change of it on a note being held is heard as a slide,
+    /// which is how the Trautonium's bars are played.
+    var bend: Float = 0
+    /// How loud the note is beside itself played whole, from 0 (silent)
+    /// to 1.
+    var level: Float = 1
 }
 
 extension NoteSound {
     init(preset: SynthPreset, effects: NoteEffects) {
-        self.init(preset: preset, filter: effects.filter, chorus: effects.chorus, reverb: effects.reverb,
-                  vocoder: effects.vocoder, pan: 0)
+        self.init(preset: preset, chorus: effects.chorus, reverb: effects.reverb, delay: effects.delay,
+                  vocoder: effects.vocoder, brightness: effects.brightness, pan: 0)
     }
 }
 
@@ -57,9 +68,9 @@ protocol SoundControl: AnyObject {
 /// Contract:
 /// - `noteOn` starts a note under an id that no sounding note has, in the
 ///   sound given. Notes already sounding carry on: nothing is replaced.
-/// - `noteChange` changes the effects of a note being held (its preset is
-///   fixed when it starts). A sink glides to them; one with no sound of its
-///   own (MIDI) ignores them.
+/// - `noteChange` changes the effects, the bend and the level of a note
+///   being held (its preset is fixed when it starts). A sink glides to
+///   them; one with no sound of its own (MIDI) ignores them.
 /// - `noteOff` ends that note and no other. An id that is unknown, or whose
 ///   note has already ended, is ignored.
 /// - `note` is a MIDI note in `Voicing.midiRange`.

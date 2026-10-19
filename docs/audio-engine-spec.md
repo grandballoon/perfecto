@@ -95,6 +95,7 @@ A note carries its own sound, fixed when it starts unless a note change arrives:
 - brightness (the played low-pass, per voice),
 - chorus send and reverb send,
 - vocoder send: how much of the note is carrier for the vocoder and not heard directly.
+- bend and level: how far the note is from its pitch, in semitones, and how loud it is beside itself played whole. A note change glides both, so a note changed little and often slides (the Trautonium's bars).
 
 This one decision does most of the work.
 Layers, loops and sequence steps need no engine concept of their own: a layer is notes that happen to share a sound.
@@ -117,6 +118,29 @@ A sequencer step can have its own key, octave, patch and effect amounts, which i
 - **Patch filter.** A zero-delay-feedback state-variable low-pass per voice: stable when swept fast, cheap, and resonant. The ladder model stays available for patches that want its character, at about four times the cost.
   The ladder's nonlinear model is not built. A patch can ask for two of the filters in a row (`steep`, 24 dB an octave), which is the slope the presets were made on, and every preset does; what the ladder's saturation added is left to listening.
 - **Brightness.** A second, plain low-pass per voice, so a note keeps the brightness it was played with while later notes are brighter or darker.
+- **LFO.** One slow sine per voice, which a patch points at the operators' pitch (in cents), the width of its pulse waves and the filter's cutoff (in octaves), each by a depth of its own (`PerfectoLfo`, `SynthPatch.LFO`).
+  It starts with its note, from nothing, and comes up to its depth over the patch's `rise`, so it is a function of the note's age and a note sounds the same however rendering is divided.
+  It is worked out with a voice's other slow values, every 16 frames.
+  A pulse is read as one sawtooth table less the same one its width behind, so the width can move, and it is moved a little every frame so its edge never jumps.
+  A note's wavetable level is the one that fits the top of the LFO's swing of its pitch.
+  Not built: other shapes, a rate in beats (the kernel knows no tempo), a phase that differs from note to note, and vibrato on a capture.
+- **Unison.** A patch can sound up to seven copies of its operators at once (`unison`), tuned evenly across `spread` cents either side of the note.
+  Each copy starts somewhere else in its cycle, so they never start as one wave, and each has the share of the level that makes them together as loud as one.
+  A modulated patch's copies are each bent by their own modulator.
+  The copies are added before the filter, so a voice is still one sound in one place; copies spread between left and right are not built.
+  All 64 voices with both operators as seven pulses, drifting under an LFO, render a second in about 0.2 s on a Mac.
+- **Drift.** A patch's operators can wander up to `drift` cents either side of their pitch: each on a slow sine (0.1 to 0.4 Hz) whose speed and starting place are chosen by chance for every note.
+  The chance is the kernel's own and starts from the same place each time it is readied, so the same events make the same sound and an export can be made again.
+  A modulator wanders with its carrier.
+- **Noise.** A patch can have white noise beside its operators, as loud as a share of its level that is swept like the cutoff (`noise`), through the same filter and envelope.
+  Each note's noise is its own, from the kernel's chance, so it is the same each time the same events are played.
+- **Glide.** A patch with a `glide` time slides into a note that follows another of its sound with no gap: one that starts within 30 ms of that note's end.
+  It starts at the pitch the other was at and covers 63% of what is left of the way in each `glide` seconds.
+  Of several notes that ended together (a chord), it glides from the nearest, so each note of the next chord has the shortest way and a note the chords share does not move.
+  The kernel has no chords or lines, so two lines in one gliding sound that meet on the same moment glide from each other.
+  A capture does not glide.
+- **Drive.** A patch can push what its filter lets through into a soft limit (`drive`, up to 16 times its level), before the envelope, so a note dying away stays as driven as it was. What comes out is brought back to the patch's level.
+  It is not oversampled, so a bright sound driven hard on a high note folds some of what the limit adds back down; the presets that use it are filtered first.
 - **Envelopes.** Exponential segments; attack and release never shorter than about 2 ms so nothing clicks. Velocity scales level and, per patch, filter opening.
 
 ### 3.6 Mix bus
@@ -125,6 +149,9 @@ A sequencer step can have its own key, octave, patch and effect amounts, which i
 - Sends, not wet/dry mixes, as today: a played or switched-off effect never cuts a tail.
 - The reverb is an eight-line feedback delay network, as Zita's is, written for the kernel: smeared at its input, with the top of the tail dying sooner. Pre-delay, and the damping as a setting, are step 10's.
 - The chorus is one wavering copy a side, a quarter-cycle apart, made shallower as it is made faster so the pitch bends the same at any speed.
+- The delay is a third send: what a note sends comes back a set time later on the left, that long again on the right, and so from side to side, each echo quieter (the feedback) and duller (a low-pass at 4.5 kHz in the loop).
+  What is echoed is taken from nothing, so the note is as it was.
+  Its time is set in seconds (up to 2.5), by `KernelSink` from the tempo, and a change is glided to, so the echoes on their way bend in pitch and nothing clicks.
 - Master: a look-ahead limiter (about 1.5 ms), then the output. No frame leaves it over the ceiling, just under full scale.
   The DC blocker waits for captured audio (step 11): nothing the kernel makes for itself has a steady offset, and a blocker's own tail would keep a silent output from being exactly silent.
   The 12 dB of headroom is the patches' levels, set by ear in step 10. Level per voice is not scaled by the number of voices; the limiter does that job only when it must.

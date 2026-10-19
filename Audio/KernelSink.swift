@@ -2,8 +2,8 @@ import Foundation
 
 /// Sounds notes through the audio kernel. Each note goes to it with its own
 /// sound: its preset (one of the kernel's sounds, loaded here once) and how
-/// bright it is and how much chorus, reverb and vocoder it has, so the keys and every
-/// layer of the timeline can each be heard in their own.
+/// much chorus, reverb and vocoder it has, so the keys and every layer of
+/// the timeline can each be heard in their own.
 ///
 /// The kernel has the voices and decides which to give up when there are
 /// more notes than it has (`perfecto_kernel_voice_count`).
@@ -14,17 +14,14 @@ import Foundation
 /// (nothing rendered yet), is as soon as possible.
 ///
 /// Two settings are not a note's but the whole mix's: how fast the chorus
-/// wavers, and the size of the reverb's room. Each follows the note played
-/// or changed last that has that effect on, so a line of notes with no
-/// reverb (the keys, dry) leaves the room a loop is heard in alone.
+/// wavers, and the size of the reverb's room. There is one of each
+/// (`ChorusSettings`, `ReverbSettings`), set here once.
 @MainActor
-final class KernelSink: NoteSink {
+final class KernelSink: NoteSink, TempoControl {
 
     private let unit: KernelAudioUnit
     /// Each preset's number among the kernel's sounds.
     private let numbers: [SynthPreset: Int]
-    private var chorusRate: Float?
-    private var reverbSize: Float?
 
     /// How hard every note is struck: the keys do not sense it. It is set
     /// so that a chord of four notes in the loudest preset, alone, stays
@@ -51,16 +48,25 @@ final class KernelSink: NoteSink {
         precondition(presets.count <= KernelAudioUnit.soundCount, "more presets than the kernel holds")
         numbers = Dictionary(uniqueKeysWithValues: presets.enumerated().map { ($1, $0) })
         for (number, preset) in presets.enumerated() { unit.setSound(number, to: preset.patch) }
+        unit.setChorusRate(Self.chorusRates.exponential(at: ChorusSettings.rate))
+        unit.setReverbTail(Self.reverbTails.exponential(at: ReverbSettings.size))
+        unit.setReverbPredelay(Self.reverbPredelays.exponential(at: ReverbSettings.size))
+        unit.setReverbDamping(Self.reverbDampings.exponential(at: 1 - ReverbSettings.size))
+        unit.setDelayFeedback(DelaySettings.feedback)
+        setTempo(MusicalTime.defaultTempo)
+    }
+
+    /// The delay's echoes are a length of the beat apart.
+    func setTempo(_ bpm: Double) {
+        unit.setDelayTime(Float(DelaySettings.seconds(atBPM: bpm)))
     }
 
     func noteOn(_ id: NoteID, note: Int, sound: NoteSound, at time: TimeInterval) {
-        setMix(for: sound)
         unit.noteOn(id.number, note: note, velocity: Self.velocity, sound: numbers[sound.preset] ?? 0,
                     pan: sound.pan.clamped(to: -1...1), playing: Self.playing(sound), at: frameAt(time) ?? 0)
     }
 
     func noteChange(_ id: NoteID, sound: NoteSound, at time: TimeInterval) {
-        setMix(for: sound)
         unit.noteChange(id.number, to: Self.playing(sound), at: frameAt(time) ?? 0)
     }
 
@@ -68,27 +74,16 @@ final class KernelSink: NoteSink {
         unit.noteOff(id.number, at: frameAt(time) ?? 0)
     }
 
-    /// An effect that is off takes none of the note; the filter, off, is
-    /// fully open.
+    /// An effect that is off takes none of the note.
     static func playing(_ sound: NoteSound) -> KernelAudioUnit.Playing {
         KernelAudioUnit.Playing(
-            brightness: sound.filter.isOn ? sound.filter.brightness.clamped(to: 0...1) : 1,
-            chorus: sound.chorus.isOn ? sound.chorus.amount.clamped(to: 0...1) : 0,
-            reverb: sound.reverb.isOn ? sound.reverb.mix.clamped(to: 0...1) : 0,
-            vocoder: sound.vocoder.isOn ? sound.vocoder.amount.clamped(to: 0...1) : 0)
-    }
-
-    private func setMix(for sound: NoteSound) {
-        if sound.chorus.isOn, sound.chorus.rate != chorusRate {
-            chorusRate = sound.chorus.rate
-            unit.setChorusRate(Self.chorusRates.exponential(at: sound.chorus.rate))
-        }
-        if sound.reverb.isOn, sound.reverb.size != reverbSize {
-            reverbSize = sound.reverb.size
-            unit.setReverbTail(Self.reverbTails.exponential(at: sound.reverb.size))
-            unit.setReverbPredelay(Self.reverbPredelays.exponential(at: sound.reverb.size))
-            unit.setReverbDamping(Self.reverbDampings.exponential(at: 1 - sound.reverb.size))
-        }
+            brightness: sound.brightness.clamped(to: 0...1),
+            chorus: sound.chorus.isOn ? ChorusSettings.amount : 0,
+            reverb: sound.reverb.isOn ? ReverbSettings.mix : 0,
+            vocoder: sound.vocoder.isOn ? sound.vocoder.amount.clamped(to: 0...1) : 0,
+            delay: sound.delay.isOn ? DelaySettings.amount : 0,
+            bend: sound.bend,
+            level: sound.level.clamped(to: 0...1))
     }
 }
 

@@ -20,8 +20,8 @@ final class SequencerMode: PerformanceMode {
     }
 
     // The chord buttons do nothing while the sequencer is on screen.
-    func onButtonDown(degree: Degree, state: PerformanceState) { }
-    func onButtonUp(degree: Degree, state: PerformanceState) { }
+    func onButtonDown(key: ChordKey, state: PerformanceState) { }
+    func onButtonUp(key: ChordKey, state: PerformanceState) { }
     func onColorChange(state: PerformanceState) { }
 
 }

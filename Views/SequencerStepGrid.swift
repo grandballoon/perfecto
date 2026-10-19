@@ -3,9 +3,13 @@ import SwiftUI
 /// The sequencer's steps, the notes of the layer on screen drawn across them,
 /// and the gestures that select steps, in whichever `SequencerLayout` is chosen:
 ///
-///  • paged — the focused bar alone. Tap toggles a step; dragging sweeps.
+///  • paged — the focused bar alone. A tap selects a step; dragging sweeps.
 ///  • scroll — every bar in one scrolling column, ending in an "add bar" row.
 ///    One finger selects exactly as in the paged layout; two fingers scroll.
+///
+/// A tap or a sweep selects its own steps and no others, and a tap in the
+/// column that is on no step selects none (`SequencerView` does the same
+/// for a tap anywhere else on it).
 ///
 /// Both lay their cells out by `StepGridGeometry` and read touches back
 /// through it, in global step indices, so a sweep can cross bars.
@@ -14,6 +18,10 @@ import SwiftUI
 /// as wide as the steps it is held across (in pieces where it runs past a
 /// row's end), then what is said of each step: its number, the chord that
 /// starts on it, and whether it is selected, playing or in the loop.
+///
+/// By the selection is a tip with Join or Split, whichever would change
+/// something (`StepSelectionTip`): the step editor's own button, where the
+/// finger already is.
 struct SequencerStepGrid: View {
     @Environment(PerformanceState.self) private var perfState
     @Environment(SequencerState.self)   private var seqState
@@ -27,9 +35,10 @@ struct SequencerStepGrid: View {
     /// True once a drag has left its starting cell; from then on the
     /// gesture is a selection sweep rather than a candidate tap.
     @State private var isSweeping = false
-    /// Steps inside the sweep rectangle right now, highlighted but not yet
-    /// committed. Recomputed from the anchor each frame, so backtracking
-    /// shrinks it; it merges into the real selection only on finger lift.
+    /// Steps inside the sweep rectangle right now, highlighted in place of
+    /// the selection but not yet committed. Recomputed from the anchor each
+    /// frame, so backtracking shrinks it; it becomes the selection only on
+    /// finger lift.
     @State private var sweepPreview: Set<Int> = []
     private static let headerHeight: CGFloat = 26
     private static let barGap: CGFloat = 10
@@ -113,10 +122,12 @@ struct SequencerStepGrid: View {
                 }
                 .scrollTargetLayout()
                 // One finger selects, two scroll (see `ScrollSelectionTouches`).
+                // A tap between the bars, where no step is, selects nothing.
                 .background {
                     GeometryReader { geo in
                         scrollSelection(geometry(width: geo.size.width))
                     }
+                    .deselectsOnTap(seqState)
                 }
             }
             .scrollTargetBehavior(.viewAligned)
@@ -156,6 +167,11 @@ struct SequencerStepGrid: View {
                     Color.clear
                         .contentShape(Rectangle())
                         .gesture(dragSelection(geometry))
+                }
+                // Over the touch surface, so a tap on it is its own.
+                if let tip = selectionTip(geometry), tip.bar == bar.id {
+                    StepSelectionTip(edit: tip.edit) { seqState.joinOrSplitSelected() }
+                    .placed(tip.frame)
                 }
             }
         }
@@ -203,6 +219,31 @@ struct SequencerStepGrid: View {
         .accessibilityLabel("Add bar")
     }
 
+    // MARK: – Selection tip
+
+    /// The tip by the selection: Join or Split, whichever the selection is
+    /// offered, in the first bar on screen that has a selected step, placed
+    /// from the top-left of that bar's cells. There is none during a sweep,
+    /// whose steps are not selected yet.
+    private func selectionTip(_ geometry: StepGridGeometry) -> (bar: Int, frame: CGRect, edit: JoinEdit)? {
+        guard !isSweeping else { return nil }
+        let shown = column.lowerBound * seqState.stepsPerBar ..< column.upperBound * seqState.stepsPerBar
+        guard let first = seqState.selectedSteps.filter(shown.contains).min(),
+              let edit = seqState.joinEdit else { return nil }
+        let bar = first / seqState.stepsPerBar
+        let steps = seqState.selectedSteps.filter(seqState.shape.steps(ofBar: bar).contains)
+        return (bar, geometry.frame(ofTip: StepSelectionTip.size, by: geometry.bounds(of: steps)), edit)
+    }
+
+    /// Whether the tip is at `point` in the column: a touch there is the
+    /// tip's, and selects nothing.
+    private func isOnSelectionTip(_ point: CGPoint, in geometry: StepGridGeometry) -> Bool {
+        guard let tip = selectionTip(geometry) else { return false }
+        return tip.frame
+            .offsetBy(dx: 0, dy: geometry.cellsTop(ofBar: tip.bar - column.lowerBound))
+            .contains(point)
+    }
+
     // MARK: – Selection gestures
 
     /// The global step nearest a point in the column.
@@ -220,14 +261,13 @@ struct SequencerStepGrid: View {
         sweepPreview = seqState.shape.rectangle(from: anchor, to: current)
     }
 
-    /// The finger lifted: a sweep merges into the selection, anything less
+    /// The finger lifted: a sweep becomes the selection, anything less
     /// was a tap on the start cell.
     private func sweepEnded(from anchor: Int, to current: Int) {
         if isSweeping {
-            seqState.addToSelection(seqState.shape.rectangle(from: anchor, to: current),
-                                    primary: current)
+            seqState.select(seqState.shape.rectangle(from: anchor, to: current), primary: current)
         } else {
-            seqState.toggleStepSelection(anchor)
+            seqState.select([anchor], primary: anchor)
         }
         sweepCancelled()
     }
@@ -237,12 +277,11 @@ struct SequencerStepGrid: View {
         sweepPreview = []
     }
 
-    /// Paged layout. Tap toggles one step; dragging previews the rectangle
+    /// Paged layout. A tap selects one step; dragging previews the rectangle
     /// between the drag's start cell and the finger. Nothing is committed
     /// until the finger lifts — like a chess piece, the sweep can be taken
     /// back by moving out of an accidentally entered row or column — and only
-    /// then does the final rectangle merge into the selection (adding, never
-    /// removing).
+    /// then does the final rectangle become the selection.
     private func dragSelection(_ geometry: StepGridGeometry) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.columnSpace))
             .onChanged { value in
@@ -259,8 +298,13 @@ struct SequencerStepGrid: View {
     /// fingers to scroll.
     private func scrollSelection(_ geometry: StepGridGeometry) -> some View {
         ScrollSelectionTouches(
-            canTap: { geometry.step(at: $0, bars: column.count) != nil },
-            onTap: { seqState.toggleStepSelection(step(nearest: $0, in: geometry)) },
+            canTap: {
+                geometry.step(at: $0, bars: column.count) != nil && !isOnSelectionTip($0, in: geometry)
+            },
+            onTap: {
+                let step = step(nearest: $0, in: geometry)
+                seqState.select([step], primary: step)
+            },
             onSweepChanged: { start, current in
                 sweepMoved(from: step(nearest: start, in: geometry),
                            to: step(nearest: current, in: geometry))
@@ -332,7 +376,7 @@ struct SequencerStepGrid: View {
     /// is selected, playing or in the loop.
     private func stepMarks(_ step: Int, in bar: Bar) -> some View {
         let isPlaying = seqState.currentStep == step
-        let isSelected = seqState.selectedSteps.contains(step) || sweepPreview.contains(step)
+        let isSelected = isSweeping ? sweepPreview.contains(step) : seqState.selectedSteps.contains(step)
         let head = bar.head(on: step)
 
         return VStack(spacing: 2) {
@@ -376,6 +420,16 @@ struct SequencerStepGrid: View {
         // Notes played from the net are in no key: they are named themselves.
         if case .notes(let notes) = head.note.pitch { return netLabel(of: notes) }
         return degreeNumeral(key: head.note.playing.key ?? perfState.key, degree: head.note.chord.degree)
+    }
+}
+
+extension View {
+    /// Makes a tap on the view select no steps. It goes behind what is to be
+    /// tapped, so a tap that lands on a step, a key or a button never
+    /// reaches it. Nothing of the notes is changed.
+    func deselectsOnTap(_ seqState: SequencerState) -> some View {
+        contentShape(Rectangle())
+            .onTapGesture { seqState.deselectAll() }
     }
 }
 

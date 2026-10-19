@@ -102,13 +102,12 @@ final class NoopMidiBackend: MidiBackend {
 ///
 /// Channel 1, velocity 100 fixed in v1. Per-note Note Off (no CC 123 / All Notes Off).
 ///
-/// The sound effects' amounts go out as the controllers synths read them
-/// from, as they are played, each time one reaches a new value: the filter's
-/// brightness, the chorus's amount and the reverb's mix.
+/// The chorus and the reverb go out as the controllers synths read them
+/// from, each time one is switched: its amount while it is on, and none
+/// once it is off.
 @MainActor
 final class MidiSink: NoteSink, EffectsControl {
 
-    static let brightnessController: UInt8 = 74
     static let chorusController: UInt8 = 93
     static let reverbController: UInt8 = 91
 
@@ -126,7 +125,7 @@ final class MidiSink: NoteSink, EffectsControl {
     }
 
     /// MIDI carries no sound: the receiving instrument has its own. The
-    /// effects' amounts go out as controllers (see `setFilter`).
+    /// chorus and the reverb go out as controllers (see `setChorus`).
     func noteOn(_ id: NoteID, note: Int, sound: NoteSound, at time: TimeInterval) {
         let pitch = UInt8(note)   // in range: the NoteSink contract
         sounding[id] = pitch
@@ -144,22 +143,24 @@ final class MidiSink: NoteSink, EffectsControl {
         logger?.log(.midi_note_sent(note: Int(pitch), velocity: 0, channel: 0, kind: .noteOff))
     }
 
-    func setFilter(_ played: FilterSettings) {
-        // A filter that is off is fully open.
-        send(Self.brightnessController, played.isOn ? played.brightness : 1, isOn: played.isOn)
-    }
-
     func setChorus(_ played: ChorusSettings) {
-        send(Self.chorusController, played.isOn ? played.amount : 0, isOn: played.isOn)
+        send(Self.chorusController, played.isOn ? ChorusSettings.amount : 0, isOn: played.isOn)
     }
 
     func setReverb(_ played: ReverbSettings) {
-        send(Self.reverbController, played.isOn ? played.mix : 0, isOn: played.isOn)
+        send(Self.reverbController, played.isOn ? ReverbSettings.mix : 0, isOn: played.isOn)
     }
+
+    /// The echoes are this device's own: there is no controller for them
+    /// that synths agree on.
+    func setDelay(_ played: DelaySettings) {}
 
     /// The vocoder is a voice at this device's mic: there is nothing of it
     /// to send.
     func setVocoder(_ played: VocoderSettings) {}
+
+    /// Brightness is how this device's own sound is played: nothing is sent.
+    func setBrightness(_ played: Float) {}
 
     /// Sends `amount` (0...1) to `controller`, unless that is the value it
     /// already has. An effect that has never been on sends nothing: there is

@@ -20,22 +20,22 @@ extension SpecScreen {
         SpecScreen(name: "play-circle"),
         SpecScreen(name: "play-grid") { $0.chordGridLayout = .grid },
         SpecScreen(name: "play-bar") { $0.chordGridLayout = .horizontalBar },
+        SpecScreen(name: "play-octave") { $0.chordGridLayout = .octave },
         SpecScreen(name: "play-color-grid") { $0.colorSurface = .grid },
         SpecScreen(name: "play-chord-held") {
             $0.joystickMoved(to: .right)
-            $0.press(degree: .V)
+            $0.press(.degree(.V))
         },
         SpecScreen(name: "play-key-zones") {
             $0.effects.zones.count = 3
             $0.effects.zones.isOn = true
         },
-        SpecScreen(name: "play-effect-slider-bar") { showEffectSlider(in: $0, shape: .bar) },
-        SpecScreen(name: "play-effect-slider-grid") { showEffectSlider(in: $0, shape: .grid) },
-        SpecScreen(name: "play-effect-slider-upright") {
-            $0.chordGridLayout = .horizontalBar
-            showEffectSlider(in: $0, shape: .bar)
+        SpecScreen(name: "play-effects-arpeggio") { $0.effects.setSlot(0, to: .arpeggio(.up)) },
+        SpecScreen(name: "play-effects-all") { state in
+            for choice in [EffectChoice.arpeggio(.down), .chorus, .reverb, .vocoder] {
+                state.effects.asSet.switchOn(choice)
+            }
         },
-        SpecScreen(name: "play-effect-slider-empty") { $0.playSurface = .effects },
         SpecScreen(name: "play-solo-under") { showSolo(in: $0, .underKeys) },
         SpecScreen(name: "play-solo-beside") { showSolo(in: $0, .besideKeys) },
         SpecScreen(name: "play-solo-colors") { showSolo(in: $0, .colors) },
@@ -50,6 +50,12 @@ extension SpecScreen {
         SpecScreen(name: "play-piano") {
             $0.piano.isOn = true
             showSolo(in: $0, .besideKeys)
+        },
+        SpecScreen(name: "piano-expanded") {
+            $0.piano.isOn = true
+            $0.piano.isExpanded = true
+            // Two octaves from C3.
+            $0.piano.span = PianoSpan(start: Double(PianoKeys.whitesBelow(48)), count: 15)
         },
         SpecScreen(name: "play-loops") { state in
             let sequencer = state.sequencerState
@@ -82,6 +88,46 @@ extension SpecScreen {
                 $0.tonnetz.pointerUp()
             }
         },
+        // Some pads with sounds, two held, and the sequence at its first pad.
+        SpecScreen(name: "pads") {
+            showPads(in: $0)
+            $0.pads.isRunning = true
+            $0.pads.press(PadPlace(row: 1, column: 1))
+            $0.pads.press(PadPlace(row: 2, column: 3))
+        },
+        SpecScreen(name: "pads-editing") {
+            showPads(in: $0)
+            $0.pads.isEditing = true
+            $0.pads.select(PadPlace(row: 1, column: 1))
+        },
+        SpecScreen(name: "pads-eight-by-six") {
+            $0.pads.setRows(8)
+            $0.pads.setColumns(6)
+            showPads(in: $0)
+        },
+        SpecScreen(name: "trautonium") { $0.show(.trautonium) },
+        // Both bars sounding, the low one softly and off its note.
+        SpecScreen(name: "trautonium-played") {
+            $0.show(.trautonium)
+            $0.trautonium.press(.low, at: BarPlace(along: 0.3, across: 0.35))
+            $0.trautonium.move(.low, to: BarPlace(along: 0.33, across: 0.35))
+            $0.trautonium.press(.high, at: BarPlace(along: 0.62, across: 0.9))
+        },
+        SpecScreen(name: "tree") { $0.show(.tree) },
+        // A way through the tree, and a chord on from it held: a tier on from it.
+        SpecScreen(name: "tree-played") { state in
+            state.show(.tree)
+            for label in ["Am", "Dm"] {
+                let spot = state.tree.spots(on: state.tree.tier).next.joined().first { $0.chord.label == label }!
+                state.tree.press(spot)
+                state.tree.release(spot)
+            }
+            state.tree.press(state.tree.spots(on: state.tree.tier).next[3][0])
+        },
+        SpecScreen(name: "tree-sevenths") {
+            $0.show(.tree)
+            $0.tree.size = .sevenths
+        },
     ] + SidePanelPage.allCases.map { SpecScreen(name: "menu-\($0.rawValue)", menu: $0) }
 
     /// The menu's pages at their whole length, which the phone only shows a
@@ -90,7 +136,6 @@ extension SpecScreen {
         SpecScreen(name: "menu-\(page.rawValue)-whole", menu: page) { state in
             let effects = state.effects
             effects.arpeggiator.isOn = true
-            effects.filter.isOn = true
             effects.chorus.isOn = true
             effects.reverb.isOn = true
             effects.vocoder.isOn = true
@@ -106,17 +151,6 @@ extension SpecScreen {
                      chord: ChordSpec(degree: degree, color: .base))
     }
 
-    /// The effect slider in place of the chord colors, with three effects
-    /// on and a finger on the filter's lane.
-    private static func showEffectSlider(in state: PerformanceState, shape: SurfaceShape) {
-        state.playSurface = .effects
-        state.effectSliderShape = shape
-        state.effects.arpeggiator.isOn = true
-        state.effects.filter.isOn = true
-        state.effects.reverb.isOn = true
-        state.effects.sliderMoved(.filter, to: 0.7)
-    }
-
     /// The solo strip at `placement` beside the grid of keys (the row of
     /// them, where the layout asks for it), with a major seventh held and a
     /// note of the strip sounding over it.
@@ -125,8 +159,24 @@ extension SpecScreen {
         state.solo.placement = placement
         state.solo.isOn = true
         state.joystickMoved(to: .right)
-        state.press(degree: .I)
+        state.press(.degree(.I))
         state.solo.press(cell: 7)
+    }
+
+    /// The pads on screen, a chord on each pad of the first two rows and
+    /// one in another key and sound further down.
+    private static func showPads(in state: PerformanceState) {
+        state.show(.pads)
+        for (index, degree) in (Degree.allCases + [.I]).enumerated() {
+            state.pads.select(PadPlace(row: index / 4, column: index % 4))
+            state.pads.edit { $0.chord = ChordSpec(degree: degree, color: .base) }
+        }
+        state.pads.select(PadPlace(row: 2, column: 3))
+        state.pads.edit {
+            $0.key = Key(root: .A, scale: .naturalMinor)
+            $0.preset = .strings
+        }
+        state.pads.select(PadPlace(row: 0, column: 0))
     }
 
     /// The sequencer with two bars and two layers: chords entered on steps,

@@ -40,6 +40,22 @@ typedef struct {
     float time;
 } PerfectoSweep;
 
+/// A slow wave that moves a patch's sound for as long as a note sounds: a
+/// sine of `rate` Hz that starts with the note, from nothing, and comes up
+/// to its full depth over `rise` seconds. Each depth is how far it moves
+/// one thing either way; 0 leaves that thing alone, and a `rate` of 0 is no
+/// wave at all.
+typedef struct {
+    float rate;
+    float rise;
+    /// The operators' pitch, in cents: vibrato.
+    float pitch;
+    /// The width of every pulse wave, as a share of its cycle.
+    float pulse_width;
+    /// The filter's cutoff, in octaves.
+    float cutoff;
+} PerfectoLfo;
+
 typedef enum {
     PerfectoWaveSine = 0,
     PerfectoWaveTriangle,
@@ -56,6 +72,8 @@ enum {
     PerfectoOperatorCount = 2,
     /// The most partials a `PerfectoWavePartials` wave can name.
     PerfectoPartialCount = 16,
+    /// The most copies of its operators a patch can sound at once.
+    PerfectoUnisonCount = 7,
 };
 
 /// One of a patch's two sources: a wave at a multiple of the note's pitch.
@@ -76,7 +94,13 @@ typedef struct {
 /// says which parts sound and how:
 ///
 ///     operator 2 ──(modulates, or is mixed with)──→ operator 1
-///         → low-pass filter → amplitude envelope → the note's brightness
+///         (+ noise) → low-pass filter → drive → amplitude envelope
+///         → the note's brightness
+///
+/// and an LFO that moves the operators' pitch, their pulse width and the
+/// filter's cutoff. The operators can be several copies of themselves a
+/// little out of tune with each other (`unison`), and can wander a little
+/// from their pitch, each note its own way (`drift`).
 ///
 /// From there a note goes where it says (its pan, and how much of it to the
 /// chorus, the reverb and the vocoder), and everything is added and held
@@ -88,6 +112,26 @@ typedef struct {
     /// are mixed, sharing `level` by their own levels.
     bool modulates;
     PerfectoSweep index;
+    /// How many copies of the operators sound at once, 1 (and 0) being the
+    /// operators alone, up to `PerfectoUnisonCount`. The copies are tuned
+    /// evenly from `spread` cents under the note to `spread` over it, and
+    /// together are as loud as one.
+    int32_t unison;
+    float spread;
+    /// How far, in cents, each operator wanders either side of its pitch:
+    /// slowly, and differently for every note, so no two notes are tuned
+    /// quite alike, as an analog synth's are not. The operators of a patch
+    /// that `modulates` wander together.
+    float drift;
+    /// Noise beside the operators, as loud as this share of `level`: swept
+    /// down it is the breath at the start of a blown note, and steady it is
+    /// air in the sound. 0 is none.
+    PerfectoSweep noise;
+    /// Seconds in which a note covers 63% of the way to its pitch from the
+    /// pitch of the note before it, when it follows that note with no gap
+    /// (the nearest in pitch of the notes of this sound that ended just
+    /// as it started). 0 is every note at its own pitch from the start.
+    float glide;
     bool filtered;
     /// The filter's cutoff as a multiple of the note's frequency, so a
     /// patch is as bright in every octave.
@@ -97,6 +141,11 @@ typedef struct {
     /// The filter falls away at 24 dB an octave above its cutoff, not 12:
     /// a darker, rounder sound for the same cutoff.
     bool steep;
+    /// How hard what the filter lets through is pushed into a soft limit
+    /// of its own, from 0 (not at all) to 1: the sound flattens and grows
+    /// partials, and stays about as loud.
+    float drive;
+    PerfectoLfo lfo;
     /// Seconds to reach full level.
     float attack;
     /// Seconds in which the level covers 63% of the way to `sustain`, and
@@ -124,8 +173,8 @@ typedef enum {
     /// Ends the note `note_id`. Unknown ids are ignored.
     PerfectoEventNoteOff = 2,
     /// Changes how the note `note_id` is played while it sounds: its
-    /// `brightness`, `chorus`, `reverb` and `vocoder`, all four. The change
-    /// is glided to, not jumped to.
+    /// `brightness`, `chorus`, `reverb`, `vocoder`, `delay`, `bend` and
+    /// `level`, all seven. The change is glided to, not jumped to.
     PerfectoEventNoteChange = 3,
     /// Starts recording into the capture numbered `note`, from this frame,
     /// in place of what it held; notes playing it end. What is recorded is
@@ -174,6 +223,18 @@ typedef struct {
     /// to be shaped by the voice at the input, and is not heard itself:
     /// from 0 (none) to 1 (all of it). While the vocoder is off, none does.
     float vocoder;
+    /// Note on and note change: how much of the note is echoed, from 0
+    /// (none) to 1 (the first echo as loud as the note). It is a send: the
+    /// note is heard as it was, and turning it down never cuts the echoes
+    /// already on their way.
+    float delay;
+    /// Note on and note change: how far the note is from the pitch of
+    /// `note`, in semitones up (or, below 0, down). A note changed little
+    /// and often is heard to slide.
+    float bend;
+    /// Note on and note change: how loud the note is beside the same note
+    /// played whole, from 0 (silent) to 1.
+    float level;
 } PerfectoEvent;
 
 /// The most notes that can be held at once. A note past this takes over a
@@ -244,6 +305,13 @@ void perfecto_kernel_set_chorus_rate(PerfectoKernel *kernel, float hz);
 void perfecto_kernel_set_reverb_tail(PerfectoKernel *kernel, float seconds);
 void perfecto_kernel_set_reverb_predelay(PerfectoKernel *kernel, float seconds);
 void perfecto_kernel_set_reverb_damping(PerfectoKernel *kernel, float hz);
+
+/// The delay's settings, which every note shares too: the seconds between
+/// one echo and the next (a change is glided to, and the echoes on their
+/// way bend in pitch meanwhile), and how loud each echo is beside the one
+/// before it, from 0 (one echo) up to a little under 1.
+void perfecto_kernel_set_delay_time(PerfectoKernel *kernel, float seconds);
+void perfecto_kernel_set_delay_feedback(PerfectoKernel *kernel, float share);
 
 /// Switches the vocoder on or off. On, the share of each note sent to it
 /// is shaped by the audio input (a voice) and heard that way in place of

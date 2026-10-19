@@ -1,10 +1,9 @@
 import SwiftUI
 
-/// Play mode's input surface beside the chord keys: the chord colors or the
-/// effect slider, whichever Setup selects. Both come in the same two shapes
-/// (`SurfaceShape`), so the screen is laid out by shape and does not care
-/// which of them it is showing. The solo strip takes their place, as a bar,
-/// while it is on and placed there (`SoloPlacement.colors`).
+/// Play mode's input surface beside the chord keys: the chord colors, in
+/// one of two shapes (`SurfaceShape`) that the screen is laid out by. The
+/// solo strip takes their place, as a bar, while it is on and placed there
+/// (`SoloPlacement.colors`).
 struct PlaySurfaceView: View {
 
     /// Which way a bar runs. A grid ignores it.
@@ -16,12 +15,7 @@ struct PlaySurfaceView: View {
         if state.solo.takesColorsPlace {
             SoloStripView(axis: barAxis)
         } else {
-            switch state.playSurface {
-            case .color:
-                ColorSurfaceView(barAxis: barAxis)
-            case .effects:
-                EffectSliderView(axis: state.effectSliderShape == .bar ? barAxis : .horizontal)
-            }
+            ColorSurfaceView(barAxis: barAxis)
         }
     }
 }

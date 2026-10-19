@@ -3,7 +3,7 @@ import PerfectoKernel
 import Testing
 
 /// Where a note's sound goes after its voice: left and right, into the
-/// chorus and the reverb, and through the limiter.
+/// chorus, the delay and the reverb, and through the limiter.
 @Suite("Kernel mix")
 struct MixTests {
 
@@ -263,15 +263,112 @@ struct MixTests {
         #expect(rig.loudest(12_000..<24_000) != rig.loudest(6000..<12_000))  // the sends were heard
     }
 
+    // MARK: – Delay
+
+    /// A short note, a twentieth of a second, echoed every quarter second.
+    private func echoed(delay: Float = 1, feedback: Float = 0.5, seconds: Double = 1) -> KernelRig {
+        let rig = KernelRig()
+        rig.setDelayTime(0.25)
+        rig.setDelayFeedback(feedback)
+        rig.noteOn(1, delay: delay)
+        rig.noteOff(1, at: frames(0.05))
+        rig.render(frames(seconds))
+        return rig
+    }
+
+    /// The frames an echo that left at `seconds` is heard in.
+    private func echo(at seconds: Double) -> Range<Int> {
+        frames(seconds + 0.01)..<frames(seconds + 0.05)
+    }
+
+    /// The note comes back on the left, then on the right, then on the
+    /// left again, each time quieter by the feedback, with silence between.
+    @Test func aNoteIsEchoedFromSideToSide() {
+        let rig = echoed()
+        #expect(abs(rig.loudest(echo(at: 0.25)) - 0.2) < 0.005)
+        #expect(loudest(rig.right[echo(at: 0.25)]) == 0)
+        #expect(abs(loudest(rig.right[echo(at: 0.5)]) - 0.1) < 0.005)
+        #expect(rig.loudest(echo(at: 0.5)) == 0)
+        #expect(abs(rig.loudest(echo(at: 0.75)) - 0.05) < 0.005)
+        #expect(rig.loudest(frames(0.1)..<frames(0.24)) < 0.0001)
+    }
+
+    /// The note itself is as it was: what is echoed is taken from nothing.
+    @Test func theNoteItselfIsNotChangedByItsEchoes() {
+        let (with, without) = (echoed(), echoed(delay: 0))
+        #expect(with.output[..<frames(0.2)] == without.output[..<frames(0.2)])
+        #expect(without.loudest(frames(0.2)..<frames(1)) == 0)
+        #expect(abs(echoed(delay: 0.5).loudest(echo(at: 0.25)) - 0.1) < 0.005)
+    }
+
+    /// With no feedback there is one echo.
+    @Test func withNoFeedbackThereIsOneEcho() {
+        let rig = echoed(feedback: 0)
+        #expect(rig.loudest(echo(at: 0.25)) > 0.19)
+        #expect(loudest(rig.right[echo(at: 0.5)]) == 0)
+    }
+
+    /// Each echo is duller than the last: a high partial dies away faster
+    /// than the feedback alone takes it down.
+    @Test func eachEchoIsDullerThanTheLast() {
+        let rig = KernelRig()
+        rig.setSound(1, .wave(PerfectoWaveSawtooth))
+        rig.setDelayTime(0.25)
+        rig.setDelayFeedback(0.5)
+        rig.noteOn(1, note: 69, sound: 1, delay: 1)
+        rig.noteOff(1, at: frames(0.05))
+        rig.render(frames(1))
+        func partial(_ number: Double, at seconds: Double) -> Double {
+            rig.strength(of: hz(69) * number, in: echo(at: seconds))
+        }
+        let low = partial(1, at: 0.75) / partial(1, at: 0.25)
+        let high = partial(16, at: 0.75) / partial(16, at: 0.25)
+        #expect(abs(low - 0.25) < 0.02)
+        #expect(high < low * 0.6)
+    }
+
+    /// A change of the time is glided to: the echoes on their way bend,
+    /// and nothing clicks.
+    @Test func aChangeOfTheDelaysTimeDoesNotClick() {
+        let rig = KernelRig()
+        rig.setDelayTime(0.25)
+        rig.noteOn(1, delay: 1)
+        rig.render(frames(0.5))
+        rig.setDelayTime(0.1)
+        rig.render(frames(1))
+        // No step is bigger than a sine of twice the pitch and all the
+        // level there is could make.
+        let steepest = rig.loudest(0..<frames(1.5)) * Float(2 * Double.pi * 2 * hz(69) / KernelRig.sampleRate)
+        #expect(rig.biggestStep(0..<frames(1.5)) <= steepest)
+        // And the time arrives: the echo is then a tenth of a second late.
+        rig.noteOff(1, at: frames(1.5))
+        rig.render(frames(1))
+        #expect(rig.loudest(frames(1.52)..<frames(1.59)) > 0.1)
+        #expect(rig.loudest(frames(1.62)..<frames(1.69)) < 0.1)
+    }
+
+    /// A send turned down does not cut the echoes already on their way.
+    @Test func turningTheSendDownLeavesTheEchoesOnTheirWay() {
+        let rig = KernelRig()
+        rig.setDelayTime(0.25)
+        rig.noteOn(1, delay: 1)
+        rig.noteChange(1, delay: 0, at: frames(0.1))
+        rig.noteOff(1, at: frames(0.2))
+        rig.render(frames(0.5))
+        #expect(rig.loudest(frames(0.27)..<frames(0.33)) > 0.19)             // the first tenth, come back
+        #expect(rig.loudest(frames(0.42)..<frames(0.45)) < 0.01)             // and nothing of what came after
+    }
+
     /// Nothing in the mix depends on how rendering is divided into calls.
     @Test func theMixDoesNotDependOnHowTheFramesAreDivided() {
         func performance(chunk: Int) -> ([Float], [Float]) {
             let rig = KernelRig()
             rig.setChorusRate(1.5)
             rig.setReverbTail(1.5)
+            rig.setDelayTime(0.07)
             for id in 1...30 {
                 rig.noteOn(UInt64(id), note: 40 + id, pan: Float(id % 5) / 2 - 1, chorus: Float(id % 3) / 2,
-                           reverb: Float(id % 4) / 4, at: id * 97)
+                           reverb: Float(id % 4) / 4, delay: Float(id % 2), at: id * 97)
                 rig.noteOff(UInt64(id), at: 6000 + id * 131)
             }
             rig.noteChange(7, brightness: 0.2, chorus: 1, reverb: 1, at: 3001)

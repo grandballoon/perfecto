@@ -1,11 +1,12 @@
-/// How Perfecto voices every chord it plays: root position, voice leading off.
+/// How Perfecto voices every chord it plays: rolled to `inversion` (root
+/// position unless one is given), voice leading off.
 ///
 /// The one place those performance settings live, shared by live playback
 /// (`PerformanceState`) and offline rendering (`SequencerMidiRenderer`), so an
 /// exported pattern always contains exactly the notes that were heard, and a
 /// ChordLink frame always describes the settings that produced its notes.
-func performanceContext(key: Key, octave: Int, spec: ChordSpec) -> ChordContext {
-    ChordContext(key: key, spec: spec, octave: octave, inversion: .root, voiceLeading: false)
+func performanceContext(key: Key, octave: Int, spec: ChordSpec, inversion: Inversion = .root) -> ChordContext {
+    ChordContext(key: key, spec: spec, octave: octave, inversion: inversion, voiceLeading: false)
 }
 
 /// The single note Lead mode plays for `degree`: the scale degree itself, in

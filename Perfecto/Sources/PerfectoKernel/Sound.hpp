@@ -44,8 +44,32 @@ private:
 struct Sound {
     PerfectoPatch patch{};
     Wavetable waves[PerfectoOperatorCount];
-    /// Each operator's share of the patch's level.
+    /// Each operator's share of the patch's level, for one of its copies.
     float gains[PerfectoOperatorCount] = {0, 0};
+    /// How many copies of the operators sound (`unison`), and each copy's
+    /// pitch as a multiple of the note's.
+    int copies = 1;
+    double tuning[PerfectoUnisonCount] = {1, 1, 1, 1, 1, 1, 1};
+
+    /// For a driven patch: what a sample is multiplied by on its way
+    /// into the soft limit and on its way out. `driveIn` 0 is no drive.
+    float driveIn = 0;
+    float driveOut = 0;
+
+    /// The most a driven sound is pushed, as a multiple of its level.
+    static constexpr float hardestDrive = 16;
+
+    /// A soft limit: near the hyperbolic tangent, which a sample far
+    /// under 1 passes through as it is and no sample gets past 1 of.
+    static float soften(float x) {
+        if (x > 3) return 1;
+        if (x < -3) return -1;
+        return x * (27 + x * x) / (27 + 9 * x * x);
+    }
+
+    /// The furthest over the note's pitch anything in the patch takes an
+    /// operator, as a multiple of it.
+    double sharpest() const;
 
     /// Takes `patch`, with anything out of range brought into it. Allocates.
     void load(const PerfectoPatch &patch);

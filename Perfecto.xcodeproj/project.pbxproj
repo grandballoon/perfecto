@@ -73,21 +73,30 @@
 		E7A000000000000000000014 /* HeptatonicMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000013 /* HeptatonicMode.swift */; };
 		E7A000000000000000000016 /* ChordGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000015 /* ChordGrid.swift */; };
 		E7B1000000000000000000C2 /* SoloScale.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B1000000000000000000C1 /* SoloScale.swift */; };
+		E7C2000000000000000000D2 /* KeyDegree.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C2000000000000000000D1 /* KeyDegree.swift */; };
+		E7F100000000000000000004 /* ChordScaleTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F100000000000000000003 /* ChordScaleTree.swift */; };
+		E7F100000000000000000002 /* NoteName.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F100000000000000000001 /* NoteName.swift */; };
 		E7D100000000000000000002 /* Tonnetz.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D100000000000000000001 /* Tonnetz.swift */; };
 		E7A000000000000000000018 /* ChordGridPad.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000017 /* ChordGridPad.swift */; };
 		E7A00000000000000000001A /* ColorSurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A000000000000000000019 /* ColorSurfaceView.swift */; };
 		E7B0000000000000000000A4 /* PlaySurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B0000000000000000000A3 /* PlaySurfaceView.swift */; };
-		E7B0000000000000000000A2 /* EffectSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B0000000000000000000A1 /* EffectSlider.swift */; };
 		E7B1000000000000000000C6 /* SoloStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B1000000000000000000C5 /* SoloStripView.swift */; };
 		E7E100000000000000000006 /* PianoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E100000000000000000005 /* PianoView.swift */; };
+		E7E10000000000000000000C /* PianoTouches.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E10000000000000000000B /* PianoTouches.swift */; };
 		E7D10000000000000000000E /* SegmentedToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D10000000000000000000D /* SegmentedToggle.swift */; };
 		E7D100000000000000000022 /* HotkeyTip.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D100000000000000000021 /* HotkeyTip.swift */; };
+		E7D100000000000000000092 /* StepSelectionTip.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D100000000000000000091 /* StepSelectionTip.swift */; };
 		E7D10000000000000000000C /* TonnetzTriadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D10000000000000000000B /* TonnetzTriadView.swift */; };
 		E7D10000000000000000000A /* TonnetzNetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D100000000000000000009 /* TonnetzNetView.swift */; };
 		E7D100000000000000000008 /* TonnetzView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D100000000000000000007 /* TonnetzView.swift */; };
+		E7AD00000000000000000006 /* PadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7AD00000000000000000005 /* PadsView.swift */; };
+		E7AE00000000000000000004 /* TrautoniumView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7AE00000000000000000003 /* TrautoniumView.swift */; };
+		E7F100000000000000000008 /* ChordScaleTreeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F100000000000000000007 /* ChordScaleTreeView.swift */; };
+		E7AD00000000000000000008 /* PadEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7AD00000000000000000007 /* PadEditor.swift */; };
 		E7D100000000000000000006 /* TonnetzGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D100000000000000000005 /* TonnetzGeometry.swift */; };
 		E7E100000000000000000004 /* PianoKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E100000000000000000003 /* PianoKeys.swift */; };
 		E7C1000000000000000000A6 /* KeyboardInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C1000000000000000000A5 /* KeyboardInput.swift */; };
+		E7C1000000000000000000C6 /* GamepadInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C1000000000000000000C5 /* GamepadInput.swift */; };
 		E7A00000000000000000001C /* ColorSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A00000000000000000001B /* ColorSurfaceTests.swift */; };
 		E7B000000000000000000002 /* ChordKeyTouches.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B000000000000000000001 /* ChordKeyTouches.swift */; };
 		E7B000000000000000000004 /* ChordKeySurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B000000000000000000003 /* ChordKeySurface.swift */; };
@@ -98,11 +107,23 @@
 		E7C000000000000000000008 /* ScrollSelectionTouches.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C000000000000000000007 /* ScrollSelectionTouches.swift */; };
 		E7D000000000000000000A02 /* SynthPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D000000000000000000A01 /* SynthPatch.swift */; };
 		E7D000000000000000000A32 /* LoopBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D000000000000000000A31 /* LoopBar.swift */; };
+		E7C2000000000000000000D6 /* KeyStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C2000000000000000000D5 /* KeyStrip.swift */; };
+		E7D1000000000000000000A4 /* EffectStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D1000000000000000000A3 /* EffectStrip.swift */; };
+		E7C2000000000000000000E0 /* KeyField.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C2000000000000000000DF /* KeyField.swift */; };
+		E7C2000000000000000000D8 /* VoicingField.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C2000000000000000000D7 /* VoicingField.swift */; };
+		E7C3000000000000000000A2 /* VoicingPad.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C3000000000000000000A1 /* VoicingPad.swift */; };
+		E7C3000000000000000000B2 /* StepPlayingFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C3000000000000000000B1 /* StepPlayingFields.swift */; };
+		E7C2000000000000000000DC /* SwipeField.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C2000000000000000000DB /* SwipeField.swift */; };
+		E7C2000000000000000000DE /* SoundField.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C2000000000000000000DD /* SoundField.swift */; };
+		E7C2000000000000000000DA /* SwipeStepsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C2000000000000000000D9 /* SwipeStepsTests.swift */; };
+		E7C3000000000000000000C4 /* VoicingSwipeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C3000000000000000000C3 /* VoicingSwipeTests.swift */; };
+		E7D1000000000000000000A6 /* EffectSlotsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D1000000000000000000A5 /* EffectSlotsTests.swift */; };
 		E7D000000000000000000B12 /* SynthPresetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D000000000000000000B11 /* SynthPresetTests.swift */; };
 		E7E000000000000000000002 /* SidePanelState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E000000000000000000001 /* SidePanelState.swift */; };
 		E7E000000000000000000004 /* SidePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E000000000000000000003 /* SidePanel.swift */; };
 		E7E000000000000000000006 /* KeyPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E000000000000000000005 /* KeyPanel.swift */; };
 		E7E000000000000000000008 /* EffectsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E000000000000000000007 /* EffectsPanel.swift */; };
+		E7E000000000000000000022 /* KeyZonesMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E000000000000000000021 /* KeyZonesMap.swift */; };
 		E7E000000000000000000010 /* SidePanelStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E000000000000000000009 /* SidePanelStateTests.swift */; };
 		E7E000000000000000000014 /* SoundPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E000000000000000000013 /* SoundPanel.swift */; };
 		E7E000000000000000000016 /* SetupPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E000000000000000000015 /* SetupPanel.swift */; };
@@ -113,7 +134,12 @@
 		E7B1000000000000000000C4 /* SoloState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B1000000000000000000C3 /* SoloState.swift */; };
 		E7E100000000000000000002 /* PianoState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E100000000000000000001 /* PianoState.swift */; };
 		E7D100000000000000000004 /* TonnetzState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D100000000000000000003 /* TonnetzState.swift */; };
+		E7AD00000000000000000002 /* PadGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7AD00000000000000000001 /* PadGrid.swift */; };
+		E7AD00000000000000000004 /* PadsState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7AD00000000000000000003 /* PadsState.swift */; };
+		E7AE00000000000000000002 /* TrautoniumState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7AE00000000000000000001 /* TrautoniumState.swift */; };
+		E7F100000000000000000006 /* ChordScaleTreeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F100000000000000000005 /* ChordScaleTreeState.swift */; };
 		E7C1000000000000000000A4 /* KeyboardState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C1000000000000000000A3 /* KeyboardState.swift */; };
+		E7C1000000000000000000C4 /* GamepadState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C1000000000000000000C3 /* GamepadState.swift */; };
 		E8BFFCCAAF520152247BF944 /* MicAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FFFCCAAF520152247BF944 /* MicAccess.swift */; };
 		E8BEF3A41FC4500DAB8F0938 /* MicSampleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FEF3A41FC4500DAB8F0938 /* MicSampleState.swift */; };
 		E7F000000000000000000012 /* ArpeggiatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000011 /* ArpeggiatorTests.swift */; };
@@ -121,15 +147,26 @@
 		E7B1000000000000000000C8 /* SoloStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B1000000000000000000C7 /* SoloStateTests.swift */; };
 		E7E100000000000000000008 /* PianoStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E100000000000000000007 /* PianoStateTests.swift */; };
 		E7D100000000000000000010 /* TonnetzStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D10000000000000000000F /* TonnetzStateTests.swift */; };
+		E7AD0000000000000000000A /* PadsStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7AD00000000000000000009 /* PadsStateTests.swift */; };
+		E7AE00000000000000000006 /* TrautoniumStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7AE00000000000000000005 /* TrautoniumStateTests.swift */; };
+		E7F10000000000000000000A /* ChordScaleTreeStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F100000000000000000009 /* ChordScaleTreeStateTests.swift */; };
 		E7C1000000000000000000AA /* KeyboardStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C1000000000000000000A9 /* KeyboardStateTests.swift */; };
+		E7C1000000000000000000C8 /* GamepadStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C1000000000000000000C7 /* GamepadStateTests.swift */; };
 		E7F000000000000000000082 /* WaitUntil.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000081 /* WaitUntil.swift */; };
 		E7F0000000000000000000A8 /* SlidePlayed.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F0000000000000000000A7 /* SlidePlayed.swift */; };
 		E7F0000000000000000000AA /* KeyZones.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F0000000000000000000A9 /* KeyZones.swift */; };
+		E7C3000000000000000000A4 /* InversionSlide.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C3000000000000000000A3 /* InversionSlide.swift */; };
+		E7C3000000000000000000C2 /* KeyVoicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C3000000000000000000C1 /* KeyVoicing.swift */; };
+		E7D1000000000000000000A2 /* EffectChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D1000000000000000000A1 /* EffectChoice.swift */; };
 		E7C1000000000000000000A2 /* KeyboardMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C1000000000000000000A1 /* KeyboardMap.swift */; };
+		E7C1000000000000000000C2 /* GamepadMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C1000000000000000000C1 /* GamepadMap.swift */; };
+		E7C2000000000000000000D4 /* ChordKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C2000000000000000000D3 /* ChordKey.swift */; };
 		E80000000000000000000B01 /* SequencerViewBarRemovalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000000000000000000F01 /* SequencerViewBarRemovalTests.swift */; };
 		E80000000000000000000B02 /* ChordKeyLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000000000000000000F02 /* ChordKeyLayoutTests.swift */; };
 		E7C1000000000000000000AC /* DeskLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C1000000000000000000AB /* DeskLayoutTests.swift */; };
 		E7D100000000000000000012 /* TonnetzGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D100000000000000000011 /* TonnetzGeometryTests.swift */; };
+		E7AE00000000000000000008 /* TrautoniumBarsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7AE00000000000000000007 /* TrautoniumBarsTests.swift */; };
+		E7F10000000000000000000C /* TreeBranchesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F10000000000000000000B /* TreeBranchesTests.swift */; };
 		E7E10000000000000000000A /* PianoKeysTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E100000000000000000009 /* PianoKeysTests.swift */; };
 		E81000000000000000000B01 /* LayerDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81000000000000000000F01 /* LayerDrawing.swift */; };
 		E81000000000000000000B02 /* SpecScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81000000000000000000F02 /* SpecScreen.swift */; };
@@ -267,21 +304,30 @@
 		E7A000000000000000000013 /* HeptatonicMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeptatonicMode.swift; sourceTree = "<group>"; };
 		E7A000000000000000000015 /* ChordGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordGrid.swift; sourceTree = "<group>"; };
 		E7B1000000000000000000C1 /* SoloScale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoloScale.swift; sourceTree = "<group>"; };
+		E7C2000000000000000000D1 /* KeyDegree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyDegree.swift; sourceTree = "<group>"; };
+		E7F100000000000000000003 /* ChordScaleTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordScaleTree.swift; sourceTree = "<group>"; };
+		E7F100000000000000000001 /* NoteName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteName.swift; sourceTree = "<group>"; };
 		E7D100000000000000000001 /* Tonnetz.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tonnetz.swift; sourceTree = "<group>"; };
 		E7A000000000000000000017 /* ChordGridPad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordGridPad.swift; sourceTree = "<group>"; };
 		E7A000000000000000000019 /* ColorSurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSurfaceView.swift; sourceTree = "<group>"; };
 		E7B0000000000000000000A3 /* PlaySurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaySurfaceView.swift; sourceTree = "<group>"; };
-		E7B0000000000000000000A1 /* EffectSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectSlider.swift; sourceTree = "<group>"; };
 		E7B1000000000000000000C5 /* SoloStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoloStripView.swift; sourceTree = "<group>"; };
 		E7E100000000000000000005 /* PianoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PianoView.swift; sourceTree = "<group>"; };
+		E7E10000000000000000000B /* PianoTouches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PianoTouches.swift; sourceTree = "<group>"; };
 		E7D10000000000000000000D /* SegmentedToggle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SegmentedToggle.swift; sourceTree = "<group>"; };
 		E7D100000000000000000021 /* HotkeyTip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyTip.swift; sourceTree = "<group>"; };
+		E7D100000000000000000091 /* StepSelectionTip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepSelectionTip.swift; sourceTree = "<group>"; };
 		E7D10000000000000000000B /* TonnetzTriadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonnetzTriadView.swift; sourceTree = "<group>"; };
 		E7D100000000000000000009 /* TonnetzNetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonnetzNetView.swift; sourceTree = "<group>"; };
 		E7D100000000000000000007 /* TonnetzView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonnetzView.swift; sourceTree = "<group>"; };
+		E7AD00000000000000000005 /* PadsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadsView.swift; sourceTree = "<group>"; };
+		E7AE00000000000000000003 /* TrautoniumView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrautoniumView.swift; sourceTree = "<group>"; };
+		E7F100000000000000000007 /* ChordScaleTreeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordScaleTreeView.swift; sourceTree = "<group>"; };
+		E7AD00000000000000000007 /* PadEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadEditor.swift; sourceTree = "<group>"; };
 		E7D100000000000000000005 /* TonnetzGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonnetzGeometry.swift; sourceTree = "<group>"; };
 		E7E100000000000000000003 /* PianoKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PianoKeys.swift; sourceTree = "<group>"; };
 		E7C1000000000000000000A5 /* KeyboardInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardInput.swift; sourceTree = "<group>"; };
+		E7C1000000000000000000C5 /* GamepadInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamepadInput.swift; sourceTree = "<group>"; };
 		E7A00000000000000000001B /* ColorSurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSurfaceTests.swift; sourceTree = "<group>"; };
 		E7B000000000000000000001 /* ChordKeyTouches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKeyTouches.swift; sourceTree = "<group>"; };
 		E7B000000000000000000003 /* ChordKeySurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKeySurface.swift; sourceTree = "<group>"; };
@@ -292,11 +338,22 @@
 		E7C000000000000000000007 /* ScrollSelectionTouches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollSelectionTouches.swift; sourceTree = "<group>"; };
 		E7D000000000000000000A01 /* SynthPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthPatch.swift; sourceTree = "<group>"; };
 		E7D000000000000000000A31 /* LoopBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopBar.swift; sourceTree = "<group>"; };
+		E7C2000000000000000000D5 /* KeyStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyStrip.swift; sourceTree = "<group>"; };
+		E7D1000000000000000000A3 /* EffectStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectStrip.swift; sourceTree = "<group>"; };
+		E7C2000000000000000000DF /* KeyField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyField.swift; sourceTree = "<group>"; };
+		E7C2000000000000000000D7 /* VoicingField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicingField.swift; sourceTree = "<group>"; };
+		E7C3000000000000000000A1 /* VoicingPad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicingPad.swift; sourceTree = "<group>"; };
+		E7C3000000000000000000B1 /* StepPlayingFields.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepPlayingFields.swift; sourceTree = "<group>"; };
+		E7C2000000000000000000DB /* SwipeField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeField.swift; sourceTree = "<group>"; };
+		E7C2000000000000000000DD /* SoundField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundField.swift; sourceTree = "<group>"; };
+		E7C2000000000000000000D9 /* SwipeStepsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeStepsTests.swift; sourceTree = "<group>"; };
+		E7C3000000000000000000C3 /* VoicingSwipeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicingSwipeTests.swift; sourceTree = "<group>"; };
 		E7D000000000000000000B11 /* SynthPresetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthPresetTests.swift; sourceTree = "<group>"; };
 		E7E000000000000000000001 /* SidePanelState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidePanelState.swift; sourceTree = "<group>"; };
 		E7E000000000000000000003 /* SidePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidePanel.swift; sourceTree = "<group>"; };
 		E7E000000000000000000005 /* KeyPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyPanel.swift; sourceTree = "<group>"; };
 		E7E000000000000000000007 /* EffectsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsPanel.swift; sourceTree = "<group>"; };
+		E7E000000000000000000021 /* KeyZonesMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyZonesMap.swift; sourceTree = "<group>"; };
 		E7E000000000000000000009 /* SidePanelStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidePanelStateTests.swift; sourceTree = "<group>"; };
 		E7E000000000000000000013 /* SoundPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundPanel.swift; sourceTree = "<group>"; };
 		E7E000000000000000000015 /* SetupPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupPanel.swift; sourceTree = "<group>"; };
@@ -307,23 +364,40 @@
 		E7B1000000000000000000C3 /* SoloState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoloState.swift; sourceTree = "<group>"; };
 		E7E100000000000000000001 /* PianoState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PianoState.swift; sourceTree = "<group>"; };
 		E7D100000000000000000003 /* TonnetzState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonnetzState.swift; sourceTree = "<group>"; };
+		E7AD00000000000000000001 /* PadGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadGrid.swift; sourceTree = "<group>"; };
+		E7AD00000000000000000003 /* PadsState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadsState.swift; sourceTree = "<group>"; };
+		E7AE00000000000000000001 /* TrautoniumState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrautoniumState.swift; sourceTree = "<group>"; };
+		E7F100000000000000000005 /* ChordScaleTreeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordScaleTreeState.swift; sourceTree = "<group>"; };
 		E7C1000000000000000000A3 /* KeyboardState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardState.swift; sourceTree = "<group>"; };
+		E7C1000000000000000000C3 /* GamepadState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamepadState.swift; sourceTree = "<group>"; };
 		E8FFFCCAAF520152247BF944 /* MicAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicAccess.swift; sourceTree = "<group>"; };
 		E8FEF3A41FC4500DAB8F0938 /* MicSampleState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicSampleState.swift; sourceTree = "<group>"; };
 		E7F000000000000000000011 /* ArpeggiatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArpeggiatorTests.swift; sourceTree = "<group>"; };
 		E7F000000000000000000013 /* EffectsStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsStateTests.swift; sourceTree = "<group>"; };
+		E7D1000000000000000000A5 /* EffectSlotsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectSlotsTests.swift; sourceTree = "<group>"; };
 		E7B1000000000000000000C7 /* SoloStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoloStateTests.swift; sourceTree = "<group>"; };
 		E7E100000000000000000007 /* PianoStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PianoStateTests.swift; sourceTree = "<group>"; };
 		E7D10000000000000000000F /* TonnetzStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonnetzStateTests.swift; sourceTree = "<group>"; };
+		E7AD00000000000000000009 /* PadsStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadsStateTests.swift; sourceTree = "<group>"; };
+		E7AE00000000000000000005 /* TrautoniumStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrautoniumStateTests.swift; sourceTree = "<group>"; };
+		E7F100000000000000000009 /* ChordScaleTreeStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordScaleTreeStateTests.swift; sourceTree = "<group>"; };
 		E7C1000000000000000000A9 /* KeyboardStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardStateTests.swift; sourceTree = "<group>"; };
+		E7C1000000000000000000C7 /* GamepadStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamepadStateTests.swift; sourceTree = "<group>"; };
 		E7F000000000000000000081 /* WaitUntil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaitUntil.swift; sourceTree = "<group>"; };
 		E7F0000000000000000000A7 /* SlidePlayed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlidePlayed.swift; sourceTree = "<group>"; };
 		E7F0000000000000000000A9 /* KeyZones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyZones.swift; sourceTree = "<group>"; };
+		E7C3000000000000000000A3 /* InversionSlide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InversionSlide.swift; sourceTree = "<group>"; };
+		E7C3000000000000000000C1 /* KeyVoicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyVoicing.swift; sourceTree = "<group>"; };
+		E7D1000000000000000000A1 /* EffectChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectChoice.swift; sourceTree = "<group>"; };
 		E7C1000000000000000000A1 /* KeyboardMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardMap.swift; sourceTree = "<group>"; };
+		E7C1000000000000000000C1 /* GamepadMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamepadMap.swift; sourceTree = "<group>"; };
+		E7C2000000000000000000D3 /* ChordKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKey.swift; sourceTree = "<group>"; };
 		E80000000000000000000F01 /* SequencerViewBarRemovalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerViewBarRemovalTests.swift; sourceTree = "<group>"; };
 		E80000000000000000000F02 /* ChordKeyLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKeyLayoutTests.swift; sourceTree = "<group>"; };
 		E7C1000000000000000000AB /* DeskLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeskLayoutTests.swift; sourceTree = "<group>"; };
 		E7D100000000000000000011 /* TonnetzGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonnetzGeometryTests.swift; sourceTree = "<group>"; };
+		E7AE00000000000000000007 /* TrautoniumBarsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrautoniumBarsTests.swift; sourceTree = "<group>"; };
+		E7F10000000000000000000B /* TreeBranchesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeBranchesTests.swift; sourceTree = "<group>"; };
 		E7E100000000000000000009 /* PianoKeysTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PianoKeysTests.swift; sourceTree = "<group>"; };
 		E81000000000000000000F01 /* LayerDrawing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerDrawing.swift; sourceTree = "<group>"; };
 		E81000000000000000000F02 /* SpecScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpecScreen.swift; sourceTree = "<group>"; };
@@ -430,7 +504,12 @@
 				E7B1000000000000000000C3 /* SoloState.swift */,
 				E7E100000000000000000001 /* PianoState.swift */,
 				E7D100000000000000000003 /* TonnetzState.swift */,
+				E7AD00000000000000000001 /* PadGrid.swift */,
+				E7AD00000000000000000003 /* PadsState.swift */,
+				E7AE00000000000000000001 /* TrautoniumState.swift */,
+				E7F100000000000000000005 /* ChordScaleTreeState.swift */,
 				E7C1000000000000000000A3 /* KeyboardState.swift */,
+				E7C1000000000000000000C3 /* GamepadState.swift */,
 				E8FFFCCAAF520152247BF944 /* MicAccess.swift */,
 				E8FEF3A41FC4500DAB8F0938 /* MicSampleState.swift */,
 				E9F62B3A63EFEA69395677B0 /* PerformanceState.swift */,
@@ -456,7 +535,12 @@
 				E7F000000000000000000001 /* Arpeggiator.swift */,
 				E7F0000000000000000000A7 /* SlidePlayed.swift */,
 				E7F0000000000000000000A9 /* KeyZones.swift */,
+				E7C3000000000000000000A3 /* InversionSlide.swift */,
+				E7C3000000000000000000C1 /* KeyVoicing.swift */,
+				E7D1000000000000000000A1 /* EffectChoice.swift */,
 				E7C1000000000000000000A1 /* KeyboardMap.swift */,
+				E7C1000000000000000000C1 /* GamepadMap.swift */,
+				E7C2000000000000000000D3 /* ChordKey.swift */,
 				E3D7C28E298867E6FC8D2CE3 /* ChordEventSink.swift */,
 				48588FDF8B81221AFD4313CC /* CompositeSink.swift */,
 				E8F0BF8AB4C48AF3975B81C2 /* NotePlayer.swift */,
@@ -499,6 +583,9 @@
 				E7A000000000000000000013 /* HeptatonicMode.swift */,
 				E7A000000000000000000015 /* ChordGrid.swift */,
 				E7B1000000000000000000C1 /* SoloScale.swift */,
+				E7C2000000000000000000D1 /* KeyDegree.swift */,
+				E7F100000000000000000003 /* ChordScaleTree.swift */,
+				E7F100000000000000000001 /* NoteName.swift */,
 				E7D100000000000000000001 /* Tonnetz.swift */,
 				C1B000000000000000000001 /* ChordWire.swift */,
 				6FBA429F85D9C4510F59C804 /* ComputeVoicing.swift */,
@@ -574,28 +661,42 @@
 				AA9900112233445566778811 /* ChordBarView.swift */,
 				E7A000000000000000000019 /* ColorSurfaceView.swift */,
 				E7B0000000000000000000A3 /* PlaySurfaceView.swift */,
-				E7B0000000000000000000A1 /* EffectSlider.swift */,
 				E7B1000000000000000000C5 /* SoloStripView.swift */,
 				E7E100000000000000000005 /* PianoView.swift */,
+				E7E10000000000000000000B /* PianoTouches.swift */,
 				E7D10000000000000000000D /* SegmentedToggle.swift */,
 				E7D100000000000000000021 /* HotkeyTip.swift */,
 				E7D10000000000000000000B /* TonnetzTriadView.swift */,
 				E7D100000000000000000009 /* TonnetzNetView.swift */,
 				E7D100000000000000000007 /* TonnetzView.swift */,
+				E7AD00000000000000000005 /* PadsView.swift */,
+				E7AE00000000000000000003 /* TrautoniumView.swift */,
+				E7F100000000000000000007 /* ChordScaleTreeView.swift */,
+				E7AD00000000000000000007 /* PadEditor.swift */,
 				E7D100000000000000000005 /* TonnetzGeometry.swift */,
 				E7E100000000000000000003 /* PianoKeys.swift */,
 				E7C1000000000000000000A5 /* KeyboardInput.swift */,
+				E7C1000000000000000000C5 /* GamepadInput.swift */,
 				E7A000000000000000000017 /* ChordGridPad.swift */,
 				AA9900112233445566779911 /* ChordColorBar.swift */,
 				E7B000000000000000000003 /* ChordKeySurface.swift */,
 				E7B000000000000000000001 /* ChordKeyTouches.swift */,
 				E7D000000000000000000A31 /* LoopBar.swift */,
+				E7C2000000000000000000DF /* KeyField.swift */,
+				E7C2000000000000000000D5 /* KeyStrip.swift */,
+				E7D1000000000000000000A3 /* EffectStrip.swift */,
+				E7C2000000000000000000D7 /* VoicingField.swift */,
+				E7C3000000000000000000A1 /* VoicingPad.swift */,
+				E7C3000000000000000000B1 /* StepPlayingFields.swift */,
+				E7C2000000000000000000DD /* SoundField.swift */,
+				E7C2000000000000000000DB /* SwipeField.swift */,
 				FF0000112233445566778811 /* ChordKeysView.swift */,
 				D5E9A1000000000000000F01 /* DegreeSelector.swift */,
 				7A005FBDBD201E0E82068BD1 /* JoystickView.swift */,
 				E1E1668DFD39019C2EF87326 /* PerformanceView.swift */,
 				CC1122334455667788990011 /* SequencerView.swift */,
 				E7C000000000000000000003 /* StepGridGeometry.swift */,
+				E7D100000000000000000091 /* StepSelectionTip.swift */,
 				E7C000000000000000000001 /* SequencerStepGrid.swift */,
 				E7C000000000000000000007 /* ScrollSelectionTouches.swift */,
 			);
@@ -744,6 +845,7 @@
 			isa = PBXGroup;
 			children = (
 				E7E000000000000000000007 /* EffectsPanel.swift */,
+				E7E000000000000000000021 /* KeyZonesMap.swift */,
 				E7E000000000000000000005 /* KeyPanel.swift */,
 				E7E000000000000000000003 /* SidePanel.swift */,
 				E7E000000000000000000001 /* SidePanelState.swift */,
@@ -759,8 +861,12 @@
 			children = (
 				E80000000000000000000F01 /* SequencerViewBarRemovalTests.swift */,
 				E80000000000000000000F02 /* ChordKeyLayoutTests.swift */,
+				E7C2000000000000000000D9 /* SwipeStepsTests.swift */,
+				E7C3000000000000000000C3 /* VoicingSwipeTests.swift */,
 				E7C1000000000000000000AB /* DeskLayoutTests.swift */,
 				E7D100000000000000000011 /* TonnetzGeometryTests.swift */,
+				E7AE00000000000000000007 /* TrautoniumBarsTests.swift */,
+				E7F10000000000000000000B /* TreeBranchesTests.swift */,
 				E7E100000000000000000009 /* PianoKeysTests.swift */,
 			);
 			path = ViewTests;
@@ -806,10 +912,15 @@
 			isa = PBXGroup;
 			children = (
 				E7F000000000000000000013 /* EffectsStateTests.swift */,
+				E7D1000000000000000000A5 /* EffectSlotsTests.swift */,
 				E7B1000000000000000000C7 /* SoloStateTests.swift */,
 				E7E100000000000000000007 /* PianoStateTests.swift */,
 				E7D10000000000000000000F /* TonnetzStateTests.swift */,
+				E7AD00000000000000000009 /* PadsStateTests.swift */,
+				E7AE00000000000000000005 /* TrautoniumStateTests.swift */,
+				E7F100000000000000000009 /* ChordScaleTreeStateTests.swift */,
 				E7C1000000000000000000A9 /* KeyboardStateTests.swift */,
+				E7C1000000000000000000C7 /* GamepadStateTests.swift */,
 				E7E000000000000000000009 /* SidePanelStateTests.swift */,
 				QQVT0000000000000000CCDD /* QuickLoopStateTests.swift */,
 				D5E9A4000000000000000F01 /* SequencerBarsTests.swift */,
@@ -955,10 +1066,15 @@
 				E8BF22E888530C5AB6654A78 /* KernelLiveTests.swift in Sources */,
 				E8BF22E888530C5AB6654A79 /* AudioOutputLiveTests.swift in Sources */,
 				E7F000000000000000000014 /* EffectsStateTests.swift in Sources */,
+				E7D1000000000000000000A6 /* EffectSlotsTests.swift in Sources */,
 				E7B1000000000000000000C8 /* SoloStateTests.swift in Sources */,
 				E7E100000000000000000008 /* PianoStateTests.swift in Sources */,
 				E7D100000000000000000010 /* TonnetzStateTests.swift in Sources */,
+				E7AD0000000000000000000A /* PadsStateTests.swift in Sources */,
+				E7AE00000000000000000006 /* TrautoniumStateTests.swift in Sources */,
+				E7F10000000000000000000A /* ChordScaleTreeStateTests.swift in Sources */,
 				E7C1000000000000000000AA /* KeyboardStateTests.swift in Sources */,
+				E7C1000000000000000000C8 /* GamepadStateTests.swift in Sources */,
 				E7E000000000000000000010 /* SidePanelStateTests.swift in Sources */,
 				E7F000000000000000000012 /* ArpeggiatorTests.swift in Sources */,
 				E7D000000000000000000B12 /* SynthPresetTests.swift in Sources */,
@@ -966,8 +1082,12 @@
 				E8B2E0700B4425144A8EFD07 /* SequencerEditingTests.swift in Sources */,
 				E80000000000000000000B01 /* SequencerViewBarRemovalTests.swift in Sources */,
 				E80000000000000000000B02 /* ChordKeyLayoutTests.swift in Sources */,
+				E7C2000000000000000000DA /* SwipeStepsTests.swift in Sources */,
+				E7C3000000000000000000C4 /* VoicingSwipeTests.swift in Sources */,
 				E7C1000000000000000000AC /* DeskLayoutTests.swift in Sources */,
 				E7D100000000000000000012 /* TonnetzGeometryTests.swift in Sources */,
+				E7AE00000000000000000008 /* TrautoniumBarsTests.swift in Sources */,
+				E7F10000000000000000000C /* TreeBranchesTests.swift in Sources */,
 				E7E10000000000000000000A /* PianoKeysTests.swift in Sources */,
 				E81000000000000000000B01 /* LayerDrawing.swift in Sources */,
 				E81000000000000000000B02 /* SpecScreen.swift in Sources */,
@@ -994,6 +1114,9 @@
 				E7A000000000000000000014 /* HeptatonicMode.swift in Sources */,
 				E7A000000000000000000016 /* ChordGrid.swift in Sources */,
 				E7B1000000000000000000C2 /* SoloScale.swift in Sources */,
+				E7C2000000000000000000D2 /* KeyDegree.swift in Sources */,
+				E7F100000000000000000004 /* ChordScaleTree.swift in Sources */,
+				E7F100000000000000000002 /* NoteName.swift in Sources */,
 				E7D100000000000000000002 /* Tonnetz.swift in Sources */,
 				CCDD00000000000000003302 /* Logger.swift in Sources */,
 				CCDD00000000000000003304 /* LogEvent.swift in Sources */,
@@ -1003,17 +1126,22 @@
 				AA9900112233445566778800 /* ChordBarView.swift in Sources */,
 				E7A00000000000000000001A /* ColorSurfaceView.swift in Sources */,
 				E7B0000000000000000000A4 /* PlaySurfaceView.swift in Sources */,
-				E7B0000000000000000000A2 /* EffectSlider.swift in Sources */,
 				E7B1000000000000000000C6 /* SoloStripView.swift in Sources */,
 				E7E100000000000000000006 /* PianoView.swift in Sources */,
+				E7E10000000000000000000C /* PianoTouches.swift in Sources */,
 				E7D10000000000000000000E /* SegmentedToggle.swift in Sources */,
 				E7D100000000000000000022 /* HotkeyTip.swift in Sources */,
 				E7D10000000000000000000C /* TonnetzTriadView.swift in Sources */,
 				E7D10000000000000000000A /* TonnetzNetView.swift in Sources */,
 				E7D100000000000000000008 /* TonnetzView.swift in Sources */,
+				E7AD00000000000000000006 /* PadsView.swift in Sources */,
+				E7AE00000000000000000004 /* TrautoniumView.swift in Sources */,
+				E7F100000000000000000008 /* ChordScaleTreeView.swift in Sources */,
+				E7AD00000000000000000008 /* PadEditor.swift in Sources */,
 				E7D100000000000000000006 /* TonnetzGeometry.swift in Sources */,
 				E7E100000000000000000004 /* PianoKeys.swift in Sources */,
 				E7C1000000000000000000A6 /* KeyboardInput.swift in Sources */,
+				E7C1000000000000000000C6 /* GamepadInput.swift in Sources */,
 				E7A000000000000000000018 /* ChordGridPad.swift in Sources */,
 				AA9900112233445566779900 /* ChordColorBar.swift in Sources */,
 				E7B000000000000000000004 /* ChordKeySurface.swift in Sources */,
@@ -1062,6 +1190,7 @@
 				BB1122334455667788990022 /* SequencerMode.swift in Sources */,
 				CC1122334455667788990022 /* SequencerView.swift in Sources */,
 				E7C000000000000000000004 /* StepGridGeometry.swift in Sources */,
+				E7D100000000000000000092 /* StepSelectionTip.swift in Sources */,
 				E7C000000000000000000002 /* SequencerStepGrid.swift in Sources */,
 				E7C000000000000000000008 /* ScrollSelectionTouches.swift in Sources */,
 				E7E000000000000000000002 /* SidePanelState.swift in Sources */,
@@ -1071,6 +1200,7 @@
 				E7E000000000000000000004 /* SidePanel.swift in Sources */,
 				E7E000000000000000000006 /* KeyPanel.swift in Sources */,
 				E7E000000000000000000008 /* EffectsPanel.swift in Sources */,
+				E7E000000000000000000022 /* KeyZonesMap.swift in Sources */,
 				QQLS0000000000000000CCDD /* QuickLoopState.swift in Sources */,
 				E7D000000000000000000A02 /* SynthPatch.swift in Sources */,
 				E8B3FDD2A3C0BBF14C5BEF51 /* AudioOutput.swift in Sources */,
@@ -1080,11 +1210,24 @@
 				E8BFC0C7ED7CCF06D52EA09C /* AudioGraph.swift in Sources */,
 				E8B315B4C9A7B72D7DA88AED /* Recording.swift in Sources */,
 				E7D000000000000000000A32 /* LoopBar.swift in Sources */,
+				E7C2000000000000000000E0 /* KeyField.swift in Sources */,
+				E7C2000000000000000000D6 /* KeyStrip.swift in Sources */,
+				E7D1000000000000000000A4 /* EffectStrip.swift in Sources */,
+				E7C2000000000000000000D8 /* VoicingField.swift in Sources */,
+				E7C3000000000000000000A2 /* VoicingPad.swift in Sources */,
+				E7C3000000000000000000B2 /* StepPlayingFields.swift in Sources */,
+				E7C2000000000000000000DE /* SoundField.swift in Sources */,
+				E7C2000000000000000000DC /* SwipeField.swift in Sources */,
 				E7F000000000000000000008 /* EffectsState.swift in Sources */,
 				E7B1000000000000000000C4 /* SoloState.swift in Sources */,
 				E7E100000000000000000002 /* PianoState.swift in Sources */,
 				E7D100000000000000000004 /* TonnetzState.swift in Sources */,
+				E7AD00000000000000000002 /* PadGrid.swift in Sources */,
+				E7AD00000000000000000004 /* PadsState.swift in Sources */,
+				E7AE00000000000000000002 /* TrautoniumState.swift in Sources */,
+				E7F100000000000000000006 /* ChordScaleTreeState.swift in Sources */,
 				E7C1000000000000000000A4 /* KeyboardState.swift in Sources */,
+				E7C1000000000000000000C4 /* GamepadState.swift in Sources */,
 				E8BFFCCAAF520152247BF944 /* MicAccess.swift in Sources */,
 				E8BEF3A41FC4500DAB8F0938 /* MicSampleState.swift in Sources */,
 				E8B1BE3336A652BE1C722000 /* RenderGuard.cpp in Sources */,
@@ -1097,7 +1240,12 @@
 				E7F000000000000000000002 /* Arpeggiator.swift in Sources */,
 				E7F0000000000000000000A8 /* SlidePlayed.swift in Sources */,
 				E7F0000000000000000000AA /* KeyZones.swift in Sources */,
+				E7C3000000000000000000A4 /* InversionSlide.swift in Sources */,
+				E7C3000000000000000000C2 /* KeyVoicing.swift in Sources */,
+				E7D1000000000000000000A2 /* EffectChoice.swift in Sources */,
 				E7C1000000000000000000A2 /* KeyboardMap.swift in Sources */,
+				E7C1000000000000000000C2 /* GamepadMap.swift in Sources */,
+				E7C2000000000000000000D4 /* ChordKey.swift in Sources */,
 				EE648B028240494AF954BF63 /* StrumMode.swift in Sources */,
 				CD8E9DF5DBA68A193CE63AD1 /* SynthPreset.swift in Sources */,
 				C3788D3D2A1143285DB8D438 /* Voicing.swift in Sources */,

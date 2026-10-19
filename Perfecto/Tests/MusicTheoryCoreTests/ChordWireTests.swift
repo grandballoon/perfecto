@@ -79,6 +79,46 @@ struct ChordWireTests {
         #expect(ChordWire.decode(ChordWire.encodeChord(a)) == .chord(a))
     }
 
+    // MARK: – Inversions a frame cannot state
+
+    private static let cMajor = Key(root: .C, scale: .major)
+    private static let triad = ChordSpec(degree: .I, color: .joystick(.default, .center))
+
+    @Test func anInversionAFrameHasIsStatedAsItIs() {
+        for inversion in ChordWire.inversionOrder {
+            let stated = ChordWire.stated(inversion, octave: 4, key: Self.cMajor, spec: Self.triad)
+            #expect(stated?.inversion == inversion)
+            #expect(stated?.octave == 4)
+        }
+    }
+
+    /// A chord rolled past the second inversion, or down, is stated as the
+    /// inversion and octave that have the same notes.
+    @Test func aChordRolledFurtherIsStatedByTheSameNotesInAnotherOctave() {
+        for steps in [-4, -1, 3, 5, 8] {
+            let rolled = Inversion(steps: steps)
+            guard let stated = ChordWire.stated(rolled, octave: 4, key: Self.cMajor, spec: Self.triad) else {
+                Issue.record("\(steps) steps was not stated")
+                continue
+            }
+            #expect(ChordWire.inversionOrder.contains(stated.inversion))
+            func notes(_ inversion: Inversion, _ octave: Int) -> [Int] {
+                computeVoicing(key: Self.cMajor, spec: Self.triad, inversion: inversion, octave: octave,
+                               voiceLeading: false, previousVoicing: nil).notes
+            }
+            #expect(notes(stated.inversion, stated.octave) == notes(rolled, 4))
+        }
+        let down = ChordWire.stated(Inversion(steps: -1), octave: 4, key: Self.cMajor, spec: Self.triad)
+        #expect(down?.inversion == .second)
+        #expect(down?.octave == 3)
+    }
+
+    /// A four-note chord's third inversion is none of the three a frame has.
+    @Test func aThirdInversionCannotBeStated() {
+        let maj7 = ChordSpec(degree: .I, color: .joystick(.default, .right))
+        #expect(ChordWire.stated(Inversion(steps: 3), octave: 4, key: Self.cMajor, spec: maj7) == nil)
+    }
+
     // MARK: – 7-bit safety
 
     @Test func outOfRangeNotesAreClampedBelowSysExStatusRange() {
@@ -130,6 +170,5 @@ struct ChordWireTests {
         #expect(coversEveryCase(ChordWire.degreeOrder))
         #expect(coversEveryCase(ChordWire.modeOrder))
         #expect(coversEveryCase(ChordWire.directionOrder))
-        #expect(coversEveryCase(ChordWire.inversionOrder))
     }
 }

@@ -1,5 +1,5 @@
-// What every voice's sound passes through on its way out: the chorus and
-// the reverb, which notes send into, and the limiter on the sum.
+// What every voice's sound passes through on its way out: the chorus, the
+// delay and the reverb, which notes send into, and the limiter on the sum.
 //
 // Each is one frame in, one frame out, with all its memory set aside in
 // `prepare`, so what it makes of a sound does not depend on how rendering
@@ -75,6 +75,84 @@ private:
     double phase = 0;
     double phaseStep = 0;
     double depth = 0;
+};
+
+/// Echoes: what is sent in comes back a set time later on the left, that
+/// long again on the right, and so from side to side, each quieter and
+/// duller than the last.
+///
+/// A change of the time is glided to, so the echoes already on their way
+/// bend in pitch as a tape's would and nothing clicks.
+class Delay {
+public:
+    /// The longest the time between echoes can be, in seconds.
+    static constexpr double longestSeconds = 2.5;
+
+    void prepare(double rate) {
+        sampleRate = rate;
+        std::size_t size = 1;
+        while (size < static_cast<std::size_t>(longestSeconds * rate) + 4) size *= 2;
+        left.assign(size, 0.0f);
+        right.assign(size, 0.0f);
+        write = 0;
+        dampLeft = dampRight = 0;
+        damping = static_cast<float>(1 - std::exp(-twoPi * dampingHz / rate));
+        glide = static_cast<float>(1 - std::exp(-1 / (glideSeconds * rate)));
+        // The time is set again, and is where it starts from.
+        frames = goal = 0;
+    }
+
+    /// The seconds between one echo and the next.
+    void setTime(double seconds) {
+        goal = std::clamp(seconds, shortestSeconds, longestSeconds) * sampleRate;
+        if (frames == 0) frames = goal;
+    }
+
+    /// How loud each echo is beside the one before it, from 0 (one echo)
+    /// up to a little under 1.
+    void setFeedback(float share) { feedback = std::clamp(share, 0.0f, 0.95f); }
+
+    void run(float inLeft, float inRight, float &outLeft, float &outRight) {
+        const std::size_t mask = left.size() - 1;
+        frames += (goal - frames) * glide;
+        outLeft = read(left, mask);
+        outRight = read(right, mask);
+        // Each side's echo, duller, is what the other side echoes next.
+        dampLeft += (outLeft - dampLeft) * damping;
+        dampRight += (outRight - dampRight) * damping;
+        left[write] = 0.5f * (inLeft + inRight) + feedback * dampRight;
+        right[write] = feedback * dampLeft;
+        write = (write + 1) & mask;
+    }
+
+private:
+    static constexpr double twoPi = 6.283185307179586;
+    static constexpr double shortestSeconds = 0.01;
+    /// The pitch above which each echo loses some of what the last had.
+    static constexpr double dampingHz = 4500;
+    /// Seconds in which a change of the time covers 63% of the way.
+    static constexpr double glideSeconds = 0.15;
+
+    float read(const std::vector<float> &buffer, std::size_t mask) const {
+        const double at = static_cast<double>(write) - frames + static_cast<double>(buffer.size());
+        const std::size_t index = static_cast<std::size_t>(at);
+        const float between = static_cast<float>(at - static_cast<double>(index));
+        const float first = buffer[index & mask];
+        return first + between * (buffer[(index + 1) & mask] - first);
+    }
+
+    double sampleRate = 48000;
+    std::vector<float> left;
+    std::vector<float> right;
+    std::size_t write = 0;
+    /// The time between echoes, in frames: now, and where it is going.
+    double frames = 0;
+    double goal = 0;
+    float glide = 0;
+    float feedback = 0.4f;
+    float damping = 0;
+    float dampLeft = 0;
+    float dampRight = 0;
 };
 
 /// A room: eight delay lines that feed one another, so a sound sent in

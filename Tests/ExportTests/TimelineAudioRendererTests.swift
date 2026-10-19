@@ -63,6 +63,30 @@ struct TimelineAudioRendererTests {
         #expect(abs(second - 72_000 - first) <= 1)
     }
 
+    /// Between the echoes of a last short note there is nothing: the file
+    /// does not end at the first quiet moment but once the echoes have.
+    @Test func theEchoesOfTheLastNoteAreNotCutShort() async throws {
+        // The organ, which is gone soon after its key is let go.
+        var dry = live
+        dry.preset = .organ
+        var echoing = dry
+        echoing.effects.delay.isOn = true
+        // A sixteenth note on the last beat of the bar, at a second and a half.
+        let (left, seconds, _) = try await render(timeline([(12, 1)]), live: echoing)
+        // The echoes go from side to side: the first and the third are on the left.
+        let apart = Int(DelaySettings.seconds(atBPM: 120) * 48_000)
+        let third = 72_000 + 3 * apart
+        #expect(loudest(left[(72_000 + apart)..<(72_000 + apart + 4800)]) > 0.02)
+        #expect(loudest(left[third..<(third + 4800)]) > 0.002)
+        #expect(loudest(left.suffix(480)) < 0.001)
+        #expect(seconds < 2 + TimelineAudioRenderer.longestTail)
+
+        let (plain, plainSeconds, _) = try await render(timeline([(12, 1)]), live: dry)
+        #expect(plainSeconds < Double(third) / 48_000)                         // over before that echo would be
+        #expect(plainSeconds < seconds - 0.5)
+        #expect(loudest(plain.suffix(480)) < 0.001)
+    }
+
     @Test func theTimelineIsPlayedOnceAndItsLastNotesRingOut() async throws {
         // A note held to the very end: it is not started again, and what
         // is written ends in silence.

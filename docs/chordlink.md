@@ -109,6 +109,11 @@ New pieces, one file each, no changes to the event flow:
 - `App/PerfectoApp.swift` — wiring only: builds the announcer and adds it to the composite.
 
 Because the context travels on the event, a frame always describes the chord that produced its notes, including sequencer steps, which carry their own color. Inversion and voice leading come from `performanceContext`, the same policy that voices the notes.
+The keys can roll a chord past the second inversion, or down (`Inversion` is a count of steps), which the v1 inversion field cannot say.
+The announcer states such a chord as the inversion and octave that have the same notes (`ChordWire.stated`), and sends a release where none has, such as a four-note chord's third inversion.
+A wider inversion field needs a version bump in both repos.
+An inversion is of the notes within an octave of the chord's root: the notes a ninth or more above it (the 9th, 11th and 13th) stay on top, an octave further up where a note rolled up would pass them (`Inversion.applied`), so the first and second inversions of such a chord are not its notes each taken up an octave in turn.
+The frame's own notes are what sounds.
 The encoder's numbering tables list every case (a test checks), so a new enum case fails loudly instead of encoding as 0.
 
 ## Harmonicland-side architecture

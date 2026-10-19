@@ -27,14 +27,10 @@ Partial partial(const PerfectoOperator &op, int n) {
     case PerfectoWaveSquare:
         return {0, odd ? 4 / (pi * n) : 0};
     case PerfectoWaveSawtooth:
+    // A pulse is read as one sawtooth less another (`Voice::pulse`), so
+    // its width can move while it sounds: its table is a sawtooth's.
+    case PerfectoWavePulse:
         return {0, -2 / (pi * n)};
-    case PerfectoWavePulse: {
-        // With its offset gone, a pulse of width w swings between
-        // 2(1 - w) and -2w; it is scaled so the larger of the two is 1.
-        const double width = std::clamp(static_cast<double>(op.pulse_width), 0.01, 0.99);
-        const double scale = 1 / (pi * n * std::max(width, 1 - width));
-        return {scale * std::sin(2 * pi * n * width), scale * (1 - std::cos(2 * pi * n * width))};
-    }
     case PerfectoWavePartials:
         return {0, n <= PerfectoPartialCount ? op.partials[n - 1] : 0};
     }
@@ -93,6 +89,28 @@ void Sound::load(const PerfectoPatch &given) {
     patch.sustain = std::clamp(patch.sustain, 0.0f, 1.0f);
     patch.level = std::max(patch.level, 0.0f);
     patch.root = std::clamp(patch.root, 0.0f, 127.0f);
+    patch.lfo.rate = std::max(patch.lfo.rate, 0.0f);
+    patch.lfo.rise = std::max(patch.lfo.rise, 0.0f);
+    patch.unison = std::clamp(patch.unison, 1, static_cast<int32_t>(PerfectoUnisonCount));
+    patch.spread = std::max(patch.spread, 0.0f);
+    patch.drift = std::max(patch.drift, 0.0f);
+    patch.noise.from = std::max(patch.noise.from, 0.0f);
+    patch.noise.to = std::max(patch.noise.to, 0.0f);
+    patch.glide = std::max(patch.glide, 0.0f);
+    patch.drive = std::clamp(patch.drive, 0.0f, 1.0f);
+    driveIn = driveOut = 0;
+    if (patch.drive > 0 && patch.level > 0) {
+        // A sound at its level is pushed to `push` times the soft limit's
+        // own, and what comes out is brought back to the level.
+        const float push = std::pow(hardestDrive, patch.drive);
+        driveIn = push / patch.level;
+        driveOut = patch.level / soften(push);
+    }
+    copies = patch.unison;
+    for (int copy = 0; copy < copies; ++copy) {
+        const double cents = copies > 1 ? patch.spread * (2.0 * copy / (copies - 1) - 1) : 0;
+        tuning[copy] = std::pow(2.0, cents / 1200);
+    }
     float total = 0;
     for (int i = 0; i < PerfectoOperatorCount; ++i) {
         auto &op = patch.operators[i];
@@ -102,10 +120,18 @@ void Sound::load(const PerfectoPatch &given) {
         // A modulator is not heard, so the carrier has the whole level.
         if (!(patch.modulates && i == 1)) total += op.level;
     }
+    // Copies out of tune with each other add as their power does, so
+    // each has the share that makes them together as loud as one.
+    const float share = 1 / std::sqrt(static_cast<float>(copies));
     for (int i = 0; i < PerfectoOperatorCount; ++i) {
         const bool heard = !(patch.modulates && i == 1);
-        gains[i] = heard && total > 0 ? patch.level * patch.operators[i].level / total : 0;
+        gains[i] = heard && total > 0 ? share * patch.level * patch.operators[i].level / total : 0;
     }
+}
+
+double Sound::sharpest() const {
+    const double spread = copies > 1 ? patch.spread : 0;
+    return std::pow(2.0, (std::abs(patch.lfo.pitch) + patch.drift + spread) / 1200.0);
 }
 
 PerfectoPatch Sound::plainSine() {

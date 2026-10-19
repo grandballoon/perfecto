@@ -3,16 +3,16 @@ final class LeadMode: PerformanceMode {
     var kind: ModeKind { .lead }
     var requiresClock: Bool { false }
 
-    func onButtonDown(degree: Degree, state: PerformanceState) {
-        state.leadNote(degree: degree)
+    func onButtonDown(key: ChordKey, state: PerformanceState) {
+        state.leadNote(key)
     }
 
-    func onButtonUp(degree: Degree, state: PerformanceState) {
+    func onButtonUp(key: ChordKey, state: PerformanceState) {
         state.endChord()
     }
 
     func onColorChange(state: PerformanceState) {
-        guard let degree = state.activeDegree else { return }
-        state.leadNote(degree: degree)
+        guard let key = state.activeKey else { return }
+        state.leadNote(key)
     }
 }

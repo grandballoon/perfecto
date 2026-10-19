@@ -34,6 +34,18 @@ extension SynthPatch {
             patch.resonance = filter.resonance
             patch.steep = filter.isSteep
         }
+        if let unison {
+            patch.unison = Int32(unison.voices)
+            patch.spread = unison.spreadCents
+        }
+        patch.drift = driftCents
+        if let noise { patch.noise = noise.kernelSweep }
+        patch.glide = glide
+        patch.drive = drive
+        if let lfo {
+            patch.lfo = PerfectoLfo(rate: lfo.rate, rise: lfo.rise, pitch: lfo.pitchCents,
+                                    pulse_width: lfo.pulseWidth, cutoff: lfo.cutoffOctaves)
+        }
         patch.attack = envelope.attack
         patch.decay = envelope.decay
         patch.sustain = envelope.sustain

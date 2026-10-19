@@ -9,6 +9,8 @@ enum MusicalTime {
     static let stepsPerBar = stepsPerBeat * beatsPerBar
     /// The tempos the app supports, in BPM.
     static let tempoRange = 20.0...300.0
+    /// The tempo everything starts at.
+    static let defaultTempo = 120.0
 }
 
 /// A call a clock has been asked to make, once or over and over. It is made

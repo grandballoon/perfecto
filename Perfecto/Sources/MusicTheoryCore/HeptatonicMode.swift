@@ -67,6 +67,15 @@ public enum HeptatonicMode: CaseIterable, Hashable, Codable, Sendable {
         }
     }
 
+    /// The scale the mode is a rotation of.
+    public var family: ScaleFamily {
+        ScaleFamily.allCases.first { $0.parent == rotation.parent }!
+    }
+
+    /// Which mode of its family it is, from 1: the step of the family's
+    /// scale it is read from, counted from the first.
+    public var number: Int { rotation.step + 1 }
+
     /// Seven ascending semitone offsets from 0. Lydian → `[0, 2, 4, 6, 7, 9, 11]`.
     public var intervals: [Int] {
         let (parent, step) = rotation
@@ -132,4 +141,34 @@ public enum HeptatonicMode: CaseIterable, Hashable, Codable, Sendable {
         let start = min(max(middle - count / 2, 0), all.count - count)
         return Array(all[start ..< start + count])
     }
+}
+
+/// The three scales the modes are rotations of.
+public enum ScaleFamily: CaseIterable, Hashable, Sendable {
+    case major, harmonicMinor, melodicMinor
+
+    public var displayName: String {
+        switch self {
+        case .major:         return "Major"
+        case .harmonicMinor: return "Harmonic Minor"
+        case .melodicMinor:  return "Melodic Minor"
+        }
+    }
+
+    var parent: ScaleType {
+        switch self {
+        case .major:         return .major
+        case .harmonicMinor: return .harmonicMinor
+        case .melodicMinor:  return .melodicMinor
+        }
+    }
+
+    /// The family's seven modes, first to seventh.
+    public var modes: [HeptatonicMode] {
+        HeptatonicMode.allCases.filter { $0.family == self }.sorted { $0.number < $1.number }
+    }
+
+    /// Every mode, family by family in the order above, each family's
+    /// first to seventh.
+    public static let allModes: [HeptatonicMode] = allCases.flatMap(\.modes)
 }

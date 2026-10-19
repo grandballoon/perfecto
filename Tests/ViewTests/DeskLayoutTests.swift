@@ -32,7 +32,7 @@ struct DeskLayoutTests {
         let (state, window) = try screen(CGSize(width: 1500, height: 950))
         defer { window.isHidden = true }
         #expect(state.mode.kind == .play)
-        state.press(degree: .I)
+        state.press(.degree(.I))
         #expect(state.activeDegree == .I)
     }
 

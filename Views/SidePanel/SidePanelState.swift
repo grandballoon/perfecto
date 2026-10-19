@@ -28,6 +28,15 @@ enum SidePanelPage: String, CaseIterable, Identifiable {
     }
 }
 
+/// Whose effects the menu's Effects page sets: each loop and each pad has
+/// its own, apart from the keys'.
+enum EffectsTarget: Hashable {
+    case keys
+    case loop(Layer.ID)
+    /// The pad being edited on the pads' screen.
+    case pad
+}
+
 /// Whether the menu (the side panel) is open, and at which page.
 /// `PerformanceView` owns one and draws the panel and its button.
 @Observable
@@ -38,11 +47,21 @@ final class SidePanelState {
     /// Where the menu opens: the page it last showed.
     private var lastPage: SidePanelPage = .key
 
+    /// Whose effects the Effects page was last asked for. The page shows
+    /// the keys' once that loop or pad is no longer there to edit.
+    var effectsTarget = EffectsTarget.keys
+
     var isOpen: Bool { page != nil }
 
     func show(_ page: SidePanelPage) {
         self.page = page
         lastPage = page
+    }
+
+    /// Opens the Effects page at the effects of `target`.
+    func showEffects(of target: EffectsTarget) {
+        effectsTarget = target
+        show(.effects)
     }
 
     /// The menu button's tap: opens the menu where it was left, or closes it.

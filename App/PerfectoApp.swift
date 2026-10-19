@@ -12,8 +12,10 @@ struct PerfectoApp: App {
         // own, so each has its own sound, on the same audio and MIDI. The
         // layers' are sounded a moment after the clock's time, which is
         // what keeps them exactly in time; the keys sound at once, and so
-        // do the solo strip and the Tonnetz, lines of their own over them.
-        // Each is also shown on the piano, as a source of its own.
+        // do the solo strip, the Tonnetz, each pad and the chord–scale
+        // tree, lines of their own over them. The pads' sequence is the
+        // clock's, like a layer. Each is also shown on the piano, as a
+        // source of its own.
         let piano = PianoState(logger: logger)
         let keys = NotePlayer([output.sink, midi, piano.line(.keys)], clock: clock)
         let state = PerformanceState(
@@ -27,11 +29,20 @@ struct PerfectoApp: App {
             soloSink: NotePlayer([output.sink, midi, piano.line(.solo)], clock: clock),
             tonnetzSink: NotePlayer([output.sink, midi, piano.line(.tonnetz)], clock: clock),
             tonnetzNoteSink: NotePlayer([output.sink, midi, piano.line(.tonnetz)], clock: clock),
+            padSink: { NotePlayer([output.sink, midi, piano.line(.pads)], clock: clock) },
+            padSequenceSink: NotePlayer([output.sink, midi, piano.line(.pads)], clock: clock,
+                                        lead: NotePlayer.sequencedLead),
+            padDefaults: .standard,
+            // The bars' notes slide, which the MIDI the app sends has no
+            // way to say, so they are heard and not sent.
+            trautoniumSink: { NotePlayer([output.sink, piano.line(.trautonium)], clock: clock) },
+            treeSink: NotePlayer([output.sink, midi, piano.line(.tree)], clock: clock),
             piano: piano,
             liveSound: keys,
             output:  output,
             micGate: MicrophonePermissionGate(logger: logger),
             effectsListener: midi,
+            tempoListener: output.sink,
             clock:   clock,
             logger:  logger
         )
@@ -39,13 +50,18 @@ struct PerfectoApp: App {
         return state
     }()
 
+    @State private var gamepadInput = GamepadInput()
+
     var body: some Scene {
         WindowGroup {
             PerformanceView()
                 .environment(state)
                 .environment(state.sequencerState)
                 .background(WindowMinimum())
-                .onAppear { MidiSink.logTopology() }
+                .onAppear {
+                    MidiSink.logTopology()
+                    gamepadInput.play(state.gamepad)
+                }
         }
         // On the Mac: room for the desk's layout (`DeskLayout`).
         .defaultSize(width: 1500, height: 950)

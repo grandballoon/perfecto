@@ -40,6 +40,32 @@ struct StepGridGeometry: Equatable {
                       height: cellHeight)
     }
 
+    /// The box around `steps`, all in one bar, from the top-left of that
+    /// bar's cells.
+    func bounds(of steps: Set<Int>) -> CGRect {
+        steps.reduce(CGRect.null) { $0.union(frame(of: $1..<$1 + 1)) }
+    }
+
+    /// Where a tip of `size` goes by `selection`, a box in a bar's cells
+    /// (`bounds(of:)`): over it, across its middle, and kept inside the bar's
+    /// width. With no room in the bar over it the tip is under it, and with
+    /// none there either (every row is selected) it lies on its top edge.
+    func frame(ofTip size: CGSize, by selection: CGRect) -> CGRect {
+        let x = max(min(selection.midX - size.width / 2, width - size.width), 0)
+        let over = selection.minY - Self.spacing - size.height
+        let under = selection.maxY + Self.spacing
+        let y = over >= 0 ? over
+            : under + size.height <= cellsHeight ? under
+            : selection.minY + Self.spacing
+        return CGRect(origin: CGPoint(x: x, y: y), size: size)
+    }
+
+    /// How far down the column the cells of bar `index` start, counted from
+    /// the top of the column.
+    func cellsTop(ofBar index: Int) -> CGFloat {
+        CGFloat(index) * (barHeight + barGap) + headerHeight
+    }
+
     /// The step nearest `point`, as an index into `bars` bars counted from the
     /// top of the column. Points in a gutter, a header or outside the column
     /// resolve to the closest cell, so a sweep never drops out mid-drag.

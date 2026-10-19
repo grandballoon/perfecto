@@ -71,6 +71,8 @@ public enum ChordWire {
         .center, .up, .upRight, .right, .downRight,
         .down, .downLeft, .left, .upLeft,
     ]
+    /// The inversions a frame can state. A chord rolled further is restated
+    /// as one of them (`stated`).
     static let inversionOrder: [Inversion] = [.root, .first, .second]
     /// Wire value = index + 1 (I = 1 … vii° = 7).
     static let degreeOrder: [Degree] = [.I, .ii, .iii, .IV, .V, .vi, .viiDim]
@@ -106,6 +108,27 @@ public enum ChordWire {
         bytes += a.voicing.notes.map { UInt8(clamping7Bit: $0) }
         bytes.append(sysExEnd)
         return bytes
+    }
+
+    /// The inversion and octave a frame states for the chord `spec` in
+    /// `key`, rolled to `inversion` in `octave`. A frame has only the
+    /// inversions of `inversionOrder`, so a chord rolled further is stated
+    /// as the one of them, in whichever octave, that has the same notes;
+    /// nil when none has, and the chord cannot be announced.
+    public static func stated(_ inversion: Inversion, octave: Int, key: Key,
+                              spec: ChordSpec) -> (inversion: Inversion, octave: Int)? {
+        if inversionOrder.contains(inversion) { return (inversion, octave) }
+        func notes(_ inversion: Inversion, _ octave: Int) -> [Int] {
+            computeVoicing(key: key, spec: spec, inversion: inversion, octave: octave,
+                           voiceLeading: false, previousVoicing: nil).notes
+        }
+        let rolled = notes(inversion, octave)
+        for octave in octaveRange {
+            for inversion in inversionOrder where notes(inversion, octave) == rolled {
+                return (inversion, octave)
+            }
+        }
+        return nil
     }
 
     public static func encodeRelease() -> [UInt8] {

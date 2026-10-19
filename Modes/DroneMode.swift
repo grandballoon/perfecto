@@ -3,27 +3,27 @@ final class DroneMode: PerformanceMode {
     var kind: ModeKind { .drone }
     var requiresClock: Bool { false }
 
-    private var dronedDegree: Degree?
+    private var droned: ChordKey?
 
-    func onButtonDown(degree: Degree, state: PerformanceState) {
-        if dronedDegree == degree {
-            dronedDegree = nil
+    func onButtonDown(key: ChordKey, state: PerformanceState) {
+        if droned == key {
+            droned = nil
             state.endChord()
         } else {
-            dronedDegree = degree
-            state.startChord(degree: degree)
+            droned = key
+            state.startChord(key)
         }
     }
 
-    func onButtonUp(degree: Degree, state: PerformanceState) { }
+    func onButtonUp(key: ChordKey, state: PerformanceState) { }
 
     func onColorChange(state: PerformanceState) {
-        guard let degree = dronedDegree else { return }
-        state.startChord(degree: degree)
+        guard let droned else { return }
+        state.startChord(droned)
     }
 
     func deactivate(state: PerformanceState) {
-        dronedDegree = nil
+        droned = nil
         state.endChord()
     }
 }

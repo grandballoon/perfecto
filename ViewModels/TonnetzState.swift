@@ -37,8 +37,10 @@ enum TonnetzLine {
 protocol TonnetzHost: AnyObject {
     /// The octave the triads and the notes are built in.
     var octave: Int { get }
-    /// The sound the Tonnetz is played with.
-    var tonnetzSound: NoteSound { get }
+    /// The sound the Tonnetz is played in, and the effects it is played
+    /// with, the arpeggiator among them.
+    var tonnetzPreset: SynthPreset { get }
+    var tonnetzEffects: NoteEffects { get }
     /// `line` started `event`, or fell silent (nil): what a loop being
     /// recorded keeps.
     func tonnetz(_ line: TonnetzLine, played event: ChordEvent?)
@@ -51,13 +53,18 @@ protocol TonnetzHost: AnyObject {
 /// views play it the same way: a triangle pressed is where it is next and
 /// sounds for as long as it is held, and a move (P, L, R) is a press of the
 /// triangle across one side. It is one line of chords, sounded through a
-/// sink of its own beside the keys', and each triad is voiced as near the
+/// voice of its own beside the keys', and each triad is voiced as near the
 /// last as it can be, so a move is heard as the one note that changes.
 ///
 /// A note pressed sounds by itself, whatever triangle the Tonnetz is at:
 /// a note of the triad taken apart from it, or one outside it. The notes
-/// are a second line through a sink of their own, so they are heard over
+/// are a second line through a voice of their own, so they are heard over
 /// the triad and neither ends the other.
+///
+/// Both lines are played with the host's effects (`TonnetzHost`), and each
+/// voice has an arpeggiator of its own, so a triad or the notes held are
+/// arpeggiated while it is on. An effect set while something sounds reaches
+/// it at once (`effectsChanged`).
 ///
 /// While it holds (`holds`), what is pressed stays on when the pointer
 /// lifts and is pressed again to end it, so one pointer can leave a triad
@@ -140,17 +147,21 @@ final class TonnetzState {
     /// The notes last sounded, which the next triad is voiced near.
     private var lastVoicing: Voicing?
 
-    private let sink: (any ChordEventSink)?
-    private let noteSink: (any ChordEventSink)?
+    /// What each line is sounding, as its voice was given it.
+    private var triadChord: TimedChord?
+    private var notesChord: TimedChord?
+
+    private let voice: (any TimelineVoice)?
+    private let noteVoice: (any TimelineVoice)?
     private let logger: (any Logger)?
 
-    /// `sink` sounds the triads and `noteSink` the notes played by
-    /// themselves; a sink that is a `SoundControl` is given the sound of
-    /// what it starts. Without one that line is silent.
-    init(sink: (any ChordEventSink)? = nil, noteSink: (any ChordEventSink)? = nil,
+    /// `voice` sounds the triads and `noteVoice` the notes played by
+    /// themselves, each in the sound and effects of the chord it is given.
+    /// Without one that line is silent.
+    init(voice: (any TimelineVoice)? = nil, noteVoice: (any TimelineVoice)? = nil,
          logger: (any Logger)? = nil) {
-        self.sink = sink
-        self.noteSink = noteSink
+        self.voice = voice
+        self.noteVoice = noteVoice
         self.logger = logger
     }
 
@@ -219,8 +230,9 @@ final class TonnetzState {
         let voicing = context.voicing(after: lastVoicing)
         lastVoicing = voicing
         let event = ChordEvent(voicing: voicing, articulation: .block, context: context)
-        (sink as? any SoundControl)?.startNotes(in: host.tonnetzSound)
-        sink?.playChord(event)
+        let chord = played(event, by: host)
+        triadChord = chord
+        voice?.play(chord)
         host.tonnetz(.triads, played: event)
         logger?.log(.tonnetz_triad_played(triad: cell.triad.name, notes: voicing.notes))
     }
@@ -242,7 +254,8 @@ final class TonnetzState {
     private func endTriad() {
         guard isSounding else { return }
         isSounding = false
-        sink?.stopChord()
+        triadChord = nil
+        voice?.stop()
         host?.tonnetz(.triads, played: nil)
     }
 
@@ -269,15 +282,43 @@ final class TonnetzState {
     /// and only the one that came or went is heard to.
     private func soundNotes() {
         guard !notes.isEmpty, let host else {
-            noteSink?.stopChord()
+            notesChord = nil
+            noteVoice?.stop()
             host?.tonnetz(.notes, played: nil)
             return
         }
         let event = ChordEvent(voicing: Voicing(notes: notes), articulation: .tied,
                                context: Self.chord(cell.triad, octave: host.octave))
-        (noteSink as? any SoundControl)?.startNotes(in: host.tonnetzSound)
-        noteSink?.playChord(event)
+        let chord = played(event, by: host)
+        notesChord = chord
+        noteVoice?.play(chord)
         host.tonnetz(.notes, played: event)
+    }
+
+    // MARK: – Effects
+
+    /// The host's effects were set to something new: what is sounding takes
+    /// them up without being struck again, in the sound it was struck in.
+    func effectsChanged() {
+        guard let host else { return }
+        let effects = host.tonnetzEffects
+        if var chord = triadChord, chord.effects != effects {
+            chord.effects = effects
+            triadChord = chord
+            voice?.change(to: chord)
+        }
+        if var chord = notesChord, chord.effects != effects {
+            chord.effects = effects
+            notesChord = chord
+            noteVoice?.change(to: chord)
+        }
+    }
+
+    /// `event` as a chord a voice plays, in the host's sound and effects.
+    /// It has no place in time: it sounds until it is ended.
+    private func played(_ event: ChordEvent, by host: any TonnetzHost) -> TimedChord {
+        TimedChord(start: 0, end: 0, event: event,
+                   preset: host.tonnetzPreset, effects: host.tonnetzEffects, changes: [])
     }
 
     // MARK: – Letting go

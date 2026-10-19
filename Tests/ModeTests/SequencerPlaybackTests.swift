@@ -142,7 +142,7 @@ struct SequencerPlaybackTests {
         #expect(seq.isPlaying)
 
         sink.reset()
-        state.press(degree: .I)
+        state.press(.degree(.I))
         step(clock); step(clock)
         #expect(sink.playCalls.map(\.notes) == [[60, 64, 67], [67, 71, 74]])
         #expect(seq.currentStep == 2)
