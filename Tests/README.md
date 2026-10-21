@@ -27,7 +27,7 @@ Tests/
 └── PermissionTests/    — (Phase 4) MicrophonePermissionTests
 ```
 
-The Music Theory Core has its own test suite under `Perfecto/Tests/MusicTheoryCoreTests/`, and the audio kernel under `Perfecto/Tests/PerfectoKernelTests/` (Swift Package tests, runnable via `swift test`).
+The Music Theory Core has its own test suite under `Perfecto/Tests/MusicTheoryCoreTests/`, the analysis of intervals (`Acoustics`) under `Perfecto/Tests/AcousticsTests/`, and the audio kernel under `Perfecto/Tests/PerfectoKernelTests/` (Swift Package tests, runnable via `swift test`).
 The kernel's tests render it offline with no engine, and are built so that any memory allocated while rendering stops them.
 `KernelAudioUnitTests`, here, checks the same kernel hosted as an Audio Unit in an offline engine.
 `KernelLiveTests` runs the app's engine graph in real time on the simulator (no audio session): an engine treats a unit differently there than offline, and that difference once made the app silent.
@@ -55,7 +55,7 @@ clock.tick()  // advance clock manually to test timing-dependent modes
 
 ## Running tests
 
-**Music Theory Core and the audio kernel (run on macOS):**
+**Music Theory Core, the acoustics and the audio kernel (run on macOS):**
 ```
 cd Perfecto && swift test
 ```

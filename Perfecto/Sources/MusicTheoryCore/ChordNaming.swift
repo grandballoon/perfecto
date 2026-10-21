@@ -63,6 +63,8 @@ func chordShape(key: Key, spec: ChordSpec) -> ChordShape {
         let stackMode = mode ?? ChordGrid.ownMode(key: key, degree: spec.degree)
         return ChordShape(stackThirds(stackMode.intervals, height: height),
                           tertianChordName(stackMode, height: height))
+    case let .built(build):
+        return build.shape(base: base)
     }
 }
 
@@ -72,10 +74,12 @@ public func chordQualityName(key: Key, spec: ChordSpec) -> String {
     chordShape(key: key, spec: spec).name
 }
 
-/// Full chord label for the OLED display, e.g. "D min7".
+/// Full chord label for the OLED display, e.g. "D min7"; a note alone is
+/// its name, "D".
 public func chordLabel(key: Key, spec: ChordSpec) -> String {
     let root = chordRootPitchClass(key: key, degree: spec.degree)
-    return "\(root.name) \(chordQualityName(key: key, spec: spec))"
+    let quality = chordQualityName(key: key, spec: spec)
+    return quality.isEmpty ? root.name : "\(root.name) \(quality)"
 }
 
 /// What `color` does to any degree's triad, e.g. "Dom 7" — the legend for a
@@ -86,6 +90,8 @@ public func colorActionLabel(_ color: ChordColor) -> String {
     case let .grid(height, mode):
         guard let mode else { return height.displayName }
         return "\(height.displayName) · \(mode.displayName)"
+    case let .built(build):
+        return build.legend
     }
 }
 

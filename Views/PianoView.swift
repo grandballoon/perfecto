@@ -11,6 +11,7 @@ extension PianoSource {
         case .pads:    return Color(red: 1, green: 0.45, blue: 0.6)
         case .trautonium: return Color(red: 0.3, green: 0.85, blue: 0.8)
         case .tree:       return Color(red: 0.95, green: 0.85, blue: 0.35)
+        case .lab:        return Color(red: 0.95, green: 0.55, blue: 0.35)
         }
     }
 }

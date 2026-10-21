@@ -4,9 +4,12 @@ import SwiftUI
 /// what it is doing: the keys held, the pads struck, where the knobs and
 /// the wheels are and which buttons are on.
 ///
-/// Under it is the last message heard and what it was read as, and LEARN,
-/// which teaches a control chosen on the drawing what it sends: the next
-/// message heard is its.
+/// It is played as an Orchid (`OrchidState`), so the controls that play a
+/// part there are marked with it.
+///
+/// Under it is what the Orchid is doing, the last message heard and what
+/// it was read as, and LEARN, which teaches a control chosen on the
+/// drawing what it sends: the next message heard is its.
 struct ControllerView: View {
     @Environment(PerformanceState.self) private var state
 
@@ -15,9 +18,9 @@ struct ControllerView: View {
         let layout = controller.layout
         VStack(alignment: .leading, spacing: 14) {
             header
-            ControllerFace(controller: controller)
+            ControllerFace(controller: controller, orchid: state.orchid)
                 .aspectRatio(layout.size.width / layout.size.height, contentMode: .fit)
-            ControllerReadout(controller: controller)
+            ControllerReadout(controller: controller, orchid: state.orchid, key: state.key)
             Spacer(minLength: 0)
         }
     }
@@ -40,10 +43,41 @@ struct ControllerView: View {
                     controller.forgetLearned()
                 }
             }
+            ForEach(OrchidPart.allCases, id: \.self) { part in
+                controlMenu(for: part)
+            }
+            chit("KEY MODE", isOn: state.orchid.isKeyMode, label: "Key mode", width: 96) {
+                state.orchid.switchKeyMode()
+            }
+            chit("VEL ARP", isOn: state.orchid.velocityPlaysArpeggio,
+                 label: "Velocity plays the arpeggio", width: 84) {
+                state.orchid.switchVelocityArpeggio()
+            }
             chit("LEARN", isOn: controller.isLearning, label: "Learn") {
                 controller.isLearning.toggle()
             }
         }
+    }
+
+    /// The knob or wheel `part` is played by, chosen from a menu of them,
+    /// and lit while it has one.
+    private func controlMenu(for part: OrchidPart) -> some View {
+        let orchid = state.orchid
+        let control = orchid.controls[part]
+        return Menu {
+            Picker(part.name, selection: Binding(get: { control }, set: { orchid.give(part, to: $0) })) {
+                Text("None").tag(TurnedControl?.none)
+                ForEach(orchid.map.turned, id: \.self) { turned in
+                    Text(turned.name).tag(TurnedControl?.some(turned))
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            chitLabel("\(part.name) · \(control?.name ?? "NONE")", isOn: control != nil, width: 150)
+        }
+        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
+        .accessibilityLabel(part == .voicing ? "Voicing control" : "Arpeggio control")
     }
 
     private var status: String {
@@ -54,24 +88,29 @@ struct ControllerView: View {
     }
 
     /// A switch of the row, lit while it is on as the screen's others are.
-    private func chit(_ text: String, isOn: Bool, label: String,
+    private func chit(_ text: String, isOn: Bool, label: String, width: CGFloat = 72,
                       action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(text)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundStyle(isOn ? Color.black : Color(white: 0.85))
-                .frame(width: 72)
-                .padding(.vertical, 7)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(isOn ? Color.orange : Color(white: 0.13))
-                        .overlay(RoundedRectangle(cornerRadius: 8)
-                            .stroke(isOn ? Color.orange : Color(white: 0.25), lineWidth: 1))
-                )
+            chitLabel(text, isOn: isOn, width: width)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
         .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+
+    private func chitLabel(_ text: String, isOn: Bool, width: CGFloat) -> some View {
+        Text(text)
+            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+            .foregroundStyle(isOn ? Color.black : Color(white: 0.85))
+            .lineLimit(1)
+            .frame(width: width)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isOn ? Color.orange : Color(white: 0.13))
+                    .overlay(RoundedRectangle(cornerRadius: 8)
+                        .stroke(isOn ? Color.orange : Color(white: 0.25), lineWidth: 1))
+            )
     }
 }
 
@@ -79,6 +118,7 @@ struct ControllerView: View {
 /// frame, scaled from the layout's units to the view's points.
 private struct ControllerFace: View {
     let controller: ControllerState
+    let orchid: OrchidState
 
     var body: some View {
         GeometryReader { geo in
@@ -105,7 +145,8 @@ private struct ControllerFace: View {
                 }
 
                 ForEach(layout.controls) { control in
-                    ControllerControlView(control: control, controller: controller, scale: scale)
+                    ControllerControlView(control: control, controller: controller, orchid: orchid,
+                                          scale: scale)
                         .placed(in: control.frame, by: scale)
                 }
 
@@ -126,9 +167,20 @@ private struct ControllerFace: View {
 private struct ControllerControlView: View {
     let control: ControllerControl
     let controller: ControllerState
+    let orchid: OrchidState
     let scale: CGFloat
 
     private var value: Double { controller.values[control.id] ?? 0 }
+    /// What is written on it: its part on the Orchid, if it has one.
+    private var mark: String {
+        orchid.map.mark(of: control.id) ?? orchid.part(of: control.id)?.name ?? control.mark
+    }
+    /// The key button is lit while key mode is on, as the Orchid's is, and
+    /// the key change button while it waits for a key.
+    private var isKeyButtonOn: Bool {
+        control.id == orchid.map.key ? orchid.isKeyMode
+            : control.id == orchid.map.keyChange && orchid.isWaitingForKey
+    }
     private var isLearning: Bool { controller.learning == control.id }
 
     var body: some View {
@@ -154,7 +206,7 @@ private struct ControllerControlView: View {
         case .pad:
             chip(lit: value, cornerRadius: 0.35 * scale)
         case .button, .pedal:
-            chip(lit: value >= 0.5 ? 1 : 0, cornerRadius: 0.3 * scale)
+            chip(lit: value >= 0.5 || isKeyButtonOn ? 1 : 0, cornerRadius: 0.3 * scale)
         case .octaveDown:
             chip(lit: controller.keys.shift < 0 ? 1 : 0, cornerRadius: 0.3 * scale)
         case .octaveUp:
@@ -177,7 +229,7 @@ private struct ControllerControlView: View {
             .overlay(RoundedRectangle(cornerRadius: cornerRadius)
                 .stroke(Color(white: lit > 0 ? 0 : 0.3), lineWidth: 1))
             .overlay {
-                Text(control.mark)
+                Text(mark)
                     .font(.system(size: ControllerFace.textSize(scale), weight: .semibold, design: .monospaced))
                     .foregroundStyle(lit > 0 ? Color.black : Color(white: 0.6))
                     .lineLimit(1)
@@ -208,7 +260,7 @@ private struct ControllerControlView: View {
                 .rotationEffect(.degrees(-135 + 270 * value))
         }
         .overlay(alignment: .bottom) {
-            Text(control.mark)
+            Text(mark)
                 .font(.system(size: ControllerFace.textSize(scale), weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color(white: 0.6))
                 .fixedSize()
@@ -237,6 +289,16 @@ private struct ControllerControlView: View {
             .clipShape(RoundedRectangle(cornerRadius: 0.5 * scale))
             .overlay(RoundedRectangle(cornerRadius: 0.5 * scale)
                 .stroke(Color(white: 0.3), lineWidth: 1))
+        }
+        .overlay(alignment: .top) {
+            // The part it plays, over it: a wheel has no mark of its own.
+            if let part = orchid.part(of: control.id) {
+                Text(part.name)
+                    .font(.system(size: ControllerFace.textSize(scale), weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Color.orange)
+                    .fixedSize()
+                    .offset(y: -1.6 * scale)
+            }
         }
     }
 }
@@ -284,12 +346,17 @@ private struct ControllerKeysView: View {
 /// is to be done.
 private struct ControllerReadout: View {
     let controller: ControllerState
+    let orchid: OrchidState
+    let key: Key
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if controller.isLearning {
                 line(learningPrompt, color: .orange)
+            } else if orchid.isChoosingKey {
+                line("Strike a root to make it the key (hold MIN for a minor one).", color: .orange)
             }
+            line(playing, color: Color(white: 0.85))
             line(heard, color: Color(white: 0.7))
             if controller.keys.shift != 0 {
                 line("Octave \(controller.keys.shift > 0 ? "+" : "")\(controller.keys.shift)",
@@ -303,6 +370,20 @@ private struct ControllerReadout: View {
             .font(.system(size: 13, weight: .medium, design: .monospaced))
             .foregroundStyle(color)
             .lineLimit(2)
+    }
+
+    /// How the Orchid's roots are played now: in the key or as notes, and
+    /// with the buttons held.
+    private var playing: String {
+        let mode = orchid.isKeyMode ? "Key mode · \(key.root.name) \(key.scale.displayName)"
+                                    : "Key mode off · a root alone is its note"
+        var parts = [mode]
+        if let build = orchid.build, build.type != .note { parts.append(build.legend) }
+        if let arpeggio = orchid.heldArpeggio {
+            let speed = arpeggio.cycle?.label ?? "as set"
+            parts.append("Arpeggio \(arpeggio.pattern == .up ? "up" : "down") · \(speed)")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private var learningPrompt: String {

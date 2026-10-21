@@ -19,6 +19,8 @@ enum PianoSource: CaseIterable, Sendable {
     case trautonium
     /// The chord–scale tree.
     case tree
+    /// The Dissonance Lab's two notes, at the nearest key.
+    case lab
 
     var displayName: String {
         switch self {
@@ -29,6 +31,7 @@ enum PianoSource: CaseIterable, Sendable {
         case .pads:    return "Pads"
         case .trautonium: return "Trautonium"
         case .tree:       return "Chord–scale tree"
+        case .lab:        return "Dissonance Lab"
         }
     }
 }

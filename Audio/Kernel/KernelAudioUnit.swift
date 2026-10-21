@@ -135,14 +135,16 @@ final class KernelAudioUnit: AUAudioUnit {
                            note: Int32(note), velocity: velocity, sound: Int32(sound),
                            brightness: playing.brightness, pan: pan,
                            chorus: playing.chorus, reverb: playing.reverb, vocoder: playing.vocoder,
-                           delay: playing.delay, bend: playing.bend, level: playing.level))
+                           delay: playing.delay, bend: playing.bend, level: playing.level,
+                           offset: 0, depth: 0, rate: 0))
     }
 
     /// Ends the note `id` on frame `time`.
     @discardableResult
     func noteOff(_ id: UInt64, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteOff, note: 0, velocity: 0,
-                           sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1))
+                           sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1,
+                           offset: 0, depth: 0, rate: 0))
     }
 
     /// Glides the sounding note `id` to `playing` from frame `time`.
@@ -151,8 +153,31 @@ final class KernelAudioUnit: AUAudioUnit {
         send(PerfectoEvent(time: time, note_id: id, type: PerfectoEventNoteChange, note: 0, velocity: 0,
                            sound: 0, brightness: playing.brightness, pan: 0,
                            chorus: playing.chorus, reverb: playing.reverb, vocoder: playing.vocoder,
-                           delay: playing.delay, bend: playing.bend, level: playing.level))
+                           delay: playing.delay, bend: playing.bend, level: playing.level,
+                           offset: 0, depth: 0, rate: 0))
     }
+
+    /// Sets partial `partial` (0 is the fundamental) of the sounding note
+    /// `id`, whose sound is made of partials, from frame `time`: `level`
+    /// strong, `offset` Hz from its place in the harmonic series, swung in
+    /// strength by `depth` (0...1) `rate` times a second.
+    @discardableResult
+    func partialChange(_ id: UInt64, partial: Int, level: Float, offset: Float, depth: Float, rate: Float,
+                       at time: UInt64 = 0) -> Bool {
+        var event = PerfectoEvent()
+        event.time = time
+        event.note_id = id
+        event.type = PerfectoEventPartialChange
+        event.note = Int32(partial)
+        event.level = level
+        event.offset = offset
+        event.depth = depth
+        event.rate = rate
+        return send(event)
+    }
+
+    /// The most partials a sound made of them has.
+    static var partialCount: Int { Int(PerfectoPartialCount) }
 
     // MARK: – The mix
 
@@ -212,7 +237,8 @@ final class KernelAudioUnit: AUAudioUnit {
     func startCapture(_ capture: Int, at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: 0, type: PerfectoEventCaptureStart, note: Int32(capture),
                            velocity: 0, sound: Int32(PerfectoCaptureInput.rawValue), brightness: 1, pan: 0,
-                           chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1))
+                           chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1,
+                           offset: 0, depth: 0, rate: 0))
     }
 
     /// Ends the recording on frame `time`. It is playable from the render
@@ -220,7 +246,8 @@ final class KernelAudioUnit: AUAudioUnit {
     @discardableResult
     func stopCapture(at time: UInt64 = 0) -> Bool {
         send(PerfectoEvent(time: time, note_id: 0, type: PerfectoEventCaptureStop, note: 0,
-                           velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1))
+                           velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1,
+                           offset: 0, depth: 0, rate: 0))
     }
 
     /// The capture being recorded into, if one is. A recording ends by

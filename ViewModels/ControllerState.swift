@@ -12,8 +12,9 @@ import Observation
 /// of the keys, which work out their octave shift from it
 /// (`ControllerKeys`).
 ///
-/// It plays nothing yet: it is what the controller is doing, for what is
-/// to be played from it.
+/// What it hears is also played, by the `player` it is given (the Orchid,
+/// `OrchidState`), except while it is learning, when a control is being
+/// taught what it sends and plays nothing.
 @Observable
 @MainActor
 final class ControllerState {
@@ -64,6 +65,9 @@ final class ControllerState {
         didSet { save() }
     }
 
+    /// What plays what the controller does.
+    @ObservationIgnored weak var player: (any ControllerPlayer)?
+
     private let defaults: UserDefaults?
     private let logger: (any Logger)?
 
@@ -109,17 +113,21 @@ final class ControllerState {
             bind(id, to: address)
         }
         if let control = layout.controls.first(where: { address(of: $0.id)?.matches(message) == true }) {
-            values[control.id] = Self.reading(of: message)
+            let value = Self.reading(of: message)
+            values[control.id] = value
             heard = Heard(message: message, target: .control(control.id))
+            if !isLearning { player?.control(control.id, movedTo: value) }
             return
         }
         switch message {
         case let .noteOn(_, note, velocity):
             heldNotes[note] = velocity
             heard = Heard(message: message, target: .key(keys.key(of: note)))
+            player?.keyDown(note, velocity: velocity)
         case let .noteOff(_, note):
             heldNotes[note] = nil
             heard = Heard(message: message, target: keys.key(at: note).map(Target.key) ?? .none)
+            player?.keyUp(note)
         default:
             heard = Heard(message: message, target: .none)
         }
@@ -150,6 +158,7 @@ final class ControllerState {
         for control in layout.controls where address(of: control.id)?.kind == .note {
             values[control.id] = nil
         }
+        player?.releaseAll()
     }
 
     // MARK: – Learning
@@ -211,6 +220,22 @@ final class ControllerState {
         defaults.set(data, forKey: Self.savedKey(layout))
     }
 }
+
+/// What plays what a controller does: each control as it moves, and each
+/// note of its keys, as it is sent.
+@MainActor
+protocol ControllerPlayer: AnyObject {
+    /// `id` is moved to `value`, from 0 at rest to 1 (the pitch wheel from
+    /// -1 to 1).
+    func control(_ id: ControllerControl.ID, movedTo value: Double)
+    /// `note` went down, `velocity` (1...127) hard.
+    func keyDown(_ note: Int, velocity: Int)
+    func keyUp(_ note: Int)
+    /// Whatever the controller held is let go.
+    func releaseAll()
+}
+
+extension OrchidState: ControllerPlayer {}
 
 extension MidiAddress {
     /// Whether a message could be heard by both this address and `other`.

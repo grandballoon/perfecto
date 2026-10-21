@@ -128,6 +128,19 @@ extension SpecScreen {
             $0.show(.tree)
             $0.tree.size = .sevenths
         },
+        SpecScreen(name: "lab") { $0.show(.lab) },
+        // A fifth held at the first level: spotlit, beatless in just
+        // intonation, over its root.
+        SpecScreen(name: "lab-fifth") {
+            $0.show(.lab)
+            $0.lab.pressPad(.perfectFifth)
+        },
+        // A minor second at the third level: the fundamentals beating.
+        SpecScreen(name: "lab-second") {
+            $0.show(.lab)
+            $0.lab.choose(.three)
+            $0.lab.pressPad(.minorSecond)
+        },
     ] + SidePanelPage.allCases.map { SpecScreen(name: "menu-\($0.rawValue)", menu: $0) }
 
     /// The menu's pages at their whole length, which the phone only shows a

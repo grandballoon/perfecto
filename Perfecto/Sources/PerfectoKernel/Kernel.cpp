@@ -37,6 +37,9 @@ constexpr uint32_t controlFrames = 16;
 /// Seconds in which a change of brightness covers 63% of the way: long
 /// enough that a sliding finger is heard as a sweep and not as steps.
 constexpr double brightnessGlide = 0.01;
+/// Seconds in which a partial of an additive sound covers 63% of the way
+/// to how it was last set: quick, and still no click.
+constexpr double partialGlide = 0.015;
 
 /// The patch filter's working range, and the brightness filter's from dark
 /// to open, in Hz. Both stay under the sample rate's own limit.
@@ -101,6 +104,8 @@ struct PerfectoKernel {
     std::array<perfecto::Sound, soundCount> sounds{};
     std::array<bool, soundCount> isSet{};
     perfecto::Sound plain;
+    /// One cycle of a sine, which every partial of an additive sound reads.
+    perfecto::Wavetable sine;
 
     /// What has been recorded from the input, and which one is being
     /// recorded into now (-1: none).
@@ -140,6 +145,7 @@ struct PerfectoKernel {
 
     PerfectoKernel() {
         plain.load(perfecto::Sound::plainSine());
+        sine.build(plain.patch.operators[0]);
         prepare(sampleRate);
     }
 
@@ -190,6 +196,11 @@ struct PerfectoKernel {
                 voice.driftPhase[i] = chance();
                 voice.driftRate[i] = slowestDrift + (fastestDrift - slowestDrift) * chance();
             }
+        }
+        for (int n = 0; n < PerfectoPartialCount; ++n) {
+            Partial &partial = voice.partials[n];
+            partial = Partial{};
+            partial.take(note.partials[n], true);
         }
         voice.recording = nullptr;
         voice.capture = -1;
@@ -278,6 +289,8 @@ struct PerfectoKernel {
         perfecto::Voice::Waiting note{event.note_id, event.note, event.velocity, event.sound,
                                       event.brightness, event.pan, event.chorus, event.reverb,
                                       event.vocoder, event.delay, event.bend, event.level};
+        const PerfectoPatch &patch = sound(event.sound).patch;
+        for (int n = 0; n < PerfectoPartialCount; ++n) note.partials[n].strength = patch.operators[0].partials[n];
         const double bend = std::clamp(event.bend, -widestBend, widestBend);
         note.from = glideFrom(sound(event.sound), 440.0 * std::pow(2.0, (event.note + bend - 69) / 12.0));
         auto &voice = voiceForNewNote();
@@ -333,6 +346,20 @@ struct PerfectoKernel {
                 voice.waiting.delay = delay;
                 voice.waiting.bend = bend;
                 voice.waiting.level = level;
+            }
+        }
+    }
+
+    void partialChange(const PerfectoEvent &event) {
+        using Stage = perfecto::Voice::Stage;
+        if (event.note < 0 || event.note >= PerfectoPartialCount) return;
+        const perfecto::PartialSetting setting{std::max(event.level, 0.0f), event.offset,
+                                               std::clamp(event.depth, 0.0f, 1.0f), std::max(event.rate, 0.0f)};
+        for (auto &voice : voices) {
+            if (voice.stage == Stage::held && voice.id == event.note_id) {
+                voice.partials[event.note].take(setting, voice.age == 0);
+            } else if (voice.stage == Stage::stolen && voice.waiting.id == event.note_id) {
+                voice.waiting.partials[event.note] = setting;
             }
         }
     }
@@ -397,6 +424,7 @@ struct PerfectoKernel {
         case PerfectoEventNoteChange:   noteChange(event); break;
         case PerfectoEventCaptureStart: captureStart(event.note, event.sound); break;
         case PerfectoEventCaptureStop:  captureStop(); break;
+        case PerfectoEventPartialChange: partialChange(event); break;
         }
     }
 
@@ -449,6 +477,7 @@ struct PerfectoKernel {
                 if (gliding || bending) voice.tableLevel[i] = perfecto::Wavetable::level(plain * voice.sound->sharpest());
             }
         }
+        if (patch.additive) tunePartials(voice);
         voice.noise = patch.level * static_cast<float>(valueOf(patch.noise, seconds));
         if (lfo.pulse_width != 0) {
             // A width moves there evenly over these frames, as an edge
@@ -492,6 +521,52 @@ struct PerfectoKernel {
                               sampleRate, 0.7071);
     }
 
+    /// Works out the partials of `voice`, whose sound is additive, for its
+    /// next `controlFrames` frames: each glides on towards how it was set,
+    /// its swing moves on, and its strength moves there evenly over the
+    /// frames. A note's first frames start where they are set.
+    void tunePartials(perfecto::Voice &voice) {
+        const double pitch = voice.pitch();
+        const double ceiling = 0.45 * sampleRate;
+        const float level = voice.sound->patch.level;
+        const bool first = voice.age == 0;
+        for (int n = 0; n < PerfectoPartialCount; ++n) {
+            perfecto::Partial &partial = voice.partials[n];
+            if (!first) {
+                partial.strength += (partial.strengthGoal - partial.strength) * partialRate;
+                partial.offset += (partial.offsetGoal - partial.offset) * partialRate;
+                partial.depth += (partial.depthGoal - partial.depth) * partialRate;
+                partial.swing += partial.rate * controlFrames / sampleRate;
+                partial.swing -= std::floor(partial.swing);
+            }
+            const double hz = pitch * (n + 1) + partial.offset;
+            partial.step = hz / sampleRate;
+            const float swung = partial.depth > 0
+                ? 1 - partial.depth * static_cast<float>(0.5 - 0.5 * std::cos(twoPi * partial.swing))
+                : 1;
+            const float gain = hz > 0 && hz < ceiling ? level * partial.strength * swung : 0;
+            if (first) {
+                partial.gain = gain;
+                partial.gainStep = 0;
+            } else {
+                partial.gainStep = (gain - partial.gain) / controlFrames;
+            }
+        }
+    }
+
+    /// One frame of a voice whose sound is additive: its partials, added.
+    float additive(perfecto::Voice &voice) {
+        float sample = 0;
+        for (auto &partial : voice.partials) {
+            if (partial.gain != 0 || partial.gainStep != 0) sample += partial.gain * sine.read(perfecto::Wavetable::levels - 1, partial.phase);
+            // Never negative, so dropping the whole cycles wraps it.
+            const double phase = partial.phase + partial.step;
+            partial.phase = phase - static_cast<int>(phase);
+            partial.gain += partial.gainStep;
+        }
+        return sample;
+    }
+
     /// One frame of a voice playing a capture, read between the
     /// recording's frames along a curve through the four nearest. The
     /// voice's recording is over (`recording` is null) after its last.
@@ -529,6 +604,7 @@ struct PerfectoKernel {
     float source(perfecto::Voice &voice) {
         const perfecto::Sound &sound = *voice.sound;
         if (sound.patch.sampled) return voice.recording ? recorded(voice) : 0;
+        if (sound.patch.additive) return additive(voice);
         float sample = 0;
         for (int copy = 0; copy < sound.copies; ++copy) {
             if (sound.patch.modulates) {
@@ -728,6 +804,8 @@ struct PerfectoKernel {
     /// The share of the way to its goal a note's brightness glides each
     /// time its slow values are worked out.
     float brightnessRate = 0;
+    /// The share of the way to how it was set a partial glides each time.
+    float partialRate = 0;
     /// Frames a capture is faded out over at its end.
     float captureFadeFrames = 1;
 
@@ -752,6 +830,7 @@ struct PerfectoKernel {
         sampleRate = rate;
         captureFadeFrames = static_cast<float>(captureFade * rate);
         brightnessRate = static_cast<float>(1 - std::exp(-(controlFrames / rate) / brightnessGlide));
+        partialRate = static_cast<float>(1 - std::exp(-(controlFrames / rate) / partialGlide));
         time.store(0);
         mailbox.clear();
         agenda.clear();

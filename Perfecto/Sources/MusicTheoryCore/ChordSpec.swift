@@ -27,6 +27,9 @@ public enum ChordColor: Hashable, Codable, Sendable {
     /// key (C major ii stacks through Dorian, C minor ii through Locrian); a
     /// named mode is the same chord quality in every key.
     case grid(StackHeight, HeptatonicMode?)
+    /// A chord built from buttons (`ChordBuild`): a type and extensions,
+    /// the same chord on every root unless it has no type.
+    case built(ChordBuild)
 
     /// The unmodified base triad.
     public static let base = ChordColor.joystick(.default, .center)
@@ -36,6 +39,7 @@ public enum ChordColor: Hashable, Codable, Sendable {
         switch self {
         case let .joystick(_, direction): return direction == .center
         case let .grid(height, mode):     return height == .triad && mode == nil
+        case let .built(build):           return build.type == nil && build.extensions.isEmpty
         }
     }
 

@@ -3,8 +3,9 @@ import UIKit
 
 /// The desk's arrangement: a window with room for it shows the keys and the
 /// sequencer side by side, and the menu as a column beside them. The
-/// Tonnetz, the pads, the Trautonium's bars, the chord–scale tree or the
-/// MIDI controller take the sequencer's place when chosen (`DeskPane`).
+/// Tonnetz, the pads, the Trautonium's bars, the chord–scale tree, the
+/// Dissonance Lab or the MIDI controller take the sequencer's place when
+/// chosen (`DeskPane`).
 ///
 /// It is the phone's own screens put next to one another, chosen by one
 /// threshold, and nothing else is built on it: the layout as a whole is to
@@ -73,7 +74,7 @@ struct PerformanceView: View {
             }
         }
         .showingHotkeyTips()
-        .showingVoicingPad()
+        .showingFieldPad()
         .background(KeyboardInput(keyboard: state.keyboard))
         .environment(sidePanel)
     }
@@ -141,6 +142,9 @@ struct PerformanceView: View {
                         .padding(16)
                 case .tree:
                     ChordScaleTreeView()
+                        .padding(16)
+                case .lab:
+                    DissonanceLabView()
                         .padding(16)
                 case .controller:
                     ControllerView()
@@ -212,6 +216,11 @@ struct PerformanceView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
                     .padding(.bottom, 20)
+            } else if !besideSequencer, state.deskPane == .lab {
+                // And the Dissonance Lab.
+                DissonanceLabView()
+                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
             } else if !besideSequencer, state.mode.kind.surface == .sequencer {
                 SequencerView()
                     .environment(state.sequencerState)
@@ -336,6 +345,24 @@ struct PerformanceView: View {
                 .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
                          - Self.edgeMargin)
                 ChordScaleTreeView(showsControls: false)
+            }
+            .padding(Self.edgeMargin)
+            .frame(width: geo.size.width, height: geo.size.height)
+        } else if state.deskPane == .lab {
+            // And the Dissonance Lab, its pictures beside its controls.
+            @Bindable var state = state
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    PhoneScreenToggle()
+                        .frame(width: Self.landscapeToggleWidth)
+                    Spacer(minLength: 0)
+                    toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
+                        .frame(width: Self.midiChitWidth)
+                        .hotkeyTip(.midi)
+                }
+                .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
+                         - Self.edgeMargin)
+                DissonanceLabView()
             }
             .padding(Self.edgeMargin)
             .frame(width: geo.size.width, height: geo.size.height)
@@ -518,7 +545,7 @@ struct PerformanceView: View {
                                     switch $0 {
                                     case .sequencer: return .sequencer
                                     case .tonnetz:   return .tonnetz
-                                    case .pads, .trautonium, .tree, .controller: return nil
+                                    case .pads, .trautonium, .tree, .lab, .controller: return nil
                                     }
                                 },
                                 selection: $state.deskPane)
@@ -592,8 +619,8 @@ struct PerformanceView: View {
 }
 
 /// The toggle that chooses what a phone's screen shows: the keys, the
-/// sequencer, the Tonnetz, the pads, the Trautonium's bars or the
-/// chord–scale tree. None is on under a mode that is none of them.
+/// sequencer, the Tonnetz, the pads, the Trautonium's bars, the
+/// chord–scale tree or the Dissonance Lab. None is on under a mode that is none of them.
 struct PhoneScreenToggle: View {
     @Environment(PerformanceState.self) private var state
 
@@ -604,7 +631,7 @@ struct PhoneScreenToggle: View {
                             switch $0 {
                             case .sequencer: return .sequencer
                             case .tonnetz:   return .tonnetz
-                            case .play, .pads, .trautonium, .tree, nil: return nil
+                            case .play, .pads, .trautonium, .tree, .lab, nil: return nil
                             }
                         },
                         selection: Binding(get: { state.phoneScreen },

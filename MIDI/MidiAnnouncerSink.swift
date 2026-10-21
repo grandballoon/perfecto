@@ -104,10 +104,11 @@ final class MidiAnnouncerSink: ChordEventSink {
         let joystickMode: JoystickMode, joystickDirection: JoystickDirection
         switch ctx.spec.color {
         case let .joystick(mode, direction): (joystickMode, joystickDirection) = (mode, direction)
-        case .grid:
-            // ChordLink v1 has no field for grid colors (v2 will; see
-            // docs/next-phase-plan.md). Announce a release rather than let
-            // receivers keep showing the previous chord.
+        case .grid, .built:
+            // ChordLink v1 has no field for grid colors or chords built
+            // from buttons (v2 will; see docs/next-phase-plan.md). Announce
+            // a release rather than let receivers keep showing the previous
+            // chord.
             stopChord()
             return
         }

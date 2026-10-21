@@ -44,6 +44,47 @@ struct Lowpass {
     void clear() { s1 = s2 = 0; }
 };
 
+/// How one partial of an additive sound is set (`PerfectoEventPartialChange`).
+struct PartialSetting {
+    float strength = 0;
+    float offset = 0;
+    float depth = 0;
+    float rate = 0;
+};
+
+/// One partial of a voice playing an additive sound: where its sine is and
+/// how far it moves a frame, and how it is set now and where it is going.
+struct Partial {
+    double phase = 0;
+    double step = 0;
+    float strength = 0;
+    float strengthGoal = 0;
+    float offset = 0;
+    float offsetGoal = 0;
+    float depth = 0;
+    float depthGoal = 0;
+    float rate = 0;
+    /// Where its swing is, in cycles from its loudest.
+    double swing = 0;
+    /// What it is multiplied by now, all of the above and the patch's
+    /// level, and how far that moves a frame.
+    float gain = 0;
+    float gainStep = 0;
+
+    /// Takes `setting`, at once or on the way there.
+    void take(const PartialSetting &setting, bool atOnce) {
+        strengthGoal = setting.strength;
+        offsetGoal = setting.offset;
+        depthGoal = setting.depth;
+        rate = setting.rate;
+        if (atOnce) {
+            strength = strengthGoal;
+            offset = offsetGoal;
+            depth = depthGoal;
+        }
+    }
+};
+
 struct Voice {
     /// The paths a voice's sound takes: straight to the output, and into
     /// the chorus, the reverb, the vocoder and the delay.
@@ -79,6 +120,8 @@ struct Voice {
         float level = 1;
         /// The pitch the note glides from, in Hz; 0 is its own.
         double from = 0;
+        /// For an additive sound: how each partial is set.
+        PartialSetting partials[PerfectoPartialCount] = {};
     };
 
     /// A frame no note was released on.
@@ -126,6 +169,9 @@ struct Voice {
     float widthStep[PerfectoOperatorCount] = {0, 0};
     /// How far the second operator bends the first one's phase, in cycles.
     float bend = 0;
+
+    /// For an additive sound: its partials.
+    Partial partials[PerfectoPartialCount] = {};
 
     /// For a sound that is a capture: the recording, where the voice is in
     /// it (in its frames) and how far it moves a frame, the frame it ends

@@ -8,7 +8,8 @@ import SwiftUI
 struct KeyField: View {
     @Environment(PerformanceState.self) private var state
 
-    /// The sound field's width: room for the longest key's name.
+    /// The sound field's width: room for the longest key's name. On a
+    /// narrow screen it is less, and the name is made smaller to fit.
     static let width: CGFloat = SoundField.width
     private static let roots = PitchClass.allCases
 
@@ -19,6 +20,6 @@ struct KeyField: View {
                    label: { "\(Self.roots[$0].name) \(scale.displayName)" }) {
             state.key = Key(root: Self.roots[$0], scale: state.key.scale)
         }
-        .frame(width: Self.width)
+        .frame(maxWidth: Self.width)
     }
 }

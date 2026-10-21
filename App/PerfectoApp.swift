@@ -13,7 +13,8 @@ struct PerfectoApp: App {
         // layers' are sounded a moment after the clock's time, which is
         // what keeps them exactly in time; the keys sound at once, and so
         // do the solo strip, the Tonnetz, each pad and the chord–scale
-        // tree, lines of their own over them. The pads' sequence is the
+        // tree, lines of their own over them; the Dissonance Lab is one
+        // too, on the kernel alone. The pads' sequence is the
         // clock's, like a layer. Each is also shown on the piano, as a
         // source of its own.
         let piano = PianoState(logger: logger)
@@ -37,6 +38,9 @@ struct PerfectoApp: App {
             // way to say, so they are heard and not sent.
             trautoniumSink: { NotePlayer([output.sink, piano.line(.trautonium)], clock: clock) },
             treeSink: NotePlayer([output.sink, midi, piano.line(.tree)], clock: clock),
+            // The lab sets each note's partials, which only the kernel can,
+            // and tunes anywhere, which MIDI cannot: it is heard, not sent.
+            labSynth: DissonanceSynth(sink: output.sink, display: [piano.line(.lab)], clock: clock),
             piano: piano,
             liveSound: keys,
             output:  output,
@@ -58,32 +62,59 @@ struct PerfectoApp: App {
             PerformanceView()
                 .environment(state)
                 .environment(state.sequencerState)
-                .background(WindowMinimum())
+                .background(WindowSize())
                 .onAppear {
                     MidiSink.logTopology()
                     gamepadInput.play(state.gamepad)
                     midiInput.play(state.controller)
                 }
         }
-        // On the Mac: room for the desk's layout (`DeskLayout`).
-        .defaultSize(width: 1500, height: 950)
     }
 }
 
-/// Keeps a Mac's window from being made smaller than a phone's screen,
-/// which is the least the layouts are drawn for. A phone's own window is
-/// never resized.
-private struct WindowMinimum: UIViewRepresentable {
-    private static let size = CGSize(width: 390, height: 700)
+/// A Mac's window: it opens with room for the desk's layout (`DeskLayout`),
+/// can be made as large as the screen or full screen, and no smaller than a
+/// phone's screen, which is the least the layouts are drawn for. A phone's
+/// own window is never resized.
+///
+/// SwiftUI's `defaultSize` is not used: on Mac Catalyst it pins the window's
+/// largest size to the size it opens at, so the window could not be made
+/// larger or full screen.
+private struct WindowSize: UIViewRepresentable {
+    private static let minimum = CGSize(width: 390, height: 700)
+    private static let opening = CGSize(width: 1500, height: 950)
+    /// Marks a window's session once it has been given its opening size, so
+    /// a window the system restores keeps the size it was left at.
+    private static let sizedKey = "perfecto.windowSized"
 
     func makeUIView(context: Context) -> UIView { SceneView() }
     func updateUIView(_ view: UIView, context: Context) {}
 
     private final class SceneView: UIView {
+        #if targetEnvironment(macCatalyst)
         override func didMoveToWindow() {
             super.didMoveToWindow()
-            guard ProcessInfo.processInfo.isMacCatalystApp else { return }
-            window?.windowScene?.sizeRestrictions?.minimumSize = WindowMinimum.size
+            window?.windowScene?.sizeRestrictions?.minimumSize = WindowSize.minimum
         }
+
+        /// Gives a new window its opening size, once the window has a size
+        /// of its own to measure the Mac's scale by.
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            guard let window, let scene = window.windowScene,
+                  scene.session.userInfo?[WindowSize.sizedKey] == nil else { return }
+            // The system's frame is in the Mac's points, which the app's are
+            // scaled to; both take in the title bar.
+            let system = scene.effectiveGeometry.systemFrame
+            guard system.width > 0, window.bounds.width > 0 else { return }
+            scene.session.userInfo = (scene.session.userInfo ?? [:])
+                .merging([WindowSize.sizedKey: true]) { $1 }
+            let scale = system.width / window.bounds.width
+            let size = CGSize(width: WindowSize.opening.width * scale,
+                              height: WindowSize.opening.height * scale)
+            scene.requestGeometryUpdate(.Mac(systemFrame: CGRect(origin: system.origin,
+                                                                 size: size)))
+        }
+        #endif
     }
 }

@@ -86,8 +86,8 @@ enum SurfaceShape {
 }
 
 /// What a phone's screen is given to, chosen by the toggle in its row of
-/// buttons. The Tonnetz, the pads, the Trautonium's bars and the
-/// chord–scale tree are not modes: they lie over whichever is on.
+/// buttons. The Tonnetz, the pads, the Trautonium's bars, the chord–scale
+/// tree and the Dissonance Lab are not modes: they lie over whichever is on.
 enum PhoneScreen: CaseIterable {
     case play
     case sequencer
@@ -95,6 +95,7 @@ enum PhoneScreen: CaseIterable {
     case pads
     case trautonium
     case tree
+    case lab
 
     var displayName: String {
         switch self {
@@ -104,6 +105,7 @@ enum PhoneScreen: CaseIterable {
         case .pads:       return "PADS"
         case .trautonium: return "BARS"
         case .tree:       return "TREE"
+        case .lab:        return "LAB"
         }
     }
 }
@@ -116,6 +118,7 @@ enum DeskPane: CaseIterable {
     case pads
     case trautonium
     case tree
+    case lab
     case controller
 
     var displayName: String {
@@ -125,6 +128,7 @@ enum DeskPane: CaseIterable {
         case .pads:       return "PADS"
         case .trautonium: return "BARS"
         case .tree:       return "TREE"
+        case .lab:        return "LAB"
         case .controller: return "CTRL"
         }
     }
@@ -193,11 +197,44 @@ final class PerformanceState {
     /// that as its finger holds it.
     var heldVoicing: KeyVoicing { voicing.bent(by: voicingBend) }
 
+    /// The color the color field gives every chord the keys play, as set
+    /// (`KeyColor`), while no finger is on the chord colors. A change
+    /// reaches the chord being held at once.
+    var keyColor = KeyColor.base {
+        didSet {
+            guard keyColor != oldValue else { return }
+            logger?.log(.key_color_changed(color: keyColor.logName))
+            mode.onColorChange(state: self)
+        }
+    }
+    /// Whether the color field keeps what it is set to (`KeyColorField`).
+    /// While it does not, the field is played: the chord being held, or
+    /// struck while its finger is on it, takes the color the finger is at,
+    /// and only that chord does.
+    var keepsColor = true {
+        didSet {
+            guard keepsColor != oldValue else { return }
+            logger?.log(.color_keep_switched(isOn: keepsColor))
+            playColor(nil)
+        }
+    }
+    /// The color the color field's finger played on the chord being held,
+    /// while the field does not keep it: nil once that chord is over or
+    /// another is struck, if the finger has lifted by then.
+    private(set) var playedKeyColor: KeyColor?
+    /// Whether a finger is on the color field.
+    private var isColorFieldHeld = false
+    /// The color as the color field has it: the one played, or else the
+    /// one set.
+    var heldKeyColor: KeyColor { playedKeyColor ?? keyColor }
+
     /// The octave a chord of the key the keys are in is built in now: the
-    /// key zone's under the finger if it has one of its own, the octave
-    /// chosen otherwise, as far up or down as the voicing field holds it.
+    /// one its key was struck in if it has one (`press(_:inOctave:)`), or
+    /// else the key zone's under the finger if it has one of its own, or
+    /// else the octave chosen, as far up or down as the voicing field
+    /// holds it.
     private var builtOctave: Int {
-        (effects.heldZone?.octave ?? octave) + voicingBend.octaves
+        (struckOctave ?? effects.heldZone?.octave ?? octave) + voicingBend.octaves
     }
     /// The octave a chord played now is in: the one chords are built in,
     /// moved as the key played moves it (`ChordKey.octaveShift`).
@@ -221,21 +258,28 @@ final class PerformanceState {
     /// the voicing.
     var showsKeyStrip = true
     /// What is beside the keys' column at a desk. It is also whether the
-    /// Tonnetz, the pads, the Trautonium's bars or the chord–scale tree are
-    /// on screen wherever the app is: on a phone they take the screen (`phoneScreen`), so a
-    /// window made narrower keeps them.
+    /// Tonnetz, the pads, the Trautonium's bars, the chord–scale tree or the
+    /// Dissonance Lab are on screen wherever the app is: on a phone they
+    /// take the screen (`phoneScreen`), so a window made narrower keeps them.
     var deskPane: DeskPane = .sequencer {
         didSet {
             tonnetz.isShown = deskPane == .tonnetz
             pads.isShown = deskPane == .pads
             trautonium.isShown = deskPane == .trautonium
             tree.isShown = deskPane == .tree
+            // A MIDI keyboard plays the lab while it is shown, so whatever
+            // the Orchid held is let go as it takes over.
+            if deskPane == .lab, !lab.isShown { orchid.releaseAll() }
+            lab.isShown = deskPane == .lab
         }
     }
 
     /// Whether the window is laid out for the desk (`DeskLayout`), where
-    /// the sequencer is a pane beside the keys and not a mode.
-    var isAtDesk = false
+    /// the sequencer is a pane beside the keys and not a mode. The Orchid
+    /// is played only there, so it lets go of what it held as it goes.
+    var isAtDesk = false {
+        didSet { if !isAtDesk { orchid.releaseAll() } }
+    }
 
     var isExternalSynth: Bool = false {
         didSet { output?.isExternalSynth = isExternalSynth }
@@ -262,23 +306,42 @@ final class PerformanceState {
     /// Where a finger is on the chord grid; nil when none is.
     private(set) var gridPosition: GridPosition? = nil
 
-    /// The live chord color for `degree`, from the surface on screen. A grid
-    /// position means a different mode for each degree, so the color is
-    /// resolved against the degree that plays, in `key` (the key being
-    /// played, unless another is given). No finger on the grid plays the
-    /// diatonic triad, as the joystick's centre does.
+    /// What the Orchid's chord buttons held build (`OrchidState.build`); nil
+    /// while they build nothing.
+    private(set) var chordButtons: ChordBuild?
+
+    /// The live chord color for `degree`: the chord buttons' while they
+    /// build a chord, or else from the surface on screen while a finger is
+    /// on it, or else the color field's (`heldKeyColor`). A grid position
+    /// means a different mode for each degree, so the color is resolved
+    /// against the degree that plays, in `key` (the key being played,
+    /// unless another is given). With no finger on the grid and none of
+    /// the color field's, the diatonic triad plays, as the joystick's
+    /// centre does.
     func color(for degree: Degree, in key: Key? = nil) -> ChordColor {
+        if let chordButtons { return .built(chordButtons) }
+        let field = heldKeyColor
         switch colorSurface {
         case .joystick:
-            return .joystick(joystickMode, joystickDirection)
+            guard joystickDirection == .center, !field.isBase else {
+                return .joystick(joystickMode, joystickDirection)
+            }
+            return field.color
         case .grid:
-            guard let gridPosition else { return .grid(.triad, nil) }
-            return ChordGrid.color(at: gridPosition, key: key ?? playedKey, degree: degree)
+            if let gridPosition { return ChordGrid.color(at: gridPosition, key: key ?? playedKey, degree: degree) }
+            return field.isBase ? .grid(.triad, nil) : field.color
         }
     }
     private(set) var activeDegree: Degree? = nil
     /// The chord keys that are down, oldest first; the last is the active press.
     private(set) var heldKeys: [ChordKey] = []
+    /// The octave each held key was struck in, beside it in `heldKeys`; nil
+    /// for a key with no octave of its own.
+    private var heldOctaves: [Int?] = []
+    /// The octave the active press was struck in, if it had one. It is
+    /// kept once the key lifts, so a chord that rings on (a drone) stays
+    /// where it was struck.
+    private var struckOctave: Int?
     /// The key whose press is the active one; nil while none is down.
     var activeKey: ChordKey? { heldKeys.last }
     /// How far up each held key its finger is, 0 at the bottom to 1 at the
@@ -304,14 +367,19 @@ final class PerformanceState {
     /// The chord–scale tree: from a chord, every chord of the scales it is
     /// the home chord of.
     let tree: ChordScaleTreeState
+    /// The Dissonance Lab: two notes, and what makes them smooth or rough
+    /// made plain.
+    let lab: DissonanceLabState
     /// The computer keyboard, as a way to play the keys, the joystick and
     /// the solo strip.
     let keyboard: KeyboardState
     /// A game controller, as one more way to play them.
     let gamepad: GamepadState
     /// A MIDI controller, drawn at the desk with what it is doing
-    /// (`DeskPane.controller`). It plays nothing yet.
+    /// (`DeskPane.controller`).
     let controller: ControllerState
+    /// The MIDI controller played as an Orchid, at the desk.
+    let orchid: OrchidState
     /// The piano along the bottom of the screen, lit with what is sounding.
     let piano: PianoState
     let micSample: MicSampleState
@@ -372,12 +440,16 @@ final class PerformanceState {
     /// alone, since a note that slides has no place in the MIDI the app
     /// sends. Without one the bars are silent.
     /// `treeSink` sounds what the chord–scale tree plays, likewise.
+    /// `labSynth` sounds the Dissonance Lab: production passes one on the
+    /// kernel, which alone can set a note's partials one by one. Without
+    /// one the lab is silent.
     /// `micGate` says whether the mic sample may be recorded.
     /// `sequencer` is the app's sequencer and its saved timeline; tests pass
     /// one with a store of its own.
     /// `keyboard` is the computer keyboard and its saved map, likewise,
     /// and `gamepad` a game controller and its, and `controller` a MIDI
-    /// controller and the bindings it has learned.
+    /// controller and the bindings it has learned, and `orchid` that
+    /// controller played as an Orchid and its key mode.
     /// `piano` is the piano whose lines the sinks above were made with
     /// (`PianoState.line`); without one the piano stays dark.
     init(sink: any ChordEventSink,
@@ -392,10 +464,12 @@ final class PerformanceState {
          padDefaults: UserDefaults? = nil,
          trautoniumSink: (() -> any ChordEventSink)? = nil,
          treeSink: (any ChordEventSink)? = nil,
+         labSynth: DissonanceSynth? = nil,
          sequencer: SequencerState? = nil,
          keyboard: KeyboardState? = nil,
          gamepad: GamepadState? = nil,
          controller: ControllerState? = nil,
+         orchid: OrchidState? = nil,
          piano: PianoState? = nil,
          liveSound: (any SoundControl & EffectsControl)? = nil,
          output: AudioOutput? = nil,
@@ -429,9 +503,12 @@ final class PerformanceState {
                                       clock: clock, defaults: padDefaults, logger: logger)
         self.trautonium   = TrautoniumState(makeSink: trautoniumSink, clock: clock, logger: logger)
         self.tree         = ChordScaleTreeState(sink: treeSink, logger: logger)
+        self.lab          = DissonanceLabState(synth: labSynth ?? DissonanceSynth(sink: nil, clock: clock),
+                                               logger: logger)
         self.keyboard     = keyboard ?? KeyboardState(logger: logger)
         self.gamepad      = gamepad ?? GamepadState(logger: logger)
         self.controller   = controller ?? ControllerState(logger: logger)
+        self.orchid       = orchid ?? OrchidState(logger: logger)
         self.piano        = piano ?? PianoState(logger: logger)
         self.sequencerState = sequencer ?? SequencerState(logger: logger)
         self.quickLoopState = QuickLoopState(logger: logger)
@@ -464,6 +541,8 @@ final class PerformanceState {
         self.tree.host = self
         self.keyboard.host = self
         self.gamepad.host = self
+        self.orchid.host = self
+        self.controller.player = self
         // The strip may have taken the colors' place, and a finger on them
         // gone with them.
         self.solo.onArrange = { [weak self] in self?.clearColor() }
@@ -494,6 +573,7 @@ final class PerformanceState {
         case .pads:       return .pads
         case .trautonium: return .trautonium
         case .tree:       return .tree
+        case .lab:        return .lab
         case .sequencer, .controller: break
         }
         switch mode.kind {
@@ -504,8 +584,8 @@ final class PerformanceState {
     }
 
     /// Gives a phone's screen to `screen`. The Tonnetz, the pads, the
-    /// Trautonium's bars and the tree leave the mode as it is, so nothing that is playing
-    /// under them is stopped.
+    /// Trautonium's bars, the tree and the lab leave the mode as it is, so
+    /// nothing that is playing under them is stopped.
     func show(_ screen: PhoneScreen) {
         switch screen {
         case .play:
@@ -522,6 +602,8 @@ final class PerformanceState {
             deskPane = .trautonium
         case .tree:
             deskPane = .tree
+        case .lab:
+            deskPane = .lab
         }
     }
 
@@ -530,6 +612,8 @@ final class PerformanceState {
     func setMode(_ newMode: any PerformanceMode) {
         logger?.log(.mode_changed(from: mode.name, to: newMode.name))
         heldKeys = []
+        heldOctaves = []
+        forgetPlayedColor()
         mode.deactivate(state: self)
         followSlide()
         clock.stop()
@@ -597,33 +681,56 @@ final class PerformanceState {
     // lifting it hands the chord back to the press beneath it.
 
     func press(_ key: ChordKey) {
+        press(key, inOctave: nil)
+    }
+
+    /// `key` went down. A key struck in an `octave` of its own (a MIDI
+    /// keyboard's, where each key is a pitch) has its chord's root there,
+    /// whatever octave is chosen; nil: in the octave chosen.
+    func press(_ key: ChordKey, inOctave octave: Int?) {
         heldKeys.append(key)
+        heldOctaves.append(octave)
+        struckOctave = octave
         followSlide()
+        forgetPlayedColor()
         mode.onButtonDown(key: key, state: self)
     }
 
     func release(_ key: ChordKey) {
-        release([key])
+        release([key], inOctave: nil)
+    }
+
+    /// `key` came up: the press of it in `octave` (`press(_:inOctave:)`).
+    func release(_ key: ChordKey, inOctave octave: Int?) {
+        release([key], inOctave: octave)
     }
 
     /// Keys lifted together (several fingers at once, or the chord surface
     /// going away). They leave as one step, so the chord is handed back only
     /// to a key that is still down afterwards.
-    func release(_ keys: [ChordKey]) {
-        guard let active = heldKeys.last else { return }
+    func release(_ keys: [ChordKey], inOctave octave: Int? = nil) {
+        guard let active = heldKeys.last, let activeOctave = heldOctaves.last else { return }
         var activeLifted = false
         for key in keys {
-            guard let index = heldKeys.lastIndex(of: key) else { continue }
+            guard let index = heldKeys.indices.last(where: { heldKeys[$0] == key && heldOctaves[$0] == octave })
+            else { continue }
             if index == heldKeys.count - 1 { activeLifted = true }
             heldKeys.remove(at: index)
+            heldOctaves.remove(at: index)
         }
         // The last key up ends its chord before its slide: an effect the
         // finger was holding on (a key zone) must not switch off under a
         // chord that is about to stop, which would sound it once more.
         if activeLifted, heldKeys.isEmpty { mode.onButtonUp(key: active, state: self) }
+        // The color the field played was the lifted chord's alone, so the
+        // chord handed back is in the color as set.
+        if activeLifted { forgetPlayedColor() }
         followSlide()
-        // Two presses of the same key: it is still held, nothing changes.
-        if activeLifted, let resumed = heldKeys.last, resumed != active {
+        // Two presses of the same key in the same octave: it is still held,
+        // nothing changes.
+        if activeLifted, let resumed = heldKeys.last, let resumedOctave = heldOctaves.last,
+           (resumed, resumedOctave) != (active, activeOctave) {
+            struckOctave = resumedOctave
             mode.onButtonDown(key: resumed, state: self)
         }
     }
@@ -683,6 +790,13 @@ final class PerformanceState {
         mode.onColorChange(state: self)
     }
 
+    /// The Orchid's chord buttons build `build` now (nil: nothing).
+    func chordButtonsMoved(to build: ChordBuild?) {
+        guard build != chordButtons else { return }
+        chordButtons = build
+        mode.onColorChange(state: self)
+    }
+
     /// A finger moved on the chord grid (nil: lifted).
     func gridMoved(to position: GridPosition?) {
         guard position != gridPosition else { return }
@@ -734,6 +848,51 @@ final class PerformanceState {
         voicingBend = bend
         logger?.log(.voicing_bent(octaves: bend.octaves, steps: bend.steps))
         mode.onColorChange(state: self)
+    }
+
+    // MARK: – The color field
+
+    /// A finger came down on the color field. While it is there, a chord
+    /// struck takes the color it is at, whether the field keeps it or not.
+    func grabKeyColor() {
+        isColorFieldHeld = true
+    }
+
+    /// The color field's finger is at `color`. It is set, if the field
+    /// keeps what it is set to; if not it is played on the chord being
+    /// held, and the color as set is left as it was. Either way the chord
+    /// being held takes it up.
+    func holdKeyColor(at color: KeyColor) {
+        if keepsColor {
+            keyColor = color
+        } else {
+            playColor(color)
+        }
+    }
+
+    /// The color field's finger has lifted. A color it played stays on the
+    /// chord being held until that chord is over; with none held, it is
+    /// over now.
+    func releaseKeyColor() {
+        isColorFieldHeld = false
+        if heldKeys.isEmpty { forgetPlayedColor() }
+    }
+
+    private func playColor(_ color: KeyColor?) {
+        guard color != playedKeyColor else { return }
+        playedKeyColor = color
+        logger?.log(.key_color_played(color: color?.logName))
+        mode.onColorChange(state: self)
+    }
+
+    /// The chord the color field played its color on is over, or another
+    /// is struck: the next chord is in the color as set, unless the
+    /// field's finger is still on it. What is sounding is not struck
+    /// again, so a chord that rings on (a drone) keeps the color it had.
+    private func forgetPlayedColor() {
+        guard playedKeyColor != nil, !isColorFieldHeld else { return }
+        playedKeyColor = nil
+        logger?.log(.key_color_played(color: nil))
     }
 
     /// Stop the sounding chord on *every* sink — audio note-off, MIDI note-off,
@@ -953,6 +1112,28 @@ extension PerformanceState: LoopHost {
     var playedNow: NotePlaying {
         NotePlaying(key: playedKey, octave: playedOctave, inversion: playedInversion, preset: synthPreset,
                     effects: effects.asPlayed)
+    }
+}
+
+/// What a MIDI controller does is played by the Dissonance Lab while it is
+/// shown, and otherwise by the Orchid.
+extension PerformanceState: ControllerPlayer {
+    private var controllerPlayer: any ControllerPlayer { lab.isShown ? lab : orchid }
+
+    func control(_ id: ControllerControl.ID, movedTo value: Double) {
+        controllerPlayer.control(id, movedTo: value)
+    }
+
+    func keyDown(_ note: Int, velocity: Int) { controllerPlayer.keyDown(note, velocity: velocity) }
+
+    func keyUp(_ note: Int) { controllerPlayer.keyUp(note) }
+
+    func releaseAll() { controllerPlayer.releaseAll() }
+}
+
+extension PerformanceState: OrchidHost {
+    func holdArpeggio(_ arpeggio: HeldArpeggio?) {
+        effects.holdArpeggio(arpeggio)
     }
 }
 

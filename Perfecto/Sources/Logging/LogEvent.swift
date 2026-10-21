@@ -64,6 +64,13 @@ enum LogEvent {
     /// The voicing field's finger holds the chords this far from the
     /// voicing as set (octaves up, steps rolled); 0 and 0 once it lifts.
     case voicing_bent(octaves: Int, steps: Int)
+    /// The color the color field gives every chord was set.
+    case key_color_changed(color: String)
+    /// Whether the color field keeps what it is set to was switched.
+    case color_keep_switched(isOn: Bool)
+    /// The color field's finger played `color` on the chord being held;
+    /// nil once that chord's color is over.
+    case key_color_played(color: String?)
     case chord_button_pressed(degree: Int, key: String, color: String, resultingNotes: [Int])
     case chord_played(notes: [Int], source: ChordSource)
     case chord_stopped(notes: [Int], source: ChordSource)
@@ -108,6 +115,14 @@ enum LogEvent {
     /// `bar`: 0 is the low bar, 1 the high one.
     case trautonium_note_played(bar: Int, note: Int)
 
+    // Dissonance Lab
+    /// Two notes sounding together, as keyed: `semitones` apart within an
+    /// octave, and whether the upper one was tuned just.
+    case lab_interval_played(low: Int, high: Int, semitones: Int, just: Bool)
+    case lab_level_chosen(level: Int)
+    /// The A/B button pressed (`plain`) or let go.
+    case lab_bypassed(plain: Bool)
+
     // Chord–scale tree
     /// The tree went to the chord `to` names ("Dm7").
     case tree_moved(to: String)
@@ -136,6 +151,19 @@ enum LogEvent {
     /// A control of the controller was taught what it sends: "CC 21 · ch 1".
     case controller_control_learned(control: String, address: String)
     case controller_learned_forgotten(layout: String)
+    /// The controller played as an Orchid (`OrchidState`) switched key mode.
+    case orchid_key_mode_switched(isOn: Bool)
+    /// The velocity a key is struck with was switched to play the
+    /// arpeggio's order (`isOn`), or not to.
+    case orchid_velocity_arpeggio_switched(isOn: Bool)
+    /// The Orchid's key button chose the key: "D Natural Minor".
+    case orchid_key_chosen(key: String)
+    /// The key change button was pressed, so the next key struck is the
+    /// key (`isWaiting`), or pressed again, so it is not.
+    case orchid_key_change_switched(isWaiting: Bool)
+    /// `part` of the Orchid ("voicing", "arpeggio") is now played by the
+    /// knob or wheel `control` (nil: none).
+    case orchid_part_given(part: String, control: String?)
 
     // Mic sample
     case sample_record_started
@@ -299,6 +327,15 @@ extension LogEvent: Encodable {
             try c.encode("voicing_bent", forKey: Key("type"))
             try c.encode(octaves, forKey: Key("octaves"))
             try c.encode(steps, forKey: Key("steps"))
+        case let .key_color_changed(color):
+            try c.encode("key_color_changed", forKey: Key("type"))
+            try c.encode(color, forKey: Key("color"))
+        case let .color_keep_switched(isOn):
+            try c.encode("color_keep_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .key_color_played(color):
+            try c.encode("key_color_played", forKey: Key("type"))
+            try c.encodeIfPresent(color, forKey: Key("color"))
         case let .key_changed(key):
             try c.encode("key_changed", forKey: Key("type"))
             try c.encode(key, forKey: Key("key"))
@@ -325,6 +362,18 @@ extension LogEvent: Encodable {
             try c.encode("trautonium_note_played", forKey: Key("type"))
             try c.encode(bar,  forKey: Key("bar"))
             try c.encode(note, forKey: Key("note"))
+        case let .lab_interval_played(low, high, semitones, just):
+            try c.encode("lab_interval_played", forKey: Key("type"))
+            try c.encode(low, forKey: Key("low"))
+            try c.encode(high, forKey: Key("high"))
+            try c.encode(semitones, forKey: Key("semitones"))
+            try c.encode(just, forKey: Key("just"))
+        case let .lab_level_chosen(level):
+            try c.encode("lab_level_chosen", forKey: Key("type"))
+            try c.encode(level, forKey: Key("level"))
+        case let .lab_bypassed(plain):
+            try c.encode("lab_bypassed", forKey: Key("type"))
+            try c.encode(plain, forKey: Key("plain"))
         case let .tree_moved(to):
             try c.encode("tree_moved", forKey: Key("type"))
             try c.encode(to, forKey: Key("to"))
@@ -384,6 +433,22 @@ extension LogEvent: Encodable {
         case let .controller_learned_forgotten(layout):
             try c.encode("controller_learned_forgotten", forKey: Key("type"))
             try c.encode(layout, forKey: Key("layout"))
+        case let .orchid_key_mode_switched(isOn):
+            try c.encode("orchid_key_mode_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .orchid_velocity_arpeggio_switched(isOn):
+            try c.encode("orchid_velocity_arpeggio_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .orchid_key_chosen(key):
+            try c.encode("orchid_key_chosen", forKey: Key("type"))
+            try c.encode(key, forKey: Key("key"))
+        case let .orchid_key_change_switched(isWaiting):
+            try c.encode("orchid_key_change_switched", forKey: Key("type"))
+            try c.encode(isWaiting, forKey: Key("isWaiting"))
+        case let .orchid_part_given(part, control):
+            try c.encode("orchid_part_given", forKey: Key("type"))
+            try c.encode(part, forKey: Key("part"))
+            try c.encode(control, forKey: Key("control"))
         case let .loop_record_started(track):
             try c.encode("loop_record_started", forKey: Key("type"))
             try c.encode(track, forKey: Key("track"))

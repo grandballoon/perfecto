@@ -351,6 +351,99 @@ struct PlayModeTests {
         #expect(sink.playCalls.last?.notes == [60, 64, 67])
     }
 
+    // MARK: – The color field
+
+    private let dom7 = KeyColor(mode: .default, direction: .upRight)
+    private let maj7 = KeyColor(mode: .default, direction: .right)
+
+    /// While the field keeps what it is set to, its finger sets the color,
+    /// the chord being held takes it up, and every chord after is in it.
+    @Test func theColorFieldSetsTheColorWhileItKeepsIt() {
+        let (state, sink) = makeState()
+        state.press(.degree(.I))
+        state.grabKeyColor()
+        state.holdKeyColor(at: dom7)
+        state.releaseKeyColor()
+        state.release(.degree(.I))
+        state.press(.degree(.IV))
+
+        #expect(state.keyColor == dom7)
+        #expect(sink.playCalls.map(\.notes) == [[60, 64, 67], [60, 64, 67, 70], [65, 69, 72, 75]])
+    }
+
+    /// While it does not, the finger plays a color on the chord being held,
+    /// which keeps it after the finger lifts, until it is over.
+    @Test func theColorFieldPlaysTheChordBeingHeldWhileItDoesNotKeep() {
+        let (state, sink) = makeState()
+        state.keepsColor = false
+        state.press(.degree(.I))
+        state.grabKeyColor()
+        state.holdKeyColor(at: dom7)
+        state.holdKeyColor(at: maj7)
+        state.releaseKeyColor()
+
+        #expect(state.keyColor == .base)
+        #expect(state.heldKeyColor == maj7)
+        #expect(sink.playCalls.map(\.notes) == [[60, 64, 67], [60, 64, 67, 70], [60, 64, 67, 71]])
+
+        state.release(.degree(.I))
+        #expect(state.heldKeyColor == .base)
+        state.press(.degree(.I))
+        #expect(sink.playCalls.last?.notes == [60, 64, 67])
+    }
+
+    /// A chord struck over the one the color was played on is plain, and
+    /// so is the one beneath when it is handed back.
+    @Test func aPlayedColorIsNotKeptForTheNextChord() {
+        let (state, sink) = makeState()
+        state.keepsColor = false
+        state.press(.degree(.I))
+        state.grabKeyColor()
+        state.holdKeyColor(at: dom7)
+        state.releaseKeyColor()
+        state.press(.degree(.IV))
+        #expect(sink.playCalls.last?.notes == [65, 69, 72])
+
+        state.grabKeyColor()
+        state.holdKeyColor(at: maj7)
+        state.releaseKeyColor()
+        state.release(.degree(.IV))
+        #expect(sink.playCalls.last?.notes == [60, 64, 67])
+    }
+
+    /// A chord struck while the finger is on the field is in its color,
+    /// and turning it on with no chord held leaves nothing behind.
+    @Test func aChordStruckWhileTheColorIsPlayedIsColoredThere() {
+        let (state, sink) = makeState()
+        state.keepsColor = false
+        state.grabKeyColor()
+        state.holdKeyColor(at: dom7)
+        state.press(.degree(.I))
+        state.press(.degree(.IV))
+        #expect(sink.playCalls.map(\.notes) == [[60, 64, 67, 70], [65, 69, 72, 75]])
+
+        state.release([.degree(.I), .degree(.IV)])
+        state.releaseKeyColor()
+        #expect(state.heldKeyColor == .base)
+
+        state.grabKeyColor()
+        state.holdKeyColor(at: maj7)
+        state.releaseKeyColor()
+        state.press(.degree(.I))
+        #expect(sink.playCalls.last?.notes == [60, 64, 67])
+    }
+
+    /// A finger on the chord colors plays its own color over the field's,
+    /// and the field's is back when it lifts.
+    @Test func theChordColorsPlayOverTheColorField() {
+        let (state, sink) = makeState()
+        state.keyColor = dom7
+        state.press(.degree(.I))
+        state.joystickMoved(to: .right)
+        state.joystickMoved(to: .center)
+        #expect(sink.playCalls.map(\.notes) == [[60, 64, 67, 70], [60, 64, 67, 71], [60, 64, 67, 70]])
+    }
+
     /// A new chord is struck whole, whatever the inversion.
     @Test func aChordOfAnotherKeyIsStruckWhole() {
         let (state, sink) = makeState()

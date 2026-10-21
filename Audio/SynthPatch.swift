@@ -116,6 +116,12 @@ struct SynthPatch: Equatable, Sendable {
     /// A recording to play. With one, the oscillators and the FM pair are
     /// not heard.
     var sample: Sample? = nil
+    /// Sine partials at whole multiples of the note's pitch, the
+    /// fundamental first, each as strong as given (times `level`), in place
+    /// of the oscillators and the FM pair: a sound whose partials can each
+    /// be set apart while a note sounds (`PartialSink`). Unlike a wave of
+    /// harmonics it is not scaled to peak at the level.
+    var partials: [Float]? = nil
     /// Noise beside the sources, as loud as this share of `level`: swept
     /// down it is the breath at the start of a blown note, and steady it is
     /// air in the sound. nil is none.

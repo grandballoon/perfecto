@@ -26,3 +26,6 @@ strategy.md
 spec.md
 designohpointfive.md
 desgin-reviews.md
+
+# Coverage output
+*.profraw

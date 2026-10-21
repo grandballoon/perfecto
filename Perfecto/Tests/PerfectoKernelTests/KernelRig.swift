@@ -44,7 +44,7 @@ final class KernelRig {
         var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteOn,
                                   note: Int32(note), velocity: velocity, sound: Int32(sound),
                                   brightness: brightness, pan: pan, chorus: chorus, reverb: reverb,
-                                  vocoder: vocoder, delay: delay, bend: bend, level: level)
+                                  vocoder: vocoder, delay: delay, bend: bend, level: level, offset: 0, depth: 0, rate: 0)
         return perfecto_kernel_send(kernel, &event)
     }
 
@@ -56,7 +56,14 @@ final class KernelRig {
         var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteChange,
                                   note: 0, velocity: 0, sound: 0,
                                   brightness: brightness, pan: 0, chorus: chorus, reverb: reverb,
-                                  vocoder: vocoder, delay: delay, bend: bend, level: level)
+                                  vocoder: vocoder, delay: delay, bend: bend, level: level, offset: 0, depth: 0, rate: 0)
+        return perfecto_kernel_send(kernel, &event)
+    }
+
+    /// Hands the kernel any event.
+    @discardableResult
+    func send(_ event: PerfectoEvent) -> Bool {
+        var event = event
         return perfecto_kernel_send(kernel, &event)
     }
 
@@ -77,7 +84,7 @@ final class KernelRig {
     @discardableResult
     func noteOff(_ id: UInt64, at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: id, type: PerfectoEventNoteOff,
-                                  note: 0, velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1)
+                                  note: 0, velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1, offset: 0, depth: 0, rate: 0)
         return perfecto_kernel_send(kernel, &event)
     }
 
@@ -90,14 +97,14 @@ final class KernelRig {
                       at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: 0, type: PerfectoEventCaptureStart,
                                   note: Int32(capture), velocity: 0, sound: Int32(source.rawValue),
-                                  brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1)
+                                  brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1, offset: 0, depth: 0, rate: 0)
         return perfecto_kernel_send(kernel, &event)
     }
 
     @discardableResult
     func captureStop(at frame: Int = 0) -> Bool {
         var event = PerfectoEvent(time: UInt64(frame), note_id: 0, type: PerfectoEventCaptureStop,
-                                  note: 0, velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1)
+                                  note: 0, velocity: 0, sound: 0, brightness: 1, pan: 0, chorus: 0, reverb: 0, vocoder: 0, delay: 0, bend: 0, level: 1, offset: 0, depth: 0, rate: 0)
         return perfecto_kernel_send(kernel, &event)
     }
 
@@ -170,6 +177,16 @@ final class KernelRig {
             output += left[skipped..<frames]
             self.right += right[skipped..<frames]
         }
+    }
+
+    /// The seconds of this thread's own time it takes to render `frames`
+    /// more frames: what the rendering costs, which other tests running
+    /// beside it on the same cores do not add to as they do to the time on
+    /// the clock.
+    func cpuSeconds(toRender frames: Int) -> Double {
+        let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+        render(frames)
+        return Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start) / 1e9
     }
 
     /// The loudest sample in `range`.

@@ -163,6 +163,17 @@ typedef struct {
     bool sampled;
     int32_t capture;
     float root;
+    /// The sound is `PerfectoPartialCount` sines at whole multiples of the
+    /// note's pitch, and not the operators: partial n is n times the note's
+    /// frequency, as strong as the first operator's `partials` says when the
+    /// note starts, each as many times `level`, through the same filter and
+    /// envelope. Unlike a wave of partials it is not scaled to peak at 1,
+    /// so a partial is as strong as it is set however the others are set.
+    /// While the note sounds each partial can be set apart from the rest:
+    /// how strong, how far from its place in the series, and how it swings
+    /// (`PerfectoEventPartialChange`). A partial over half the sample rate
+    /// is silent.
+    bool additive;
 } PerfectoPatch;
 
 // MARK: Events
@@ -184,6 +195,15 @@ typedef enum {
     /// Ends the recording at this frame (it ends by itself when the capture
     /// is full), and makes it playable.
     PerfectoEventCaptureStop = 5,
+    /// Changes one partial of the note `note_id`, whose sound is additive:
+    /// partial number `note` (0 is the fundamental) is `level` strong (a
+    /// share of the patch's level, as its `partials` are), `offset` Hz from
+    /// where the harmonic series has it, and swung in strength `rate` times
+    /// a second by `depth`, from 0 (steady) to 1 (down to silence and back
+    /// each time). The swing starts with the note, at full strength. Its
+    /// strength, offset and depth are glided to, over about 15 ms; a note
+    /// that has not yet sounded a frame takes them at once.
+    PerfectoEventPartialChange = 6,
 } PerfectoEventType;
 
 /// What a capture records.
@@ -233,8 +253,15 @@ typedef struct {
     /// and often is heard to slide.
     float bend;
     /// Note on and note change: how loud the note is beside the same note
-    /// played whole, from 0 (silent) to 1.
+    /// played whole, from 0 (silent) to 1. Partial change: how strong the
+    /// partial is.
     float level;
+    /// Partial change: how far the partial is from its place in the
+    /// harmonic series, in Hz up (or, below 0, down).
+    float offset;
+    /// Partial change: how deep its swing is, 0...1, and how fast, in Hz.
+    float depth;
+    float rate;
 } PerfectoEvent;
 
 /// The most notes that can be held at once. A note past this takes over a

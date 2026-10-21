@@ -735,9 +735,8 @@ struct SoundTests {
             rig.noteOn(UInt64(id), note: 36 + id % 48, sound: 1, brightness: 0.5,
                        pan: Float(id % 3) - 1, chorus: 0.5, reverb: 0.3)
         }
-        let clock = ContinuousClock()
-        let taken = clock.measure { rig.render(48_000) }
-        #expect(taken < .seconds(1), "\(taken) to render a second")
+        let taken = rig.cpuSeconds(toRender: 48_000)
+        #expect(taken < 1, "\(taken) s to render a second")
         #expect(rig.output.allSatisfy { $0.isFinite })
     }
 
@@ -757,18 +756,51 @@ struct SoundTests {
             rig.noteOn(UInt64(id), note: 36 + id % 48, sound: 1, brightness: 0.5,
                        pan: Float(id % 3) - 1, chorus: 0.5, reverb: 0.3)
         }
-        let clock = ContinuousClock()
-        let taken = clock.measure { rig.render(48_000) }
+        let taken = rig.cpuSeconds(toRender: 48_000)
         // Fourteen times the waves of the test above. Built to be run it
         // takes about a fifth of a second on a Mac; a debug build, which
         // is what tests usually are, leaves the kernel as written, and
         // takes seven times as long.
         #if DEBUG
-        let allowed = Duration.seconds(3)
+        let allowed = 3.0
         #else
-        let allowed = Duration.seconds(1)
+        let allowed = 1.0
         #endif
-        #expect(taken < allowed, "\(taken) to render a second")
+        #expect(taken < allowed, "\(taken) s to render a second")
+        #expect(rig.output.allSatisfy { $0.isFinite })
+    }
+
+    /// The whole pool playing an additive sound, every partial swung, renders
+    /// faster than it is heard too.
+    @Test func everyVoiceOfAnAdditiveSoundRendersFasterThanItIsHeard() {
+        let rig = KernelRig()
+        var patch = PerfectoPatch.wave(PerfectoWavePartials, partials: (1...16).map { 1 / Float($0) },
+                                       level: 0.005)
+        patch.additive = true
+        rig.setSound(1, patch)
+        for id in 1...Int(perfecto_kernel_voice_count()) {
+            rig.noteOn(UInt64(id), note: 36 + id % 48, sound: 1, pan: Float(id % 3) - 1, reverb: 0.3)
+            for partial in 0..<Int(PerfectoPartialCount) {
+                var event = PerfectoEvent()
+                event.note_id = UInt64(id)
+                event.type = PerfectoEventPartialChange
+                event.note = Int32(partial)
+                event.level = 1 / Float(partial + 1)
+                event.offset = 1.5
+                event.depth = 0.5
+                event.rate = 5
+                rig.send(event)
+            }
+        }
+        let taken = rig.cpuSeconds(toRender: 48_000)
+        // Over a thousand sines. Built to be run it takes about a sixth of
+        // a second on a Mac, and a debug build about seven times as long.
+        #if DEBUG
+        let allowed = 3.0
+        #else
+        let allowed = 1.0
+        #endif
+        #expect(taken < allowed, "\(taken) s to render a second")
         #expect(rig.output.allSatisfy { $0.isFinite })
     }
 }

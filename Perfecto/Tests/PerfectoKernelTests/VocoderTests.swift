@@ -143,8 +143,7 @@ struct VocoderTests {
         for voice in 0..<Int(perfecto_kernel_voice_count()) {
             rig.noteOn(UInt64(voice + 1), note: 36 + voice, vocoder: 0.5)
         }
-        let started = Date()
-        rig.render(48_000)
-        #expect(Date().timeIntervalSince(started) < 1)
+        let taken = rig.cpuSeconds(toRender: 48_000)
+        #expect(taken < 1, "\(taken) s to render a second")
     }
 }

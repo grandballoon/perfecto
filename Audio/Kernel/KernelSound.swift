@@ -4,8 +4,9 @@ import PerfectoKernel
 /// A `SynthPatch` as the kernel takes it: two operators, mixed or one
 /// bending the other, or a recording in their place.
 ///
-/// A patch here is either oscillators or an FM pair, and each becomes the
-/// kernel's two operators: the oscillators mixed, or the pair's modulator
+/// A patch of partials is the kernel's additive sound, its partials the
+/// first operator's. Otherwise a patch is either oscillators or an FM pair,
+/// and each becomes the kernel's two operators: the oscillators mixed, or the pair's modulator
 /// bending its carrier. A patch with both has no kernel form (none of the
 /// app's sounds is one); its oscillators are the ones dropped.
 extension SynthPatch {
@@ -16,6 +17,9 @@ extension SynthPatch {
             patch.sampled = true
             patch.capture = Int32(sample.capture)
             patch.root = Float(sample.root)
+        } else if let partials {
+            patch.additive = true
+            patch.operators.0 = Self.kernelOperator(.harmonics(partials), ratio: 1, level: 1)
         } else if let fm {
             patch.operators.0 = Self.kernelOperator(.sine, ratio: fm.carrier, level: 1)
             patch.operators.1 = Self.kernelOperator(.sine, ratio: fm.modulator, level: 1)
