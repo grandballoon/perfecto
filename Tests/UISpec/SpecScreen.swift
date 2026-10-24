@@ -42,20 +42,9 @@ extension SpecScreen {
                 state.effects.asSet.switchOn(choice)
             }
         },
-        SpecScreen(name: "play-solo-under") { showSolo(in: $0, .underKeys) },
-        SpecScreen(name: "play-solo-beside") { showSolo(in: $0, .besideKeys) },
-        SpecScreen(name: "play-solo-colors") { showSolo(in: $0, .colors) },
-        SpecScreen(name: "play-solo-under-bar") {
-            $0.chordGridLayout = .horizontalBar
-            showSolo(in: $0, .underKeys)
-        },
-        SpecScreen(name: "play-solo-colors-bar") {
-            $0.chordGridLayout = .horizontalBar
-            showSolo(in: $0, .colors)
-        },
         SpecScreen(name: "play-piano") {
             $0.piano.isOn = true
-            showSolo(in: $0, .besideKeys)
+            showSeventh(in: $0)
         },
         SpecScreen(name: "piano-expanded") {
             $0.piano.isOn = true
@@ -170,16 +159,11 @@ extension SpecScreen {
                      chord: ChordSpec(degree: degree, color: .base))
     }
 
-    /// The solo strip at `placement` beside the grid of keys (the row of
-    /// them, where the layout asks for it), with a major seventh held and a
-    /// note of the strip sounding over it.
-    private static func showSolo(in state: PerformanceState, _ placement: SoloPlacement) {
+    /// A major seventh held, on the grid of keys.
+    private static func showSeventh(in state: PerformanceState) {
         if state.chordGridLayout == .circle { state.chordGridLayout = .grid }
-        state.solo.placement = placement
-        state.solo.isOn = true
         state.compassPressed(CompassPlace(.add, 1))
         state.press(.degree(.I))
-        state.solo.press(cell: 7)
     }
 
     /// The pads on screen, a chord on each pad of the first two rows and

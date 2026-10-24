@@ -87,14 +87,14 @@ struct StepCompassStateTests {
         #expect(state.compassOrigin(for: .V) == ChordTones([0, 4, 7, 10]))
     }
 
-    @Test func switchingKeepOrMovingTheSoloStripClearsTheCompass() {
+    @Test func switchingKeepClearsTheCompass() {
         let (state, _) = makeCompassState()
         state.compassPressed(CompassPlace(.add, 1))
         state.keepsCompassColor = true
         #expect(state.compassPlaces.isEmpty)
         state.compassPressed(CompassPlace(.add, 1))
-        state.solo.placement = .colors
-        state.solo.isOn = true
+        #expect(state.compassPlaces == [CompassPlace(.add, 1)])
+        state.keepsCompassColor = false
         #expect(state.compassPlaces.isEmpty)
     }
 

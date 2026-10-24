@@ -61,7 +61,7 @@ protocol TrautoniumHost: AnyObject {
 /// finger that rocks is a vibrato around the note. A finger that comes to
 /// rest is brought to the note of the key nearest it again (`rest`).
 ///
-/// Each bar is a line of its own, like the solo strip: a sink beside the
+/// Each bar is a line of its own, like the Tonnetz: a sink beside the
 /// keys' chord, in the keys' preset with the effects as set, and no mode
 /// knows of it. A bar's note is started once and then bent and made louder
 /// or softer where it sounds (`NoteSound.bend`, `level`), which a sink with

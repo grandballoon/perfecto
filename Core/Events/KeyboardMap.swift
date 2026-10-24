@@ -7,8 +7,6 @@ enum KeyboardAction: Hashable, Codable, Sendable {
     /// One of the step compass's places, held while the key is down, as a
     /// finger on it is.
     case compass(CompassPlace)
-    /// A cell of the solo strip, counted from its low end.
-    case solo(cell: Int)
     /// One of the screen's buttons, tapped.
     case button(KeyboardButton)
     /// A move on the Tonnetz, whose triad sounds while the key is held.
@@ -19,8 +17,6 @@ enum KeyboardAction: Hashable, Codable, Sendable {
 enum KeyboardButton: String, CaseIterable, Hashable, Codable, Sendable {
     /// Starts a loop's take, or closes the one being recorded.
     case loop
-    /// Shows or hides the solo strip.
-    case solo
     /// Silences the app's own sound, or brings it back.
     case midi
     /// Starts the loops and the sequence from the top, or stops them.
@@ -39,7 +35,6 @@ enum KeyboardButton: String, CaseIterable, Hashable, Codable, Sendable {
     var displayName: String {
         switch self {
         case .loop:      return "Loop"
-        case .solo:      return "Solo"
         case .midi:      return "MIDI"
         case .playStop:  return "Play/stop"
         case .sequencer: return "Sequencer"
@@ -81,9 +76,6 @@ extension KeyboardKey {
 /// Which key plays what: at most one key for an action, and one action for
 /// a key.
 struct KeyboardMap: Equatable, Codable, Sendable {
-
-    /// How many of the solo strip's cells can be given a key.
-    static let soloCells = 10
 
     private(set) var keys: [KeyboardAction: KeyboardKey]
     /// The actions left with no key on purpose (`clear`), which is how they
@@ -134,8 +126,8 @@ extension KeyboardMap {
     /// The chords along the home row from A to J, the compass's first
     /// choices on the arrows (up adds a tone, right raises one, left lowers
     /// one, down takes one away; the second choices have no key to start
-    /// with), the solo strip along the number row, the buttons on Return
-    /// (loop), Space (play and stop), O (solo), M (MIDI), Q (sequencer),
+    /// with), the buttons on Return (loop), Space (play and stop), M (MIDI),
+    /// Q (sequencer),
     /// Z (Tonnetz), N (net), T (triad) and K (hold: it keeps), and the
     /// Tonnetz's moves on their own letters, P, L and R.
     static let standard: KeyboardMap = {
@@ -148,13 +140,8 @@ extension KeyboardMap {
         for (kind, code) in arrows {
             keys[.compass(CompassPlace(kind, 1))] = KeyboardKey(code: code, characters: "")
         }
-        for cell in 0..<soloCells {
-            // The number row runs 1 to 9 and then 0.
-            keys[.solo(cell: cell)] = KeyboardKey(code: 30 + cell, name: String((cell + 1) % 10))
-        }
         keys[.button(.loop)] = KeyboardKey(code: 40, characters: "")
         keys[.button(.playStop)] = KeyboardKey(code: 44, characters: "")
-        keys[.button(.solo)] = KeyboardKey(code: 18, name: "O")
         keys[.button(.midi)] = KeyboardKey(code: 16, name: "M")
         keys[.button(.sequencer)] = KeyboardKey(code: 20, name: "Q")
         keys[.button(.tonnetz)] = KeyboardKey(code: 29, name: "Z")

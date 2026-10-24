@@ -54,9 +54,9 @@ struct GamepadStateTests {
 
     @Test func aButtonTapsAButtonOfTheScreen() {
         let (state, _) = makeState()
-        state.gamepad.button(.leftShoulder, isPressed: true)
-        state.gamepad.button(.leftShoulder, isPressed: false)
-        #expect(state.solo.isOn)
+        state.gamepad.button(.rightShoulder, isPressed: true)
+        state.gamepad.button(.rightShoulder, isPressed: false)
+        #expect(state.quickLoopState.phase == .recording)
     }
 
     @Test func aButtonThatPlaysNothingDoesNothing() {
@@ -144,7 +144,6 @@ struct GamepadStateTests {
         let map = KeyboardMap.gamepad
         #expect(Degree.allCases.map { map.key(for: .chord($0))?.name } == ["A", "B", "X", "Y", "↑", "→", "↓"])
         #expect(map.key(for: .button(.loop))?.name == "R1")
-        #expect(map.key(for: .button(.solo))?.name == "L1")
         #expect(map.key(for: .button(.playStop))?.name == "Menu")
     }
 

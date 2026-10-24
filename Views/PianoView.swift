@@ -6,7 +6,6 @@ extension PianoSource {
         switch self {
         case .keys:    return .orange
         case .layers:  return Color(red: 0.35, green: 0.7, blue: 1)
-        case .solo:    return Color(red: 0.45, green: 0.85, blue: 0.45)
         case .tonnetz: return Color(red: 0.8, green: 0.5, blue: 1)
         case .pads:    return Color(red: 1, green: 0.45, blue: 0.6)
         case .trautonium: return Color(red: 0.3, green: 0.85, blue: 0.8)

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The menu's Setup page: how the chord keys, the chord colors beside them,
-/// the solo strip and the sequencer's bars are laid out, whether the play
+/// The menu's Setup page: how the chord keys, the chord colors beside them
+/// and the sequencer's bars are laid out, whether the play
 /// screen has the key strip, whether a finger's place on a chord key plays
 /// its brightness, the size of the grid of pads, and whether the piano is
 /// shown under them.
@@ -10,7 +10,6 @@ struct SetupPanel: View {
 
     var body: some View {
         @Bindable var state = state
-        @Bindable var solo = state.solo
         @Bindable var sequencer = state.sequencerState
         VStack(alignment: .leading, spacing: 24) {
             chordLayoutSection
@@ -18,15 +17,6 @@ struct SetupPanel: View {
             keyStripSection
 
             keySlideSection
-
-            choiceSection("SOLO STRIP",
-                          detail: "Where the SOLO button puts the strip of notes that fit the chord, for runs over it: under the chord keys, which give up some of their height (drag the handle between them); upright beside them; or in the chord colors' place. On its side, a phone with room beside the keys puts the strip there.") {
-                Picker("Place", selection: $solo.placement) {
-                    ForEach(SoloPlacement.allCases, id: \.self) { placement in
-                        Text(placement.displayName).tag(placement)
-                    }
-                }
-            }
 
             choiceSection("COMPASS ORDER",
                           detail: "Which two of each kind of step the compass offers, near and far: up adds a tone, right raises one, left lowers one, down takes one away. Theory: in the key first, then the chord's own next tone (its 7th, then its 9th). Common: the chords played most first (7, maj7, min7, sus4, add9, 6), in the key or not.") {

@@ -142,20 +142,14 @@ So the fields and the Effects page are the same switches: an effect switched on 
 A field keeps its place while it is being swiped, also through off, so it stays under the finger; the row closes up over empty fields when the finger lifts, or the field's list closes (`SwipeField.onEnd`, `settleSlots`).
 An effect a key zone holds on is played, not set, so it has no field.
 
-**The solo strip plays runs over the chord, with no wrong notes.**
-It is a line of cells beside the chord keys, each a note that fits the chord being played, switched on by the SOLO button and placed by Setup (`SoloPlacement`): under the keys, which give up some of their height across a handle, upright beside them, or in the chord colors' place.
-The notes are worked out, not looked up (`soloIntervals`, in the music theory core): the triad the chord is built on, and each note of the chord's scale that is not a semitone from it, so a major chord gets the major pentatonic, a minor chord the minor one, and no two notes are a semitone apart.
-The cells ascend from the key's tonic whatever the chord (`soloNotes`), so a cell stays about where it was when the chord changes.
-`SoloState` is the strip: one voice, sounded through a `NotePlayer` of its own beside the keys' chord, by the keys' own contract (the most recent press sounds; lifting it hands the note back to the cell beneath), in the keys' preset with the effects as set.
-The chord it plays over is the one sounding, or the last one played once the keys are let go (`PerformanceState.soloChord`); a note being held rings on when the chord changes.
-`SoloStripView` draws the cells where `SoloStripCells` puts them and reads its fingers against the same frames, with the chord keys' own tracking (`KeyTouches`), so it is played with several fingers and by sliding.
-A loop does not record what the strip plays yet, and `docs/solo-strip.md` has what else is undecided.
+**The solo strip is parked.**
+A line of cells beside the chord keys, each a note that fits the chord being played, switched on by the SOLO button; v0.1.0 has no need of it, so it lives on the `color-ring` branch, and `docs/solo-strip.md` has its design and what is undecided.
 
 **The Tonnetz plays triads in no key, from the net of notes.**
 It is a net where a step along one line is a fifth, along the next a major third and along the third a minor third, so every triangle is a major or a minor triad (`TonnetzCell`, in the music theory core), and two triangles that share a side share two notes.
 A move (`TonnetzMove`: P, L, R) is a flip of the triangle over one side, worked out from where the triangle is; the tests hold it to the same move on the triad (`Triad.applying`).
 `TonnetzState` is the Tonnetz: it is at one triangle at a time, a triangle pressed sounds while it is held, and a move is a press of the triangle across a side.
-It is a line of its own, like the solo strip: a `NotePlayer` beside the keys', in the keys' preset, and no mode knows of it.
+It is a line of its own: a `NotePlayer` beside the keys', in the keys' preset, and no mode knows of it.
 It is played with the keys' effects as set (`TonnetzHost.tonnetzEffects`), the arpeggiator among them: each of its lines is a `LayerVoice`, as a pad's is, so it has an arpeggiator of its own and the keys' is not touched.
 An effect set while a triad or a note sounds reaches it at once without striking it again (`TonnetzState.effectsChanged`), which matters most while it holds.
 The effect strip is on its screen, so the effects are switched from there; a slide or a zone of a chord key plays the keys' chord and not the Tonnetz.
@@ -180,7 +174,7 @@ Across a bar is how loud (`TrautoniumState.level(across:)`), in place of the pre
 A finger that comes down sounds the note of the key nearest it, exactly (`Key.note(nearest:)`, in the music theory core), so a bar is in tune however roughly it is struck.
 From there the pitch follows the finger as far as it moves, so a slide is a slide and a finger that rocks is a vibrato around the note.
 A finger that has been still for a moment (`TrautoniumState.rest`, a call of the clock's) is brought onto the note of the key nearest it again.
-`TrautoniumState` is the bars: each is a line of its own, like the solo strip, a `NotePlayer` beside the keys' in the keys' preset with the effects as set, and no mode knows of it.
+`TrautoniumState` is the bars: each is a line of its own, like the Tonnetz, a `NotePlayer` beside the keys' in the keys' preset with the effects as set, and no mode knows of it.
 A bar's note is started once and then bent and made louder or softer where it sounds (`NoteSound.bend`, `level`), so nothing between the bar and the kernel knows of slides: the player passes the change of sound on as it does a played effect's.
 A second finger on a bar takes its note to where it is without striking it again, and lifting it hands the bar back to the finger beneath (`BarTouches`).
 The bars are heard and not sent: MIDI as the app sends it has one channel and no pitch bend, so their players have no `MidiSink`, and with the MIDI button on they are silent.
@@ -199,7 +193,7 @@ The tree can be at any tier (`tier`), and going to one changes nothing of the wa
 A chord on the board is a `TreeSpot`, its tier and the step it is from the chord that tier grows from, so the same chord on two tiers is two places.
 `TreeBranches` is a tier: the chord it grows from on top, and under it a branch for each letter a next chord's root can be above its own, its chords side by side from the lowest root; the board draws them there and reads its fingers against the same frames, and a finger plays the chord it came down on however the board moves under it.
 A finger that comes down off the chords scrolls the board, as do a trackpad and a wheel, and the trail of tiers above it goes to one by a tap.
-A chord sounds in root position from C3 through a line of its own like the solo strip: a `NotePlayer` beside the keys', in the keys' preset with the effects as set, on the audio, MIDI and the piano.
+A chord sounds in root position from C3 through a line of its own like the Tonnetz: a `NotePlayer` beside the keys', in the keys' preset with the effects as set, on the audio, MIDI and the piano.
 It starts on the tonic chord of the keys' key, which HOME goes back to.
 `docs/chord-scale-tree.md` was its first design, a tree of notes, chords and scales chosen in turn, with its prototype in `docs/prototypes`.
 Like the Tonnetz and the pads it is not a mode: it takes the phone's screen from the toggle (`PhoneScreen`, where it is TREE) or the sequencer's place at the desk (`DeskPane`), and `PerformanceState.deskPane` sets `ChordScaleTreeState.isShown`.
@@ -238,17 +232,17 @@ The pads are not a mode: like the Tonnetz they take the phone's screen from the 
 The grid is saved.
 
 **The computer keyboard is one more finger.**
-Its keys are chord keys, the compass's places and the solo strip's cells, by a map that is changed key by key in Setup and remembered (`KeyboardMap`: the home row, the arrows for the compass's first choices and the number row to start with).
-A key can also tap one of the screen's buttons (`KeyboardButton`: loop on Return, play and stop on Space, solo on O, MIDI on M, the sequencer on Q, the Tonnetz on Z, and the Tonnetz's net, triad and hold on N, T and K while it is on screen), through `KeyboardHost.tap`, which does what the button does.
+Its keys are chord keys and the compass's places, by a map that is changed key by key in Setup and remembered (`KeyboardMap`: the home row, and the arrows for the compass's first choices to start with).
+A key can also tap one of the screen's buttons (`KeyboardButton`: loop on Return, play and stop on Space, MIDI on M, the sequencer on Q, the Tonnetz on Z, and the Tonnetz's net, triad and hold on N, T and K while it is on screen), through `KeyboardHost.tap`, which does what the button does.
 Each of those buttons shows the key that taps it in a small chit while a pointer is over it (`hotkeyTip`, drawn over the whole screen by `showingHotkeyTips`).
 A map saved before an action existed is given that action's standard key when it is read, unless the key is taken or the action was left with no key on purpose (`KeyboardMap.cleared`).
 The Tonnetz's moves are on their own letters (P, L, R) while it is on screen (`TonnetzState.isShown`): a move's triad sounds until the last move's key is up, and the net is drawn again around a move that leads off its edge.
-`KeyboardInput` is the window's first responder and hands each key to `KeyboardState`, which presses and releases through `PerformanceState`'s and `SoloState`'s own calls (`KeyboardHost`), so modes, loops and effects know nothing of it.
+`KeyboardInput` is the window's first responder and hands each key to `KeyboardState`, which presses and releases through `PerformanceState`'s own calls (`KeyboardHost`), so modes, loops and effects know nothing of it.
 A compass key plays its place while it is held, as a finger on it does (`KeyboardAction.compass`), a key has no place on its chord key and so plays no slide, and every key is let go when the app stops being in front.
 A key that plays nothing is passed on to the system, as is any key pressed with Command, Control or Option.
 
 **A game controller is one more finger, too.**
-Its buttons are keys: `GamepadState` has a `KeyboardState` of its own for them (`buttons`), so they play, tap and are held by the keyboard's rules, by a map of their own that is saved apart from the keyboard's (`KeyboardMap.gamepad`: the chords on A, B, X and Y and the d-pad's up, right and down, loop on R1, solo on L1, play and stop on Menu).
+Its buttons are keys: `GamepadState` has a `KeyboardState` of its own for them (`buttons`), so they play, tap and are held by the keyboard's rules, by a map of their own that is saved apart from the keyboard's (`KeyboardMap.gamepad`: the chords on A, B, X and Y and the d-pad's up, right and down, loop on R1, play and stop on Menu).
 A button is named by where it is (`GamepadButton`), so a controller of another make plays the same way under other names.
 The left stick plays the compass's first choices, the kind of step it is nearest (`GamepadStick`: up adds, right raises, left lowers, down takes away), which sticks a little at its middle and between two kinds; it plays the compass only as it changes place, pressing the new place before it lifts the old, so a stick at rest leaves it to the keyboard or a finger and a stick turned never passes through the plain chord.
 `GamepadInput` hears the controllers (Apple's `GameController`, on the phone and the Mac alike) and tells `GamepadState`, which lets everything go when the controller goes or the app stops being in front.
@@ -272,7 +266,7 @@ A root presses through `PerformanceState`'s own calls, as the computer keyboard'
 **The piano shows what is sounding, as a pianist would play it.**
 It is a piano's 88 keys along the bottom of the window, under whatever screen is there, switched on in Setup; the screen is laid out in what it leaves (`PerformanceView`).
 It is a display, not an instrument: `PianoState` hears notes as the audio and MIDI do, through one more `NoteSink` on each line of notes (`PianoState.line`), so it knows nothing of chords, modes or effects and shows the notes actually sounded (an arpeggio one at a time, a strum as it spreads, a note that slides on the key it has slid to).
-Each line is a `PianoSource` with a color of its own (the chord keys, the timeline's layers, the solo strip, the Tonnetz, the pads, the Trautonium, the chord–scale tree, the Dissonance Lab), and Setup says which are lit.
+Each line is a `PianoSource` with a color of its own (the chord keys, the timeline's layers, the Tonnetz, the pads, the Trautonium, the chord–scale tree, the Dissonance Lab), and Setup says which are lit.
 A key several sources are sounding is divided between their colors.
 `PianoView` draws the keys where `PianoKeys` puts them.
 A pinch brings it closer, to as few as an octave's keys, or farther, to all 88, and a drag moves it along (`PianoSpan`, read by `PianoTouches`); a lit key out of view is marked at the end it lies beyond.
@@ -289,7 +283,7 @@ A new line of notes is seen on it by a `PianoSource` case and a sink where its `
 
 **Adding a performance mode = one file plus one `ModeKind` case.** Each mode implements `PerformanceMode`; its `ModeKind` gives the display name and the `ModeSurface` (screen) it uses, and `PerformanceState.makeMode` builds it. Views decide by kind or surface, never by display name. `PerformanceState` enforces the button contract documented on `PerformanceMode` (the most recent press is active; lifting it hands the chord back to the press held beneath it), and every chord layout is played through `ChordKeySurface`, which tracks each finger (`ChordKeyTouches`) so all layouts get several fingers and sliding; layouts only draw keys and mark them with `chordKey(_:)`.
 A mode hears which key is down (`ChordKey`) and never works out its chord.
-`KeyTouches` is generic over what a key is, so the solo strip's cells are tracked by the same rules.
+`KeyTouches` is generic over what a key is, so the pads are tracked by the same rules.
 The keys are drawn in one place (`ChordKeysView`), in the arrangement the chord layout chosen in Setup gives the screen (`ChordGridLayout.arrangement`), so the sequencer's step editor chooses a degree from the same keys in the same layout (`DegreeSelector`).
 
 **Every setting lives in the menu, a side panel, not in sheets.** `SidePanel` slides over the leading edge of `PerformanceView`, covers only its own width (`SidePanelLayout`) and takes only the touches that land on it, so the keys still showing beside it play as usual and a setting can be heard while it is changed. `SidePanelButton`, in the top leading corner, is the one way in; `SidePanelState` says which page is open and reopens the menu where it was left. A new setting goes on a page (`KeyPanel`, `SoundPanel`, `EffectsPanel`, `SetupPanel`), not behind its own button or sheet.
@@ -377,7 +371,6 @@ App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100
 - The key strip: the key on the play screen, changed by a swipe, and the octave and the inversion as one field, set or played by a finger that moves along it and across it
 - The sound field: the keys' sound beside the note display, changed by a swipe
 - The step compass: the one color surface, the colors one step from the chord held (a tone added, raised, lowered or taken away), its places the same before a chord is struck as after, and a finger sliding between them
-- The solo strip: runs over the chord from the notes that fit it
 - The Tonnetz: triads from the net of notes and the moves between them, its notes played by themselves, and loops of both
 - The pads: a grid of 4 to 8 rows and columns, each pad a chord in a sound of its own, played together or in sequence
 - The Trautonium: two bars, each a voice whose pitch follows the finger along it and whose loudness follows it across, landing on the notes of the key

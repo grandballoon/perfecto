@@ -93,10 +93,6 @@ enum LogEvent {
     /// Whether the slide plays the chord's inversion was switched.
     case slide_inversion_switched(isOn: Bool)
 
-    // Solo strip
-    case solo_switched(isOn: Bool)
-    case solo_note_played(note: Int)
-
     // Piano
     case piano_switched(isOn: Bool)
     /// The piano was given the whole screen, or put back along its bottom.
@@ -347,12 +343,6 @@ extension LogEvent: Encodable {
             try c.encode("key_own_zones_switched", forKey: Key("type"))
             try c.encode(degree, forKey: Key("degree"))
             try c.encode(isOn,   forKey: Key("isOn"))
-        case let .solo_switched(isOn):
-            try c.encode("solo_switched", forKey: Key("type"))
-            try c.encode(isOn, forKey: Key("isOn"))
-        case let .solo_note_played(note):
-            try c.encode("solo_note_played", forKey: Key("type"))
-            try c.encode(note, forKey: Key("note"))
         case let .piano_switched(isOn):
             try c.encode("piano_switched", forKey: Key("type"))
             try c.encode(isOn, forKey: Key("isOn"))

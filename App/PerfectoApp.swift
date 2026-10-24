@@ -12,7 +12,7 @@ struct PerfectoApp: App {
         // own, so each has its own sound, on the same audio and MIDI. The
         // layers' are sounded a moment after the clock's time, which is
         // what keeps them exactly in time; the keys sound at once, and so
-        // do the solo strip, the Tonnetz, each pad and the chord–scale
+        // do the Tonnetz, each pad and the chord–scale
         // tree, lines of their own over them; the Dissonance Lab is one
         // too, on the kernel alone. The pads' sequence is the
         // clock's, like a layer. Each is also shown on the piano, as a
@@ -27,7 +27,6 @@ struct PerfectoApp: App {
                            lead: NotePlayer.sequencedLead)
             },
             layerLead: NotePlayer.sequencedLead,
-            soloSink: NotePlayer([output.sink, midi, piano.line(.solo)], clock: clock),
             tonnetzSink: NotePlayer([output.sink, midi, piano.line(.tonnetz)], clock: clock),
             tonnetzNoteSink: NotePlayer([output.sink, midi, piano.line(.tonnetz)], clock: clock),
             padSink: { NotePlayer([output.sink, midi, piano.line(.pads)], clock: clock) },

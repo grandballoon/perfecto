@@ -12,7 +12,6 @@ struct KeyboardStateTests {
     private let a = KeyboardKey(code: 4, name: "A")
     private let s = KeyboardKey(code: 22, name: "S")
     private let x = KeyboardKey(code: 27, name: "X")
-    private let one = KeyboardKey(code: 30, name: "1")
     private let right = KeyboardKey(code: 79, name: "→")
     private let up = KeyboardKey(code: 82, name: "↑")
     private let escape = KeyboardKey(code: KeyboardKey.escapeCode, name: "Escape")
@@ -21,18 +20,18 @@ struct KeyboardStateTests {
     /// A performance in C major, octave 4, played from a keyboard whose map
     /// is kept in a store of its own, as the loops it records are.
     private func makeState(defaults: UserDefaults = isolatedDefaults(), clock: ManualClock = ManualClock())
-        -> (state: PerformanceState, keys: RecordingSink, solo: RecordingSink) {
-        let keys = RecordingSink(), solo = RecordingSink()
-        let state = PerformanceState(sink: keys, soloSink: solo,
+        -> (state: PerformanceState, keys: RecordingSink) {
+        let keys = RecordingSink()
+        let state = PerformanceState(sink: keys,
                                      sequencer: SequencerState(defaults: isolatedDefaults()),
                                      keyboard: KeyboardState(defaults: defaults), clock: clock)
-        return (state, keys, solo)
+        return (state, keys)
     }
 
     // MARK: – Playing
 
     @Test func aKeyPlaysItsChordWhileItIsHeld() {
-        let (state, keys, _) = makeState()
+        let (state, keys) = makeState()
         #expect(state.keyboard.keyDown(a))
         #expect(keys.playCalls.last?.notes == [60, 64, 67])
         #expect(state.heldKeys == [.degree(.I)])
@@ -43,7 +42,7 @@ struct KeyboardStateTests {
     }
 
     @Test func theMostRecentKeyIsTheChordAndLiftingItHandsBack() {
-        let (state, keys, _) = makeState()
+        let (state, keys) = makeState()
         state.keyboard.keyDown(a)
         state.keyboard.keyDown(s)
         #expect(state.activeDegree == .ii)
@@ -53,7 +52,7 @@ struct KeyboardStateTests {
     }
 
     @Test func aKeyHeldDownIsOnePress() {
-        let (state, keys, _) = makeState()
+        let (state, keys) = makeState()
         state.keyboard.keyDown(a)
         #expect(state.keyboard.keyDown(a))   // the system's repeat
         #expect(state.heldKeys == [.degree(.I)])
@@ -61,7 +60,7 @@ struct KeyboardStateTests {
     }
 
     @Test func aKeyThatPlaysNothingIsNotTaken() {
-        let (state, keys, _) = makeState()
+        let (state, keys) = makeState()
         #expect(!state.keyboard.keyDown(x))
         #expect(!state.keyboard.keyUp(code: x.code))
         #expect(keys.playCalls.isEmpty)
@@ -70,7 +69,7 @@ struct KeyboardStateTests {
     /// The arrows are the compass's first choices, each held as a finger
     /// on it is: the latest plays, and lifting it is the plain chord.
     @Test func theArrowsPlayTheCompass() {
-        let (state, _, _) = makeState()
+        let (state, _) = makeState()
         state.keyboard.keyDown(up)
         #expect(state.compassPlaces == [CompassPlace(.add, 1)])
         state.keyboard.keyDown(right)
@@ -83,7 +82,7 @@ struct KeyboardStateTests {
 
     /// While the compass keeps its color, each arrow is a step of the walk.
     @Test func theArrowsWalkTheCompassWhileItKeeps() {
-        let (state, _, _) = makeState()
+        let (state, _) = makeState()
         state.keepsCompassColor = true
         state.keyboard.keyDown(up)
         state.keyboard.keyUp(code: up.code)
@@ -92,22 +91,8 @@ struct KeyboardStateTests {
         #expect(state.compassPlaces == [CompassPlace(.add, 1), CompassPlace(.add, 1)])
     }
 
-    @Test func theNumberRowPlaysTheSoloStripWhileItIsOn() {
-        let (state, _, solo) = makeState()
-        state.keyboard.keyDown(one)
-        state.keyboard.keyUp(code: one.code)
-        #expect(solo.playCalls.isEmpty)
-
-        state.solo.isOn = true
-        state.keyboard.keyDown(one)
-        #expect(solo.playCalls.last?.notes == [60])
-        #expect(state.solo.held == [0])
-        state.keyboard.keyUp(code: one.code)
-        #expect(state.solo.held.isEmpty)
-    }
-
     @Test func lettingEveryKeyGoEndsWhatTheyPlayed() {
-        let (state, _, _) = makeState()
+        let (state, _) = makeState()
         state.keyboard.keyDown(a)
         state.keyboard.keyDown(up)
         state.keyboard.releaseAll()
@@ -121,21 +106,17 @@ struct KeyboardStateTests {
 
     private let space = KeyboardKey(code: 44, name: "Space")
     private let enter = KeyboardKey(code: 40, name: "Return")
-    private let o = KeyboardKey(code: 18, name: "O")
     private let m = KeyboardKey(code: 16, name: "M")
 
     @Test func aButtonsKeyTapsItOnceHoweverLongItIsHeld() {
-        let (state, _, _) = makeState()
-        state.keyboard.keyDown(o)
-        state.keyboard.keyDown(o)   // the system's repeat
-        #expect(state.solo.isOn)
-        state.keyboard.keyUp(code: o.code)
-        #expect(state.solo.isOn)
-        state.keyboard.keyDown(o)
-        #expect(!state.solo.isOn)
-
+        let (state, _) = makeState()
         state.keyboard.keyDown(m)
+        state.keyboard.keyDown(m)   // the system's repeat
         #expect(state.isExternalSynth)
+        state.keyboard.keyUp(code: m.code)
+        #expect(state.isExternalSynth)
+        state.keyboard.keyDown(m)
+        #expect(!state.isExternalSynth)
     }
 
     private let k = KeyboardKey(code: 14, name: "K")
@@ -146,7 +127,7 @@ struct KeyboardStateTests {
 
     /// On a phone the sequencer is a mode; the Tonnetz lies over whichever is on.
     @Test func keysShowTheSequencerAndTheTonnetzOnAPhone() {
-        let (state, _, _) = makeState()
+        let (state, _) = makeState()
         state.keyboard.keyDown(q)
         #expect(state.phoneScreen == .sequencer)
         state.keyboard.keyDown(z)
@@ -156,7 +137,7 @@ struct KeyboardStateTests {
 
     /// At the desk the two are panes beside the keys, which stay played.
     @Test func keysChooseTheDesksPaneAndLeaveTheKeysPlayed() {
-        let (state, _, _) = makeState()
+        let (state, _) = makeState()
         state.isAtDesk = true
         state.keyboard.keyDown(z)
         #expect(state.deskPane == .tonnetz)
@@ -166,7 +147,7 @@ struct KeyboardStateTests {
     }
 
     @Test func theTonnetzsButtonsAreTappedByTheirKeysWhileItIsOnScreen() {
-        let (state, _, _) = makeState()
+        let (state, _) = makeState()
         for key in [t, k] { state.keyboard.keyDown(key); state.keyboard.keyUp(code: key.code) }
         #expect(state.tonnetz.view == .net)
         #expect(!state.tonnetz.holds)
@@ -182,7 +163,7 @@ struct KeyboardStateTests {
 
     /// The key a pointer over a button is shown follows the map.
     @Test func aButtonsTipIsTheKeyThatTapsIt() {
-        let (state, _, _) = makeState()
+        let (state, _) = makeState()
         #expect(state.keyboard.keyName(for: .hold) == "K")
         #expect(state.keyboard.keyName(for: .loop) == "Return")
         state.keyboard.choosing = .button(.hold)
@@ -204,7 +185,7 @@ struct KeyboardStateTests {
         let defaults = isolatedDefaults()
         defaults.set(try JSONEncoder().encode(Saved(keys: old)), forKey: "keyboardMap")
 
-        let (state, _, _) = makeState(defaults: defaults)
+        let (state, _) = makeState(defaults: defaults)
         #expect(state.keyboard.map.key(for: .button(.hold)) == k)
         #expect(state.keyboard.map.key(for: .button(.sequencer)) == q)
         #expect(state.keyboard.map.key(for: .button(.net)) == nil)
@@ -217,7 +198,7 @@ struct KeyboardStateTests {
 
     @Test func returnRecordsALoopAndSpaceStopsAndStartsIt() {
         let clock = ManualClock()
-        let (state, _, _) = makeState(clock: clock)
+        let (state, _) = makeState(clock: clock)
         let loops = state.quickLoopState
         state.keyboard.keyDown(enter)
         state.keyboard.keyUp(code: enter.code)
@@ -311,7 +292,7 @@ struct KeyboardStateTests {
     // MARK: – The map
 
     @Test func theNextKeyPressedBecomesTheChosenActionsKey() {
-        let (state, keys, _) = makeState()
+        let (state, keys) = makeState()
         state.keyboard.choosing = .chord(.I)
         #expect(state.keyboard.keyDown(x))
         #expect(state.keyboard.choosing == nil)
@@ -325,7 +306,7 @@ struct KeyboardStateTests {
     }
 
     @Test func aKeyGivenToAnotherActionLeavesTheOneItHad() {
-        let (state, _, _) = makeState()
+        let (state, _) = makeState()
         state.keyboard.choosing = .chord(.ii)
         state.keyboard.keyDown(a)
         #expect(state.keyboard.map.key(for: .chord(.ii)) == a)
@@ -333,7 +314,7 @@ struct KeyboardStateTests {
     }
 
     @Test func escapeLeavesTheActionAsItWasAndDeleteLeavesItNoKey() {
-        let (state, _, _) = makeState()
+        let (state, _) = makeState()
         state.keyboard.choosing = .chord(.I)
         state.keyboard.keyDown(escape)
         #expect(state.keyboard.choosing == nil)
@@ -345,7 +326,7 @@ struct KeyboardStateTests {
     }
 
     @Test func aKeyLiftedEndsWhatItStartedWhateverTheMapSaysByThen() {
-        let (state, _, _) = makeState()
+        let (state, _) = makeState()
         state.keyboard.keyDown(a)
         state.keyboard.choosing = .chord(.ii)
         state.keyboard.keyDown(a)   // A is now ii's key, and still down as I
@@ -355,26 +336,24 @@ struct KeyboardStateTests {
 
     @Test func theMapIsRememberedAndCanBeReset() {
         let defaults = isolatedDefaults()
-        let (state, _, _) = makeState(defaults: defaults)
+        let (state, _) = makeState(defaults: defaults)
         state.keyboard.choosing = .chord(.I)
         state.keyboard.keyDown(x)
 
-        let (again, _, _) = makeState(defaults: defaults)
+        let (again, _) = makeState(defaults: defaults)
         #expect(again.keyboard.map.key(for: .chord(.I)) == x)
         again.keyboard.reset()
         #expect(again.keyboard.map == .standard)
         #expect(makeState(defaults: defaults).state.keyboard.map == .standard)
     }
 
-    @Test func theStandardMapIsTheHomeRowTheArrowsAndTheNumberRow() {
+    @Test func theStandardMapIsTheHomeRowAndTheArrows() {
         let map = KeyboardMap.standard
         #expect(Degree.allCases.map { map.key(for: .chord($0))?.name } == ["A", "S", "D", "F", "G", "H", "J"])
         #expect(map.key(for: .compass(CompassPlace(.add, 1)))?.name == "↑")
         #expect(map.key(for: .compass(CompassPlace(.raise, 1)))?.name == "→")
         #expect(map.key(for: .compass(CompassPlace(.add, 2))) == nil)
-        #expect((0..<KeyboardMap.soloCells).map { map.key(for: .solo(cell: $0))?.name }
-                == ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"])
-        #expect(KeyboardButton.allCases.map { map.key(for: .button($0))?.name } == ["Return", "O", "M", "Space", "Q", "Z", "N", "T", "K"])
+        #expect(KeyboardButton.allCases.map { map.key(for: .button($0))?.name } == ["Return", "M", "Space", "Q", "Z", "N", "T", "K"])
         #expect(TonnetzMove.allCases.map { map.key(for: .tonnetz($0))?.name } == ["P", "L", "R"])
     }
 }

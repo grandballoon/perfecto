@@ -71,6 +71,9 @@ extension StepCompassGrid.Target {
 /// on and a finger kept walks a step for every place it crosses. A gap, a
 /// corner or a place with no chord leaves it on what it was on.
 struct StepCompassSurface: View {
+    /// Its height on a phone held upright: five rows of places.
+    static let portraitHeight: CGFloat = 250
+
     @Environment(PerformanceState.self) private var state
 
     /// What the finger on the compass is on, while one is.

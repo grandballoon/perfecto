@@ -31,8 +31,8 @@ struct KeySlide<PlayedKey: Hashable>: Equatable {
     }
 }
 
-/// The chord keys' fingers, changes and slides; the solo strip's cells are
-/// tracked by the same rules (`SoloStripView`).
+/// The chord keys' fingers, changes and slides; the pads are tracked by
+/// the same rules (`PadsView`).
 typealias ChordKeyTouches<Touch: Hashable> = KeyTouches<Touch, ChordKey>
 typealias ChordKeyChange = KeyChange<ChordKey>
 typealias ChordKeySlide = KeySlide<ChordKey>

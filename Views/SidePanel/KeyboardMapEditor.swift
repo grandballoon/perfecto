@@ -22,7 +22,6 @@ struct KeyboardMapEditor: View {
             SidePanelSectionLabel(title)
             group("Chords", Degree.allCases.map { (.chord($0), String($0.rawValue)) })
             group("Compass", Self.places.map { (.compass($0.0), $0.1) }, columns: 2)
-            group("Solo strip", (0..<KeyboardMap.soloCells).map { (.solo(cell: $0), String($0 + 1)) })
             group("Tonnetz", TonnetzMove.allCases.map { (.tonnetz($0), $0.displayName) }, columns: 2)
             group("Buttons", KeyboardButton.allCases.map { (.button($0), $0.displayName) }, columns: 2)
             Text(detail)

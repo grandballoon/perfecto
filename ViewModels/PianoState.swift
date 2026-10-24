@@ -9,8 +9,6 @@ enum PianoSource: CaseIterable, Sendable {
     case keys
     /// The timeline's layers: the loops and the sequence.
     case layers
-    /// The solo strip.
-    case solo
     /// The Tonnetz.
     case tonnetz
     /// The pads, played or in sequence.
@@ -26,7 +24,6 @@ enum PianoSource: CaseIterable, Sendable {
         switch self {
         case .keys:    return "Chord keys"
         case .layers:  return "Loops and sequence"
-        case .solo:    return "Solo strip"
         case .tonnetz: return "Tonnetz"
         case .pads:    return "Pads"
         case .trautonium: return "Trautonium"

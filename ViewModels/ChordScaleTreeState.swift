@@ -34,7 +34,7 @@ struct TreeSpot: Hashable {
 /// nothing of the way; only a chord pressed on a tier, other than the one
 /// the next tier grows from, takes a new way on from there.
 ///
-/// It is a line of its own, like the solo strip: a sink beside the keys'
+/// It is a line of its own, like the Tonnetz: a sink beside the keys'
 /// chord, in the keys' preset with the effects as set, and no mode knows
 /// of it. Of the chords held, the one pressed last sounds, and lifting it
 /// hands the sound back to the one held beneath, as on the chord keys.

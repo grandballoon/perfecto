@@ -53,13 +53,6 @@ extension ChordGridLayout {
     }
 }
 
-/// The shapes the play screen's input surface comes in: the step compass,
-/// or a strip (the solo strip in the colors' place).
-enum SurfaceShape {
-    case bar
-    case compass
-}
-
 extension ColorStepRanking {
     var displayName: String {
         switch self {
@@ -238,16 +231,6 @@ final class PerformanceState {
     }
 
     private(set) var mode: any PerformanceMode = PlayMode()
-    /// The shape of whatever the play surface is showing. The solo strip
-    /// in the colors' place is a bar.
-    var surfaceShape: SurfaceShape { solo.takesColorsPlace ? .bar : .compass }
-
-    /// Leaves the compass neutral.
-    private func clearColor() {
-        heldPlace = nil
-        compassWalk = []
-    }
-
     /// The order the step compass's choices are in (`ColorStepRanking`).
     var compassRanking = ColorStepRanking.theory {
         didSet {
@@ -321,8 +304,6 @@ final class PerformanceState {
     let sequencerState: SequencerState
     let quickLoopState: QuickLoopState
     let effects: EffectsState
-    /// The solo strip: notes that fit the chord, played over it.
-    let solo: SoloState
     /// The Tonnetz: triads played from the net of notes, in no key.
     let tonnetz: TonnetzState
     /// The pads: a grid of sounds, played by themselves or in sequence.
@@ -335,8 +316,7 @@ final class PerformanceState {
     /// The Dissonance Lab: two notes, and what makes them smooth or rough
     /// made plain.
     let lab: DissonanceLabState
-    /// The computer keyboard, as a way to play the keys, the compass and
-    /// the solo strip.
+    /// The computer keyboard, as a way to play the keys and the compass.
     let keyboard: KeyboardState
     /// A game controller, as one more way to play them.
     let gamepad: GamepadState
@@ -388,10 +368,9 @@ final class PerformanceState {
     /// its chords' own sound. Without one, layers share `sink`.
     /// `layerLead` is the lead those sinks were made with (see
     /// `NotePlayer`), so a loop recorded over them lands where it was heard.
-    /// `soloSink` sounds the solo strip's notes beside the keys' chord:
-    /// production passes a `NotePlayer` of its own on the same note sinks.
-    /// Without one the strip is silent.
-    /// `tonnetzSink` sounds the Tonnetz's triads, likewise, and
+    /// `tonnetzSink` sounds the Tonnetz's triads beside the keys' chord
+    /// (production passes a `NotePlayer` of its own on the same note sinks;
+    /// without one it is silent), and
     /// `tonnetzNoteSink` its notes played by themselves, each through an
     /// arpeggiator of its own.
     /// `padSink` makes the sink a pad sounds through, a new one for each
@@ -421,7 +400,6 @@ final class PerformanceState {
          chordListener: (any ChordEventSink)? = nil,
          layerSink: (() -> any ChordEventSink)? = nil,
          layerLead: Double = 0,
-         soloSink: (any ChordEventSink)? = nil,
          tonnetzSink: (any ChordEventSink)? = nil,
          tonnetzNoteSink: (any ChordEventSink)? = nil,
          padSink: (() -> any ChordEventSink)? = nil,
@@ -455,7 +433,6 @@ final class PerformanceState {
         self.logger       = logger
         self.effects      = EffectsState(arpeggiator: arpeggiator, audio: liveSound,
                                          effectsListener: effectsListener, logger: logger)
-        self.solo         = SoloState(sink: soloSink, logger: logger)
         // A voice of the Tonnetz or of a pad is a layer's: an arpeggiator
         // and its sink, in the sound of each chord it is given.
         let lineVoice = { (sink: any ChordEventSink) -> any TimelineVoice in
@@ -499,7 +476,6 @@ final class PerformanceState {
         }
         self.effects.onPlayedChange = { [weak self] in self?.quickLoopState.effectsChanged() }
         self.quickLoopState.host = self
-        self.solo.host = self
         self.tonnetz.host = self
         self.pads.host = self
         self.trautonium.host = self
@@ -508,9 +484,6 @@ final class PerformanceState {
         self.gamepad.host = self
         self.orchid.host = self
         self.controller.player = self
-        // The strip may have taken the colors' place, and a finger on them
-        // gone with them.
-        self.solo.onArrange = { [weak self] in self?.clearColor() }
         // A sample just recorded is what the keys play next.
         self.micSample.onRecorded = { [weak self] in self?.setSynthPreset(.micSample) }
         attach(sequencerState)
@@ -982,19 +955,11 @@ final class PerformanceState {
     }
 }
 
-extension PerformanceState: SoloHost {
-    /// The chord that is sounding, as it sounds. With none, the last one
-    /// played, read in the key and octave set now (the tonic's triad before
-    /// any has been), so the strip can still be played once the keys are let go.
-    var soloChord: ChordContext {
-        if activeDegree != nil, let currentContext { return currentContext }
-        let spec = currentContext?.spec ?? ChordSpec(degree: .I, color: .base)
-        return performanceContext(key: key, octave: octave, spec: spec)
-    }
-
-    /// The keys' preset, with the effects as they are set: a slide on a
-    /// chord key plays that chord, not the run over it.
-    var soloSound: NoteSound {
+extension PerformanceState {
+    /// The keys' preset, with the effects as they are set, which a line of
+    /// notes beside the keys' sounds in: a slide on a chord key plays that
+    /// chord, not the line.
+    var keysSoundAsSet: NoteSound {
         NoteSound(preset: synthPreset, effects: effects.asSet)
     }
 }
@@ -1026,17 +991,15 @@ extension PerformanceState: TrautoniumHost {
         performanceContext(key: key, octave: octave, spec: ChordSpec(degree: .I, color: .base))
     }
 
-    /// The keys' preset, with the effects as they are set, as the solo
-    /// strip's is.
-    var trautoniumSound: NoteSound { soloSound }
+    /// The keys' preset, with the effects as they are set.
+    var trautoniumSound: NoteSound { keysSoundAsSet }
 }
 
 extension PerformanceState: ChordScaleTreeHost {
     var treeKey: Key { key }
 
-    /// The keys' preset, with the effects as they are set, as the solo
-    /// strip's is.
-    var treeSound: NoteSound { soloSound }
+    /// The keys' preset, with the effects as they are set.
+    var treeSound: NoteSound { keysSoundAsSet }
 }
 
 extension PerformanceState: PadsHost {
@@ -1088,7 +1051,6 @@ extension PerformanceState: KeyboardHost {
     func tap(_ button: KeyboardButton) {
         switch button {
         case .loop:     quickLoopState.triggerTapped()
-        case .solo:     solo.isOn.toggle()
         case .midi:     isExternalSynth.toggle()
         case .playStop: quickLoopState.toggleRunning()
         case .sequencer:

@@ -8,14 +8,13 @@ protocol KeyboardHost: AnyObject {
     func release(_ key: ChordKey)
     func compassPressed(_ place: CompassPlace)
     func compassLifted(_ place: CompassPlace)
-    var solo: SoloState { get }
     var tonnetz: TonnetzState { get }
     /// Does what tapping `button` on screen does.
     func tap(_ button: KeyboardButton)
 }
 
 /// The computer keyboard as a way to play: its keys are chord keys, the
-/// compass's places, the solo strip's cells, the Tonnetz's moves and some of the
+/// compass's places, the Tonnetz's moves and some of the
 /// screen's buttons, by a map that can be changed key by key
 /// (`KeyboardMap`) and is remembered across launches.
 ///
@@ -84,8 +83,6 @@ final class KeyboardState {
         switch action {
         case .chord(let degree): host?.press(.degree(degree))
         case .compass(let place): host?.compassPressed(place)
-        case .solo(let cell):
-            if host?.solo.isOn == true { host?.solo.press(cell: cell) }
         case .button(let button): host?.tap(button)
         case .tonnetz(let move):
             if host?.tonnetz.isShown == true { host?.tonnetz.apply(move) }
@@ -112,7 +109,6 @@ final class KeyboardState {
         switch action {
         case .chord(let degree): host?.release(.degree(degree))
         case .compass(let place): host?.compassLifted(place)
-        case .solo(let cell):    host?.solo.release([cell])
         // A button is tapped as its key goes down.
         case .button:            break
         // Each move starts from the last one's triad, so there is none to

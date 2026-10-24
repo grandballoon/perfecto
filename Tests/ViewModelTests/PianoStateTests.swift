@@ -42,15 +42,15 @@ struct PianoStateTests {
     }
 
     @Test func aNoteSeveralSourcesSoundIsLitByEachInAFixedOrder() {
-        let solo = player(.solo), keys = player(.keys)
-        solo.playChord(.block([67]))
+        let tonnetz = player(.tonnetz), keys = player(.keys)
+        tonnetz.playChord(.block([67]))
         keys.playChord(.block([60, 64, 67]))
-        #expect(piano.lights[67] == [.keys, .solo])
+        #expect(piano.lights[67] == [.keys, .tonnetz])
         #expect(piano.lights[60] == [.keys])
 
         // Each source ends only its own.
         keys.stopChord()
-        #expect(piano.lights == [67: [.solo]])
+        #expect(piano.lights == [67: [.tonnetz]])
     }
 
     @Test func twoLayersOnOneNoteKeepItLitUntilBothHaveEnded() {
