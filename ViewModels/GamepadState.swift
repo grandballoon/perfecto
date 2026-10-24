@@ -3,7 +3,7 @@ import Observation
 
 /// A game controller as a way to play: its buttons are keys, by a map of
 /// their own that is changed and remembered as the computer keyboard's is,
-/// and its left stick is the joystick.
+/// and its left stick plays the step compass's first choices.
 ///
 /// It is one more finger, as the keyboard is: it plays through the same
 /// host by the same calls, so nothing downstream knows of it. `GamepadInput`
@@ -18,8 +18,8 @@ final class GamepadState {
     /// The name of the controller that is connected; nil with none.
     private(set) var controller: String?
 
-    /// The direction the stick is pushed in.
-    private var stick = JoystickDirection.center
+    /// The compass's place the stick is pushed to; nil in the middle.
+    private var stick: CompassPlace?
 
     private let logger: (any Logger)?
 
@@ -53,22 +53,27 @@ final class GamepadState {
     }
 
     /// The left stick is at (`x`, `y`), each from -1 to 1 with right and up
-    /// positive. The joystick is moved only as the stick changes direction,
+    /// positive. The compass is played only as the stick changes place,
     /// so a stick at rest leaves it to whatever else plays it.
     func stickMoved(x: Double, y: Double) {
-        point(GamepadStick.direction(x: x, y: y, from: stick))
+        point(GamepadStick.kind(x: x, y: y, from: stick?.kind).map { CompassPlace($0, 1) })
     }
 
     /// Every button is let go and the stick is at rest: the controller is
     /// no longer the app's.
     func releaseAll() {
         buttons.releaseAll()
-        point(.center)
+        point(nil)
     }
 
-    private func point(_ direction: JoystickDirection) {
-        guard direction != stick else { return }
-        stick = direction
-        host?.joystickMoved(to: direction)
+    /// The stick moved to `place`: it is pressed before the place it left
+    /// is lifted, so a stick turned from one to the next never passes
+    /// through the plain chord.
+    private func point(_ place: CompassPlace?) {
+        guard place != stick else { return }
+        let left = stick
+        stick = place
+        if let place { host?.compassPressed(place) }
+        if let left { host?.compassLifted(left) }
     }
 }

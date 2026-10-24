@@ -98,8 +98,8 @@ The black keys lie over the white ones, so of keys that overlap a finger plays t
 Where a degree is chosen (the sequencer's step editor, the pad editor), only the octave's notes of the key are keys (`ChordKeysView.degreesOnly`).
 The computer keyboard and a game controller play the degrees' keys whatever the layout, and a key lights with any that plays its chord.
 
-**The key strip changes the key, the voicing and the color while playing.**
-It is a row on the play screen, under the loop bar (`KeyStrip`): the key, changed by a swipe along it, the voicing, which is the octave and the inversion as one field, and the color.
+**The key strip changes the key and the voicing while playing.**
+It is a row on the play screen, under the loop bar (`KeyStrip`): the key, changed by a swipe along it, and the voicing, which is the octave and the inversion as one field.
 The key is one field that shows the key the keys are in (`KeyField`), and a swipe changes its root, the Key page's root, within reach: every step of travel to the right is a semitone up and to the left a semitone down (`SwipeSteps`), so one long swipe crosses several, and the twelve notes go round, so B is followed by C.
 So is the sound, from a field beside the note display (`SoundField`), through the sounds in the Sound page's order.
 Both are a `SwipeField`, which is what a setting changed by a swipe is drawn and read by.
@@ -113,35 +113,24 @@ Beside the field is the switch that says whether it keeps what it is set to (`Pe
 While it does, the finger sets the voicing (`PerformanceState.voicing`: the Key page's octave, and the inversion).
 While it does not, the field is played like a whammy bar: the finger holds the chords a `VoicingBend` from the voicing as set (`holdVoicing(at:)`, `heldVoicing`), and they go back when it lifts (`releaseVoicing`).
 A bend is on top of whatever octave and inversion a chord would have, a key zone's own among them, and reaches only the keys: the timeline's notes follow the voicing as set.
-The color is the third field (`KeyColorField`), a pad field of its own: every color the joystick has (`KeyColor`), a column to each direction from the plain chord round from up and a row to each of the joystick's modes (`ColorSpan`), so the extended and chromatic shapes are within reach too.
-It is the color of every chord the keys play while no finger is on the chord colors, which play over it, and the Orchid's chord buttons over both (`PerformanceState.color(for:)`).
-Beside it is a switch of its own (`PerformanceState.keepsColor`, on to start with).
-While it keeps, the finger sets the color (`keyColor`), and every chord is in it until it is set again.
-While it does not, the finger plays its color on the chord being held, or on one struck while it is on the field (`holdKeyColor(at:)`, `playedKeyColor`), and that chord keeps it after the finger lifts until the chord is over or another is struck (`forgetPlayedColor`), so no color is carried from one chord to the next.
-With the effect strip these are the only settings with a place outside the menu, because a change of key, octave, inversion, color or sound is played; Setup can take the strip off the screen (`PerformanceState.showsKeyStrip`).
-On a phone on its side the circle layout has an arrangement of its own (`PerformanceView.ringLandscapeLayout`): the ring has the trailing half to itself under the sound, and the key strip is under the note display at the top of the leading half, over the screen's buttons, the loop bar and the effect strip, high enough that the voicing's pad ends above the chord colors.
+With the effect strip these are the only settings with a place outside the menu, because a change of key, octave, inversion or sound is played; Setup can take the strip off the screen (`PerformanceState.showsKeyStrip`).
+On a phone on its side the circle layout has an arrangement of its own (`PerformanceView.ringLandscapeLayout`): the compass has the leading half to itself, and the note display, the sound and the key strip are over the ring of chord keys in the trailing half.
 A chord being held stays in the key and sound it was struck in, and the next one is in the new ones.
 A change of voicing is the exception: it reaches the chord being held at once (it reaches the mode as a change of color does), tied to the chord sounding (`Articulation.tied`, `ChordContext.isRevoiced`), so only the notes that move are struck; a chord taken up an octave has none in common with itself, and is struck whole.
 A timeline's note follows the inversion chosen unless it has its own (`NotePlaying.inversion`), and a loop keeps the one each chord was played in.
 ChordLink v1 has root position and two inversions, so a chord rolled further is announced as the one of them with the same notes, or released if there is none (`ChordWire.stated`).
 
-**The color ring colors the chords by rule, with neighbours one note apart.**
-It is a third color surface beside the joystick bar and the chord grid (`ColorSurface.ring`); `docs/color-ring.md` has the design.
-A band to each stack of thirds and a sector to each mode of the major scale, darkest to brightest (`ColorRing`, in the music theory core), so touching cells are one step apart (`colorSteps`: a note added, taken away or moved a semitone), and the cells one step from what is playing are lit.
-Setup turns it one of two ways (`ColorRingArrangement`): fixed, or with the held degree's own mode at the top; a cell is a height and a mode, nil for the own mode, so the turn changes nothing that sounds.
-Under it are the tone marks (`ToneMarks`): each tone above the root moved a semitone or left out, as a chord symbol writes it (`ChordColor.marked`, played by `markedStack`, named "9(♯5, ♯9)"), so every color the joystick has is a cell and at most three marks.
-A pin beside the marks says whether they and the cell are kept until changed or reset, so a chord, its color and a mark need no three fingers at once (`keepsRingColor`, on to start with), or played, the cell while a finger is on the ring and a mark while its button is held.
-On a phone on its side with the circle layout it has the leading half to itself, and the note display, the sound, the key and the voicing are over the chord keys.
-
 **The step compass colors the chord held by one step at a time.**
-It is a fourth color surface (`ColorSurface.compass`, `StepCompassSurface`), the one the app starts on; `docs/chord-dependent-coloration.md` has the design.
+It is the play screen's one color surface (`StepCompassSurface`), and `docs/chord-dependent-coloration.md` has the design.
+The joystick bar, the chord grid and the color ring with its tone marks were surfaces beside it, and the key strip had a color field; they are parked on the `color-ring` branch for v0.1.0 (`docs/color-ring.md` has the ring's design), and their colors stay in the music theory core, since saved loops and pads hold them.
 Its places are kinds of step, not chords (`CompassPlace`): up adds a tone, right raises one a semitone, left lowers one, down takes one away, each kind's first choice beside the middle and its second beyond it (`StepCompassGrid`).
 What a place plays is worked out from the chord, in the music theory core (`StepCompass`): every chord one step from it (`colorSteps`), fitted to the key (`ColorFit`: in key, an avoid note, borrowed) and put in order (`ColorStepRanking`, chosen in Setup: theory, the degree's own next tone first; or common, the chords played most first).
 So a place means the same before a chord is struck as after, and can come down with the chord: with none held the places are named by what they do, with one held by the chord each plays.
+A finger slides from place to place: the compass is read as one surface against the frames it is drawn in (`StepCompassGrid.target`), a place moved onto is pressed as a tap there would be, and a gap, a corner or a place with no chord leaves the finger on what it was on.
 A step's chord is its tones above the root (`ChordTones`, `ChordColor.tones`), named as the app names chords and voiced with its tensions on top; a chord that is another over its bass is named so ("C/E").
 `PerformanceState` works the color out when a chord starts (`color(for:)`), so the modes, loops and sinks get the chord as played and know nothing of the compass; ChordLink v1 has no field for it and announces a release.
 Its pin (`keepsCompassColor`, off to start with) says whether a place is played, a step from the plain chord while a finger is on it, or kept: then each tap is a step from the last (`compassWalk`, `StepCompass.walk`), which every degree takes as its own (two adds are G9 on V and Dm9 on ii), until the middle clears it.
-The sequencer's step editor and the pad editor color from the grid while it is on, as they do for the ring.
+The sequencer's step editor and the pad editor color a chord from the chord grid (`ChordGridPad`), since the compass is for playing.
 
 **The effect strip switches the effects while playing.**
 It is a row on the play screen, under the key strip, and on the Tonnetz's screen on a phone (`EffectStrip`): a field for each effect that is on, changed by a swipe (`SwipeField`) through the effects no other field has, from off: Arpeggio 1, Arpeggio 2, the chorus, the reverb, the delay and the vocoder (`EffectChoice`).
@@ -249,19 +238,19 @@ The pads are not a mode: like the Tonnetz they take the phone's screen from the 
 The grid is saved.
 
 **The computer keyboard is one more finger.**
-Its keys are chord keys, the joystick and the solo strip's cells, by a map that is changed key by key in Setup and remembered (`KeyboardMap`: the home row, the arrows and the number row to start with).
+Its keys are chord keys, the compass's places and the solo strip's cells, by a map that is changed key by key in Setup and remembered (`KeyboardMap`: the home row, the arrows for the compass's first choices and the number row to start with).
 A key can also tap one of the screen's buttons (`KeyboardButton`: loop on Return, play and stop on Space, solo on O, MIDI on M, the sequencer on Q, the Tonnetz on Z, and the Tonnetz's net, triad and hold on N, T and K while it is on screen), through `KeyboardHost.tap`, which does what the button does.
 Each of those buttons shows the key that taps it in a small chit while a pointer is over it (`hotkeyTip`, drawn over the whole screen by `showingHotkeyTips`).
 A map saved before an action existed is given that action's standard key when it is read, unless the key is taken or the action was left with no key on purpose (`KeyboardMap.cleared`).
 The Tonnetz's moves are on their own letters (P, L, R) while it is on screen (`TonnetzState.isShown`): a move's triad sounds until the last move's key is up, and the net is drawn again around a move that leads off its edge.
 `KeyboardInput` is the window's first responder and hands each key to `KeyboardState`, which presses and releases through `PerformanceState`'s and `SoloState`'s own calls (`KeyboardHost`), so modes, loops and effects know nothing of it.
-Color keys held together add up (`JoystickDirection.combined`), a key has no place on its chord key and so plays no slide, and every key is let go when the app stops being in front.
+A compass key plays its place while it is held, as a finger on it does (`KeyboardAction.compass`), a key has no place on its chord key and so plays no slide, and every key is let go when the app stops being in front.
 A key that plays nothing is passed on to the system, as is any key pressed with Command, Control or Option.
 
 **A game controller is one more finger, too.**
 Its buttons are keys: `GamepadState` has a `KeyboardState` of its own for them (`buttons`), so they play, tap and are held by the keyboard's rules, by a map of their own that is saved apart from the keyboard's (`KeyboardMap.gamepad`: the chords on A, B, X and Y and the d-pad's up, right and down, loop on R1, solo on L1, play and stop on Menu).
 A button is named by where it is (`GamepadButton`), so a controller of another make plays the same way under other names.
-The left stick is the joystick, in the nearest of its eight directions (`GamepadStick`), which sticks a little at its middle and between two directions; it moves the joystick only as it changes direction, so a stick at rest leaves it to the keyboard or a finger.
+The left stick plays the compass's first choices, the kind of step it is nearest (`GamepadStick`: up adds, right raises, left lowers, down takes away), which sticks a little at its middle and between two kinds; it plays the compass only as it changes place, pressing the new place before it lifts the old, so a stick at rest leaves it to the keyboard or a finger and a stick turned never passes through the plain chord.
 `GamepadInput` hears the controllers (Apple's `GameController`, on the phone and the Mac alike) and tells `GamepadState`, which lets everything go when the controller goes or the app stops being in front.
 Setup shows the buttons' map while a controller is connected (`KeyboardMapEditor`, the keyboard's own editor).
 The triggers and the right stick are read only as buttons, or not at all, for now.
@@ -385,9 +374,9 @@ App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100
 
 - Modes: Play, Strum, Lead, Drone, Repeat, Sequencer; loops (up to 6 layers) are recorded in Play mode and under every mode
 - The octave: a chord layout of a piano's twelve keys, each the root of a chord, with the notes outside the key borrowed from its parallel modes
-- The key strip: the key on the play screen, changed by a swipe, the octave and the inversion as one field, set or played by a finger that moves along it and across it, and the color as another, set for every chord or played on one
+- The key strip: the key on the play screen, changed by a swipe, and the octave and the inversion as one field, set or played by a finger that moves along it and across it
 - The sound field: the keys' sound beside the note display, changed by a swipe
-- The step compass: the colors one step from the chord held (a tone added, raised, lowered or taken away), its places the same before a chord is struck as after
+- The step compass: the one color surface, the colors one step from the chord held (a tone added, raised, lowered or taken away), its places the same before a chord is struck as after, and a finger sliding between them
 - The solo strip: runs over the chord from the notes that fit it
 - The Tonnetz: triads from the net of notes and the moves between them, its notes played by themselves, and loops of both
 - The pads: a grid of 4 to 8 rows and columns, each pad a chord in a sound of its own, played together or in sequence
@@ -396,7 +385,7 @@ App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100
 - The Dissonance Lab: two notes through a sound of partials, with the beating and the harmonic fit that make them smooth or rough measured, drawn, exaggerated and faded back by five levels
 - The piano: 88 keys along the bottom of the screen, lit with the notes each part of the app is sounding
 - A MIDI controller at the desk: the Alesis V61 drawn and lit with what it sends, its controls taught what they send by learning, and played as an Orchid: every key a root in its own octave, chord type and extension buttons, the voicing and an arpeggio on whichever knobs or wheels are chosen, and key mode
-- The computer keyboard and a game controller: each plays the chord keys, the joystick and the screen's buttons by a map that Setup changes
+- The computer keyboard and a game controller: each plays the chord keys, the compass and the screen's buttons by a map that Setup changes
 - Effects: two arpeggios (up and down), chorus, reverb, delay, vocoder; each is switched from the effect strip on the play screen or from a zone of the chord keys, and the arpeggio's cycle and the vocoder's amount can be played by sliding on a key, as can a chord's inversion
 - The effect strip: a field for each effect that is on, on the play screen, each changed by a swipe
 - Drum module deferred

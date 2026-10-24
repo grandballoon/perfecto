@@ -21,35 +21,17 @@ extension SpecScreen {
         SpecScreen(name: "play-grid") { $0.chordGridLayout = .grid },
         SpecScreen(name: "play-bar") { $0.chordGridLayout = .horizontalBar },
         SpecScreen(name: "play-octave") { $0.chordGridLayout = .octave },
-        SpecScreen(name: "play-color-grid") { $0.colorSurface = .grid },
-        SpecScreen(name: "play-ring-fixed") { state in
-            state.colorSurface = .ring
-            state.ringChose(ColorRingPosition(height: .ninth, mode: .mixolydian))
-            state.toggleToneMove(.ninth, by: 1)
-            state.press(.degree(.V))
-        },
-        SpecScreen(name: "play-ring-home") { state in
-            state.colorSurface = .ring
-            state.ringArrangement = .home
-            state.press(.degree(.ii))
-        },
-        SpecScreen(name: "play-compass") { $0.colorSurface = .compass },
         SpecScreen(name: "play-compass-held") { state in
-            state.colorSurface = .compass
             state.compassPressed(CompassPlace(.add, 1))
             state.press(.degree(.V))
         },
         SpecScreen(name: "play-compass-kept") { state in
-            state.colorSurface = .compass
             state.keepsCompassColor = true
             state.compassPressed(CompassPlace(.add, 1))
             state.compassPressed(CompassPlace(.raise, 1))
             state.press(.degree(.ii))
         },
-        SpecScreen(name: "play-chord-held") {
-            $0.joystickMoved(to: .right)
-            $0.press(.degree(.V))
-        },
+        SpecScreen(name: "play-chord-held") { $0.press(.degree(.V)) },
         SpecScreen(name: "play-key-zones") {
             $0.effects.zones.count = 3
             $0.effects.zones.isOn = true
@@ -195,7 +177,7 @@ extension SpecScreen {
         if state.chordGridLayout == .circle { state.chordGridLayout = .grid }
         state.solo.placement = placement
         state.solo.isOn = true
-        state.joystickMoved(to: .right)
+        state.compassPressed(CompassPlace(.add, 1))
         state.press(.degree(.I))
         state.solo.press(cell: 7)
     }

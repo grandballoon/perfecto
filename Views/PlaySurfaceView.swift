@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Play mode's input surface beside the chord keys: the chord colors, in
-/// one of two shapes (`SurfaceShape`) that the screen is laid out by. The
-/// solo strip takes their place, as a bar, while it is on and placed there
-/// (`SoloPlacement.colors`).
+/// Play mode's input surface beside the chord keys: the step compass, or
+/// the solo strip in its place, as a bar, while it is on and placed there
+/// (`SoloPlacement.colors`). The screen is laid out by their shapes
+/// (`SurfaceShape`).
 struct PlaySurfaceView: View {
 
-    /// Which way a bar runs. A grid ignores it.
+    /// Which way a bar runs. The compass ignores it.
     var barAxis: Axis = .horizontal
 
     @Environment(PerformanceState.self) private var state
@@ -15,7 +15,7 @@ struct PlaySurfaceView: View {
         if state.solo.takesColorsPlace {
             SoloStripView(axis: barAxis)
         } else {
-            ColorSurfaceView(barAxis: barAxis)
+            StepCompassSurface()
         }
     }
 }
@@ -24,14 +24,11 @@ extension SurfaceShape {
     /// A bar's short side, whichever way it runs.
     static let barThickness: CGFloat = 88
 
-    /// Portrait height: a bar is one strip; a grid has room for the chord
-    /// grid's row per mode; the ring has its marks under it; the compass
-    /// is five rows of places.
+    /// Portrait height: a bar is one strip; the compass is five rows of
+    /// places.
     var portraitHeight: CGFloat {
         switch self {
-        case .bar:  return Self.barThickness
-        case .grid: return 196
-        case .ring: return 330
+        case .bar:     return Self.barThickness
         case .compass: return 250
         }
     }

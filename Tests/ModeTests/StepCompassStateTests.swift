@@ -11,7 +11,6 @@ struct StepCompassStateTests {
     private func makeCompassState() -> (PerformanceState, RecordingSink) {
         let sink = RecordingSink()
         let state = PerformanceState(sink: sink, clock: ManualClock())
-        state.colorSurface = .compass
         return (state, sink)
     }
 
@@ -88,14 +87,14 @@ struct StepCompassStateTests {
         #expect(state.compassOrigin(for: .V) == ChordTones([0, 4, 7, 10]))
     }
 
-    @Test func switchingKeepOrSurfaceClearsTheCompass() {
+    @Test func switchingKeepOrMovingTheSoloStripClearsTheCompass() {
         let (state, _) = makeCompassState()
         state.compassPressed(CompassPlace(.add, 1))
         state.keepsCompassColor = true
         #expect(state.compassPlaces.isEmpty)
         state.compassPressed(CompassPlace(.add, 1))
-        state.colorSurface = .ring
-        state.colorSurface = .compass
+        state.solo.placement = .colors
+        state.solo.isOn = true
         #expect(state.compassPlaces.isEmpty)
     }
 

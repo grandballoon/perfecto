@@ -53,70 +53,10 @@ extension ChordGridLayout {
     }
 }
 
-/// Which input surface colors the chords. They ship side by side for
-/// on-device comparison; only one is on screen at a time.
-enum ColorSurface: CaseIterable {
-    case joystick
-    case grid
-    /// The color ring and the tone marks under it (`ColorRingSurface`).
-    case ring
-    /// The step compass: the colors one step from the chord held, by kind
-    /// of step (`StepCompassSurface`).
-    case compass
-
-    var displayName: String {
-        switch self {
-        case .joystick: return "Joystick"
-        case .grid:     return "Grid"
-        case .ring:     return "Ring"
-        case .compass:  return "Compass"
-        }
-    }
-
-    /// Whether the key strip's color field is beside it. The ring and the
-    /// compass are the colors, so they have none.
-    var showsColorField: Bool { self == .joystick || self == .grid }
-
-    /// Whether, on a phone on its side with the circle layout, it has the
-    /// leading half to itself (`PerformanceView.ringLandscapeLayout`).
-    var takesLeadingHalf: Bool { self == .ring || self == .compass }
-}
-
-extension ColorSurface {
-    /// The shape the surface takes on the play screen.
-    var shape: SurfaceShape {
-        switch self {
-        case .joystick: return .bar
-        case .grid:     return .grid
-        case .ring:     return .ring
-        case .compass:  return .compass
-        }
-    }
-}
-
-/// A tone mark's button (`ToneMarksRow`): a tone moved a semitone up (+1)
-/// or down (-1), or its leaving out turned round.
-enum ToneMarkButton: Hashable {
-    case move(ChordTone, by: Int)
-    case skip(ChordTone)
-}
-
-extension ColorRingArrangement {
-    var displayName: String {
-        switch self {
-        case .fixed: return "Fixed"
-        case .home:  return "Home"
-        }
-    }
-}
-
-/// The shapes the play screen's input surface comes in: a strip, a taller
-/// pad, or the ring with its marks. They are the chord colors' shapes (the
-/// joystick bar, the chord grid and the color ring).
+/// The shapes the play screen's input surface comes in: the step compass,
+/// or a strip (the solo strip in the colors' place).
 enum SurfaceShape {
     case bar
-    case grid
-    case ring
     case compass
 }
 
@@ -241,37 +181,6 @@ final class PerformanceState {
     /// that as its finger holds it.
     var heldVoicing: KeyVoicing { voicing.bent(by: voicingBend) }
 
-    /// The color the color field gives every chord the keys play, as set
-    /// (`KeyColor`), while no finger is on the chord colors. A change
-    /// reaches the chord being held at once.
-    var keyColor = KeyColor.base {
-        didSet {
-            guard keyColor != oldValue else { return }
-            logger?.log(.key_color_changed(color: keyColor.logName))
-            mode.onColorChange(state: self)
-        }
-    }
-    /// Whether the color field keeps what it is set to (`KeyColorField`).
-    /// While it does not, the field is played: the chord being held, or
-    /// struck while its finger is on it, takes the color the finger is at,
-    /// and only that chord does.
-    var keepsColor = true {
-        didSet {
-            guard keepsColor != oldValue else { return }
-            logger?.log(.color_keep_switched(isOn: keepsColor))
-            playColor(nil)
-        }
-    }
-    /// The color the color field's finger played on the chord being held,
-    /// while the field does not keep it: nil once that chord is over or
-    /// another is struck, if the finger has lifted by then.
-    private(set) var playedKeyColor: KeyColor?
-    /// Whether a finger is on the color field.
-    private var isColorFieldHeld = false
-    /// The color as the color field has it: the one played, or else the
-    /// one set.
-    var heldKeyColor: KeyColor { playedKeyColor ?? keyColor }
-
     /// The octave a chord of the key the keys are in is built in now: the
     /// one its key was struck in if it has one (`press(_:inOctave:)`), or
     /// else the key zone's under the finger if it has one of its own, or
@@ -292,7 +201,6 @@ final class PerformanceState {
     var playedInversion: Inversion {
         (effects.heldZone?.inversion ?? inversion).rolled(by: effects.slideRoll + voicingBend.steps)
     }
-    var joystickMode: JoystickMode = .default
     private(set) var synthPreset: SynthPreset = .initial
     /// Always within `MusicalTime.tempoRange`; change it with `setBPM`.
     private(set) var bpm = MusicalTime.defaultTempo
@@ -332,68 +240,13 @@ final class PerformanceState {
     private(set) var mode: any PerformanceMode = PlayMode()
     /// The shape of whatever the play surface is showing. The solo strip
     /// in the colors' place is a bar.
-    var surfaceShape: SurfaceShape { solo.takesColorsPlace ? .bar : colorSurface.shape }
-    /// The chord-color surface on screen. Switching resets both surfaces to neutral.
-    var colorSurface: ColorSurface = .joystick {
-        didSet {
-            guard colorSurface != oldValue else { return }
-            clearColor()
-        }
-    }
+    var surfaceShape: SurfaceShape { solo.takesColorsPlace ? .bar : .compass }
 
-    /// Leaves every color surface neutral.
+    /// Leaves the compass neutral.
     private func clearColor() {
-        joystickDirection = .center
-        gridPosition = nil
-        ringPosition = nil
-        toneMarks = .none
-        playedRingPosition = nil
-        heldMarks = .none
         heldPlace = nil
         compassWalk = []
     }
-    private(set) var joystickDirection: JoystickDirection = .center
-    /// Where a finger is on the chord grid; nil when none is.
-    private(set) var gridPosition: GridPosition? = nil
-
-    /// How the color ring is turned (`ColorRingArrangement`). The same
-    /// colors either way, so switching changes nothing that sounds.
-    var ringArrangement = ColorRingArrangement.fixed {
-        didSet {
-            guard ringArrangement != oldValue else { return }
-            logger?.log(.ring_arrangement_switched(arrangement: ringArrangement.displayName))
-        }
-    }
-    /// Whether the color ring keeps what it is set to. While it does, a
-    /// cell tapped and the marks stay until changed or reset, and every
-    /// chord is in their color. While it does not, they are played: the
-    /// cell only while a finger is on the ring, a mark only while its
-    /// button is held, and lifting goes back to the plain chord.
-    var keepsRingColor = true {
-        didSet {
-            guard keepsRingColor != oldValue else { return }
-            logger?.log(.ring_keep_switched(isOn: keepsRingColor))
-            playedRingPosition = nil
-            heldMarks = .none
-            ringColorChanged()
-        }
-    }
-    /// The color ring's cell, chosen by a tap and kept until another is
-    /// chosen or the color is reset: nil is the degree's own triad.
-    private(set) var ringPosition: ColorRingPosition? = nil
-    /// The marks on the ring's color's tones, kept as the cell is.
-    private(set) var toneMarks = ToneMarks.none
-    /// The cell a finger is on while the ring does not keep its color.
-    private(set) var playedRingPosition: ColorRingPosition? = nil
-    /// The marks whose buttons are held while the ring does not keep.
-    private(set) var heldMarks = ToneMarks.none
-    /// The ring's cell as it plays: the one kept, or the one a finger is
-    /// on, and the own triad with neither.
-    var ringCell: ColorRingPosition {
-        (keepsRingColor ? ringPosition : playedRingPosition) ?? ColorRingPosition(height: .triad, mode: nil)
-    }
-    /// The marks as they play: the ones kept, or the ones held.
-    var ringMarks: ToneMarks { keepsRingColor ? toneMarks : heldMarks }
 
     /// The order the step compass's choices are in (`ColorStepRanking`).
     var compassRanking = ColorStepRanking.theory {
@@ -435,32 +288,14 @@ final class PerformanceState {
     private(set) var chordButtons: ChordBuild?
 
     /// The live chord color for `degree`: the chord buttons' while they
-    /// build a chord, or else from the surface on screen while a finger is
-    /// on it, or else the color field's (`heldKeyColor`). A grid position
-    /// means a different mode for each degree, so the color is resolved
-    /// against the degree that plays, in `key` (the key being played,
-    /// unless another is given). With no finger on the grid and none of
-    /// the color field's, the diatonic triad plays, as the joystick's
-    /// centre does.
+    /// build a chord, or else the compass's places, each a step resolved
+    /// against the degree that plays in `key` (the key being played,
+    /// unless another is given). With no place, the diatonic triad plays.
     func color(for degree: Degree, in key: Key? = nil) -> ChordColor {
         if let chordButtons { return .built(chordButtons) }
-        let field = heldKeyColor
-        switch colorSurface {
-        case .joystick:
-            guard joystickDirection == .center, !field.isBase else {
-                return .joystick(joystickMode, joystickDirection)
-            }
-            return field.color
-        case .grid:
-            if let gridPosition { return ChordGrid.color(at: gridPosition, key: key ?? playedKey, degree: degree) }
-            return field.isBase ? .grid(.triad, nil) : field.color
-        case .ring:
-            return ColorRing.color(at: ringCell, marks: ringMarks, key: key ?? playedKey, degree: degree)
-        case .compass:
-            let places = compassPlaces
-            guard !places.isEmpty else { return .base }
-            return .tones(StepCompass.walk(places, key: key ?? playedKey, degree: degree, ranking: compassRanking))
-        }
+        let places = compassPlaces
+        guard !places.isEmpty else { return .base }
+        return .tones(StepCompass.walk(places, key: key ?? playedKey, degree: degree, ranking: compassRanking))
     }
     private(set) var activeDegree: Degree? = nil
     /// The chord keys that are down, oldest first; the last is the active press.
@@ -500,7 +335,7 @@ final class PerformanceState {
     /// The Dissonance Lab: two notes, and what makes them smooth or rough
     /// made plain.
     let lab: DissonanceLabState
-    /// The computer keyboard, as a way to play the keys, the joystick and
+    /// The computer keyboard, as a way to play the keys, the compass and
     /// the solo strip.
     let keyboard: KeyboardState
     /// A game controller, as one more way to play them.
@@ -743,7 +578,6 @@ final class PerformanceState {
         logger?.log(.mode_changed(from: mode.name, to: newMode.name))
         heldKeys = []
         heldOctaves = []
-        forgetPlayedColor()
         mode.deactivate(state: self)
         followSlide()
         clock.stop()
@@ -822,7 +656,6 @@ final class PerformanceState {
         heldOctaves.append(octave)
         struckOctave = octave
         followSlide()
-        forgetPlayedColor()
         mode.onButtonDown(key: key, state: self)
     }
 
@@ -852,9 +685,6 @@ final class PerformanceState {
         // finger was holding on (a key zone) must not switch off under a
         // chord that is about to stop, which would sound it once more.
         if activeLifted, heldKeys.isEmpty { mode.onButtonUp(key: active, state: self) }
-        // The color the field played was the lifted chord's alone, so the
-        // chord handed back is in the color as set.
-        if activeLifted { forgetPlayedColor() }
         followSlide()
         // Two presses of the same key in the same octave: it is still held,
         // nothing changes.
@@ -912,102 +742,12 @@ final class PerformanceState {
         key.degree(in: self.key)
     }
 
-    // MARK: – Color surfaces (delegate to mode)
-
-    func joystickMoved(to direction: JoystickDirection) {
-        guard direction != joystickDirection else { return }
-        joystickDirection = direction
-        mode.onColorChange(state: self)
-    }
+    // MARK: – Chord colors (delegate to mode)
 
     /// The Orchid's chord buttons build `build` now (nil: nothing).
     func chordButtonsMoved(to build: ChordBuild?) {
         guard build != chordButtons else { return }
         chordButtons = build
-        mode.onColorChange(state: self)
-    }
-
-    /// The color ring's cell `position` was chosen. If the ring keeps its
-    /// color it is kept, so the chords played after it are in its color
-    /// too; if not, it plays until the finger lifts (`ringLifted`).
-    func ringChose(_ position: ColorRingPosition) {
-        if keepsRingColor {
-            guard position != ringPosition else { return }
-            ringPosition = position
-        } else {
-            guard position != playedRingPosition else { return }
-            playedRingPosition = position
-        }
-        ringColorChanged()
-    }
-
-    /// The finger on the color ring lifted. A cell it played is over; one
-    /// kept stays.
-    func ringLifted() {
-        guard !keepsRingColor, playedRingPosition != nil else { return }
-        playedRingPosition = nil
-        ringColorChanged()
-    }
-
-    /// A tone mark's button came down. If the ring keeps its color, the
-    /// mark is turned on, or off if it was on; if not, it is on while the
-    /// button is held (`releaseToneMark`).
-    func pressToneMark(_ button: ToneMarkButton) {
-        guard !keepsRingColor else {
-            switch button {
-            case let .move(tone, offset): toggleToneMove(tone, by: offset)
-            case let .skip(tone):         toggleToneSkip(tone)
-            }
-            return
-        }
-        switch button {
-        case let .move(tone, offset): heldMarks.setMove(tone, to: offset)
-        case let .skip(tone):         heldMarks.setSkip(tone, true)
-        }
-        ringColorChanged()
-    }
-
-    /// A tone mark's button lifted: a mark that was only held is off.
-    func releaseToneMark(_ button: ToneMarkButton) {
-        guard !keepsRingColor else { return }
-        switch button {
-        case let .move(tone, offset):
-            guard heldMarks.move(of: tone) == offset else { return }
-            heldMarks.setMove(tone, to: 0)
-        case let .skip(tone):
-            guard heldMarks.skips(tone) else { return }
-            heldMarks.setSkip(tone, false)
-        }
-        ringColorChanged()
-    }
-
-    /// A kept mark: `tone` moved by `offset` (+1 or -1), or the same move
-    /// again taken off.
-    func toggleToneMove(_ tone: ChordTone, by offset: Int) {
-        toneMarks.toggleMove(tone, by: offset)
-        ringColorChanged()
-    }
-
-    /// A kept mark: whether `tone` is left out turned round.
-    func toggleToneSkip(_ tone: ChordTone) {
-        toneMarks.toggleSkip(tone)
-        ringColorChanged()
-    }
-
-    /// Back to the plain chord: the own triad, with no marks.
-    func resetRingColor() {
-        guard ringPosition != nil || !toneMarks.isEmpty else { return }
-        ringPosition = nil
-        toneMarks = .none
-        ringColorChanged()
-    }
-
-    private func ringColorChanged() {
-        let degree = activeDegree ?? .I
-        let stackMode = ColorRing.mode(of: ringCell, key: playedKey, degree: degree)
-        logger?.log(.ring_color_changed(arrangement: ringArrangement.displayName,
-                                        color: "\(stackMode.displayName) "
-                                            + markedChordName(stackMode, height: ringCell.height, marks: ringMarks)))
         mode.onColorChange(state: self)
     }
 
@@ -1056,13 +796,6 @@ final class PerformanceState {
         mode.onColorChange(state: self)
     }
 
-    /// A finger moved on the chord grid (nil: lifted).
-    func gridMoved(to position: GridPosition?) {
-        guard position != gridPosition else { return }
-        gridPosition = position
-        mode.onColorChange(state: self)
-    }
-
     // MARK: – Mode-facing API
 
     func startChord(_ key: ChordKey) {
@@ -1107,51 +840,6 @@ final class PerformanceState {
         voicingBend = bend
         logger?.log(.voicing_bent(octaves: bend.octaves, steps: bend.steps))
         mode.onColorChange(state: self)
-    }
-
-    // MARK: – The color field
-
-    /// A finger came down on the color field. While it is there, a chord
-    /// struck takes the color it is at, whether the field keeps it or not.
-    func grabKeyColor() {
-        isColorFieldHeld = true
-    }
-
-    /// The color field's finger is at `color`. It is set, if the field
-    /// keeps what it is set to; if not it is played on the chord being
-    /// held, and the color as set is left as it was. Either way the chord
-    /// being held takes it up.
-    func holdKeyColor(at color: KeyColor) {
-        if keepsColor {
-            keyColor = color
-        } else {
-            playColor(color)
-        }
-    }
-
-    /// The color field's finger has lifted. A color it played stays on the
-    /// chord being held until that chord is over; with none held, it is
-    /// over now.
-    func releaseKeyColor() {
-        isColorFieldHeld = false
-        if heldKeys.isEmpty { forgetPlayedColor() }
-    }
-
-    private func playColor(_ color: KeyColor?) {
-        guard color != playedKeyColor else { return }
-        playedKeyColor = color
-        logger?.log(.key_color_played(color: color?.logName))
-        mode.onColorChange(state: self)
-    }
-
-    /// The chord the color field played its color on is over, or another
-    /// is struck: the next chord is in the color as set, unless the
-    /// field's finger is still on it. What is sounding is not struck
-    /// again, so a chord that rings on (a drone) keeps the color it had.
-    private func forgetPlayedColor() {
-        guard playedKeyColor != nil, !isColorFieldHeld else { return }
-        playedKeyColor = nil
-        logger?.log(.key_color_played(color: nil))
     }
 
     /// Stop the sounding chord on *every* sink — audio note-off, MIDI note-off,

@@ -5,8 +5,8 @@ import SwiftUI
 /// of the live performance. The octave's keys choose the degree each is the
 /// root of, so there only the notes of the key are keys.
 ///
-/// Used by the Sequencer step editor to pick a step's scale degree. Like
-/// `ChordColorBar`, it owns no persistent state: the caller decides what
+/// Used by the Sequencer step editor to pick a step's scale degree. It owns
+/// no persistent state: the caller decides what
 /// "selected" means and records undo. A drag slides the highlight between
 /// degrees (a plain tap is included, since `minimumDistance` is 0). There is
 /// nothing to play between the keys here, so a finger chooses the key it is

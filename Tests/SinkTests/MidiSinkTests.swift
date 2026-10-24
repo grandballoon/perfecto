@@ -93,7 +93,7 @@ struct MidiSinkTests {
         let state = PerformanceState(sink: NotePlayer([MidiSink(backend: backend)], clock: clock), clock: clock)
         state.key = Key(root: .B, scale: .major)
         state.octave = 7
-        state.joystickMoved(to: .downRight)
+        state.compassPressed(CompassPlace(.add, 1))
         state.press(.degree(.viiDim))
 
         #expect(backend.noteOnCalls.count == 4)

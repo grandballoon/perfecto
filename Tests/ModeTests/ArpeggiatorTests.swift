@@ -70,7 +70,7 @@ struct ArpeggiatorTests {
     /// cycle: the notes come faster, and the pattern comes round on the beat.
     @Test func aChordWithMoreNotesTakesTheSameTime() {
         let (state, sink, clock) = makeState()
-        state.joystickMoved(to: .right)             // I becomes Cmaj7: 60 64 67 71
+        state.compassPressed(CompassPlace(.add, 1))     // I becomes Cmaj7: 60 64 67 71
         state.press(.degree(.I))
 
         clock.advance(beats: 1 - Self.moment)
@@ -87,7 +87,7 @@ struct ArpeggiatorTests {
         clock.advance(beats: 2)
         sink.reset()
 
-        state.joystickMoved(to: .right)             // starts again as Cmaj7
+        state.compassPressed(CompassPlace(.add, 1))     // starts again as Cmaj7
         clock.advance(beats: 1 - Self.moment)
         #expect(notes(sink) == [[60], [64], [67], [71]])
         clock.advance(beats: Self.moment)

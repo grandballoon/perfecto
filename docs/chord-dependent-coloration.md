@@ -486,6 +486,15 @@ Try **E** next as a Setup choice for the slide, since it needs no surface at all
   Should a played gesture over a kept color step from the kept color too, so a kept seventh and a played "+" make a ninth?
 - **Seventh chords as the base.**
   If the key strip or a key zone makes every chord a seventh, the compass's neighbours are a seventh's (8 adds, 3 removals): the ranking of adds over a seventh chord needs its own look.
+- **The 6th chords.**
+  Of the nine tones a triad can add, the compass shows two; in C major in theory order, 8 of the 49 it hides are in key with no avoid note (C6, Dm6, Dm(add11), F6, F(add♯11), G6, Am(add11), B°(add11)).
+  The 6th chords carry whole styles (swing, bossa nova, much pop) and are three taps away with the pin.
+  A third add choice, perhaps on a diagonal, would reach six of the eight.
+- **Several places held.**
+  Played, the compass holds one place, the latest; a second finger, a second key or the stick turned replaces the first.
+  Held places could instead add up as a walk in the order they came down, with lifting handing back to the place beneath, as the chord keys do.
+  Of two places held, 4% of the chords made clash and 42% are borrowed; of three, 6% and 47%.
+  The cost is that the order matters: the same two places can make two chords.
 - **Loops and ChordLink.**
   Both should hear the resolved `ChordColor`, not the place, so a loop keeps the chord as played and the sinks know nothing of compasses.
   That falls out of resolving in `color(for:)`, but `.marked` colors are announced over ChordLink as grid colors are, which should be checked for the colors the compass reaches.

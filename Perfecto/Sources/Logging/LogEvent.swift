@@ -64,21 +64,6 @@ enum LogEvent {
     /// The voicing field's finger holds the chords this far from the
     /// voicing as set (octaves up, steps rolled); 0 and 0 once it lifts.
     case voicing_bent(octaves: Int, steps: Int)
-    /// The color the color field gives every chord was set.
-    case key_color_changed(color: String)
-    /// Whether the color field keeps what it is set to was switched.
-    case color_keep_switched(isOn: Bool)
-    /// The color field's finger played `color` on the chord being held;
-    /// nil once that chord's color is over.
-    case key_color_played(color: String?)
-    /// The color ring's color was chosen, by a cell or a tone mark: the
-    /// arrangement the ring was in and the color, e.g. "fixed",
-    /// "Mixolydian 9(♯5, ♯9)".
-    case ring_color_changed(arrangement: String, color: String)
-    /// The color ring's arrangement was switched.
-    case ring_arrangement_switched(arrangement: String)
-    /// Whether the color ring keeps what it is set to was switched.
-    case ring_keep_switched(isOn: Bool)
     /// The step compass's color changed: the places it is made by (e.g.
     /// "add1", "raise2") and the chord it gives the active degree, "G 7".
     case compass_color_changed(places: [String], color: String)
@@ -342,25 +327,6 @@ extension LogEvent: Encodable {
             try c.encode("voicing_bent", forKey: Key("type"))
             try c.encode(octaves, forKey: Key("octaves"))
             try c.encode(steps, forKey: Key("steps"))
-        case let .key_color_changed(color):
-            try c.encode("key_color_changed", forKey: Key("type"))
-            try c.encode(color, forKey: Key("color"))
-        case let .color_keep_switched(isOn):
-            try c.encode("color_keep_switched", forKey: Key("type"))
-            try c.encode(isOn, forKey: Key("isOn"))
-        case let .key_color_played(color):
-            try c.encode("key_color_played", forKey: Key("type"))
-            try c.encodeIfPresent(color, forKey: Key("color"))
-        case let .ring_color_changed(arrangement, color):
-            try c.encode("ring_color_changed", forKey: Key("type"))
-            try c.encode(arrangement, forKey: Key("arrangement"))
-            try c.encode(color, forKey: Key("color"))
-        case let .ring_arrangement_switched(arrangement):
-            try c.encode("ring_arrangement_switched", forKey: Key("type"))
-            try c.encode(arrangement, forKey: Key("arrangement"))
-        case let .ring_keep_switched(isOn):
-            try c.encode("ring_keep_switched", forKey: Key("type"))
-            try c.encode(isOn, forKey: Key("isOn"))
         case let .compass_color_changed(places, color):
             try c.encode("compass_color_changed", forKey: Key("type"))
             try c.encode(places, forKey: Key("places"))

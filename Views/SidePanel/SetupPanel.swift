@@ -28,37 +28,15 @@ struct SetupPanel: View {
                 }
             }
 
-            choiceSection("CHORD COLOR",
-                          detail: "How a second finger colors the chord: the joystick strip; the grid of stacked thirds (columns) through brighter and darker modes (rows); the ring of the same colors, where touching colors are one note apart, with marks under it that move a tone of the chord a semitone or leave it out; or the compass, the colors one note from the chord held: up adds a tone, right raises one, left lowers one, down takes one away.") {
-                Picker("Surface", selection: $state.colorSurface) {
-                    ForEach(ColorSurface.allCases, id: \.self) { surface in
-                        Text(surface.displayName).tag(surface)
+            choiceSection("COMPASS ORDER",
+                          detail: "Which two of each kind of step the compass offers, near and far: up adds a tone, right raises one, left lowers one, down takes one away. Theory: in the key first, then the chord's own next tone (its 7th, then its 9th). Common: the chords played most first (7, maj7, min7, sus4, add9, 6), in the key or not.") {
+                Picker("Order", selection: $state.compassRanking) {
+                    ForEach(ColorStepRanking.allCases, id: \.self) { ranking in
+                        Text(ranking.displayName).tag(ranking)
                     }
                 }
             }
-
-            if state.colorSurface == .ring {
-                choiceSection("COLOR RING",
-                              detail: "How the ring is turned. Fixed: a place on the ring is always the same chord shape. Home: the ring turns so the held chord's own scale is at the top. The colors are the same either way.") {
-                    Picker("Ring", selection: $state.ringArrangement) {
-                        ForEach(ColorRingArrangement.allCases, id: \.self) { arrangement in
-                            Text(arrangement.displayName).tag(arrangement)
-                        }
-                    }
-                }
-            }
-
-            if state.colorSurface == .compass {
-                choiceSection("COMPASS ORDER",
-                              detail: "Which two of each kind of step the compass offers, near and far. Theory: in the key first, then the chord's own next tone (its 7th, then its 9th). Common: the chords played most first (7, maj7, min7, sus4, add9, 6), in the key or not.") {
-                    Picker("Order", selection: $state.compassRanking) {
-                        ForEach(ColorStepRanking.allCases, id: \.self) { ranking in
-                            Text(ranking.displayName).tag(ranking)
-                        }
-                    }
-                }
-                compassNamesSection
-            }
+            compassNamesSection
 
             choiceSection("SEQUENCER BARS",
                           detail: "How the sequencer shows its bars: one at a time behind numbered tabs, or all of them in one scrolling column (there, one finger selects and two fingers scroll).") {

@@ -34,7 +34,7 @@ struct SoloStateTests {
 
     @Test func theStripFollowsTheChordsColor() {
         let (state, _, _) = makeState()
-        state.joystickMoved(to: .up)   // Flip 3rd: C minor
+        state.compassPressed(CompassPlace(.lower, 1))   // 3→♭3: C minor
         state.press(.degree(.I))
         #expect(pitches(state, 5) == [60, 63, 65, 67, 69])
     }
@@ -156,20 +156,19 @@ struct SoloStateTests {
 
     @Test func theStripInTheColorsPlaceIsABarAndLeavesTheColorNeutral() {
         let (state, _, _) = makeState()
-        state.colorSurface = .grid
-        state.gridMoved(to: GridPosition(height: .seventh, row: 0))
+        state.compassPressed(CompassPlace(.add, 1))
         state.solo.placement = .colors
-        #expect(state.surfaceShape == .grid)
+        #expect(state.surfaceShape == .compass)
 
         state.solo.isOn = true
 
         #expect(state.solo.takesColorsPlace && state.solo.placementByKeys == nil)
         #expect(state.surfaceShape == .bar)
-        #expect(state.gridPosition == nil)
+        #expect(state.compassPlaces.isEmpty)
 
         state.solo.placement = .underKeys
         #expect(state.solo.placementByKeys == .underKeys)
-        #expect(state.surfaceShape == .grid)
+        #expect(state.surfaceShape == .compass)
     }
 
     @Test func theKeysGiveUpNoMoreThanTheStripMayTake() {

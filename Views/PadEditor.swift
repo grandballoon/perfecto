@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The editor of the pad chosen (`PadsState.selected`): the chord keys and
-/// the chord colors, as Play mode shows them, set its chord, and the row
+/// The editor of the pad chosen (`PadsState.selected`): the chord keys, as
+/// Play mode shows them, and the chord grid set its chord, and the row
 /// above them gives it what is chosen for the keys now. A pad's key, octave
 /// and effects are changed as a sequencer note's are: by choosing them for
 /// the keys and giving them to the pad. Its sound is chosen from every
@@ -16,12 +16,12 @@ struct PadEditor: View {
     @Environment(PerformanceState.self) private var state
     @Environment(SidePanelState.self) private var sidePanel
 
-    /// The color-bar section under the finger, lit only while it is there.
-    @State private var colorTransient: JoystickDirection = .center
-    /// The chord grid's equivalent.
+    /// The chord grid's cell under the finger, lit only while it is there.
     @State private var gridTransient: GridPosition? = nil
 
     private static let keysHeight: CGFloat = 150
+    /// The chord grid has a row per mode.
+    private static let gridHeight: CGFloat = 196
 
     private var sound: PadSound? {
         state.pads.selected.flatMap { state.pads.grid[$0] }
@@ -33,9 +33,8 @@ struct PadEditor: View {
             // Both give up height where there is little (a phone on its side).
             degreeSelector
                 .frame(minHeight: 80, maxHeight: Self.keysHeight)
-            colorSurface
-                .frame(maxHeight: state.colorSurface == .joystick
-                       ? SurfaceShape.bar.portraitHeight : SurfaceShape.grid.portraitHeight)
+            colorGrid
+                .frame(maxHeight: Self.gridHeight)
         }
     }
 
@@ -139,53 +138,31 @@ struct PadEditor: View {
         )
     }
 
-    /// The color a finger is holding on the color surface now, if one is.
+    /// The color a finger is holding on the chord grid now, if one is.
     private func heldColor(for degree: Degree, in key: Key) -> ChordColor? {
-        if colorTransient != .center { return .joystick(state.joystickMode, colorTransient) }
-        return gridTransient.map { ChordGrid.color(at: $0, key: key, degree: degree) }
+        gridTransient.map { ChordGrid.color(at: $0, key: key, degree: degree) }
     }
 
-    /// Whichever surface colors the chords, here coloring the pad's.
-    @ViewBuilder
-    private var colorSurface: some View {
+    /// The chord grid, here coloring the pad's chord (the compass is for
+    /// playing).
+    private var colorGrid: some View {
         let pads = state.pads
-        switch state.colorSurface {
-        case .joystick:
-            ChordColorBar(
-                axis: .horizontal,
-                mode: state.joystickMode,
-                selected: colorTransient,
-                onChange: { direction in
-                    colorTransient = direction
-                    let mode = state.joystickMode
-                    pads.edit { $0.chord = ChordSpec(degree: $0.chord.degree, color: .joystick(mode, direction)) }
-                    pads.audition()
-                },
-                onEnd: {
-                    colorTransient = .center
-                    pads.endAudition()
+        return ChordGridPad(
+            key: sound?.key ?? state.key,
+            degree: sound?.chord.degree ?? .I,
+            selected: gridTransient,
+            onChange: { position in
+                gridTransient = position
+                pads.edit {
+                    $0.chord = ChordSpec(degree: $0.chord.degree,
+                                         color: ChordGrid.color(at: position, key: $0.key, degree: $0.chord.degree))
                 }
-            )
-        // The ring and the compass are for playing; a pad is colored from
-        // the grid.
-        case .grid, .ring, .compass:
-            ChordGridPad(
-                key: sound?.key ?? state.key,
-                degree: sound?.chord.degree ?? .I,
-                selected: gridTransient,
-                onChange: { position in
-                    gridTransient = position
-                    pads.edit {
-                        $0.chord = ChordSpec(degree: $0.chord.degree,
-                                             color: ChordGrid.color(at: position, key: $0.key, degree: $0.chord.degree))
-                    }
-                    pads.audition()
-                },
-                onEnd: {
-                    gridTransient = nil
-                    pads.endAudition()
-                }
-            )
-        }
+                pads.audition()
+            },
+            onEnd: {
+                gridTransient = nil
+                pads.endAudition()
+            }
+        )
     }
 }

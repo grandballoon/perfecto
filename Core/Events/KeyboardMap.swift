@@ -4,9 +4,9 @@ import Foundation
 enum KeyboardAction: Hashable, Codable, Sendable {
     /// A chord key.
     case chord(Degree)
-    /// The joystick pushed one way. Keys held together add up, so up and
-    /// right held is up-right, as it is on a key of its own.
-    case color(JoystickDirection)
+    /// One of the step compass's places, held while the key is down, as a
+    /// finger on it is.
+    case compass(CompassPlace)
     /// A cell of the solo strip, counted from its low end.
     case solo(cell: Int)
     /// One of the screen's buttons, tapped.
@@ -131,8 +131,10 @@ extension KeyboardMap {
 }
 
 extension KeyboardMap {
-    /// The chords along the home row from A to J, the joystick on the
-    /// arrows, the solo strip along the number row, the buttons on Return
+    /// The chords along the home row from A to J, the compass's first
+    /// choices on the arrows (up adds a tone, right raises one, left lowers
+    /// one, down takes one away; the second choices have no key to start
+    /// with), the solo strip along the number row, the buttons on Return
     /// (loop), Space (play and stop), O (solo), M (MIDI), Q (sequencer),
     /// Z (Tonnetz), N (net), T (triad) and K (hold: it keeps), and the
     /// Tonnetz's moves on their own letters, P, L and R.
@@ -142,9 +144,9 @@ extension KeyboardMap {
         for (degree, key) in zip(Degree.allCases, homeRow) {
             keys[.chord(degree)] = KeyboardKey(code: key.0, name: key.1)
         }
-        let arrows: [(JoystickDirection, Int)] = [(.right, 79), (.left, 80), (.down, 81), (.up, 82)]
-        for (direction, code) in arrows {
-            keys[.color(direction)] = KeyboardKey(code: code, characters: "")
+        let arrows: [(ColorStepKind, Int)] = [(.raise, 79), (.lower, 80), (.takeAway, 81), (.add, 82)]
+        for (kind, code) in arrows {
+            keys[.compass(CompassPlace(kind, 1))] = KeyboardKey(code: code, characters: "")
         }
         for cell in 0..<soloCells {
             // The number row runs 1 to 9 and then 0.
@@ -164,28 +166,4 @@ extension KeyboardMap {
         keys[.tonnetz(.relative)] = KeyboardKey(code: 21, name: "R")
         return KeyboardMap(keys: keys)
     }()
-}
-
-extension JoystickDirection {
-    /// Which way the direction points: right and up are positive.
-    var lean: (x: Int, y: Int) {
-        switch self {
-        case .center:    return (0, 0)
-        case .up:        return (0, 1)
-        case .upRight:   return (1, 1)
-        case .right:     return (1, 0)
-        case .downRight: return (1, -1)
-        case .down:      return (0, -1)
-        case .downLeft:  return (-1, -1)
-        case .left:      return (-1, 0)
-        case .upLeft:    return (-1, 1)
-        }
-    }
-
-    /// The direction several held together make: opposite ones cancel.
-    static func combined(_ directions: some Sequence<JoystickDirection>) -> JoystickDirection {
-        let sum = directions.reduce((x: 0, y: 0)) { ($0.x + $1.lean.x, $0.y + $1.lean.y) }
-        let lean = (x: sum.x.signum(), y: sum.y.signum())
-        return allCases.first { $0.lean == lean } ?? .center
-    }
 }

@@ -375,10 +375,10 @@ struct PadsStateTests {
         let padSink = RecordingSink()
         let state = PerformanceState(sink: RecordingSink(), padSink: { padSink }, clock: ManualClock())
         state.key = Key(root: .D, scale: .major)
-        state.joystickMoved(to: .right)
+        state.compassPressed(CompassPlace(.add, 1))
         state.press(.degree(.V))
         state.release(.degree(.V))
-        state.joystickMoved(to: .center)
+        state.compassLifted(CompassPlace(.add, 1))
         state.setSynthPreset(.brass)
         state.effects.chorus.isOn = true
 
@@ -386,7 +386,7 @@ struct PadsStateTests {
         state.pads.takeFromKeys()
 
         let sound = state.pads.grid[PadPlace(row: 0, column: 0)]
-        #expect(sound?.chord == ChordSpec(degree: .V, color: .joystick(.default, .right)))
+        #expect(sound?.chord == ChordSpec(degree: .V, color: .tones(ChordTones([0, 4, 7, 10]))))
         #expect(sound?.key == Key(root: .D, scale: .major))
         #expect(sound?.preset == .brass)
         #expect(sound?.effects.chorus.isOn == true)

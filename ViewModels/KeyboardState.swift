@@ -6,7 +6,8 @@ import Observation
 protocol KeyboardHost: AnyObject {
     func press(_ key: ChordKey)
     func release(_ key: ChordKey)
-    func joystickMoved(to direction: JoystickDirection)
+    func compassPressed(_ place: CompassPlace)
+    func compassLifted(_ place: CompassPlace)
     var solo: SoloState { get }
     var tonnetz: TonnetzState { get }
     /// Does what tapping `button` on screen does.
@@ -14,7 +15,7 @@ protocol KeyboardHost: AnyObject {
 }
 
 /// The computer keyboard as a way to play: its keys are chord keys, the
-/// joystick, the solo strip's cells, the Tonnetz's moves and some of the
+/// compass's places, the solo strip's cells, the Tonnetz's moves and some of the
 /// screen's buttons, by a map that can be changed key by key
 /// (`KeyboardMap`) and is remembered across launches.
 ///
@@ -82,7 +83,7 @@ final class KeyboardState {
         held[key.code] = action
         switch action {
         case .chord(let degree): host?.press(.degree(degree))
-        case .color:             followColor()
+        case .compass(let place): host?.compassPressed(place)
         case .solo(let cell):
             if host?.solo.isOn == true { host?.solo.press(cell: cell) }
         case .button(let button): host?.tap(button)
@@ -110,7 +111,7 @@ final class KeyboardState {
     private func release(_ action: KeyboardAction) {
         switch action {
         case .chord(let degree): host?.release(.degree(degree))
-        case .color:             followColor()
+        case .compass(let place): host?.compassLifted(place)
         case .solo(let cell):    host?.solo.release([cell])
         // A button is tapped as its key goes down.
         case .button:            break
@@ -119,14 +120,6 @@ final class KeyboardState {
         case .tonnetz:
             if !held.values.contains(where: \.isTonnetzMove) { host?.tonnetz.release() }
         }
-    }
-
-    /// Pushes the joystick the way the held color keys add up to.
-    private func followColor() {
-        let directions = held.values.compactMap { action -> JoystickDirection? in
-            if case .color(let direction) = action { direction } else { nil }
-        }
-        host?.joystickMoved(to: .combined(directions))
     }
 
     // MARK: – The map

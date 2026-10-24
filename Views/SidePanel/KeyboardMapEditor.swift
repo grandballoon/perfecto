@@ -9,16 +9,19 @@ struct KeyboardMapEditor: View {
     let detail: String
     let resetLabel: String
 
-    private static let directions: [(JoystickDirection, String)] = [
-        (.upLeft, "↖"), (.up, "↑"), (.upRight, "↗"), (.left, "←"),
-        (.right, "→"), (.downLeft, "↙"), (.down, "↓"), (.downRight, "↘"),
+    /// The compass's places, each kind's first choice beside its second.
+    private static let places: [(CompassPlace, String)] = [
+        (.init(.add, 1), "↑ Add"), (.init(.add, 2), "↑↑ Add"),
+        (.init(.raise, 1), "→ Raise"), (.init(.raise, 2), "→→ Raise"),
+        (.init(.lower, 1), "← Lower"), (.init(.lower, 2), "←← Lower"),
+        (.init(.takeAway, 1), "↓ Take"), (.init(.takeAway, 2), "↓↓ Take"),
     ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             SidePanelSectionLabel(title)
             group("Chords", Degree.allCases.map { (.chord($0), String($0.rawValue)) })
-            group("Chord color", Self.directions.map { (.color($0.0), $0.1) })
+            group("Compass", Self.places.map { (.compass($0.0), $0.1) }, columns: 2)
             group("Solo strip", (0..<KeyboardMap.soloCells).map { (.solo(cell: $0), String($0 + 1)) })
             group("Tonnetz", TonnetzMove.allCases.map { (.tonnetz($0), $0.displayName) }, columns: 2)
             group("Buttons", KeyboardButton.allCases.map { (.button($0), $0.displayName) }, columns: 2)
@@ -74,14 +77,14 @@ extension KeyboardMapEditor {
     /// The computer keyboard's keys.
     init(keyboard: KeyboardState) {
         self.init(title: "KEYBOARD", keyboard: keyboard,
-                  detail: "What each key of the computer keyboard plays or taps. Choose one and press the key for it: Delete leaves it with no key, and Escape leaves it as it was. Color keys held together add up, so two arrows make a diagonal. The Tonnetz's moves are made, and its Net, Triad and Hold buttons tapped, while it is on screen.",
+                  detail: "What each key of the computer keyboard plays or taps. Choose one and press the key for it: Delete leaves it with no key, and Escape leaves it as it was. A compass key plays its place while it is held, as a finger on it does. The Tonnetz's moves are made, and its Net, Triad and Hold buttons tapped, while it is on screen.",
                   resetLabel: "Reset keys")
     }
 
     /// A game controller's buttons.
     init(gamepad: GamepadState, named name: String) {
         self.init(title: "CONTROLLER", keyboard: gamepad.buttons,
-                  detail: "What each button of \(name) plays or taps. Choose one and press the button for it, or choose it again to leave it as it was. A button given to something else leaves what it had. The left stick is the chord color, whatever the buttons are.",
+                  detail: "What each button of \(name) plays or taps. Choose one and press the button for it, or choose it again to leave it as it was. A button given to something else leaves what it had. The left stick plays the compass's first choices, whatever the buttons are.",
                   resetLabel: "Reset buttons")
     }
 }

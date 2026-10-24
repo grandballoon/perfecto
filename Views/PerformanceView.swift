@@ -455,77 +455,26 @@ struct PerformanceView: View {
         }
     }
 
-    /// The circle's own arrangement on a phone on its side. The ring has
-    /// the trailing half to itself, as large as it can be, under the sound
-    /// it is played in. Everything else is the top of the leading half,
-    /// over the chord colors. The color ring and the compass have the
-    /// leading half to themselves, as large as they can be: the note
-    /// display, the sound, the key and the voicing are over the chord keys
-    /// instead.
+    /// The circle's own arrangement on a phone on its side. The compass
+    /// has the leading half to itself, as large as it can be; the note
+    /// display, the sound, the key and the voicing are over the chord
+    /// keys, which have the trailing half.
     private func ringLandscapeLayout(geo: GeometryProxy) -> some View {
         let half = geo.size.width / 2
         return HStack(spacing: 0) {
-            if state.colorSurface.takesLeadingHalf {
-                PlaySurfaceView()
-                    .environment(state)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(Self.edgeMargin)
-                    .frame(width: half, height: geo.size.height)
-                VStack(spacing: 8) {
-                    displayAndSound
-                    if state.showsKeyStrip {
-                        HStack(spacing: 8) {
-                            KeyField()
-                            KeyVoicingField()
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .frame(height: KeyStrip.height)
-                    }
-                    chordKeys(.circle)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+            PlaySurfaceView()
+                .environment(state)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(Self.edgeMargin)
-                .frame(width: geo.size.width - half, height: geo.size.height)
-            } else {
+                .frame(width: half, height: geo.size.height)
             VStack(spacing: 8) {
-                // Inset past the menu button.
-                oledDisplay
-                    .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
-                             - Self.edgeMargin)
-                // The key strip is the highest row there is room for, so
-                // the voicing's pad, which reaches down from its field as
-                // far as the octaves above the one chosen, ends over the
-                // chord colors and not on them.
+                displayAndSound
                 if state.showsKeyStrip { KeyStrip() }
-                functionButtons()
-                LoopBar()
-                EffectStrip()
-                // The solo strip has what room is left over the chord
-                // colors, so the ring gives up none of its own.
-                if state.solo.placementByKeys != nil {
-                    SoloStripView(axis: .horizontal)
-                } else {
-                    Spacer(minLength: 0)
-                }
-                PlaySurfaceView()
-                    .environment(state)
-                    .frame(maxWidth: .infinity)
-                    .frame(maxHeight: state.surfaceShape == .bar
-                           ? SurfaceShape.barThickness : .infinity)
-            }
-            .padding(Self.edgeMargin)
-            .frame(width: half, height: geo.size.height)
-
-            VStack(spacing: 8) {
-                SoundField()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: KeyStrip.height)
                 chordKeys(.circle)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .padding(Self.edgeMargin)
             .frame(width: geo.size.width - half, height: geo.size.height)
-            }
         }
     }
 

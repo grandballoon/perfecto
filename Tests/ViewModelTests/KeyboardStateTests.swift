@@ -67,16 +67,29 @@ struct KeyboardStateTests {
         #expect(keys.playCalls.isEmpty)
     }
 
-    @Test func colorKeysHeldTogetherAddUp() {
+    /// The arrows are the compass's first choices, each held as a finger
+    /// on it is: the latest plays, and lifting it is the plain chord.
+    @Test func theArrowsPlayTheCompass() {
         let (state, _, _) = makeState()
         state.keyboard.keyDown(up)
-        #expect(state.joystickDirection == .up)
+        #expect(state.compassPlaces == [CompassPlace(.add, 1)])
         state.keyboard.keyDown(right)
-        #expect(state.joystickDirection == .upRight)
+        #expect(state.compassPlaces == [CompassPlace(.raise, 1)])
         state.keyboard.keyUp(code: up.code)
-        #expect(state.joystickDirection == .right)
+        #expect(state.compassPlaces == [CompassPlace(.raise, 1)])
         state.keyboard.keyUp(code: right.code)
-        #expect(state.joystickDirection == .center)
+        #expect(state.compassPlaces.isEmpty)
+    }
+
+    /// While the compass keeps its color, each arrow is a step of the walk.
+    @Test func theArrowsWalkTheCompassWhileItKeeps() {
+        let (state, _, _) = makeState()
+        state.keepsCompassColor = true
+        state.keyboard.keyDown(up)
+        state.keyboard.keyUp(code: up.code)
+        state.keyboard.keyDown(up)
+        state.keyboard.keyUp(code: up.code)
+        #expect(state.compassPlaces == [CompassPlace(.add, 1), CompassPlace(.add, 1)])
     }
 
     @Test func theNumberRowPlaysTheSoloStripWhileItIsOn() {
@@ -99,7 +112,7 @@ struct KeyboardStateTests {
         state.keyboard.keyDown(up)
         state.keyboard.releaseAll()
         #expect(state.heldKeys.isEmpty)
-        #expect(state.joystickDirection == .center)
+        #expect(state.compassPlaces.isEmpty)
         // The keys were let go, so their lifting later is nothing.
         #expect(!state.keyboard.keyUp(code: a.code))
     }
@@ -356,8 +369,9 @@ struct KeyboardStateTests {
     @Test func theStandardMapIsTheHomeRowTheArrowsAndTheNumberRow() {
         let map = KeyboardMap.standard
         #expect(Degree.allCases.map { map.key(for: .chord($0))?.name } == ["A", "S", "D", "F", "G", "H", "J"])
-        #expect(map.key(for: .color(.up))?.name == "↑")
-        #expect(map.key(for: .color(.upRight)) == nil)
+        #expect(map.key(for: .compass(CompassPlace(.add, 1)))?.name == "↑")
+        #expect(map.key(for: .compass(CompassPlace(.raise, 1)))?.name == "→")
+        #expect(map.key(for: .compass(CompassPlace(.add, 2))) == nil)
         #expect((0..<KeyboardMap.soloCells).map { map.key(for: .solo(cell: $0))?.name }
                 == ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"])
         #expect(KeyboardButton.allCases.map { map.key(for: .button($0))?.name } == ["Return", "O", "M", "Space", "Q", "Z", "N", "T", "K"])

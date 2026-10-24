@@ -68,53 +68,56 @@ struct GamepadStateTests {
 
     // MARK: – The stick
 
-    @Test func theStickIsTheJoystick() {
-        let (state, _) = makeState()
+    /// The stick plays the compass's first choices, and turned from one to
+    /// the next it never passes through the plain chord.
+    @Test func theStickPlaysTheCompass() {
+        let (state, keys) = makeState()
+        state.press(.degree(.I))
         state.gamepad.stickMoved(x: 0, y: 1)
-        #expect(state.joystickDirection == .up)
-        state.gamepad.stickMoved(x: 0.7, y: 0.7)
-        #expect(state.joystickDirection == .upRight)
+        #expect(state.compassPlaces == [CompassPlace(.add, 1)])
+        state.gamepad.stickMoved(x: 1, y: 0)
+        #expect(state.compassPlaces == [CompassPlace(.raise, 1)])
         state.gamepad.stickMoved(x: 0, y: 0)
-        #expect(state.joystickDirection == .center)
+        #expect(state.compassPlaces.isEmpty)
+        // C, Cmaj7, Csus4 and C again: no plain C between the two places.
+        #expect(keys.playCalls.map(\.notes) == [[60, 64, 67], [60, 64, 67, 71], [60, 65, 67], [60, 64, 67]])
     }
 
-    @Test func theStickPointsTheNearestOfTheEightWays() {
-        let ways: [(Double, Double, JoystickDirection)] = [
-            (1, 0, .right), (1, 1, .upRight), (0, 1, .up), (-1, 1, .upLeft),
-            (-1, 0, .left), (-1, -1, .downLeft), (0, -1, .down), (1, -1, .downRight),
-            (1, 0.3, .right), (-0.3, -1, .down),
+    @Test func theStickPointsTheNearestOfTheFourKinds() {
+        let ways: [(Double, Double, ColorStepKind)] = [
+            (1, 0, .raise), (0, 1, .add), (-1, 0, .lower), (0, -1, .takeAway),
+            (1, 0.9, .raise), (0.9, 1, .add), (-0.3, -1, .takeAway),
         ]
-        for (x, y, direction) in ways {
-            #expect(GamepadStick.direction(x: x, y: y, from: .center) == direction)
+        for (x, y, kind) in ways {
+            #expect(GamepadStick.kind(x: x, y: y, from: nil) == kind)
         }
     }
 
     @Test func theStickHasAMiddleItStaysOutOfUntilItIsWellIn() {
-        #expect(GamepadStick.direction(x: 0.45, y: 0, from: .center) == .center)
-        #expect(GamepadStick.direction(x: 0.55, y: 0, from: .center) == .right)
+        #expect(GamepadStick.kind(x: 0.45, y: 0, from: nil) == nil)
+        #expect(GamepadStick.kind(x: 0.55, y: 0, from: nil) == .raise)
         // Once out, it is out until it is further in than it came out.
-        #expect(GamepadStick.direction(x: 0.45, y: 0, from: .right) == .right)
-        #expect(GamepadStick.direction(x: 0.3, y: 0, from: .right) == .center)
+        #expect(GamepadStick.kind(x: 0.45, y: 0, from: .raise) == .raise)
+        #expect(GamepadStick.kind(x: 0.3, y: 0, from: .raise) == nil)
     }
 
-    @Test func theStickKeepsItsDirectionALittlePastTheNext() {
-        // 25° is up-right's from the middle, and still right's from right.
-        let (x, y) = (cos(25 * Double.pi / 180), sin(25 * Double.pi / 180))
-        #expect(GamepadStick.direction(x: x, y: y, from: .center) == .upRight)
-        #expect(GamepadStick.direction(x: x, y: y, from: .right) == .right)
-        #expect(GamepadStick.direction(x: x, y: y, from: .up) == .upRight)
+    @Test func theStickKeepsItsKindALittlePastTheNext() {
+        // 48° is add's from the middle, and still raise's from raise.
+        let (x, y) = (cos(48 * Double.pi / 180), sin(48 * Double.pi / 180))
+        #expect(GamepadStick.kind(x: x, y: y, from: nil) == .add)
+        #expect(GamepadStick.kind(x: x, y: y, from: .raise) == .raise)
+        #expect(GamepadStick.kind(x: x, y: y, from: .lower) == .add)
         // Across the line where the angle wraps round.
-        #expect(GamepadStick.direction(x: -1, y: -0.01, from: .left) == .left)
-        #expect(GamepadStick.direction(x: -1, y: -0.01, from: .upLeft) == .left)
+        #expect(GamepadStick.kind(x: -1, y: -0.01, from: .lower) == .lower)
     }
 
     /// A stick at rest is reported over and over, and must not take the
-    /// joystick back from whatever else is playing it.
-    @Test func aStickAtRestLeavesTheJoystickToTheKeyboard() {
+    /// compass back from whatever else is playing it.
+    @Test func aStickAtRestLeavesTheCompassToTheKeyboard() {
         let (state, _) = makeState()
         state.keyboard.keyDown(KeyboardKey(code: 82, name: "↑"))
         state.gamepad.stickMoved(x: 0.02, y: -0.01)
-        #expect(state.joystickDirection == .up)
+        #expect(state.compassPlaces == [CompassPlace(.add, 1)])
     }
 
     // MARK: – The controller
@@ -129,7 +132,7 @@ struct GamepadStateTests {
         state.gamepad.connected(to: nil)
         #expect(state.gamepad.controller == nil)
         #expect(state.heldKeys.isEmpty)
-        #expect(state.joystickDirection == .center)
+        #expect(state.compassPlaces.isEmpty)
         // The button was let go, so its lifting later is nothing.
         state.gamepad.button(.a, isPressed: false)
         #expect(state.heldKeys.isEmpty)

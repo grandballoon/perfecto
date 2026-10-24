@@ -14,15 +14,13 @@ struct SequencerView: View {
     /// have sizes of their own.
     private var scale: CGFloat { besidePlay ? 1.5 : 1 }
 
-    /// Guards the undo snapshot so one color-bar drag produces one undo step.
+    /// Guards the undo snapshot so one chord-grid drag produces one undo step.
     @State private var stepColorEditActive = false
     /// Same guard for a drag on the degree keys: one gesture → one undo step.
     @State private var stepDegreeEditActive = false
-    /// The section of the color bar a finger is holding, `.center` with none:
-    /// the coloration a degree chosen meanwhile is given. What is lit is the
-    /// selected step's own coloration (`litDirection`), not this.
-    @State private var stepColorTransient: JoystickDirection = .center
-    /// The chord grid's equivalent: the cell a finger is holding.
+    /// The chord grid's cell a finger is holding, nil with none: the
+    /// coloration a degree chosen meanwhile is given. What is lit is the
+    /// selected step's own coloration, not this.
     @State private var stepGridTransient: GridPosition? = nil
     /// Step entry: while on, a chord chosen on the keys goes on the selected
     /// step and the selection moves to the next, so a progression is entered
@@ -53,7 +51,7 @@ struct SequencerView: View {
             barControls
             // Portrait: no surrounding box, and the coloration bar matches
             // play mode's height rather than being scaled down.
-            stepEditorPanel(boxed: false, colorBarHeight: 88)
+            stepEditorPanel(boxed: false)
         }
         // Match the play-mode chit row above (horizontal 20) so the transport
         // bar's Play / BPM / Clear buttons line up with the chits. No bottom
@@ -71,7 +69,7 @@ struct SequencerView: View {
             VStack(spacing: 10) {
                 layerTabs
                 barControls
-                stepEditorPanel(boxed: true, colorBarHeight: 72)
+                stepEditorPanel(boxed: true)
             }
             .frame(width: width * 0.40, alignment: .top)
 
@@ -166,8 +164,8 @@ struct SequencerView: View {
 
                 VStack(spacing: 10) {
                     degreeSelector(primary, arrangement: perfState.chordGridLayout.arrangement(isLandscape: true))
-                    stepColorSurface(primary)
-                        .frame(height: perfState.colorSurface == .joystick ? 72 : 168)
+                    stepColorGrid(primary)
+                        .frame(height: 168)
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -564,14 +562,12 @@ struct SequencerView: View {
 
     // MARK: – Step Editor
 
-    private func stepEditorPanel(boxed: Bool, colorBarHeight: CGFloat) -> some View {
+    private func stepEditorPanel(boxed: Bool) -> some View {
         // The editor displays the most recently touched step and applies every
         // edit to all selected steps at once.
         let primary = seqState.primaryNote
-        // The grid needs a row per mode, so it is taller than the strip.
-        let surfaceHeight: CGFloat = perfState.colorSurface == .joystick
-            ? colorBarHeight
-            : (boxed ? 168 : SurfaceShape.grid.portraitHeight)
+        // The grid needs a row per mode.
+        let surfaceHeight: CGFloat = boxed ? 168 : 196
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 12) {
@@ -588,13 +584,11 @@ struct SequencerView: View {
             // none; nothing is highlighted on a rest.
             degreeSelector(primary, arrangement: perfState.chordGridLayout.arrangement(isLandscape: boxed))
 
-            // Chord-coloration input — the same surface Play mode shows (the
-            // joystick strip or the chord grid). It edits the selected steps'
-            // color instead of the live one. In portrait (no box) it bleeds
-            // past the panel's 12pt inset on the sides and bottom so it spans
-            // the full width and drops to the same 40pt-from-bottom position
-            // as Play mode's, keeping the surface visually identical across modes.
-            stepColorSurface(primary)
+            // Chord-coloration input: the chord grid, which edits the
+            // selected steps' color (the compass is for playing). In
+            // portrait (no box) it bleeds past the panel's 12pt inset on the
+            // sides and bottom so it spans the full width.
+            stepColorGrid(primary)
                 .frame(height: surfaceHeight)
             .padding(.horizontal, boxed ? 0 : -12)
             .padding(.bottom, boxed ? 0 : -12)
@@ -652,61 +646,17 @@ struct SequencerView: View {
         .padding(.vertical, 4)
     }
 
-    // MARK: – Step color surfaces
+    // MARK: – Step color
 
-    /// The coloration a finger is holding on the color surface now, if one is.
+    /// The coloration a finger is holding on the chord grid now, if one is.
     private func heldColor(for degree: Degree) -> ChordColor? {
-        if stepColorTransient != .center { return .joystick(perfState.joystickMode, stepColorTransient) }
-        return stepGridTransient.map { ChordGrid.color(at: $0, key: perfState.key, degree: degree) }
-    }
-
-    /// Whichever surface colors the chords, here coloring the selected steps'.
-    @ViewBuilder
-    private func stepColorSurface(_ primary: TimelineNote?) -> some View {
-        switch perfState.colorSurface {
-        case .joystick: stepColorBar(primary)
-        // The ring and the compass are for playing; a step is colored from
-        // the grid.
-        case .grid, .ring, .compass: stepColorGrid(primary)
-        }
-    }
-
-    /// The bar is lit at the selected step's coloration. A press on the lit
-    /// section takes the coloration off, back to the plain chord; a finger
-    /// that slides on from there colors the chord again.
-    private func stepColorBar(_ primary: TimelineNote?) -> some View {
-        let lit = primary?.chord.color.direction(in: perfState.joystickMode) ?? .center
-        return ChordColorBar(
-            axis: .horizontal,
-            mode: perfState.joystickMode,
-            selected: lit,
-            onChange: { direction in
-                guard !seqState.selectedSteps.isEmpty else { return }
-                // One undo snapshot per drag: take it on the first change,
-                // clear the flag when the gesture ends.
-                let isPress = !stepColorEditActive
-                if isPress {
-                    seqState.snapshot()
-                    stepColorEditActive = true
-                }
-                let takesOff = isPress && direction == lit
-                stepColorTransient = takesOff ? .center : direction
-                // Use the mode the labels were drawn from, so playback and
-                // the note's coloration tag match what the bar showed.
-                let color: ChordColor = takesOff ? .base : .joystick(perfState.joystickMode, direction)
-                seqState.editSelectedChords { ChordSpec(degree: $0.degree, color: color) }
-            },
-            onEnd: {
-                stepColorTransient = .center
-                stepColorEditActive = false
-            }
-        )
+        stepGridTransient.map { ChordGrid.color(at: $0, key: perfState.key, degree: degree) }
     }
 
     /// Each selected step resolves the cell against its own degree, as live
     /// playback resolves it against the degree that plays. The grid is lit
     /// at the selected step's coloration, and a press on the lit cell takes
-    /// it off, as on the bar.
+    /// it off.
     private func stepColorGrid(_ primary: TimelineNote?) -> some View {
         let key = perfState.key
         let degree = primary?.chord.degree ?? .I

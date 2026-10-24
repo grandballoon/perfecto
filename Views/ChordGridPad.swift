@@ -1,14 +1,14 @@
 import SwiftUI
 
-/// The chord grid, shared by Play mode (`ColorSurfaceView`) and the Sequencer
-/// step editor, as `ChordColorBar` is for the joystick.
+/// The chord grid, which the Sequencer's step editor and the pad editor
+/// color a chord from.
 ///
 /// Columns stack thirds higher from left to right (triad → 13th); rows are
 /// modes from brightest at the top to darkest, centred on `degree`'s own
 /// mode, which is shaded. Each cell shows the chord it plays on `degree`.
 /// Callers decide what "selected" means and what a change does; the only
 /// state kept here is the cell under the finger, so `onChange` fires once per
-/// cell crossed (same contract as `ChordColorBar`).
+/// cell crossed.
 struct ChordGridPad: View {
 
     let key: Key
