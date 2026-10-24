@@ -36,8 +36,7 @@ struct NoteSound: Equatable, Sendable {
     /// notes are spread a little by whoever plays it (`NotePlayer`).
     var pan: Float = 0
     /// How far the note is from its pitch, in semitones up (below 0,
-    /// down). A change of it on a note being held is heard as a slide,
-    /// which is how the Trautonium's bars are played.
+    /// down). A change of it on a note being held is heard as a slide.
     var bend: Float = 0
     /// How loud the note is beside itself played whole, from 0 (silent)
     /// to 1.

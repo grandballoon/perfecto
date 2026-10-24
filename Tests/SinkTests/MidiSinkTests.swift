@@ -103,15 +103,16 @@ struct MidiSinkTests {
 
     // MARK: – Strum
 
-    /// Strum mode used to call the audio engine directly, so MIDI got nothing.
+    /// A strum reaches MIDI a note at a time, low to high.
     @Test func strumReachesMidiLowToHigh() {
         let backend = RecordingMidiBackend()
         let clock = ManualClock()
-        let state = PerformanceState(sink: NotePlayer([MidiSink(backend: backend)], clock: clock), clock: clock)
-        state.setMode(StrumMode())
-        state.press(.degree(.I))
+        let sink = NotePlayer([MidiSink(backend: backend)], clock: clock)
+        sink.playChord(ChordEvent(voicing: Voicing(notes: [60, 64, 67]),
+                                  articulation: .strum(interval: 0.05),
+                                  context: .cMajorI))
 
-        clock.advance(seconds: 3 * StrumMode.noteInterval)
+        clock.advance(seconds: 3 * 0.05)
         #expect(backend.noteOnCalls.map(\.note) == [60, 64, 67])
     }
 

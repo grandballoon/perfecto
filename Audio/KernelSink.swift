@@ -17,13 +17,11 @@ import Foundation
 /// wavers, and the size of the reverb's room. There is one of each
 /// (`ChorusSettings`, `ReverbSettings`), set here once.
 @MainActor
-final class KernelSink: NoteSink, PartialSink, TempoControl {
+final class KernelSink: NoteSink, TempoControl {
 
     private let unit: KernelAudioUnit
-    /// Each preset's number among the kernel's sounds, and each sound made
-    /// of partials' after them.
+    /// Each preset's number among the kernel's sounds.
     private let numbers: [SynthPreset: Int]
-    private let partialNumbers: [PartialSound: Int]
 
     /// How hard every note is struck: the keys do not sense it. It is set
     /// so that a chord of four notes in the loudest preset, alone, stays
@@ -47,14 +45,9 @@ final class KernelSink: NoteSink, PartialSink, TempoControl {
         self.unit = unit
         self.frameAt = frameAt ?? { [unit] in unit.frame(atUptime: $0) }
         let presets = SynthPreset.allCases
-        let partialSounds = PartialSound.allCases
-        precondition(presets.count + partialSounds.count <= KernelAudioUnit.soundCount,
-                     "more sounds than the kernel holds")
+        precondition(presets.count <= KernelAudioUnit.soundCount, "more sounds than the kernel holds")
         numbers = Dictionary(uniqueKeysWithValues: presets.enumerated().map { ($1, $0) })
         for (number, preset) in presets.enumerated() { unit.setSound(number, to: preset.patch) }
-        partialNumbers = Dictionary(uniqueKeysWithValues: partialSounds.enumerated()
-            .map { ($1, presets.count + $0) })
-        for (sound, number) in partialNumbers { unit.setSound(number, to: sound.patch) }
         unit.setChorusRate(Self.chorusRates.exponential(at: ChorusSettings.rate))
         unit.setReverbTail(Self.reverbTails.exponential(at: ReverbSettings.size))
         unit.setReverbPredelay(Self.reverbPredelays.exponential(at: ReverbSettings.size))
@@ -81,30 +74,6 @@ final class KernelSink: NoteSink, PartialSink, TempoControl {
         unit.noteOff(id.number, at: frameAt(time) ?? 0)
     }
 
-    // MARK: – Notes made of partials
-
-    var partialCount: Int { KernelAudioUnit.partialCount }
-
-    func partialNoteOn(_ id: NoteID, note: Int, bend: Float, sound: PartialSound, velocity: Float,
-                       pan: Float, at time: TimeInterval) {
-        unit.noteOn(id.number, note: note, velocity: Self.velocity * velocity.clamped(to: 0...1),
-                    sound: partialNumbers[sound] ?? 0, pan: pan.clamped(to: -1...1),
-                    playing: KernelAudioUnit.Playing(bend: bend), at: frameAt(time) ?? 0)
-    }
-
-    func partialChange(_ id: NoteID, partial: Int, to setting: PartialSetting, at time: TimeInterval) {
-        unit.partialChange(id.number, partial: partial, level: setting.strength, offset: setting.offset,
-                           depth: setting.depth, rate: setting.rate, at: frameAt(time) ?? 0)
-    }
-
-    func partialBend(_ id: NoteID, to bend: Float, at time: TimeInterval) {
-        unit.noteChange(id.number, to: KernelAudioUnit.Playing(bend: bend), at: frameAt(time) ?? 0)
-    }
-
-    func partialNoteOff(_ id: NoteID, at time: TimeInterval) {
-        unit.noteOff(id.number, at: frameAt(time) ?? 0)
-    }
-
     /// An effect that is off takes none of the note.
     static func playing(_ sound: NoteSound) -> KernelAudioUnit.Playing {
         KernelAudioUnit.Playing(
@@ -124,24 +93,5 @@ extension ClosedRange where Bound == Float {
     /// pitches are heard.
     func exponential(at amount: Float) -> Float {
         lowerBound * pow(upperBound / lowerBound, amount.clamped(to: 0...1))
-    }
-}
-
-extension PartialSound {
-    /// Partials falling away as a sawtooth's to start with, quiet enough
-    /// that two notes with one partial spotlighted 12 dB stay under the
-    /// limiter; the Dissonance Lab sets them note by note.
-    var patch: SynthPatch {
-        let partials = (1...KernelAudioUnit.partialCount).map { 1 / Float($0) }
-        switch self {
-        case .held:
-            return SynthPatch(partials: partials,
-                              envelope: .init(attack: 0.03, decay: 0.1, sustain: 1, release: 0.15),
-                              level: 0.06)
-        case .struck:
-            return SynthPatch(partials: partials,
-                              envelope: .init(attack: 0.004, decay: 1.2, sustain: 0, release: 0.3),
-                              level: 0.06)
-        }
     }
 }

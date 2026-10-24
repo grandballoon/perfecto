@@ -1,10 +1,9 @@
 import Testing
 @testable import Perfecto
 
-/// Fix #2 — the clock's tick resolution is part of the ClockTickable contract
-/// (`ticksPerBeat`), not a "4" hardcoded in each mode. These tests pin that a
-/// tempo-aware mode subdivides according to the injected clock, so changing the
-/// clock's resolution changes the mode without editing the mode.
+/// The clock's tick resolution is part of the ClockTickable contract
+/// (`ticksPerBeat`), not a "4" hardcoded anywhere: these tests pin that what
+/// is timed by the clock keeps time on whatever clock is injected.
 @Suite("ClockResolution")
 @MainActor
 struct ClockResolutionTests {
@@ -18,13 +17,6 @@ struct ClockResolutionTests {
     @Test func defaultResolutionIsFourTicksPerBeat() {
         #expect(ManualClock().ticksPerBeat == 4)
         #expect(MasterClock().ticksPerBeat == 4)
-    }
-
-    @Test func performanceStateReportsClockResolution() {
-        let clock = ManualClock()
-        clock.ticksPerBeat = 3
-        let (state, _) = makeState(clock: clock)
-        #expect(state.ticksPerBeat == 3)
     }
 
     /// The real clock's repeats: called over and over, and not after a cancel.
@@ -42,52 +34,6 @@ struct ClockResolutionTests {
         #expect(calls == atCancel)
     }
 
-    @Test func repeatRetriggersOncePerBeat() {
-        let clock = ManualClock()               // ticksPerBeat = 4
-        let (state, sink) = makeState(clock: clock)
-        state.setMode(RepeatMode())
-        state.press(.degree(.I))                 // initial chord
-        sink.reset()
-
-        clock.tick(); clock.tick(); clock.tick()
-        #expect(sink.calls.isEmpty)             // nothing before the beat lands
-        clock.tick()
-        // On the beat, Repeat silences the chord (stopSounding) to start the
-        // retrigger gap; that stop is the observable per-beat event.
-        #expect(sink.calls.contains(.stop))
-    }
-
-    /// Each repeat is a new strike: the chord stops on the beat and comes
-    /// back after the gap, timed by the clock.
-    @Test func repeatStrikesAgainAfterItsGap() {
-        let clock = ManualClock()
-        let (state, sink) = makeState(clock: clock)
-        state.setMode(RepeatMode())
-        state.press(.degree(.I))
-        for _ in 0..<4 { clock.tick() }
-        sink.reset()
-
-        clock.advance(seconds: RepeatMode.gap - 0.001)
-        #expect(sink.calls.isEmpty)
-        clock.advance(seconds: 0.002)
-        #expect(sink.playCalls.count == 1)
-    }
-
-    /// Lifting the key inside the gap leaves it silent.
-    @Test func aKeyLiftedInTheGapIsNotStruckAgain() {
-        let clock = ManualClock()
-        let (state, sink) = makeState(clock: clock)
-        state.setMode(RepeatMode())
-        state.press(.degree(.I))
-        for _ in 0..<4 { clock.tick() }
-        state.release(.degree(.I))
-        sink.reset()
-
-        clock.advance(seconds: 1)
-        #expect(sink.playCalls.isEmpty)
-        #expect(clock.pendingCount == 0)
-    }
-
     /// A step's gate is a share of the step, so it is timed in beats: the
     /// chord ends that far through the step at any tempo.
     @Test func aSequencerStepEndsAtItsGate() {
@@ -97,7 +43,7 @@ struct ClockResolutionTests {
             let (state, sink) = makeState(clock: clock)
             let seq = SequencerState(defaults: isolatedDefaults())
             seq.steps[0] = SequencerStep(gate: 0.5)
-            state.setMode(SequencerMode(seq))
+            state.attach(seq)
             sink.reset()
             seq.isPlaying = true                                // step 1 starts
             #expect(sink.playCalls.count == 1)
@@ -116,7 +62,7 @@ struct ClockResolutionTests {
         let seq = SequencerState(defaults: isolatedDefaults())
         seq.steps[0] = SequencerStep(gate: 1)
         seq.steps[1] = SequencerStep(degree: .IV)
-        state.setMode(SequencerMode(seq))
+        state.attach(seq)
         sink.reset()
         seq.isPlaying = true
         clock.tick()
@@ -130,7 +76,7 @@ struct ClockResolutionTests {
         let (state, sink) = makeState(clock: clock)
         let seq = SequencerState(defaults: isolatedDefaults())
         seq.steps[0] = SequencerStep()
-        state.setMode(SequencerMode(seq))
+        state.attach(seq)
         seq.isPlaying = true
         seq.isPlaying = false
         sink.reset()
@@ -148,7 +94,7 @@ struct ClockResolutionTests {
         clock.ticksPerBeat = 8
         let (state, _) = makeState(clock: clock)
         let seq = SequencerState(defaults: isolatedDefaults())
-        state.setMode(SequencerMode(seq))
+        state.attach(seq)
         seq.isPlaying = true
 
         var playhead: [Int] = []
@@ -182,33 +128,13 @@ struct ClockResolutionTests {
     }
 }
 
-/// Fix #3 — `stopSounding()` (formerly the misnamed `stopAudioOnly()`) stops the
-/// chord on every sink yet keeps the display/gesture state, unlike `endChord()`.
-@Suite("StopSounding")
+/// `endChord()` stops the chord and clears the display and the gesture.
+@Suite("EndChord")
 @MainActor
-struct StopSoundingTests {
+struct EndChordTests {
 
-    private func makeState() -> (PerformanceState, RecordingSink) {
-        let sink = RecordingSink()
-        return (PerformanceState(sink: sink, clock: ManualClock()), sink)
-    }
-
-    @Test func stopSoundingReachesSinkButKeepsGesture() {
-        let (state, sink) = makeState()
-        state.startChord(.degree(.I))
-        sink.reset()
-
-        state.stopSounding()
-
-        // It really stops on the sink (audio/MIDI/ChordLink all fan out from here)…
-        #expect(sink.calls.contains(.stop))
-        // …but the held gesture and display survive, so a mode can retrigger.
-        #expect(state.activeDegree == .I)
-        #expect(state.activeVoicingText != "—")
-    }
-
-    @Test func endChordClearsGestureUnlikeStopSounding() {
-        let (state, _) = makeState()
+    @Test func endChordClearsTheGesture() {
+        let state = PerformanceState(sink: RecordingSink(), clock: ManualClock())
         state.startChord(.degree(.I))
 
         state.endChord()

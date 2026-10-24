@@ -107,7 +107,7 @@ struct MidiAnnouncerSinkTests {
 
         let seq = SequencerState(defaults: isolatedDefaults())
         seq.steps[0] = SequencerStep(degree: .V, color: .joystick(.default, .upRight))
-        state.setMode(SequencerMode(seq))
+        state.attach(seq)
         seq.isPlaying = true
 
         let lastFrame: [UInt8] = transport.frames.last ?? []

@@ -89,15 +89,6 @@ struct ArpeggiatorSettings: Equatable, Codable, Sendable, SlidePlayed {
     }
 }
 
-/// An arpeggio held on from outside the keys, whatever the arpeggiator is
-/// set to: the controller's arpeggio wheel (`OrchidState`) pushed one way
-/// or the other, or its keys struck while their velocity plays the order.
-struct HeldArpeggio: Equatable, Sendable {
-    var pattern: ArpeggioPattern
-    /// nil: the arpeggiator's cycle, as set and as the finger plays it.
-    var cycle: ArpeggioCycle?
-}
-
 /// Plays chords one note at a time, in tempo. It sits between whatever
 /// produces chord events and the sinks that sound them, so it works the same
 /// under every mode, and every sink downstream hears the same notes.

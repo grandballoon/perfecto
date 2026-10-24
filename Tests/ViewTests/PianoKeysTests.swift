@@ -107,39 +107,4 @@ struct PianoKeysTests {
         #expect(abs(close.height - 844 / 7 * PianoKeys.whiteLength) < 0.001)
         #expect(close.maxY == 369 && close.minY < 0)
     }
-
-    // MARK: – On the play screen
-
-    /// Whether a window of `size` whose piano is on is laid out for the
-    /// desk, which says so by leaving the sequencer's mode for the keys'.
-    private func isDesk(_ size: CGSize, expanded: Bool = false) throws -> Bool {
-        let state = PerformanceState(sink: RecordingSink(),
-                                     sequencer: SequencerState(defaults: isolatedDefaults()),
-                                     keyboard: KeyboardState(defaults: isolatedDefaults()),
-                                     clock: ManualClock())
-        state.selectMode(.sequencer)
-        state.piano.isOn = true
-        state.piano.isExpanded = expanded
-        let window = try show(PerformanceView()
-            .environment(state)
-            .environment(state.sequencerState), size: size)
-        defer { window.isHidden = true }
-        return state.mode.kind == .play
-    }
-
-    /// The screen is laid out in what the piano leaves of the window.
-    @Test func theScreenIsLaidOutAboveThePiano() throws {
-        #expect(try isDesk(CGSize(width: 1500, height: 950)))
-        // A desk without the piano, and too low for one with it.
-        let low = CGSize(width: 1500, height: DeskLayout.minimumSize.height + 40)
-        #expect(DeskLayout.fits(low))
-        #expect(try !isDesk(low))
-    }
-
-    /// The piano with the whole screen lies over it, which is laid out as it
-    /// was under the strip.
-    @Test func anExpandedPianoLeavesTheScreenAsItWas() throws {
-        let low = CGSize(width: 1500, height: DeskLayout.minimumSize.height + 40)
-        #expect(try !isDesk(low, expanded: true))
-    }
 }

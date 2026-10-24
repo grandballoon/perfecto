@@ -18,10 +18,6 @@ import Observation
 /// Nor is the chord's inversion, which the slide can play as well
 /// (`slidePlaysInversion`, `slideRoll`).
 ///
-/// An arpeggio can also be held on from outside the keys (`heldArpeggio`,
-/// the controller's arpeggio wheel, or how hard its keys are struck), over
-/// the slide and the zones.
-///
 /// The play screen has a field for each effect that is on (`slots`), which
 /// switches the effects by the same settings.
 @Observable
@@ -191,17 +187,6 @@ final class EffectsState {
         onPlayedChange?()
     }
 
-    /// The arpeggio held on from outside the keys, which plays in place of
-    /// the arpeggiator as set and as the finger plays it; nil while none is.
-    private(set) var heldArpeggio: HeldArpeggio?
-
-    func holdArpeggio(_ arpeggio: HeldArpeggio?) {
-        guard arpeggio != heldArpeggio else { return }
-        heldArpeggio = arpeggio
-        sendArpeggiator()
-        onPlayedChange?()
-    }
-
     /// The key zone the finger playing the chord is in, counted from the
     /// bottom of the key; nil while the zones are off or no key is held.
     private(set) var zone: Int?
@@ -333,12 +318,6 @@ final class EffectsState {
     /// outside the keys is played over both.
     private var playedArpeggiator: ArpeggiatorSettings {
         var played = played(arpeggiator)
-        if let heldArpeggio {
-            played.isOn = true
-            played.pattern = heldArpeggio.pattern
-            if let cycle = heldArpeggio.cycle { played.cycle = cycle }
-            return played
-        }
         if let pattern = heldZone?.effect?.pattern { played.pattern = pattern }
         return played
     }

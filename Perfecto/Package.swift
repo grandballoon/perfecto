@@ -17,17 +17,6 @@ let package = Package(
             dependencies: ["MusicTheoryCore"],
             path: "Tests/MusicTheoryCoreTests"
         ),
-        // What makes intervals smooth or rough, from their partials: plain
-        // Swift on numbers, with nothing of the app's audio or UI.
-        .target(
-            name: "Acoustics",
-            path: "Sources/Acoustics"
-        ),
-        .testTarget(
-            name: "AcousticsTests",
-            dependencies: ["Acoustics"],
-            path: "Tests/AcousticsTests"
-        ),
         // The audio kernel: portable C++ behind a C interface. Its tests are
         // built to stop on any allocation made while rendering.
         .target(

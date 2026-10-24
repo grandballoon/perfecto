@@ -27,30 +27,30 @@ struct PianoStateTests {
 
     /// A note that slides is lit on the key it has slid to.
     @Test func aBentNoteIsLitOnTheKeyNearestItsPitch() {
-        let bars = player(.trautonium)
+        let bars = player(.keys)
         bars.startNotes(in: NoteSound(bend: 0.6))
         bars.playChord(.block([60]))
-        #expect(piano.lights == [61: [.trautonium]])
+        #expect(piano.lights == [61: [.keys]])
 
         bars.sound.bend = 4.4
-        #expect(piano.lights == [64: [.trautonium]])
+        #expect(piano.lights == [64: [.keys]])
         bars.sound.bend = -2
-        #expect(piano.lights == [58: [.trautonium]])
+        #expect(piano.lights == [58: [.keys]])
 
         bars.stopChord()
         #expect(piano.lights.isEmpty)
     }
 
     @Test func aNoteSeveralSourcesSoundIsLitByEachInAFixedOrder() {
-        let tonnetz = player(.tonnetz), keys = player(.keys)
-        tonnetz.playChord(.block([67]))
+        let layer = player(.layers), keys = player(.keys)
+        layer.playChord(.block([67]))
         keys.playChord(.block([60, 64, 67]))
-        #expect(piano.lights[67] == [.keys, .tonnetz])
+        #expect(piano.lights[67] == [.keys, .layers])
         #expect(piano.lights[60] == [.keys])
 
         // Each source ends only its own.
         keys.stopChord()
-        #expect(piano.lights == [67: [.tonnetz]])
+        #expect(piano.lights == [67: [.layers]])
     }
 
     @Test func twoLayersOnOneNoteKeepItLitUntilBothHaveEnded() {
@@ -66,15 +66,15 @@ struct PianoStateTests {
     }
 
     @Test func aSourceThatIsNotLitIsLeftOutAndShownAgainWithWhatItIsSounding() {
-        let keys = player(.keys), tonnetz = player(.tonnetz)
+        let keys = player(.keys), layer = player(.layers)
         keys.playChord(.block([60]))
-        tonnetz.playChord(.block([60, 64]))
+        layer.playChord(.block([60, 64]))
 
-        piano.light(.tonnetz, false)
+        piano.light(.layers, false)
         #expect(piano.lights == [60: [.keys]])
 
-        piano.light(.tonnetz, true)
-        #expect(piano.lights == [60: [.keys, .tonnetz], 64: [.tonnetz]])
+        piano.light(.layers, true)
+        #expect(piano.lights == [60: [.keys, .layers], 64: [.layers]])
     }
 
     @Test func aStrumsNotesAreLitAsEachIsSounded() {

@@ -286,7 +286,7 @@ struct ArpeggiatorTests {
         let seq = SequencerState(defaults: isolatedDefaults())
         for step in 0..<4 { seq.steps[step] = SequencerStep(degree: .I, gate: 1) }
         for step in 4..<8 { seq.steps[step] = SequencerStep(degree: .IV, gate: 1) }
-        state.setMode(SequencerMode(seq))
+        state.attach(seq)
         seq.isPlaying = true
 
         for _ in 0..<5 { clock.tick() }              // one beat of I, then IV begins

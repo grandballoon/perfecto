@@ -57,85 +57,6 @@ extension SpecScreen {
             sequencer.addLayers([progression, progression, progression])
             sequencer.setLayer(sequencer.layers[1].id, muted: true)
         },
-        SpecScreen(name: "sequencer-pages") { showSequence(in: $0, layout: .paged) },
-        SpecScreen(name: "sequencer-scroll") { showSequence(in: $0, layout: .scroll) },
-        SpecScreen(name: "sequencer-keys-grid") {
-            $0.chordGridLayout = .grid
-            showSequence(in: $0, layout: .paged)
-        },
-        SpecScreen(name: "sequencer-keys-bar") {
-            $0.chordGridLayout = .horizontalBar
-            showSequence(in: $0, layout: .paged)
-        },
-        SpecScreen(name: "tonnetz-net") { $0.show(.tonnetz) },
-        SpecScreen(name: "tonnetz-triad") {
-            $0.show(.tonnetz)
-            $0.tonnetz.view = .triad
-        },
-        // A triad held, with a note outside it and one of its own held over it.
-        SpecScreen(name: "tonnetz-net-held") {
-            $0.show(.tonnetz)
-            $0.tonnetz.holds = true
-            $0.tonnetz.pointerDown(on: .cell(.home))
-            $0.tonnetz.pointerUp()
-            for note in [PitchClass.B, .E] {
-                $0.tonnetz.pointerDown(on: .note(note))
-                $0.tonnetz.pointerUp()
-            }
-        },
-        // Some pads with sounds, two held, and the sequence at its first pad.
-        SpecScreen(name: "pads") {
-            showPads(in: $0)
-            $0.pads.isRunning = true
-            $0.pads.press(PadPlace(row: 1, column: 1))
-            $0.pads.press(PadPlace(row: 2, column: 3))
-        },
-        SpecScreen(name: "pads-editing") {
-            showPads(in: $0)
-            $0.pads.isEditing = true
-            $0.pads.select(PadPlace(row: 1, column: 1))
-        },
-        SpecScreen(name: "pads-eight-by-six") {
-            $0.pads.setRows(8)
-            $0.pads.setColumns(6)
-            showPads(in: $0)
-        },
-        SpecScreen(name: "trautonium") { $0.show(.trautonium) },
-        // Both bars sounding, the low one softly and off its note.
-        SpecScreen(name: "trautonium-played") {
-            $0.show(.trautonium)
-            $0.trautonium.press(.low, at: BarPlace(along: 0.3, across: 0.35))
-            $0.trautonium.move(.low, to: BarPlace(along: 0.33, across: 0.35))
-            $0.trautonium.press(.high, at: BarPlace(along: 0.62, across: 0.9))
-        },
-        SpecScreen(name: "tree") { $0.show(.tree) },
-        // A way through the tree, and a chord on from it held: a tier on from it.
-        SpecScreen(name: "tree-played") { state in
-            state.show(.tree)
-            for label in ["Am", "Dm"] {
-                let spot = state.tree.spots(on: state.tree.tier).next.joined().first { $0.chord.label == label }!
-                state.tree.press(spot)
-                state.tree.release(spot)
-            }
-            state.tree.press(state.tree.spots(on: state.tree.tier).next[3][0])
-        },
-        SpecScreen(name: "tree-sevenths") {
-            $0.show(.tree)
-            $0.tree.size = .sevenths
-        },
-        SpecScreen(name: "lab") { $0.show(.lab) },
-        // A fifth held at the first level: spotlit, beatless in just
-        // intonation, over its root.
-        SpecScreen(name: "lab-fifth") {
-            $0.show(.lab)
-            $0.lab.pressPad(.perfectFifth)
-        },
-        // A minor second at the third level: the fundamentals beating.
-        SpecScreen(name: "lab-second") {
-            $0.show(.lab)
-            $0.lab.choose(.three)
-            $0.lab.pressPad(.minorSecond)
-        },
     ] + SidePanelPage.allCases.map { SpecScreen(name: "menu-\($0.rawValue)", menu: $0) }
 
     /// The menu's pages at their whole length, which the phone only shows a
@@ -164,41 +85,5 @@ extension SpecScreen {
         if state.chordGridLayout == .circle { state.chordGridLayout = .grid }
         state.compassPressed(CompassPlace(.add, 1))
         state.press(.degree(.I))
-    }
-
-    /// The pads on screen, a chord on each pad of the first two rows and
-    /// one in another key and sound further down.
-    private static func showPads(in state: PerformanceState) {
-        state.show(.pads)
-        for (index, degree) in (Degree.allCases + [.I]).enumerated() {
-            state.pads.select(PadPlace(row: index / 4, column: index % 4))
-            state.pads.edit { $0.chord = ChordSpec(degree: degree, color: .base) }
-        }
-        state.pads.select(PadPlace(row: 2, column: 3))
-        state.pads.edit {
-            $0.key = Key(root: .A, scale: .naturalMinor)
-            $0.preset = .strings
-        }
-        state.pads.select(PadPlace(row: 0, column: 0))
-    }
-
-    /// The sequencer with two bars and two layers: chords entered on steps,
-    /// one of them held across several, and a step selected.
-    private static func showSequence(in state: PerformanceState, layout: SequencerLayout) {
-        let sequencer = state.sequencerState
-        state.selectMode(.sequencer)
-        sequencer.layout = layout
-        sequencer.addBar()
-        sequencer.addLayers([progression])
-        sequencer.addLayer()
-        for (step, degree) in [(0, Degree.ii), (6, .V), (7, .V), (8, .V), (12, .I)] {
-            sequencer.selectedSteps = [step]
-            sequencer.primaryStep = step
-            sequencer.editSelectedChords { ChordSpec(degree: degree, color: $0.color) }
-        }
-        sequencer.selectedSteps = [6, 7, 8]
-        sequencer.primaryStep = 6
-        sequencer.joinSelected()
-        sequencer.focusedBar = 0
     }
 }

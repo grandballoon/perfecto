@@ -3,9 +3,7 @@ import SwiftUI
 /// The chord keys, drawn in one of their arrangements
 /// (`ChordKeyArrangement`): the seven scale degrees, or the octave's twelve
 /// roots. Visual only: each key is marked with `chordKey(_:)` and the
-/// surface around it owns the touches, so the same keys are played in Play
-/// mode (`ChordKeySurface`) and chosen from in the Sequencer
-/// (`DegreeSelector`).
+/// surface around it owns the touches (`ChordKeySurface`).
 struct ChordKeysView: View {
     let arrangement: ChordKeyArrangement
     /// The key the keys are in, which decides each degree's numeral (e.g.
@@ -14,10 +12,6 @@ struct ChordKeysView: View {
     /// The keys drawn as down. A key is down with any that plays its chord,
     /// so a degree lights the octave's key for its root.
     let lit: [ChordKey]
-    /// Whether the octave's keys for the notes outside the key are left
-    /// out: drawn, but not keys. A chord chosen as a degree of its key has
-    /// no use for them.
-    var degreesOnly = false
 
     private static let color = Color.orange
 
@@ -189,9 +183,8 @@ struct ChordKeysView: View {
         let chordKey = ChordKey.root(root)
         let chord = chordKey.chord(in: key)
         let degree = key.degree(of: root)
-        let isKey = degree != nil || !degreesOnly
         let isPressed = isLit(chordKey)
-        let tint = degree != nil ? Self.color : Color(white: isKey ? 0.5 : 0.25)
+        let tint = degree != nil ? Self.color : Color(white: 0.5)
         let shape = UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 10,
                                            bottomTrailingRadius: 10, topTrailingRadius: 4)
         return ZStack(alignment: .bottom) {
@@ -208,14 +201,14 @@ struct ChordKeysView: View {
                         .opacity(0.8)
                 }
             }
-            .foregroundStyle(isKey ? Color.white : Color(white: 0.4))
+            .foregroundStyle(Color.white)
             .minimumScaleFactor(0.5)
             .lineLimit(1)
             .padding(.horizontal, 3)
             .padding(.bottom, 10)
         }
         .frame(width: size.width, height: size.height)
-        .chordKey(isKey ? chordKey : nil)
+        .chordKey(chordKey)
         .scaleEffect(isPressed ? 0.97 : 1.0)
         .animation(.easeInOut(duration: 0.06), value: isPressed)
     }

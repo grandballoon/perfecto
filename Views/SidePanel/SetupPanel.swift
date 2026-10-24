@@ -1,16 +1,14 @@
 import SwiftUI
 
-/// The menu's Setup page: how the chord keys, the chord colors beside them
-/// and the sequencer's bars are laid out, whether the play
+/// The menu's Setup page: how the chord keys are laid out, whether the play
 /// screen has the key strip, whether a finger's place on a chord key plays
-/// its brightness, the size of the grid of pads, and whether the piano is
-/// shown under them.
+/// its brightness, how the compass orders and names its places, and
+/// whether the piano is shown under them.
 struct SetupPanel: View {
     @Environment(PerformanceState.self) private var state
 
     var body: some View {
         @Bindable var state = state
-        @Bindable var sequencer = state.sequencerState
         VStack(alignment: .leading, spacing: 24) {
             chordLayoutSection
 
@@ -27,17 +25,6 @@ struct SetupPanel: View {
                 }
             }
             compassNamesSection
-
-            choiceSection("SEQUENCER BARS",
-                          detail: "How the sequencer shows its bars: one at a time behind numbered tabs, or all of them in one scrolling column (there, one finger selects and two fingers scroll).") {
-                Picker("Layout", selection: $sequencer.layout) {
-                    ForEach(SequencerLayout.allCases, id: \.self) { layout in
-                        Text(layout.displayName).tag(layout)
-                    }
-                }
-            }
-
-            padsSection
 
             pianoSection
 
@@ -161,45 +148,6 @@ struct SetupPanel: View {
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(Color(white: 0.3))
                 .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    // MARK: – Pads
-
-    private var padsSection: some View {
-        let pads = state.pads
-        return VStack(alignment: .leading, spacing: 10) {
-            SidePanelSectionLabel("PADS")
-            VStack(alignment: .leading, spacing: 14) {
-                padsChoice("Rows", options: Array(PadGrid.sizes), label: \.description,
-                           selection: Binding(get: { pads.grid.rows }, set: { pads.setRows($0) }))
-                padsChoice("Columns", options: Array(PadGrid.sizes), label: \.description,
-                           selection: Binding(get: { pads.grid.columns }, set: { pads.setColumns($0) }))
-                padsChoice("Step of the sequence", options: PadRate.allCases, label: \.label,
-                           selection: Binding(get: { pads.grid.rate }, set: { pads.setRate($0) }))
-            }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
-            Text("The grid of pads on the PADS screen, each with a sound of its own. A pad keeps its place when the grid changes size, and one left outside a smaller grid comes back when the grid is made larger again. In sequence, the pads are played one to a step, along each row from the top, at the tempo; a pad with no sound is a rest.")
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(Color(white: 0.3))
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private func padsChoice<Option: Hashable>(_ name: String, options: [Option],
-                                              label: KeyPath<Option, String>,
-                                              selection: Binding<Option>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(name)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundStyle(Color(white: 0.6))
-            Picker(name, selection: selection) {
-                ForEach(options, id: \.self) { option in
-                    Text(option[keyPath: label]).tag(option)
-                }
-            }
-            .pickerStyle(.segmented)
         }
     }
 

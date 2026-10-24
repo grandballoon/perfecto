@@ -141,12 +141,11 @@ struct PlayModeTests {
         #expect(state.heldKeys == [.degree(.I)])
     }
 
-    /// Every chord-surface mode gets the hand-back, because PerformanceState
-    /// delivers it as a press: the earlier degree is the selected chord again.
+    /// Every mode gets the hand-back, because PerformanceState delivers it
+    /// as a press: the earlier degree is the selected chord again.
     @Test func everyModeReturnsToTheEarlierChord() {
-        for kind in ModeKind.allCases where kind.surface == .chords {
+        for kind in ModeKind.allCases {
             let (state, _) = makeState()
-            state.selectMode(kind)
             state.press(.degree(.I))
             state.press(.degree(.IV))
             state.release(.degree(.IV))
@@ -172,9 +171,8 @@ struct PlayModeTests {
     /// The pointer contract holds for every mode, because PerformanceState
     /// enforces it: a superseded release never reaches the mode.
     @Test func noModeHearsASupersededRelease() {
-        for kind in ModeKind.allCases where kind.surface == .chords {
+        for kind in ModeKind.allCases {
             let (state, sink) = makeState()
-            state.selectMode(kind)
             state.press(.degree(.I))
             state.press(.degree(.IV))
             sink.reset()
@@ -231,7 +229,7 @@ struct PlayModeTests {
         let (state, _) = makeState()
         state.slide(on: .degree(.I), to: 0.2)
         state.movePointer(from: nil, to: .degree(.I))
-        state.selectMode(.strum)
+        state.setMode(PlayMode())
         #expect(state.effects.slide == nil)
     }
 
@@ -532,28 +530,6 @@ struct PlayModeTests {
         #expect(sink.playCalls.last?.notes == [60, 63, 67])
     }
 
-    /// A latched chord stays in the key it was struck in when the finger lifts.
-    @Test func aDroneKeepsItsZonesKeyOnceTheFingerIsUp() {
-        let (state, sink) = makeState()
-        zoned(state)
-        state.selectMode(.drone)
-        state.slide(on: .degree(.I), to: 0.8)
-        state.movePointer(from: nil, to: .degree(.I))
-        sink.reset()
-
-        state.movePointer(from: .degree(.I), to: nil)
-        #expect(sink.calls.isEmpty)
-    }
-
-    @Test func aLeadNoteIsInItsZonesKeyAndOctave() {
-        let (state, sink) = makeState()
-        zoned(state)
-        state.selectMode(.lead)
-        state.slide(on: .degree(.I), to: 0.8)
-        state.movePointer(from: nil, to: .degree(.I))
-        #expect(sink.playCalls.last?.notes == [39])
-    }
-
     // MARK: – The octave's keys, each the root of a chord
 
     private let cMixolydian = Key(root: .C, scale: .mixolydian)
@@ -620,25 +596,6 @@ struct PlayModeTests {
         state.compassPressed(CompassPlace(.add, 1))
 
         #expect(sink.playCalls.last?.notes == [70, 74, 77, 81])
-    }
-
-    /// A latched chord is its key's, whichever key is down when it is
-    /// played again.
-    @Test func aDroneOnABorrowedRootStaysItsChord() {
-        let (state, sink) = makeState()
-        state.selectMode(.drone)
-        state.press(.root(.As))
-        state.release(.root(.As))
-        state.compassPressed(CompassPlace(.add, 1))
-
-        #expect(sink.playCalls.last?.notes == [70, 74, 77, 81])
-    }
-
-    @Test func aLeadNoteIsTheRootItself() {
-        let (state, sink) = makeState()
-        state.selectMode(.lead)
-        state.press(.root(.As))
-        #expect(sink.playCalls.last?.notes == [70])
     }
 
     /// The octave's key for a note of the key is that degree's key, so it

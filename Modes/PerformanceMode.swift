@@ -1,45 +1,15 @@
 /// Identifies a performance mode. Views, settings and logs decide by kind,
 /// never by display name, so renaming or localizing a mode changes nothing else.
+/// The app has Play mode alone; Strum, Lead, Drone, Repeat and the
+/// sequencer are parked on the `color-ring` branch.
 enum ModeKind: CaseIterable {
-    case play, strum, lead, drone, `repeat`, sequencer
+    case play
 
     var displayName: String {
         switch self {
-        case .play:      return "Play"
-        case .strum:     return "Strum"
-        case .lead:      return "Lead"
-        case .drone:     return "Drone"
-        case .repeat:    return "Repeat"
-        case .sequencer: return "Sequencer"
+        case .play: return "Play"
         }
     }
-
-    var summary: String {
-        switch self {
-        case .play:      return "Chord sustains while held"
-        case .strum:     return "Notes arpeggiate on button press"
-        case .lead:      return "Single melody note per button"
-        case .drone:     return "Press to latch; press again to stop"
-        case .repeat:    return "Chord retriggers at tempo"
-        case .sequencer: return "Chords in sequence, bar by bar"
-        }
-    }
-
-    /// The screen the mode is played from.
-    var surface: ModeSurface {
-        switch self {
-        case .sequencer: return .sequencer
-        case .play, .strum, .lead, .drone, .repeat: return .chords
-        }
-    }
-}
-
-/// What the main screen shows for a mode.
-enum ModeSurface {
-    /// The chord buttons and coloration bar.
-    case chords
-    /// The step sequencer, which replaces the chord buttons.
-    case sequencer
 }
 
 /// One way of turning chord-button presses into sound.
@@ -63,8 +33,8 @@ protocol PerformanceMode: AnyObject {
     var requiresClock: Bool { get }
     func onButtonDown(key: ChordKey, state: PerformanceState)
     func onButtonUp(key: ChordKey, state: PerformanceState)
-    /// The chord a held key plays changed: the live chord color (joystick
-    /// or grid moved), or the key or octave (the finger moved into a key
+    /// The chord a held key plays changed: the live chord color (a place of
+    /// the compass), or the key or octave (the finger moved into a key
     /// zone with its own). Modes that are sounding a chord play its key
     /// again, as `state` now has it.
     func onColorChange(state: PerformanceState)

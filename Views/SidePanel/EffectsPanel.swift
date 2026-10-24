@@ -15,18 +15,12 @@ struct EffectsPanel: View {
         switch panel.effectsTarget {
         case .keys:         return .keys
         case .loop(let id): return state.quickLoopState.loops.contains { $0.id == id } ? .loop(id) : .keys
-        case .pad:          return editedPad == nil ? .keys : .pad
         }
     }
 
     /// The loop being edited.
     private var loop: Layer.ID? {
         if case .loop(let id) = target { id } else { nil }
-    }
-
-    /// The pad being edited on the pads' screen, if it has a sound to edit.
-    private var editedPad: PadPlace? {
-        state.pads.edited.flatMap { state.pads.grid[$0] == nil ? nil : $0 }
     }
 
     private var isKeys: Bool { target == .keys }
@@ -38,10 +32,10 @@ struct EffectsPanel: View {
     var body: some View {
         @Bindable var effects = state.effects
         VStack(alignment: .leading, spacing: 24) {
-            if !state.quickLoopState.loops.isEmpty || editedPad != nil { targetPicker }
+            if !state.quickLoopState.loops.isEmpty { targetPicker }
 
             section("NOTES",
-                    footnote: "Plays each chord one note at a time: Arpeggio 1 from the lowest note up, Arpeggio 2 from the highest down. One pass over the chord takes the cycle, however many notes it has. Works in Play, in the sequencer and on the Tonnetz, and is sent over MIDI.") {
+                    footnote: "Plays each chord one note at a time: Arpeggio 1 from the lowest note up, Arpeggio 2 from the highest down. One pass over the chord takes the cycle, however many notes it has. Works on the keys and in the loops, and is sent over MIDI.") {
                 card("Arpeggiator", isOn: control(\.arpeggiator.isOn)) {
                     pickerControl("Arpeggio", selection: control(\.arpeggiator.pattern),
                                   options: ArpeggioPattern.allCases, label: \.label)
@@ -55,7 +49,7 @@ struct EffectsPanel: View {
             section("SOUND",
                     footnote: isKeys
                         ? "Applied to what the keys and the Tonnetz play. A loop keeps the effects it was recorded with; choose the loop above to change them. The chorus and the reverb are sent over MIDI as CC 93 and 91."
-                        : "Applied to this \(targetName) alone, whatever is set for the keys.") {
+                        : "Applied to this loop alone, whatever is set for the keys.") {
                 card("Chorus", isOn: control(\.chorus.isOn))
                 card("Reverb", isOn: control(\.reverb.isOn))
                 card("Delay", isOn: control(\.delay.isOn))
@@ -103,9 +97,8 @@ struct EffectsPanel: View {
 
     // MARK: – Whose effects
 
-    /// Chooses whose effects the cards below set: the keys', one loop's,
-    /// or those of the pad being edited. Each loop and pad has its own, and
-    /// nothing set for the keys reaches them.
+    /// Chooses whose effects the cards below set: the keys', or one loop's.
+    /// Each loop has its own, and nothing set for the keys reaches them.
     private var targetPicker: some View {
         VStack(alignment: .leading, spacing: 10) {
             SidePanelSectionLabel("EFFECTS OF")
@@ -114,9 +107,6 @@ struct EffectsPanel: View {
                 ForEach(Array(state.quickLoopState.loops.enumerated()), id: \.element.id) { index, entry in
                     Text("Loop \(index + 1)").tag(EffectsTarget.loop(entry.id))
                 }
-                if let pad = editedPad {
-                    Text("Pad \(pad.row + 1)·\(pad.column + 1)").tag(EffectsTarget.pad)
-                }
             }
             .pickerStyle(.menu)
             .tint(.orange)
@@ -124,29 +114,20 @@ struct EffectsPanel: View {
         }
     }
 
-    /// What the page calls whatever its cards are set for, other than the keys.
-    private var targetName: String { target == .pad ? "pad" : "loop" }
-
     private var vocoderFootnote: String {
         switch target {
         case .keys:
             return "Your voice shapes the notes: hold a chord and speak or sing into the phone, and the chord says the words. It uses the microphone while it is on. Headphones give the clearest result; on the speaker the phone has to cancel its own sound, which dulls it. Bright sounds, such as Saw Lead and Strings, speak most clearly."
         case .loop:
-            return "How much of this loop your voice shapes. The microphone is open only while the vocoder is on for the keys or for a pad; while it is off, the loop is heard whole."
-        case .pad:
-            return "How much of this pad your voice shapes. The microphone is open while the pads are on screen or playing in sequence."
+            return "How much of this loop your voice shapes. The microphone is open only while the vocoder is on for the keys; while it is off, the loop is heard whole."
         }
     }
 
-    /// One setting of the effects being shown: the keys' as set, the chosen
-    /// loop's own, or the edited pad's. Setting a loop's changes every note
-    /// of it, and a pad's that pad, and nothing of the keys'.
+    /// One setting of the effects being shown: the keys' as set, or the
+    /// chosen loop's own. Setting a loop's changes every note of it, and
+    /// nothing of the keys'.
     private func control<Value>(_ setting: WritableKeyPath<NoteEffects, Value>) -> Binding<Value> {
-        let (effects, sequencer, pads) = (state.effects, state.sequencerState, state.pads)
-        if target == .pad, let pad = editedPad {
-            return Binding(get: { (pads.grid[pad]?.effects ?? effects.asSet)[keyPath: setting] },
-                           set: { value in pads.edit { $0.effects[keyPath: setting] = value } })
-        }
+        let (effects, sequencer) = (state.effects, state.sequencerState)
         guard let loop else {
             return Binding(get: { effects.asSet[keyPath: setting] },
                            set: { effects.asSet[keyPath: setting] = $0 })

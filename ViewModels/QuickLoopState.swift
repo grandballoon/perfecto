@@ -21,13 +21,10 @@ protocol LoopHost: AnyObject {
 }
 
 /// A line of chords a loop is recorded from. Each is one chord at a time, as
-/// a layer is, so what each played in a take becomes layers of its own.
+/// a layer is, so what each played in a take becomes layers of its own. The
+/// keys are the only line for now.
 enum LoopLine: CaseIterable {
     case keys
-    /// The Tonnetz's triads.
-    case tonnetzTriads
-    /// The notes of the Tonnetz played by themselves.
-    case tonnetzNotes
 }
 
 /// One layer of the timeline, as the loop bar shows it.
@@ -38,8 +35,7 @@ struct QuickLoopEntry: Identifiable, Equatable {
 }
 
 /// Play mode's loop: one button records what is played as new layers of the
-/// timeline, the same one the sequencer edits. What the keys play is one
-/// layer, and so is each line of the Tonnetz that was played (`LoopLine`).
+/// timeline. What the keys play is one layer (`LoopLine`).
 ///
 /// The first loop, recorded onto an empty timeline, sets its length and the
 /// tempo (`Timeline.fit`): it is taken to be whole bars, and loops from the
@@ -148,13 +144,6 @@ final class QuickLoopState {
     func effectsChanged() {
         guard let host, let effects = host.playedNow.effects else { return }
         take?.lines[.keys]?.effectsChanged(to: effects, at: host.clockBeats)
-    }
-
-    /// The effects `line` is played with were set to `effects`: a line
-    /// other than the keys', which is played with the effects as set.
-    func effectsChanged(to effects: NoteEffects, on line: LoopLine) {
-        guard let host else { return }
-        take?.lines[line]?.effectsChanged(to: effects, at: host.clockBeats)
     }
 
     // MARK: – Private

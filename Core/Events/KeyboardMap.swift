@@ -9,8 +9,6 @@ enum KeyboardAction: Hashable, Codable, Sendable {
     case compass(CompassPlace)
     /// One of the screen's buttons, tapped.
     case button(KeyboardButton)
-    /// A move on the Tonnetz, whose triad sounds while the key is held.
-    case tonnetz(TonnetzMove)
 }
 
 /// The buttons of the screen that a key can tap.
@@ -19,29 +17,14 @@ enum KeyboardButton: String, CaseIterable, Hashable, Codable, Sendable {
     case loop
     /// Silences the app's own sound, or brings it back.
     case midi
-    /// Starts the loops and the sequence from the top, or stops them.
+    /// Starts the loops from the top, or stops them.
     case playStop
-    /// Shows the sequencer.
-    case sequencer
-    /// Shows the Tonnetz.
-    case tonnetz
-    /// Shows the Tonnetz as the net of notes, while it is on screen.
-    case net
-    /// Shows the Tonnetz one triad at a time, while it is on screen.
-    case triad
-    /// Switches the Tonnetz's hold on or off, while it is on screen.
-    case hold
 
     var displayName: String {
         switch self {
         case .loop:      return "Loop"
         case .midi:      return "MIDI"
         case .playStop:  return "Play/stop"
-        case .sequencer: return "Sequencer"
-        case .tonnetz:   return "Tonnetz"
-        case .net:       return "Net"
-        case .triad:     return "Triad"
-        case .hold:      return "Hold"
         }
     }
 }
@@ -126,10 +109,8 @@ extension KeyboardMap {
     /// The chords along the home row from A to J, the compass's first
     /// choices on the arrows (up adds a tone, right raises one, left lowers
     /// one, down takes one away; the second choices have no key to start
-    /// with), the buttons on Return (loop), Space (play and stop), M (MIDI),
-    /// Q (sequencer),
-    /// Z (Tonnetz), N (net), T (triad) and K (hold: it keeps), and the
-    /// Tonnetz's moves on their own letters, P, L and R.
+    /// with), and the buttons on Return (loop), Space (play and stop) and
+    /// M (MIDI).
     static let standard: KeyboardMap = {
         var keys: [KeyboardAction: KeyboardKey] = [:]
         let homeRow = [(4, "A"), (22, "S"), (7, "D"), (9, "F"), (10, "G"), (11, "H"), (13, "J")]
@@ -143,14 +124,6 @@ extension KeyboardMap {
         keys[.button(.loop)] = KeyboardKey(code: 40, characters: "")
         keys[.button(.playStop)] = KeyboardKey(code: 44, characters: "")
         keys[.button(.midi)] = KeyboardKey(code: 16, name: "M")
-        keys[.button(.sequencer)] = KeyboardKey(code: 20, name: "Q")
-        keys[.button(.tonnetz)] = KeyboardKey(code: 29, name: "Z")
-        keys[.button(.net)] = KeyboardKey(code: 17, name: "N")
-        keys[.button(.triad)] = KeyboardKey(code: 23, name: "T")
-        keys[.button(.hold)] = KeyboardKey(code: 14, name: "K")
-        keys[.tonnetz(.parallel)] = KeyboardKey(code: 19, name: "P")
-        keys[.tonnetz(.leading)] = KeyboardKey(code: 15, name: "L")
-        keys[.tonnetz(.relative)] = KeyboardKey(code: 21, name: "R")
         return KeyboardMap(keys: keys)
     }()
 }

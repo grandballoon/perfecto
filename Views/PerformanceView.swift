@@ -1,27 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// The desk's arrangement: a window with room for it shows the keys and the
-/// sequencer side by side, and the menu as a column beside them. The
-/// Tonnetz, the pads, the Trautonium's bars, the chord–scale tree, the
-/// Dissonance Lab or the MIDI controller take the sequencer's place when
-/// chosen (`DeskPane`).
-///
-/// It is the phone's own screens put next to one another, chosen by one
-/// threshold, and nothing else is built on it: the layout as a whole is to
-/// be thought through again.
-enum DeskLayout {
-    /// The smallest window that is laid out this way. A phone on its side
-    /// is narrower.
-    static let minimumSize = CGSize(width: 1100, height: 640)
-    /// The width of the keys' column: about a phone's, upright.
-    static let playWidth: CGFloat = 420
-
-    static func fits(_ size: CGSize) -> Bool {
-        size.width >= minimumSize.width && size.height >= minimumSize.height
-    }
-}
-
 struct PerformanceView: View {
     @Environment(PerformanceState.self) private var state
 
@@ -38,8 +17,6 @@ struct PerformanceView: View {
     /// Landscape panels' inset from the screen edges and from each other.
     private static let edgeMargin: CGFloat = 16
     private static let midiChitWidth: CGFloat = 64
-    /// The screen's toggle where it shares a row with a screen's controls.
-    private static let landscapeToggleWidth: CGFloat = 210
 
     var body: some View {
         // The piano, while it is shown, is the bottom of the window from
@@ -80,12 +57,9 @@ struct PerformanceView: View {
     private var screen: some View {
         GeometryReader { geo in
             let isLandscape = geo.size.width > geo.size.height
-            let isDesk = DeskLayout.fits(geo.size)
             ZStack {
                 Color.black.ignoresSafeArea()
-                if isDesk {
-                    deskLayout(geo: geo)
-                } else if isLandscape {
+                if isLandscape {
                     landscapeLayout(geo: geo)
                 } else {
                     portraitLayout(geo: geo)
@@ -99,67 +73,12 @@ struct PerformanceView: View {
                     .padding(.leading, SidePanelLayout.buttonLeading)
                     .padding(.top, SidePanelLayout.buttonTop)
             }
-            // With the sequencer always in view the keys are always played,
-            // so there is no sequencer mode to be in.
-            .onChange(of: isDesk, initial: true) {
-                state.isAtDesk = isDesk
-                if isDesk { state.selectMode(.play) }
-            }
         }
-    }
-
-    // MARK: – Desk layout
-
-    /// The keys' column as a phone held upright shows it, and the sequencer
-    /// or the Tonnetz in the rest of the window. The menu, while it is open,
-    /// lies over a column of its own, so it covers nothing.
-    private func deskLayout(geo: GeometryProxy) -> some View {
-        let menuWidth = sidePanel.isOpen ? SidePanelLayout.width(in: geo.size.width) : 0
-        let paneWidth = geo.size.width - menuWidth - DeskLayout.playWidth - 1
-        return HStack(spacing: 0) {
-            Color.clear
-                .frame(width: menuWidth)
-            portraitLayout(geo: geo, besideSequencer: true)
-                .frame(width: DeskLayout.playWidth)
-            Rectangle()
-                .fill(Color(white: 0.18))
-                .frame(width: 1)
-            Group {
-                switch state.deskPane {
-                case .sequencer:
-                    SequencerView(besidePlay: true)
-                        .environment(state.sequencerState)
-                case .tonnetz:
-                    TonnetzView()
-                        .padding(16)
-                case .pads:
-                    PadsView()
-                        .padding(16)
-                case .trautonium:
-                    TrautoniumView()
-                        .padding(16)
-                case .tree:
-                    ChordScaleTreeView()
-                        .padding(16)
-                case .lab:
-                    DissonanceLabView()
-                        .padding(16)
-                case .controller:
-                    ControllerView()
-                        .padding(16)
-                }
-            }
-            .frame(width: paneWidth)
-        }
-        .animation(.easeOut(duration: 0.22), value: sidePanel.isOpen)
     }
 
     // MARK: – Portrait layout
 
-    /// `besideSequencer`: the sequencer has a place of its own on screen, so
-    /// this column is the keys' whatever the mode, and its toggle chooses
-    /// what is beside it instead.
-    private func portraitLayout(geo: GeometryProxy, besideSequencer: Bool = false) -> some View {
+    private func portraitLayout(geo: GeometryProxy) -> some View {
         VStack(spacing: 0) {
             // The OLED shares the top row with the menu button, inset past
             // it and top-aligned with it.
@@ -168,90 +87,37 @@ struct PerformanceView: View {
                 .padding(.trailing, 24)
                 .padding(.top, 12)
 
-            // The chits sit a uniform distance below the note display in every
-            // mode: play/lead/etc. anchor them here (a single Spacer below pushes
-            // the input strip to the bottom), and the full-screen modes get the
-            // same gap instead of butting straight against the OLED.
-            functionButtons(besideSequencer: besideSequencer)
+            functionButtons()
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .padding(.bottom, 12)
 
-            if !besideSequencer, state.deskPane == .tonnetz {
-                // The Tonnetz has the screen, whatever the mode under it,
-                // under the effects it is played with.
-                EffectStrip()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 4)
-                TonnetzView()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                    .padding(.bottom, 20)
-            } else if !besideSequencer, state.deskPane == .pads {
-                // So have the pads.
-                PadsView()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 4)
-                    .padding(.bottom, 40)
-            } else if !besideSequencer, state.deskPane == .trautonium {
-                // And the Trautonium's bars, under the key they are in and
-                // the effects they are played with.
-                if state.showsKeyStrip {
-                    KeyStrip()
-                        .padding(.horizontal, 20)
-                        .padding(.top, 4)
-                }
-                EffectStrip()
+            LoopBar()
+                .padding(.horizontal, 20)
+            if state.showsKeyStrip {
+                KeyStrip()
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
-                TrautoniumView()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                    .padding(.bottom, 40)
-            } else if !besideSequencer, state.deskPane == .tree {
-                // And the chord–scale tree, under its own controls.
-                ChordScaleTreeView()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 4)
-                    .padding(.bottom, 20)
-            } else if !besideSequencer, state.deskPane == .lab {
-                // And the Dissonance Lab.
-                DissonanceLabView()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 4)
-            } else if !besideSequencer, state.mode.kind.surface == .sequencer {
-                SequencerView()
-                    .environment(state.sequencerState)
-                    .padding(.top, 8)
-                    .padding(.bottom, 40)
-            } else {
-                LoopBar()
-                    .padding(.horizontal, 20)
-                if state.showsKeyStrip {
-                    KeyStrip()
-                        .padding(.horizontal, 20)
-                        .padding(.top, 10)
-                }
-                EffectStrip()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
-
-                // Push the chord ring toward the bottom so it falls under the
-                // thumb when the phone is held normally, rather than sitting
-                // high under the function buttons.
-                Spacer()
-
-                chordKeys(state.chordGridLayout.arrangement(isLandscape: false))
-                    .padding(.horizontal, 20)
-
-                // Bottom input: the chord colors
-                StepCompassSurface()
-                    .environment(state)
-                    .frame(height: StepCompassSurface.portraitHeight)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
-                    .padding(.bottom, 40)
             }
+            EffectStrip()
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+
+            // Push the chord ring toward the bottom so it falls under the
+            // thumb when the phone is held normally, rather than sitting
+            // high under the function buttons.
+            Spacer()
+
+            chordKeys(state.chordGridLayout.arrangement(isLandscape: false))
+                .padding(.horizontal, 20)
+
+            // Bottom input: the chord colors
+            StepCompassSurface()
+                .environment(state)
+                .frame(height: StepCompassSurface.portraitHeight)
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 40)
         }
     }
 
@@ -259,117 +125,7 @@ struct PerformanceView: View {
 
     @ViewBuilder
     private func landscapeLayout(geo: GeometryProxy) -> some View {
-        if state.deskPane == .tonnetz {
-            // The Tonnetz has the whole screen, as the sequencer does, and
-            // its controls share the one row with the screen's own, inset
-            // past the menu button and level with it. The effects it is
-            // played with are a row under them.
-            @Bindable var state = state
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    PhoneScreenToggle()
-                        .frame(width: Self.landscapeToggleWidth)
-                    TonnetzControls()
-                    toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
-                        .frame(width: Self.midiChitWidth)
-                        .hotkeyTip(.midi)
-                }
-                .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
-                         - Self.edgeMargin)
-                EffectStrip()
-                TonnetzBoard()
-            }
-            .padding(Self.edgeMargin)
-            .frame(width: geo.size.width, height: geo.size.height)
-        } else if state.deskPane == .pads {
-            // So have the pads, with their editor beside the grid.
-            @Bindable var state = state
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    PhoneScreenToggle()
-                        .frame(width: Self.landscapeToggleWidth)
-                    PadsControls()
-                    toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
-                        .frame(width: Self.midiChitWidth)
-                        .hotkeyTip(.midi)
-                }
-                .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
-                         - Self.edgeMargin)
-                HStack(spacing: 12) {
-                    PadsBoard()
-                    if state.pads.isEditing {
-                        PadEditor()
-                            .frame(width: geo.size.width * 0.42)
-                    }
-                }
-            }
-            .padding(Self.edgeMargin)
-            .frame(width: geo.size.width, height: geo.size.height)
-        } else if state.deskPane == .trautonium {
-            // And the Trautonium's bars, which lie along the screen. The key
-            // they are in shares the one row with the screen's own, and
-            // the effects they are played with are a row under it.
-            @Bindable var state = state
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    PhoneScreenToggle()
-                        .frame(width: Self.landscapeToggleWidth)
-                    if state.showsKeyStrip { KeyStrip() } else { Spacer(minLength: 0) }
-                    toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
-                        .frame(width: Self.midiChitWidth)
-                        .hotkeyTip(.midi)
-                }
-                .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
-                         - Self.edgeMargin)
-                EffectStrip()
-                TrautoniumView()
-            }
-            .padding(Self.edgeMargin)
-            .frame(width: geo.size.width, height: geo.size.height)
-        } else if state.deskPane == .tree {
-            // And the chord–scale tree, whose controls share the one row
-            // with the screen's own.
-            @Bindable var state = state
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    PhoneScreenToggle()
-                        .frame(width: Self.landscapeToggleWidth)
-                    TreeControls()
-                    toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
-                        .frame(width: Self.midiChitWidth)
-                        .hotkeyTip(.midi)
-                }
-                .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
-                         - Self.edgeMargin)
-                ChordScaleTreeView(showsControls: false)
-            }
-            .padding(Self.edgeMargin)
-            .frame(width: geo.size.width, height: geo.size.height)
-        } else if state.deskPane == .lab {
-            // And the Dissonance Lab, its pictures beside its controls.
-            @Bindable var state = state
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    PhoneScreenToggle()
-                        .frame(width: Self.landscapeToggleWidth)
-                    Spacer(minLength: 0)
-                    toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
-                        .frame(width: Self.midiChitWidth)
-                        .hotkeyTip(.midi)
-                }
-                .padding(.leading, SidePanelLayout.buttonLeading + SidePanelLayout.buttonSize + 12
-                         - Self.edgeMargin)
-                DissonanceLabView()
-            }
-            .padding(Self.edgeMargin)
-            .frame(width: geo.size.width, height: geo.size.height)
-        } else if state.mode.kind.surface == .sequencer {
-            // Sequencer owns the whole screen in landscape and lays out its own
-            // two-column editor/grid. No split panel.
-            SequencerView()
-                .environment(state.sequencerState)
-                .frame(width: geo.size.width, height: geo.size.height)
-        } else if state.chordGridLayout.arrangement(isLandscape: true) == .circle {
+        if state.chordGridLayout.arrangement(isLandscape: true) == .circle {
             ringLandscapeLayout(geo: geo)
         } else {
         HStack(spacing: 0) {
@@ -467,25 +223,12 @@ struct PerformanceView: View {
             .onLongPressGesture(minimumDuration: 3) { shareLogs() }
     }
 
-    /// A toggle takes the row; MIDI keeps to a narrow fixed width.
-    /// The toggle is the mode's, or beside the sequencer's own place the
-    /// one that chooses what is shown there.
-    private func functionButtons(besideSequencer: Bool = false) -> some View {
+    /// The screen's buttons: MIDI, at the trailing end of its row, until it
+    /// has a place of its own.
+    private func functionButtons() -> some View {
         @Bindable var state = state
         return HStack(spacing: 10) {
-            if besideSequencer {
-                SegmentedToggle(choices: DeskPane.allCases, label: \.displayName,
-                                hotkey: {
-                                    switch $0 {
-                                    case .sequencer: return .sequencer
-                                    case .tonnetz:   return .tonnetz
-                                    case .pads, .trautonium, .tree, .lab, .controller: return nil
-                                    }
-                                },
-                                selection: $state.deskPane)
-            } else {
-                PhoneScreenToggle()
-            }
+            Spacer(minLength: 0)
             toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
                 .frame(width: Self.midiChitWidth)
                 .hotkeyTip(.midi)
@@ -520,27 +263,6 @@ struct PerformanceView: View {
                 )
         }
         .buttonStyle(.plain)
-    }
-}
-
-/// The toggle that chooses what a phone's screen shows: the keys, the
-/// sequencer, the Tonnetz, the pads, the Trautonium's bars, the
-/// chord–scale tree or the Dissonance Lab. None is on under a mode that is none of them.
-struct PhoneScreenToggle: View {
-    @Environment(PerformanceState.self) private var state
-
-    var body: some View {
-        SegmentedToggle(choices: PhoneScreen.allCases.map(Optional.some),
-                        label: { $0?.displayName ?? "" },
-                        hotkey: {
-                            switch $0 {
-                            case .sequencer: return .sequencer
-                            case .tonnetz:   return .tonnetz
-                            case .play, .pads, .trautonium, .tree, .lab, nil: return nil
-                            }
-                        },
-                        selection: Binding(get: { state.phoneScreen },
-                                           set: { if let screen = $0 { state.show(screen) } }))
     }
 }
 

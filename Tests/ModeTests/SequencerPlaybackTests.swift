@@ -20,7 +20,7 @@ struct SequencerPlaybackTests {
         }
         let clock = ManualClock()
         let state = PerformanceState(sink: RecordingSink(), clock: clock)
-        state.setMode(SequencerMode(seq))
+        state.attach(seq)
         seq.isPlaying = true
         return (seq, clock, state)
     }
@@ -69,7 +69,7 @@ struct SequencerPlaybackTests {
         let sink = RecordingSink()
         let clock = ManualClock()
         let state = PerformanceState(sink: sink, clock: clock)
-        state.setMode(SequencerMode(seq))
+        state.attach(seq)
         seq.isPlaying = true
         for _ in 0..<9 { step(clock) }
 
@@ -117,17 +117,6 @@ struct SequencerPlaybackTests {
         withExtendedLifetime(state) {}
     }
 
-    /// The landscape sequencer's SEQ button, tapped while already in the
-    /// sequencer, used to re-enter the mode and stop playback.
-    @Test func tappingSeqInTheSequencerKeepsItPlaying() {
-        let (seq, clock, state) = start(bars: 1)
-        step(clock)
-        state.selectMode(.sequencer)   // what the SEQ button calls
-
-        #expect(seq.isPlaying)
-        withExtendedLifetime(state) {}
-    }
-
     /// A sequence is a loop under the keys: it plays on when the sequencer
     /// screen is left, and the keys play over it.
     @Test func theSequencePlaysOnUnderPlayMode() {
@@ -136,9 +125,8 @@ struct SequencerPlaybackTests {
         let sink = RecordingSink()
         let clock = ManualClock()
         let state = PerformanceState(sink: sink, clock: clock)
-        state.setMode(SequencerMode(seq))
+        state.attach(seq)
         seq.isPlaying = true
-        state.selectMode(.play)
         #expect(seq.isPlaying)
 
         sink.reset()
@@ -166,7 +154,7 @@ struct SequencerPlaybackTests {
         let sink = RecordingSink()
         let clock = ManualClock()
         let state = PerformanceState(sink: sink, clock: clock)
-        state.setMode(SequencerMode(seq))
+        state.attach(seq)
         seq.isPlaying = true
         step(clock)
 
@@ -181,7 +169,7 @@ struct SequencerPlaybackTests {
         let sink = RecordingSink()
         let clock = ManualClock()
         let state = PerformanceState(sink: sink, clock: clock)
-        state.setMode(SequencerMode(seq))
+        state.attach(seq)
         seq.isPlaying = true
         step(clock)
         seq.steps[3] = SequencerStep(degree: .V)

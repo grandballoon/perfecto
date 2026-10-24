@@ -33,7 +33,7 @@ struct ChordKeySurface<Content: View>: View {
 
 extension View {
     /// Marks this view as `key` on the surface around it
-    /// (`ChordKeySurface`, or `DegreeSelector`). With no key it is only drawn.
+    /// (`ChordKeySurface`). With no key it is only drawn.
     /// The key is the part of the view its `outline` says: all of it, unless
     /// it is drawn as another shape.
     func chordKey(_ key: ChordKey?, outline: KeyOutline = .rect) -> some View {

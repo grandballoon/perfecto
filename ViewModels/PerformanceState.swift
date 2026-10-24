@@ -62,55 +62,6 @@ extension ColorStepRanking {
     }
 }
 
-/// What a phone's screen is given to, chosen by the toggle in its row of
-/// buttons. The Tonnetz, the pads, the Trautonium's bars, the chord–scale
-/// tree and the Dissonance Lab are not modes: they lie over whichever is on.
-enum PhoneScreen: CaseIterable {
-    case play
-    case sequencer
-    case tonnetz
-    case pads
-    case trautonium
-    case tree
-    case lab
-
-    var displayName: String {
-        switch self {
-        case .play:       return "PLAY"
-        case .sequencer:  return "SEQ"
-        case .tonnetz:    return "TONNETZ"
-        case .pads:       return "PADS"
-        case .trautonium: return "BARS"
-        case .tree:       return "TREE"
-        case .lab:        return "LAB"
-        }
-    }
-}
-
-/// What the desk shows beside the keys' column (`DeskLayout`). The MIDI
-/// controller is drawn only there, since it is played at a desk.
-enum DeskPane: CaseIterable {
-    case sequencer
-    case tonnetz
-    case pads
-    case trautonium
-    case tree
-    case lab
-    case controller
-
-    var displayName: String {
-        switch self {
-        case .sequencer:  return "SEQ"
-        case .tonnetz:    return "TONNETZ"
-        case .pads:       return "PADS"
-        case .trautonium: return "BARS"
-        case .tree:       return "TREE"
-        case .lab:        return "LAB"
-        case .controller: return "CTRL"
-        }
-    }
-}
-
 @Observable
 @MainActor
 final class PerformanceState {
@@ -175,12 +126,10 @@ final class PerformanceState {
     var heldVoicing: KeyVoicing { voicing.bent(by: voicingBend) }
 
     /// The octave a chord of the key the keys are in is built in now: the
-    /// one its key was struck in if it has one (`press(_:inOctave:)`), or
-    /// else the key zone's under the finger if it has one of its own, or
-    /// else the octave chosen, as far up or down as the voicing field
-    /// holds it.
+    /// key zone's under the finger if it has one of its own, or else the
+    /// octave chosen, as far up or down as the voicing field holds it.
     private var builtOctave: Int {
-        (struckOctave ?? effects.heldZone?.octave ?? octave) + voicingBend.octaves
+        (effects.heldZone?.octave ?? octave) + voicingBend.octaves
     }
     /// The octave a chord played now is in: the one chords are built in,
     /// moved as the key played moves it (`ChordKey.octaveShift`).
@@ -202,30 +151,6 @@ final class PerformanceState {
     /// Whether the play screen has the key strip (`KeyStrip`): the key and
     /// the voicing.
     var showsKeyStrip = true
-    /// What is beside the keys' column at a desk. It is also whether the
-    /// Tonnetz, the pads, the Trautonium's bars, the chord–scale tree or the
-    /// Dissonance Lab are on screen wherever the app is: on a phone they
-    /// take the screen (`phoneScreen`), so a window made narrower keeps them.
-    var deskPane: DeskPane = .sequencer {
-        didSet {
-            tonnetz.isShown = deskPane == .tonnetz
-            pads.isShown = deskPane == .pads
-            trautonium.isShown = deskPane == .trautonium
-            tree.isShown = deskPane == .tree
-            // A MIDI keyboard plays the lab while it is shown, so whatever
-            // the Orchid held is let go as it takes over.
-            if deskPane == .lab, !lab.isShown { orchid.releaseAll() }
-            lab.isShown = deskPane == .lab
-        }
-    }
-
-    /// Whether the window is laid out for the desk (`DeskLayout`), where
-    /// the sequencer is a pane beside the keys and not a mode. The Orchid
-    /// is played only there, so it lets go of what it held as it goes.
-    var isAtDesk = false {
-        didSet { if !isAtDesk { orchid.releaseAll() } }
-    }
-
     var isExternalSynth: Bool = false {
         didSet { output?.isExternalSynth = isExternalSynth }
     }
@@ -266,16 +191,11 @@ final class PerformanceState {
     /// place held.
     var compassPlaces: [CompassPlace] { keepsCompassColor ? compassWalk : heldPlace.map { [$0] } ?? [] }
 
-    /// What the Orchid's chord buttons held build (`OrchidState.build`); nil
-    /// while they build nothing.
-    private(set) var chordButtons: ChordBuild?
-
-    /// The live chord color for `degree`: the chord buttons' while they
-    /// build a chord, or else the compass's places, each a step resolved
-    /// against the degree that plays in `key` (the key being played,
-    /// unless another is given). With no place, the diatonic triad plays.
+    /// The live chord color for `degree`: the compass's places, each a step
+    /// resolved against the degree that plays in `key` (the key being
+    /// played, unless another is given). With no place, the diatonic triad
+    /// plays.
     func color(for degree: Degree, in key: Key? = nil) -> ChordColor {
-        if let chordButtons { return .built(chordButtons) }
         let places = compassPlaces
         guard !places.isEmpty else { return .base }
         return .tones(StepCompass.walk(places, key: key ?? playedKey, degree: degree, ranking: compassRanking))
@@ -283,13 +203,6 @@ final class PerformanceState {
     private(set) var activeDegree: Degree? = nil
     /// The chord keys that are down, oldest first; the last is the active press.
     private(set) var heldKeys: [ChordKey] = []
-    /// The octave each held key was struck in, beside it in `heldKeys`; nil
-    /// for a key with no octave of its own.
-    private var heldOctaves: [Int?] = []
-    /// The octave the active press was struck in, if it had one. It is
-    /// kept once the key lifts, so a chord that rings on (a drone) stays
-    /// where it was struck.
-    private var struckOctave: Int?
     /// The key whose press is the active one; nil while none is down.
     var activeKey: ChordKey? { heldKeys.last }
     /// How far up each held key its finger is, 0 at the bottom to 1 at the
@@ -304,27 +217,10 @@ final class PerformanceState {
     let sequencerState: SequencerState
     let quickLoopState: QuickLoopState
     let effects: EffectsState
-    /// The Tonnetz: triads played from the net of notes, in no key.
-    let tonnetz: TonnetzState
-    /// The pads: a grid of sounds, played by themselves or in sequence.
-    let pads: PadsState
-    /// The Trautonium: two bars, each a voice whose pitch is anywhere.
-    let trautonium: TrautoniumState
-    /// The chord–scale tree: from a chord, every chord of the scales it is
-    /// the home chord of.
-    let tree: ChordScaleTreeState
-    /// The Dissonance Lab: two notes, and what makes them smooth or rough
-    /// made plain.
-    let lab: DissonanceLabState
     /// The computer keyboard, as a way to play the keys and the compass.
     let keyboard: KeyboardState
     /// A game controller, as one more way to play them.
     let gamepad: GamepadState
-    /// A MIDI controller, drawn at the desk with what it is doing
-    /// (`DeskPane.controller`).
-    let controller: ControllerState
-    /// The MIDI controller played as an Orchid, at the desk.
-    let orchid: OrchidState
     /// The piano along the bottom of the screen, lit with what is sounding.
     let piano: PianoState
     let micSample: MicSampleState
@@ -368,51 +264,20 @@ final class PerformanceState {
     /// its chords' own sound. Without one, layers share `sink`.
     /// `layerLead` is the lead those sinks were made with (see
     /// `NotePlayer`), so a loop recorded over them lands where it was heard.
-    /// `tonnetzSink` sounds the Tonnetz's triads beside the keys' chord
-    /// (production passes a `NotePlayer` of its own on the same note sinks;
-    /// without one it is silent), and
-    /// `tonnetzNoteSink` its notes played by themselves, each through an
-    /// arpeggiator of its own.
-    /// `padSink` makes the sink a pad sounds through, a new one for each
-    /// pad, so pads sound together, and `padSequenceSink` sounds the pads
-    /// played in sequence: production passes a `NotePlayer` on the same
-    /// note sinks for each, the sequence's with the layers' lead, since
-    /// the clock plays it. Without them the pads are silent. `padDefaults`
-    /// is where the grid is saved; with none it is not.
-    /// `trautoniumSink` makes the sink a bar of the Trautonium sounds
-    /// through, one for each: production passes a `NotePlayer` on the audio
-    /// alone, since a note that slides has no place in the MIDI the app
-    /// sends. Without one the bars are silent.
-    /// `treeSink` sounds what the chord–scale tree plays, likewise.
-    /// `labSynth` sounds the Dissonance Lab: production passes one on the
-    /// kernel, which alone can set a note's partials one by one. Without
-    /// one the lab is silent.
     /// `micGate` says whether the mic sample may be recorded.
     /// `sequencer` is the app's sequencer and its saved timeline; tests pass
     /// one with a store of its own.
     /// `keyboard` is the computer keyboard and its saved map, likewise,
-    /// and `gamepad` a game controller and its, and `controller` a MIDI
-    /// controller and the bindings it has learned, and `orchid` that
-    /// controller played as an Orchid and its key mode.
+    /// and `gamepad` a game controller and its.
     /// `piano` is the piano whose lines the sinks above were made with
     /// (`PianoState.line`); without one the piano stays dark.
     init(sink: any ChordEventSink,
          chordListener: (any ChordEventSink)? = nil,
          layerSink: (() -> any ChordEventSink)? = nil,
          layerLead: Double = 0,
-         tonnetzSink: (any ChordEventSink)? = nil,
-         tonnetzNoteSink: (any ChordEventSink)? = nil,
-         padSink: (() -> any ChordEventSink)? = nil,
-         padSequenceSink: (any ChordEventSink)? = nil,
-         padDefaults: UserDefaults? = nil,
-         trautoniumSink: (() -> any ChordEventSink)? = nil,
-         treeSink: (any ChordEventSink)? = nil,
-         labSynth: DissonanceSynth? = nil,
          sequencer: SequencerState? = nil,
          keyboard: KeyboardState? = nil,
          gamepad: GamepadState? = nil,
-         controller: ControllerState? = nil,
-         orchid: OrchidState? = nil,
          piano: PianoState? = nil,
          liveSound: (any SoundControl & EffectsControl)? = nil,
          output: AudioOutput? = nil,
@@ -433,24 +298,8 @@ final class PerformanceState {
         self.logger       = logger
         self.effects      = EffectsState(arpeggiator: arpeggiator, audio: liveSound,
                                          effectsListener: effectsListener, logger: logger)
-        // A voice of the Tonnetz or of a pad is a layer's: an arpeggiator
-        // and its sink, in the sound of each chord it is given.
-        let lineVoice = { (sink: any ChordEventSink) -> any TimelineVoice in
-            LayerVoice(sink: sink, sound: sink as? any SoundControl, clock: clock)
-        }
-        self.tonnetz      = TonnetzState(voice: tonnetzSink.map(lineVoice),
-                                         noteVoice: tonnetzNoteSink.map(lineVoice), logger: logger)
-        self.pads         = PadsState(makeVoice: padSink.map { make in { lineVoice(make()) } },
-                                      sequenceVoice: padSequenceSink.map(lineVoice),
-                                      clock: clock, defaults: padDefaults, logger: logger)
-        self.trautonium   = TrautoniumState(makeSink: trautoniumSink, clock: clock, logger: logger)
-        self.tree         = ChordScaleTreeState(sink: treeSink, logger: logger)
-        self.lab          = DissonanceLabState(synth: labSynth ?? DissonanceSynth(sink: nil, clock: clock),
-                                               logger: logger)
         self.keyboard     = keyboard ?? KeyboardState(logger: logger)
         self.gamepad      = gamepad ?? GamepadState(logger: logger)
-        self.controller   = controller ?? ControllerState(logger: logger)
-        self.orchid       = orchid ?? OrchidState(logger: logger)
         self.piano        = piano ?? PianoState(logger: logger)
         self.sequencerState = sequencer ?? SequencerState(logger: logger)
         self.quickLoopState = QuickLoopState(logger: logger)
@@ -468,22 +317,12 @@ final class PerformanceState {
         self.effects.onSetChange = { [weak self] in
             guard let self else { return }
             timelinePlayer?.live = liveSettings
-            tonnetz.effectsChanged()
-            for line in [LoopLine.tonnetzTriads, .tonnetzNotes] {
-                quickLoopState.effectsChanged(to: tonnetzEffects, on: line)
-            }
             hearTheMicIfWanted()
         }
         self.effects.onPlayedChange = { [weak self] in self?.quickLoopState.effectsChanged() }
         self.quickLoopState.host = self
-        self.tonnetz.host = self
-        self.pads.host = self
-        self.trautonium.host = self
-        self.tree.host = self
         self.keyboard.host = self
         self.gamepad.host = self
-        self.orchid.host = self
-        self.controller.player = self
         // A sample just recorded is what the keys play next.
         self.micSample.onRecorded = { [weak self] in self?.setSynthPreset(.micSample) }
         attach(sequencerState)
@@ -495,62 +334,11 @@ final class PerformanceState {
 
     // MARK: – Mode / preset switching
 
-    /// Switches to the mode of `kind`. Choosing the mode that is already
-    /// active does nothing, so a toggle can be tapped again without resetting
-    /// the mode (for example, stopping the sequencer).
-    func selectMode(_ kind: ModeKind) {
-        guard kind != mode.kind else { return }
-        setMode(makeMode(kind))
-    }
-
-    /// What a phone's screen shows. Nothing, under a mode that has no place
-    /// on the toggle.
-    var phoneScreen: PhoneScreen? {
-        switch deskPane {
-        case .tonnetz:    return .tonnetz
-        case .pads:       return .pads
-        case .trautonium: return .trautonium
-        case .tree:       return .tree
-        case .lab:        return .lab
-        case .sequencer, .controller: break
-        }
-        switch mode.kind {
-        case .play:      return .play
-        case .sequencer: return .sequencer
-        default:         return nil
-        }
-    }
-
-    /// Gives a phone's screen to `screen`. The Tonnetz, the pads, the
-    /// Trautonium's bars, the tree and the lab leave the mode as it is, so
-    /// nothing that is playing under them is stopped.
-    func show(_ screen: PhoneScreen) {
-        switch screen {
-        case .play:
-            deskPane = .sequencer
-            selectMode(.play)
-        case .sequencer:
-            deskPane = .sequencer
-            selectMode(.sequencer)
-        case .tonnetz:
-            deskPane = .tonnetz
-        case .pads:
-            deskPane = .pads
-        case .trautonium:
-            deskPane = .trautonium
-        case .tree:
-            deskPane = .tree
-        case .lab:
-            deskPane = .lab
-        }
-    }
-
-    /// Replaces the active mode unconditionally. Views use `selectMode`; this
-    /// is for callers that supply a configured instance (tests).
+    /// Replaces the active mode. The app has Play mode alone; this is for
+    /// callers that supply a configured instance (tests).
     func setMode(_ newMode: any PerformanceMode) {
         logger?.log(.mode_changed(from: mode.name, to: newMode.name))
         heldKeys = []
-        heldOctaves = []
         mode.deactivate(state: self)
         followSlide()
         clock.stop()
@@ -565,25 +353,9 @@ final class PerformanceState {
         tempoListener?.setTempo(bpm)
     }
 
-    /// Clock resolution (ticks per quarter-note beat), surfaced for tempo-aware
-    /// modes that schedule musical durations. Sourced from the injected clock so
-    /// a change to the clock's resolution propagates to every mode automatically.
-    var ticksPerBeat: Int { clock.ticksPerBeat }
-
-    /// Calls `handler` once, `beats` beats from now on the clock, unless the
-    /// returned call is cancelled first. For modes that time what they play.
-    func after(beats: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
-        clock.after(beats: beats, handler)
-    }
-
-    /// Calls `handler` once, `seconds` from now on the clock.
-    func after(seconds: Double, _ handler: @escaping @MainActor () -> Void) -> ClockCall {
-        clock.after(seconds: seconds, handler)
-    }
-
     /// Whether anything that can be played now sends notes to the vocoder:
-    /// the keys' effects as set, or a pad's own.
-    private var hearsTheMic: Bool { effects.hearsTheMic || pads.hearsTheMic }
+    /// the keys' effects as set.
+    private var hearsTheMic: Bool { effects.hearsTheMic }
 
     /// Opens the mic to the vocoder while something wants it, asking for
     /// the mic first if need be; a refusal switches the keys' vocoder back
@@ -618,52 +390,33 @@ final class PerformanceState {
     // lifting it hands the chord back to the press beneath it.
 
     func press(_ key: ChordKey) {
-        press(key, inOctave: nil)
-    }
-
-    /// `key` went down. A key struck in an `octave` of its own (a MIDI
-    /// keyboard's, where each key is a pitch) has its chord's root there,
-    /// whatever octave is chosen; nil: in the octave chosen.
-    func press(_ key: ChordKey, inOctave octave: Int?) {
         heldKeys.append(key)
-        heldOctaves.append(octave)
-        struckOctave = octave
         followSlide()
         mode.onButtonDown(key: key, state: self)
     }
 
     func release(_ key: ChordKey) {
-        release([key], inOctave: nil)
-    }
-
-    /// `key` came up: the press of it in `octave` (`press(_:inOctave:)`).
-    func release(_ key: ChordKey, inOctave octave: Int?) {
-        release([key], inOctave: octave)
+        release([key])
     }
 
     /// Keys lifted together (several fingers at once, or the chord surface
     /// going away). They leave as one step, so the chord is handed back only
     /// to a key that is still down afterwards.
-    func release(_ keys: [ChordKey], inOctave octave: Int? = nil) {
-        guard let active = heldKeys.last, let activeOctave = heldOctaves.last else { return }
+    func release(_ keys: [ChordKey]) {
+        guard let active = heldKeys.last else { return }
         var activeLifted = false
         for key in keys {
-            guard let index = heldKeys.indices.last(where: { heldKeys[$0] == key && heldOctaves[$0] == octave })
-            else { continue }
+            guard let index = heldKeys.lastIndex(of: key) else { continue }
             if index == heldKeys.count - 1 { activeLifted = true }
             heldKeys.remove(at: index)
-            heldOctaves.remove(at: index)
         }
         // The last key up ends its chord before its slide: an effect the
         // finger was holding on (a key zone) must not switch off under a
         // chord that is about to stop, which would sound it once more.
         if activeLifted, heldKeys.isEmpty { mode.onButtonUp(key: active, state: self) }
         followSlide()
-        // Two presses of the same key in the same octave: it is still held,
-        // nothing changes.
-        if activeLifted, let resumed = heldKeys.last, let resumedOctave = heldOctaves.last,
-           (resumed, resumedOctave) != (active, activeOctave) {
-            struckOctave = resumedOctave
+        // Two presses of the same key: it is still held, nothing changes.
+        if activeLifted, let resumed = heldKeys.last, resumed != active {
             mode.onButtonDown(key: resumed, state: self)
         }
     }
@@ -716,13 +469,6 @@ final class PerformanceState {
     }
 
     // MARK: – Chord colors (delegate to mode)
-
-    /// The Orchid's chord buttons build `build` now (nil: nothing).
-    func chordButtonsMoved(to build: ChordBuild?) {
-        guard build != chordButtons else { return }
-        chordButtons = build
-        mode.onColorChange(state: self)
-    }
 
     /// A finger came down on the compass's `place`. Played, it is a step
     /// from the plain chord until it lifts (`compassLifted`), the latest
@@ -815,17 +561,6 @@ final class PerformanceState {
         mode.onColorChange(state: self)
     }
 
-    /// Stop the sounding chord on *every* sink — audio note-off, MIDI note-off,
-    /// and a ChordLink release all fire — while leaving the OLED display and the
-    /// active-gesture state (`activeDegree`, `currentVoicing`) untouched, so a
-    /// tempo-aware mode can retrigger. Contrast `endChord()`, which also clears
-    /// the display and ends the gesture. (The old name "stopAudioOnly" hid that
-    /// this reaches MIDI and ChordLink, not just audio.)
-    func stopSounding() {
-        sink.stopChord()
-        quickLoopState.chordEnded()
-    }
-
     func endChord() {
         let notes = currentVoicing?.notes ?? []
         activeDegree = nil
@@ -833,30 +568,6 @@ final class PerformanceState {
         sink.stopChord()
         quickLoopState.chordEnded()
         logger?.log(.chord_stopped(notes: notes, source: .button))
-    }
-
-    func strumChord(_ key: ChordKey, interval: Double) {
-        sound(select(key), .strum(interval: interval), source: .button)
-    }
-
-    func leadNote(_ key: ChordKey) {
-        select(key)
-        guard let context = currentContext else { return }
-        let voicing = Voicing(notes: [leadPitch(key: context.key, octave: context.octave,
-                                                degree: context.spec.degree)])
-        currentVoicing = voicing
-        sound(voicing, .block, pitch: .lead, source: .button)
-    }
-
-    private func makeMode(_ kind: ModeKind) -> any PerformanceMode {
-        switch kind {
-        case .play:      return PlayMode()
-        case .strum:     return StrumMode()
-        case .lead:      return LeadMode()
-        case .drone:     return DroneMode()
-        case .repeat:    return RepeatMode()
-        case .sequencer: return SequencerMode(sequencerState)
-        }
     }
 
     /// The sequencer pattern exactly as playback runs through it, in the
@@ -955,65 +666,6 @@ final class PerformanceState {
     }
 }
 
-extension PerformanceState {
-    /// The keys' preset, with the effects as they are set, which a line of
-    /// notes beside the keys' sounds in: a slide on a chord key plays that
-    /// chord, not the line.
-    var keysSoundAsSet: NoteSound {
-        NoteSound(preset: synthPreset, effects: effects.asSet)
-    }
-}
-
-extension PerformanceState: TonnetzHost {
-    /// The keys' preset, with the keys' effects as they are set, the
-    /// arpeggiator among them: a slide on a chord key plays that chord, not
-    /// the Tonnetz.
-    var tonnetzPreset: SynthPreset { synthPreset }
-    var tonnetzEffects: NoteEffects { effects.asSet }
-
-    /// A loop being recorded keeps what the Tonnetz plays as it was heard:
-    /// the notes themselves, since no key says them, in the sound and the
-    /// effects they were played with.
-    func tonnetz(_ line: TonnetzLine, played event: ChordEvent?) {
-        let line: LoopLine = line == .triads ? .tonnetzTriads : .tonnetzNotes
-        guard let event else { return quickLoopState.chordEnded(on: line) }
-        quickLoopState.chordStarted(
-            event, pitch: .notes(event.voicing.notes),
-            playing: NotePlaying(key: event.context.key, octave: octave, preset: tonnetzPreset,
-                                 effects: tonnetzEffects),
-            on: line)
-    }
-}
-
-extension PerformanceState: TrautoniumHost {
-    /// The key and the octave chosen for the keys now.
-    var trautoniumContext: ChordContext {
-        performanceContext(key: key, octave: octave, spec: ChordSpec(degree: .I, color: .base))
-    }
-
-    /// The keys' preset, with the effects as they are set.
-    var trautoniumSound: NoteSound { keysSoundAsSet }
-}
-
-extension PerformanceState: ChordScaleTreeHost {
-    var treeKey: Key { key }
-
-    /// The keys' preset, with the effects as they are set.
-    var treeSound: NoteSound { keysSoundAsSet }
-}
-
-extension PerformanceState: PadsHost {
-    /// The chord the keys played last (the tonic's triad before any has
-    /// been), in the key, octave and sound chosen now, with the effects as
-    /// set.
-    var padSound: PadSound {
-        PadSound(chord: currentContext?.spec ?? ChordSpec(degree: .I, color: .base),
-                 key: key, octave: octave, preset: synthPreset, effects: effects.asSet)
-    }
-
-    func padsChanged() { hearTheMicIfWanted() }
-}
-
 extension PerformanceState: LoopHost {
     var loopSequencer: SequencerState? { playingSequencer }
 
@@ -1025,41 +677,12 @@ extension PerformanceState: LoopHost {
     }
 }
 
-/// What a MIDI controller does is played by the Dissonance Lab while it is
-/// shown, and otherwise by the Orchid.
-extension PerformanceState: ControllerPlayer {
-    private var controllerPlayer: any ControllerPlayer { lab.isShown ? lab : orchid }
-
-    func control(_ id: ControllerControl.ID, movedTo value: Double) {
-        controllerPlayer.control(id, movedTo: value)
-    }
-
-    func keyDown(_ note: Int, velocity: Int) { controllerPlayer.keyDown(note, velocity: velocity) }
-
-    func keyUp(_ note: Int) { controllerPlayer.keyUp(note) }
-
-    func releaseAll() { controllerPlayer.releaseAll() }
-}
-
-extension PerformanceState: OrchidHost {
-    func holdArpeggio(_ arpeggio: HeldArpeggio?) {
-        effects.holdArpeggio(arpeggio)
-    }
-}
-
 extension PerformanceState: KeyboardHost {
     func tap(_ button: KeyboardButton) {
         switch button {
         case .loop:     quickLoopState.triggerTapped()
         case .midi:     isExternalSynth.toggle()
         case .playStop: quickLoopState.toggleRunning()
-        case .sequencer:
-            if isAtDesk { deskPane = .sequencer } else { show(.sequencer) }
-        case .tonnetz:  show(.tonnetz)
-        // The Tonnetz's own buttons are there to tap while it is on screen.
-        case .net:      if tonnetz.isShown { tonnetz.view = .net }
-        case .triad:    if tonnetz.isShown { tonnetz.view = .triad }
-        case .hold:     if tonnetz.isShown { tonnetz.holds.toggle() }
         }
     }
 }

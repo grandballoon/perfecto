@@ -98,39 +98,6 @@ enum LogEvent {
     /// The piano was given the whole screen, or put back along its bottom.
     case piano_expanded(isExpanded: Bool)
 
-    // Tonnetz
-    /// `triad` as it is named on the net: "C", "Am".
-    case tonnetz_triad_played(triad: String, notes: [Int])
-    /// `move`: "P", "L" or "R".
-    case tonnetz_moved(move: String, to: String)
-    /// A note played by itself.
-    case tonnetz_note_played(note: Int)
-    case tonnetz_hold_switched(isOn: Bool)
-
-    // Trautonium
-    /// `bar`: 0 is the low bar, 1 the high one.
-    case trautonium_note_played(bar: Int, note: Int)
-
-    // Dissonance Lab
-    /// Two notes sounding together, as keyed: `semitones` apart within an
-    /// octave, and whether the upper one was tuned just.
-    case lab_interval_played(low: Int, high: Int, semitones: Int, just: Bool)
-    case lab_level_chosen(level: Int)
-    /// The A/B button pressed (`plain`) or let go.
-    case lab_bypassed(plain: Bool)
-
-    // Chord–scale tree
-    /// The tree went to the chord `to` names ("Dm7").
-    case tree_moved(to: String)
-    case tree_size_switched(sevenths: Bool)
-
-    // Pads
-    case pad_played(row: Int, column: Int, notes: [Int])
-    /// `chord` as the display names it ("D min7"); nil: the pad was cleared.
-    case pad_assigned(row: Int, column: Int, chord: String?)
-    case pads_sequence_switched(isOn: Bool)
-    case pads_resized(rows: Int, columns: Int)
-
     // Computer keyboard
     /// `key` nil: the action was left with no key.
     case keyboard_key_chosen(action: String, key: String?)
@@ -139,27 +106,6 @@ enum LogEvent {
     // Game controller
     /// `name` nil: the controller went, and there is none now.
     case gamepad_connected(name: String?)
-
-    // MIDI controller
-    /// The MIDI sources the app hears are now `sources`, by name.
-    case midi_input_connected(sources: [String])
-    case midi_input_failed(status: Int32)
-    /// A control of the controller was taught what it sends: "CC 21 · ch 1".
-    case controller_control_learned(control: String, address: String)
-    case controller_learned_forgotten(layout: String)
-    /// The controller played as an Orchid (`OrchidState`) switched key mode.
-    case orchid_key_mode_switched(isOn: Bool)
-    /// The velocity a key is struck with was switched to play the
-    /// arpeggio's order (`isOn`), or not to.
-    case orchid_velocity_arpeggio_switched(isOn: Bool)
-    /// The Orchid's key button chose the key: "D Natural Minor".
-    case orchid_key_chosen(key: String)
-    /// The key change button was pressed, so the next key struck is the
-    /// key (`isWaiting`), or pressed again, so it is not.
-    case orchid_key_change_switched(isWaiting: Bool)
-    /// `part` of the Orchid ("voicing", "arpeggio") is now played by the
-    /// knob or wheel `control` (nil: none).
-    case orchid_part_given(part: String, control: String?)
 
     // Mic sample
     case sample_record_started
@@ -349,59 +295,6 @@ extension LogEvent: Encodable {
         case let .piano_expanded(isExpanded):
             try c.encode("piano_expanded", forKey: Key("type"))
             try c.encode(isExpanded, forKey: Key("isExpanded"))
-        case let .trautonium_note_played(bar, note):
-            try c.encode("trautonium_note_played", forKey: Key("type"))
-            try c.encode(bar,  forKey: Key("bar"))
-            try c.encode(note, forKey: Key("note"))
-        case let .lab_interval_played(low, high, semitones, just):
-            try c.encode("lab_interval_played", forKey: Key("type"))
-            try c.encode(low, forKey: Key("low"))
-            try c.encode(high, forKey: Key("high"))
-            try c.encode(semitones, forKey: Key("semitones"))
-            try c.encode(just, forKey: Key("just"))
-        case let .lab_level_chosen(level):
-            try c.encode("lab_level_chosen", forKey: Key("type"))
-            try c.encode(level, forKey: Key("level"))
-        case let .lab_bypassed(plain):
-            try c.encode("lab_bypassed", forKey: Key("type"))
-            try c.encode(plain, forKey: Key("plain"))
-        case let .tree_moved(to):
-            try c.encode("tree_moved", forKey: Key("type"))
-            try c.encode(to, forKey: Key("to"))
-        case let .tree_size_switched(sevenths):
-            try c.encode("tree_size_switched", forKey: Key("type"))
-            try c.encode(sevenths, forKey: Key("sevenths"))
-        case let .tonnetz_triad_played(triad, notes):
-            try c.encode("tonnetz_triad_played", forKey: Key("type"))
-            try c.encode(triad, forKey: Key("triad"))
-            try c.encode(notes, forKey: Key("notes"))
-        case let .tonnetz_moved(move, to):
-            try c.encode("tonnetz_moved", forKey: Key("type"))
-            try c.encode(move, forKey: Key("move"))
-            try c.encode(to,   forKey: Key("to"))
-        case let .tonnetz_note_played(note):
-            try c.encode("tonnetz_note_played", forKey: Key("type"))
-            try c.encode(note, forKey: Key("note"))
-        case let .tonnetz_hold_switched(isOn):
-            try c.encode("tonnetz_hold_switched", forKey: Key("type"))
-            try c.encode(isOn, forKey: Key("isOn"))
-        case let .pad_played(row, column, notes):
-            try c.encode("pad_played", forKey: Key("type"))
-            try c.encode(row,    forKey: Key("row"))
-            try c.encode(column, forKey: Key("column"))
-            try c.encode(notes,  forKey: Key("notes"))
-        case let .pad_assigned(row, column, chord):
-            try c.encode("pad_assigned", forKey: Key("type"))
-            try c.encode(row,    forKey: Key("row"))
-            try c.encode(column, forKey: Key("column"))
-            try c.encode(chord,  forKey: Key("chord"))
-        case let .pads_sequence_switched(isOn):
-            try c.encode("pads_sequence_switched", forKey: Key("type"))
-            try c.encode(isOn, forKey: Key("isOn"))
-        case let .pads_resized(rows, columns):
-            try c.encode("pads_resized", forKey: Key("type"))
-            try c.encode(rows,    forKey: Key("rows"))
-            try c.encode(columns, forKey: Key("columns"))
         case let .keyboard_key_chosen(action, key):
             try c.encode("keyboard_key_chosen", forKey: Key("type"))
             try c.encode(action, forKey: Key("action"))
@@ -411,35 +304,6 @@ extension LogEvent: Encodable {
         case let .gamepad_connected(name):
             try c.encode("gamepad_connected", forKey: Key("type"))
             try c.encode(name, forKey: Key("name"))
-        case let .midi_input_connected(sources):
-            try c.encode("midi_input_connected", forKey: Key("type"))
-            try c.encode(sources, forKey: Key("sources"))
-        case let .midi_input_failed(status):
-            try c.encode("midi_input_failed", forKey: Key("type"))
-            try c.encode(status, forKey: Key("status"))
-        case let .controller_control_learned(control, address):
-            try c.encode("controller_control_learned", forKey: Key("type"))
-            try c.encode(control, forKey: Key("control"))
-            try c.encode(address, forKey: Key("address"))
-        case let .controller_learned_forgotten(layout):
-            try c.encode("controller_learned_forgotten", forKey: Key("type"))
-            try c.encode(layout, forKey: Key("layout"))
-        case let .orchid_key_mode_switched(isOn):
-            try c.encode("orchid_key_mode_switched", forKey: Key("type"))
-            try c.encode(isOn, forKey: Key("isOn"))
-        case let .orchid_velocity_arpeggio_switched(isOn):
-            try c.encode("orchid_velocity_arpeggio_switched", forKey: Key("type"))
-            try c.encode(isOn, forKey: Key("isOn"))
-        case let .orchid_key_chosen(key):
-            try c.encode("orchid_key_chosen", forKey: Key("type"))
-            try c.encode(key, forKey: Key("key"))
-        case let .orchid_key_change_switched(isWaiting):
-            try c.encode("orchid_key_change_switched", forKey: Key("type"))
-            try c.encode(isWaiting, forKey: Key("isWaiting"))
-        case let .orchid_part_given(part, control):
-            try c.encode("orchid_part_given", forKey: Key("type"))
-            try c.encode(part, forKey: Key("part"))
-            try c.encode(control, forKey: Key("control"))
         case let .loop_record_started(track):
             try c.encode("loop_record_started", forKey: Key("type"))
             try c.encode(track, forKey: Key("track"))

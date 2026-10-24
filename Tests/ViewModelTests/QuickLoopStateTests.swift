@@ -295,16 +295,6 @@ struct QuickLoopStateTests {
 
     // MARK: – How it was played
 
-    @Test func aLeadNoteIsRecordedAsOne() {
-        let rig = Rig()
-        rig.state.setMode(LeadMode())
-        rig.loops.triggerTapped()
-        rig.play(.V, beats: 4)
-        rig.loops.triggerTapped()
-        #expect(rig.timeline.layers[0].notes.map(\.pitch) == [.lead])
-        #expect(rig.sink.lastPlay?.notes == [67])
-    }
-
     /// A chord played from a key zone with a key and an octave of its own
     /// is recorded in them, so the loop plays it back as it was heard.
     @Test func aChordFromAKeyZoneIsRecordedInTheZonesKey() {

@@ -137,7 +137,7 @@ struct SequencerMidiRendererTests {
 
     // MARK: – Fidelity to playback
 
-    /// The exported onsets must be exactly the voicings SequencerMode sends to
+    /// The exported onsets must be exactly the voicings the timeline sends to
     /// the sinks — same notes, same order — for a pattern that exercises
     /// joystick transformations, rests and several degrees.
     @Test func exportedChordsMatchWhatPlaybackSounds() {
@@ -153,7 +153,7 @@ struct SequencerMidiRendererTests {
         let clock = ManualClock()
         let state = PerformanceState(sink: sink, clock: clock)
         state.key = key
-        state.setMode(SequencerMode(seq))
+        state.attach(seq)
         seq.isPlaying = true
         clock.advance(beats: 3.9)                       // once through the bar
 

@@ -7,28 +7,13 @@ enum PianoSource: CaseIterable, Sendable {
     /// The chord keys, as their notes are sounded (one at a time under the
     /// arpeggiator).
     case keys
-    /// The timeline's layers: the loops and the sequence.
+    /// The timeline's layers: the loops.
     case layers
-    /// The Tonnetz.
-    case tonnetz
-    /// The pads, played or in sequence.
-    case pads
-    /// The Trautonium's bars.
-    case trautonium
-    /// The chord–scale tree.
-    case tree
-    /// The Dissonance Lab's two notes, at the nearest key.
-    case lab
 
     var displayName: String {
         switch self {
         case .keys:    return "Chord keys"
-        case .layers:  return "Loops and sequence"
-        case .tonnetz: return "Tonnetz"
-        case .pads:    return "Pads"
-        case .trautonium: return "Trautonium"
-        case .tree:       return "Chord–scale tree"
-        case .lab:        return "Dissonance Lab"
+        case .layers:  return "Loops"
         }
     }
 }

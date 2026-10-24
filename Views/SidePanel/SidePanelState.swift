@@ -28,13 +28,11 @@ enum SidePanelPage: String, CaseIterable, Identifiable {
     }
 }
 
-/// Whose effects the menu's Effects page sets: each loop and each pad has
-/// its own, apart from the keys'.
+/// Whose effects the menu's Effects page sets: each loop has its own,
+/// apart from the keys'.
 enum EffectsTarget: Hashable {
     case keys
     case loop(Layer.ID)
-    /// The pad being edited on the pads' screen.
-    case pad
 }
 
 /// Whether the menu (the side panel) is open, and at which page.
@@ -48,7 +46,7 @@ final class SidePanelState {
     private var lastPage: SidePanelPage = .key
 
     /// Whose effects the Effects page was last asked for. The page shows
-    /// the keys' once that loop or pad is no longer there to edit.
+    /// the keys' once that loop is no longer there to edit.
     var effectsTarget = EffectsTarget.keys
 
     var isOpen: Bool { page != nil }

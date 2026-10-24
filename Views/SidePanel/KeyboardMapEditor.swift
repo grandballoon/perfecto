@@ -22,7 +22,6 @@ struct KeyboardMapEditor: View {
             SidePanelSectionLabel(title)
             group("Chords", Degree.allCases.map { (.chord($0), String($0.rawValue)) })
             group("Compass", Self.places.map { (.compass($0.0), $0.1) }, columns: 2)
-            group("Tonnetz", TonnetzMove.allCases.map { (.tonnetz($0), $0.displayName) }, columns: 2)
             group("Buttons", KeyboardButton.allCases.map { (.button($0), $0.displayName) }, columns: 2)
             Text(detail)
                 .font(.system(size: 11, design: .monospaced))
@@ -76,7 +75,7 @@ extension KeyboardMapEditor {
     /// The computer keyboard's keys.
     init(keyboard: KeyboardState) {
         self.init(title: "KEYBOARD", keyboard: keyboard,
-                  detail: "What each key of the computer keyboard plays or taps. Choose one and press the key for it: Delete leaves it with no key, and Escape leaves it as it was. A compass key plays its place while it is held, as a finger on it does. The Tonnetz's moves are made, and its Net, Triad and Hold buttons tapped, while it is on screen.",
+                  detail: "What each key of the computer keyboard plays or taps. Choose one and press the key for it: Delete leaves it with no key, and Escape leaves it as it was. A compass key plays its place while it is held, as a finger on it does.",
                   resetLabel: "Reset keys")
     }
 

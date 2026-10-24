@@ -119,59 +119,17 @@ struct KeyboardStateTests {
         #expect(!state.isExternalSynth)
     }
 
-    private let k = KeyboardKey(code: 14, name: "K")
-    private let n = KeyboardKey(code: 17, name: "N")
-    private let t = KeyboardKey(code: 23, name: "T")
-    private let q = KeyboardKey(code: 20, name: "Q")
-    private let z = KeyboardKey(code: 29, name: "Z")
-
-    /// On a phone the sequencer is a mode; the Tonnetz lies over whichever is on.
-    @Test func keysShowTheSequencerAndTheTonnetzOnAPhone() {
-        let (state, _) = makeState()
-        state.keyboard.keyDown(q)
-        #expect(state.phoneScreen == .sequencer)
-        state.keyboard.keyDown(z)
-        #expect(state.phoneScreen == .tonnetz)
-        #expect(state.tonnetz.isShown)
-    }
-
-    /// At the desk the two are panes beside the keys, which stay played.
-    @Test func keysChooseTheDesksPaneAndLeaveTheKeysPlayed() {
-        let (state, _) = makeState()
-        state.isAtDesk = true
-        state.keyboard.keyDown(z)
-        #expect(state.deskPane == .tonnetz)
-        state.keyboard.keyDown(q)
-        #expect(state.deskPane == .sequencer)
-        #expect(state.mode.kind == .play)
-    }
-
-    @Test func theTonnetzsButtonsAreTappedByTheirKeysWhileItIsOnScreen() {
-        let (state, _) = makeState()
-        for key in [t, k] { state.keyboard.keyDown(key); state.keyboard.keyUp(code: key.code) }
-        #expect(state.tonnetz.view == .net)
-        #expect(!state.tonnetz.holds)
-
-        state.deskPane = .tonnetz
-        for key in [t, k] { state.keyboard.keyDown(key); state.keyboard.keyUp(code: key.code) }
-        #expect(state.tonnetz.view == .triad)
-        #expect(state.tonnetz.holds)
-        for key in [n, k] { state.keyboard.keyDown(key); state.keyboard.keyUp(code: key.code) }
-        #expect(state.tonnetz.view == .net)
-        #expect(!state.tonnetz.holds)
-    }
-
     /// The key a pointer over a button is shown follows the map.
     @Test func aButtonsTipIsTheKeyThatTapsIt() {
         let (state, _) = makeState()
-        #expect(state.keyboard.keyName(for: .hold) == "K")
+        #expect(state.keyboard.keyName(for: .midi) == "M")
         #expect(state.keyboard.keyName(for: .loop) == "Return")
-        state.keyboard.choosing = .button(.hold)
+        state.keyboard.choosing = .button(.midi)
         state.keyboard.keyDown(x)
-        #expect(state.keyboard.keyName(for: .hold) == "X")
-        state.keyboard.choosing = .button(.hold)
+        #expect(state.keyboard.keyName(for: .midi) == "X")
+        state.keyboard.choosing = .button(.midi)
         state.keyboard.keyDown(delete)
-        #expect(state.keyboard.keyName(for: .hold) == nil)
+        #expect(state.keyboard.keyName(for: .midi) == nil)
     }
 
     /// A map saved before a button could be given a key gets the key it
@@ -180,20 +138,19 @@ struct KeyboardStateTests {
     @Test func aMapSavedBeforeAButtonHadAKeyGetsItsStandardOne() throws {
         struct Saved: Encodable { var keys: [KeyboardAction: KeyboardKey] }
         var old = KeyboardMap.standard.keys
-        for button in [KeyboardButton.sequencer, .tonnetz, .net, .triad, .hold] { old[.button(button)] = nil }
-        old[.chord(.I)] = n                                   // N already plays a chord
+        for button in [KeyboardButton.midi, .playStop] { old[.button(button)] = nil }
+        old[.chord(.I)] = m                                   // M already plays a chord
         let defaults = isolatedDefaults()
         defaults.set(try JSONEncoder().encode(Saved(keys: old)), forKey: "keyboardMap")
 
         let (state, _) = makeState(defaults: defaults)
-        #expect(state.keyboard.map.key(for: .button(.hold)) == k)
-        #expect(state.keyboard.map.key(for: .button(.sequencer)) == q)
-        #expect(state.keyboard.map.key(for: .button(.net)) == nil)
-        #expect(state.keyboard.map.key(for: .chord(.I)) == n)
+        #expect(state.keyboard.map.key(for: .button(.playStop)) == space)
+        #expect(state.keyboard.map.key(for: .button(.midi)) == nil)
+        #expect(state.keyboard.map.key(for: .chord(.I)) == m)
 
-        state.keyboard.choosing = .button(.hold)
+        state.keyboard.choosing = .button(.playStop)
         state.keyboard.keyDown(delete)
-        #expect(makeState(defaults: defaults).state.keyboard.map.key(for: .button(.hold)) == nil)
+        #expect(makeState(defaults: defaults).state.keyboard.map.key(for: .button(.playStop)) == nil)
     }
 
     @Test func returnRecordsALoopAndSpaceStopsAndStartsIt() {
@@ -218,75 +175,6 @@ struct KeyboardStateTests {
         #expect(!loops.isRunning)
         state.keyboard.keyDown(space)
         #expect(loops.isRunning)
-    }
-
-    // MARK: – The Tonnetz
-
-    private let p = KeyboardKey(code: 19, name: "P")
-    private let l = KeyboardKey(code: 15, name: "L")
-    private let r = KeyboardKey(code: 21, name: "R")
-
-    /// A performance whose Tonnetz is on screen, at C major, and sounds
-    /// through a sink of its own.
-    private func makeTonnetz() -> (state: PerformanceState, tonnetz: RecordingSink) {
-        let sink = RecordingSink()
-        let state = PerformanceState(sink: RecordingSink(), tonnetzSink: sink,
-                                     sequencer: SequencerState(defaults: isolatedDefaults()),
-                                     keyboard: KeyboardState(defaults: isolatedDefaults()), clock: ManualClock())
-        state.tonnetz.isShown = true
-        return (state, sink)
-    }
-
-    @Test func aMovesKeyMakesTheMoveAndSoundsItsTriadWhileHeld() {
-        let (state, sink) = makeTonnetz()
-        #expect(state.keyboard.keyDown(r))
-        state.keyboard.keyDown(r)   // the system's repeat
-        #expect(state.tonnetz.cell.triad == Triad(root: .A, quality: .minor))
-        #expect(sink.playCalls.count == 1)
-        #expect(state.tonnetz.isSounding)
-
-        state.keyboard.keyUp(code: r.code)
-        #expect(!state.tonnetz.isSounding)
-        #expect(sink.calls.last == .stop)
-    }
-
-    @Test func movesPlayedOverOneAnotherSoundUntilTheLastKeyIsUp() {
-        let (state, sink) = makeTonnetz()
-        state.keyboard.keyDown(p)
-        state.keyboard.keyDown(l)   // C minor to A♭ major
-        #expect(state.tonnetz.cell.triad == Triad(root: .Gs, quality: .major))
-
-        state.keyboard.keyUp(code: p.code)
-        #expect(state.tonnetz.isSounding)
-        #expect(sink.stopCount == 0)
-
-        state.keyboard.keyUp(code: l.code)
-        #expect(!state.tonnetz.isSounding)
-    }
-
-    @Test func theMovesAreNotMadeWhileTheTonnetzIsOffScreen() {
-        let (state, sink) = makeTonnetz()
-        state.tonnetz.isShown = false
-        // The key is still the Tonnetz's, so it is taken.
-        #expect(state.keyboard.keyDown(p))
-        state.keyboard.keyUp(code: p.code)
-        #expect(state.tonnetz.cell == .home)
-        #expect(sink.calls.isEmpty)
-    }
-
-    @Test func theTonnetzGoingOffScreenEndsItsTriad() {
-        let (state, sink) = makeTonnetz()
-        state.keyboard.keyDown(p)
-        state.tonnetz.isShown = false
-        #expect(!state.tonnetz.isSounding)
-        #expect(sink.calls.last == .stop)
-    }
-
-    @Test func lettingEveryKeyGoEndsTheTriad() {
-        let (state, _) = makeTonnetz()
-        state.keyboard.keyDown(p)
-        state.keyboard.releaseAll()
-        #expect(!state.tonnetz.isSounding)
     }
 
     // MARK: – The map
@@ -353,7 +241,6 @@ struct KeyboardStateTests {
         #expect(map.key(for: .compass(CompassPlace(.add, 1)))?.name == "↑")
         #expect(map.key(for: .compass(CompassPlace(.raise, 1)))?.name == "→")
         #expect(map.key(for: .compass(CompassPlace(.add, 2))) == nil)
-        #expect(KeyboardButton.allCases.map { map.key(for: .button($0))?.name } == ["Return", "M", "Space", "Q", "Z", "N", "T", "K"])
-        #expect(TonnetzMove.allCases.map { map.key(for: .tonnetz($0))?.name } == ["P", "L", "R"])
+        #expect(KeyboardButton.allCases.map { map.key(for: .button($0))?.name } == ["Return", "M", "Space"])
     }
 }

@@ -33,7 +33,7 @@ enum Articulation: Equatable, Codable, Sendable {
     case strum(interval: Double)
     /// All notes at once, but a note the line is already sounding is held
     /// over, not struck again: a line of several notes that come and go
-    /// one at a time (the Tonnetz's single notes).
+    /// one at a time.
     case tied
 
     /// Seconds after the event at which the note at `index` (low to high) starts.

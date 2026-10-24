@@ -1,3 +1,4 @@
+import Foundation
 import CoreGraphics
 import Testing
 @testable import Perfecto
@@ -35,21 +36,23 @@ import Testing
         #expect(SidePanelState().effectsTarget == .keys)
     }
 
-    @Test func askingForAPadsEffectsOpensTheEffectsPageAtThem() {
+    @Test func askingForALoopsEffectsOpensTheEffectsPageAtThem() {
         let panel = SidePanelState()
+        let loop = EffectsTarget.loop(UUID())
         panel.show(.key)
-        panel.showEffects(of: .pad)
+        panel.showEffects(of: loop)
         #expect(panel.page == .effects)
-        #expect(panel.effectsTarget == .pad)
+        #expect(panel.effectsTarget == loop)
     }
 
     @Test func theEffectsPageKeepsWhoseEffectsItShowedWhileTheMenuIsClosed() {
         let panel = SidePanelState()
-        panel.showEffects(of: .pad)
+        let loop = EffectsTarget.loop(UUID())
+        panel.showEffects(of: loop)
         panel.toggle()
         panel.toggle()
         #expect(panel.page == .effects)
-        #expect(panel.effectsTarget == .pad)
+        #expect(panel.effectsTarget == loop)
     }
 
     @Test(arguments: SidePanelPage.allCases)
