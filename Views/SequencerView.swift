@@ -167,7 +167,7 @@ struct SequencerView: View {
                 VStack(spacing: 10) {
                     degreeSelector(primary, arrangement: perfState.chordGridLayout.arrangement(isLandscape: true))
                     stepColorSurface(primary)
-                        .frame(height: perfState.colorSurface == .grid ? 168 : 72)
+                        .frame(height: perfState.colorSurface == .joystick ? 72 : 168)
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -569,9 +569,9 @@ struct SequencerView: View {
         // edit to all selected steps at once.
         let primary = seqState.primaryNote
         // The grid needs a row per mode, so it is taller than the strip.
-        let surfaceHeight: CGFloat = perfState.colorSurface == .grid
-            ? (boxed ? 168 : SurfaceShape.grid.portraitHeight)
-            : colorBarHeight
+        let surfaceHeight: CGFloat = perfState.colorSurface == .joystick
+            ? colorBarHeight
+            : (boxed ? 168 : SurfaceShape.grid.portraitHeight)
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 12) {
@@ -665,7 +665,9 @@ struct SequencerView: View {
     private func stepColorSurface(_ primary: TimelineNote?) -> some View {
         switch perfState.colorSurface {
         case .joystick: stepColorBar(primary)
-        case .grid:     stepColorGrid(primary)
+        // The ring and the compass are for playing; a step is colored from
+        // the grid.
+        case .grid, .ring, .compass: stepColorGrid(primary)
         }
     }
 

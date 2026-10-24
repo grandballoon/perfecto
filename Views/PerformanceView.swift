@@ -418,8 +418,8 @@ struct PerformanceView: View {
                         PlaySurfaceView()
                             .environment(state)
                             .frame(maxWidth: .infinity)
-                            .frame(maxHeight: state.surfaceShape == .grid
-                                   ? .infinity : SurfaceShape.barThickness)
+                            .frame(maxHeight: state.surfaceShape == .bar
+                                   ? SurfaceShape.barThickness : .infinity)
                     }
                     .padding(Self.edgeMargin)
                     .frame(width: leftW, height: panelH)
@@ -458,10 +458,35 @@ struct PerformanceView: View {
     /// The circle's own arrangement on a phone on its side. The ring has
     /// the trailing half to itself, as large as it can be, under the sound
     /// it is played in. Everything else is the top of the leading half,
-    /// over the chord colors.
+    /// over the chord colors. The color ring and the compass have the
+    /// leading half to themselves, as large as they can be: the note
+    /// display, the sound, the key and the voicing are over the chord keys
+    /// instead.
     private func ringLandscapeLayout(geo: GeometryProxy) -> some View {
         let half = geo.size.width / 2
         return HStack(spacing: 0) {
+            if state.colorSurface.takesLeadingHalf {
+                PlaySurfaceView()
+                    .environment(state)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(Self.edgeMargin)
+                    .frame(width: half, height: geo.size.height)
+                VStack(spacing: 8) {
+                    displayAndSound
+                    if state.showsKeyStrip {
+                        HStack(spacing: 8) {
+                            KeyField()
+                            KeyVoicingField()
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(height: KeyStrip.height)
+                    }
+                    chordKeys(.circle)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .padding(Self.edgeMargin)
+                .frame(width: geo.size.width - half, height: geo.size.height)
+            } else {
             VStack(spacing: 8) {
                 // Inset past the menu button.
                 oledDisplay
@@ -485,8 +510,8 @@ struct PerformanceView: View {
                 PlaySurfaceView()
                     .environment(state)
                     .frame(maxWidth: .infinity)
-                    .frame(maxHeight: state.surfaceShape == .grid
-                           ? .infinity : SurfaceShape.barThickness)
+                    .frame(maxHeight: state.surfaceShape == .bar
+                           ? SurfaceShape.barThickness : .infinity)
             }
             .padding(Self.edgeMargin)
             .frame(width: half, height: geo.size.height)
@@ -500,6 +525,7 @@ struct PerformanceView: View {
             }
             .padding(Self.edgeMargin)
             .frame(width: geo.size.width - half, height: geo.size.height)
+            }
         }
     }
 

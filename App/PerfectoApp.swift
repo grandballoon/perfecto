@@ -51,6 +51,8 @@ struct PerfectoApp: App {
             logger:  logger
         )
         MidiNetwork.enableSession(logger: logger)
+        // v0.1.0 plays its colors from the compass; Setup still has the others.
+        state.colorSurface = .compass
         return state
     }()
 

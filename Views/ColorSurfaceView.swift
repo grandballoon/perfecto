@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Play mode's chord-color input: the joystick bar or the chord grid,
-/// whichever Setup selects, wired to the live performance. `PlaySurfaceView`
+/// Play mode's chord-color input: the joystick bar, the chord grid, the
+/// color ring or the step compass, whichever Setup selects, wired to the live performance. `PlaySurfaceView`
 /// places it.
 struct ColorSurfaceView: View {
 
@@ -23,6 +23,10 @@ struct ColorSurfaceView: View {
                 onChange: { state.gridMoved(to: $0) },
                 onEnd: { state.gridMoved(to: nil) }
             )
+        case .ring:
+            ColorRingSurface()
+        case .compass:
+            StepCompassSurface()
         }
     }
 }

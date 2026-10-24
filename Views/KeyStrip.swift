@@ -11,12 +11,16 @@ import SwiftUI
 struct KeyStrip: View {
     static let height: CGFloat = 34
 
+    @Environment(PerformanceState.self) private var state
+
     var body: some View {
         HStack(spacing: 8) {
             // The key gives up room first: its name shrinks to fit.
             KeyField()
             KeyVoicingField()
-            KeyColorField()
+            // The color ring and the compass are the colors, so they have
+            // no field here.
+            if state.colorSurface.showsColorField { KeyColorField() }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: Self.height)

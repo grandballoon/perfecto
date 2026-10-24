@@ -29,12 +29,35 @@ struct SetupPanel: View {
             }
 
             choiceSection("CHORD COLOR",
-                          detail: "How a second finger colors the chord: the joystick strip, or the grid of stacked thirds (columns) through brighter and darker modes (rows).") {
+                          detail: "How a second finger colors the chord: the joystick strip; the grid of stacked thirds (columns) through brighter and darker modes (rows); the ring of the same colors, where touching colors are one note apart, with marks under it that move a tone of the chord a semitone or leave it out; or the compass, the colors one note from the chord held: up adds a tone, right raises one, left lowers one, down takes one away.") {
                 Picker("Surface", selection: $state.colorSurface) {
                     ForEach(ColorSurface.allCases, id: \.self) { surface in
                         Text(surface.displayName).tag(surface)
                     }
                 }
+            }
+
+            if state.colorSurface == .ring {
+                choiceSection("COLOR RING",
+                              detail: "How the ring is turned. Fixed: a place on the ring is always the same chord shape. Home: the ring turns so the held chord's own scale is at the top. The colors are the same either way.") {
+                    Picker("Ring", selection: $state.ringArrangement) {
+                        ForEach(ColorRingArrangement.allCases, id: \.self) { arrangement in
+                            Text(arrangement.displayName).tag(arrangement)
+                        }
+                    }
+                }
+            }
+
+            if state.colorSurface == .compass {
+                choiceSection("COMPASS ORDER",
+                              detail: "Which two of each kind of step the compass offers, near and far. Theory: in the key first, then the chord's own next tone (its 7th, then its 9th). Common: the chords played most first (7, maj7, min7, sus4, add9, 6), in the key or not.") {
+                    Picker("Order", selection: $state.compassRanking) {
+                        ForEach(ColorStepRanking.allCases, id: \.self) { ranking in
+                            Text(ranking.displayName).tag(ranking)
+                        }
+                    }
+                }
+                compassNamesSection
             }
 
             choiceSection("SEQUENCER BARS",
@@ -113,6 +136,27 @@ struct SetupPanel: View {
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
             Text("The key, the octave and the inversion on the play screen, so they can be changed while playing. A swipe to the right along the key is a semitone up, to the left a semitone down. The octave and the inversion are one field: while a finger is on it, moving along takes a chord's lowest note up an octave, or its highest note down one (a 9th, 11th or 13th stays on top), and moving up or down takes the whole chord up or down an octave. A chord that is being held follows the finger. With the pin beside it off, the field is played and not set: the chords go back to where they were when the finger lifts. The scale is on the Key page.")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Color(white: 0.3))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: – Compass names
+
+    private var compassNamesSection: some View {
+        @Bindable var state = state
+        return VStack(alignment: .leading, spacing: 10) {
+            SidePanelSectionLabel("COMPASS NAMES")
+            Toggle(isOn: $state.compassShowsChords) {
+                Text("Name the compass's chords")
+                    .font(.system(size: 15, design: .monospaced))
+                    .foregroundStyle(.white)
+            }
+            .tint(.orange)
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
+            Text("While a chord is held, each place on the compass is named by the chord it would play (G 7, G sus4). Off, the places keep their own names (plain, + tone, raise, lower, − tone) whatever chord is held, so the compass is played by where a place is and heard, not read. What sounds is the same either way.")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(Color(white: 0.3))
                 .fixedSize(horizontal: false, vertical: true)

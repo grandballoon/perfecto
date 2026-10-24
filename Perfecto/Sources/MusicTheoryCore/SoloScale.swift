@@ -77,6 +77,7 @@ private func soloRoles(key: Key, spec: ChordSpec) -> [Int: SoloRole] {
 /// read from the chord's degree.
 private func chordScale(key: Key, spec: ChordSpec) -> [Int] {
     if case let .grid(_, mode?) = spec.color { return mode.intervals }
+    if case let .marked(_, mode?, _) = spec.color { return mode.intervals }
     let root = key.scale.offset(of: spec.degree)
     return key.scale.intervals.map { (($0 - root) % 12 + 12) % 12 }
 }

@@ -125,6 +125,24 @@ A change of voicing is the exception: it reaches the chord being held at once (i
 A timeline's note follows the inversion chosen unless it has its own (`NotePlaying.inversion`), and a loop keeps the one each chord was played in.
 ChordLink v1 has root position and two inversions, so a chord rolled further is announced as the one of them with the same notes, or released if there is none (`ChordWire.stated`).
 
+**The color ring colors the chords by rule, with neighbours one note apart.**
+It is a third color surface beside the joystick bar and the chord grid (`ColorSurface.ring`); `docs/color-ring.md` has the design.
+A band to each stack of thirds and a sector to each mode of the major scale, darkest to brightest (`ColorRing`, in the music theory core), so touching cells are one step apart (`colorSteps`: a note added, taken away or moved a semitone), and the cells one step from what is playing are lit.
+Setup turns it one of two ways (`ColorRingArrangement`): fixed, or with the held degree's own mode at the top; a cell is a height and a mode, nil for the own mode, so the turn changes nothing that sounds.
+Under it are the tone marks (`ToneMarks`): each tone above the root moved a semitone or left out, as a chord symbol writes it (`ChordColor.marked`, played by `markedStack`, named "9(♯5, ♯9)"), so every color the joystick has is a cell and at most three marks.
+A pin beside the marks says whether they and the cell are kept until changed or reset, so a chord, its color and a mark need no three fingers at once (`keepsRingColor`, on to start with), or played, the cell while a finger is on the ring and a mark while its button is held.
+On a phone on its side with the circle layout it has the leading half to itself, and the note display, the sound, the key and the voicing are over the chord keys.
+
+**The step compass colors the chord held by one step at a time.**
+It is a fourth color surface (`ColorSurface.compass`, `StepCompassSurface`), the one the app starts on; `docs/chord-dependent-coloration.md` has the design.
+Its places are kinds of step, not chords (`CompassPlace`): up adds a tone, right raises one a semitone, left lowers one, down takes one away, each kind's first choice beside the middle and its second beyond it (`StepCompassGrid`).
+What a place plays is worked out from the chord, in the music theory core (`StepCompass`): every chord one step from it (`colorSteps`), fitted to the key (`ColorFit`: in key, an avoid note, borrowed) and put in order (`ColorStepRanking`, chosen in Setup: theory, the degree's own next tone first; or common, the chords played most first).
+So a place means the same before a chord is struck as after, and can come down with the chord: with none held the places are named by what they do, with one held by the chord each plays.
+A step's chord is its tones above the root (`ChordTones`, `ChordColor.tones`), named as the app names chords and voiced with its tensions on top; a chord that is another over its bass is named so ("C/E").
+`PerformanceState` works the color out when a chord starts (`color(for:)`), so the modes, loops and sinks get the chord as played and know nothing of the compass; ChordLink v1 has no field for it and announces a release.
+Its pin (`keepsCompassColor`, off to start with) says whether a place is played, a step from the plain chord while a finger is on it, or kept: then each tap is a step from the last (`compassWalk`, `StepCompass.walk`), which every degree takes as its own (two adds are G9 on V and Dm9 on ii), until the middle clears it.
+The sequencer's step editor and the pad editor color from the grid while it is on, as they do for the ring.
+
 **The effect strip switches the effects while playing.**
 It is a row on the play screen, under the key strip, and on the Tonnetz's screen on a phone (`EffectStrip`): a field for each effect that is on, changed by a swipe (`SwipeField`) through the effects no other field has, from off: Arpeggio 1, Arpeggio 2, the chorus, the reverb, the delay and the vocoder (`EffectChoice`).
 There is one field to start with, and the + at the end of the row adds another, so the row is as short as what is on and several effects can still be on together.
@@ -369,6 +387,7 @@ App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100
 - The octave: a chord layout of a piano's twelve keys, each the root of a chord, with the notes outside the key borrowed from its parallel modes
 - The key strip: the key on the play screen, changed by a swipe, the octave and the inversion as one field, set or played by a finger that moves along it and across it, and the color as another, set for every chord or played on one
 - The sound field: the keys' sound beside the note display, changed by a swipe
+- The step compass: the colors one step from the chord held (a tone added, raised, lowered or taken away), its places the same before a chord is struck as after
 - The solo strip: runs over the chord from the notes that fit it
 - The Tonnetz: triads from the net of notes and the moves between them, its notes played by themselves, and loops of both
 - The pads: a grid of 4 to 8 rows and columns, each pad a chord in a sound of its own, played together or in sequence

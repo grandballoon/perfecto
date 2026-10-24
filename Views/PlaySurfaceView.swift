@@ -25,11 +25,14 @@ extension SurfaceShape {
     static let barThickness: CGFloat = 88
 
     /// Portrait height: a bar is one strip; a grid has room for the chord
-    /// grid's row per mode.
+    /// grid's row per mode; the ring has its marks under it; the compass
+    /// is five rows of places.
     var portraitHeight: CGFloat {
         switch self {
         case .bar:  return Self.barThickness
         case .grid: return 196
+        case .ring: return 330
+        case .compass: return 250
         }
     }
 }

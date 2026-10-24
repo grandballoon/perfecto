@@ -53,18 +53,33 @@ extension ChordGridLayout {
     }
 }
 
-/// Which input surface colors the chords. The two ship side by side for
+/// Which input surface colors the chords. They ship side by side for
 /// on-device comparison; only one is on screen at a time.
 enum ColorSurface: CaseIterable {
     case joystick
     case grid
+    /// The color ring and the tone marks under it (`ColorRingSurface`).
+    case ring
+    /// The step compass: the colors one step from the chord held, by kind
+    /// of step (`StepCompassSurface`).
+    case compass
 
     var displayName: String {
         switch self {
         case .joystick: return "Joystick"
         case .grid:     return "Grid"
+        case .ring:     return "Ring"
+        case .compass:  return "Compass"
         }
     }
+
+    /// Whether the key strip's color field is beside it. The ring and the
+    /// compass are the colors, so they have none.
+    var showsColorField: Bool { self == .joystick || self == .grid }
+
+    /// Whether, on a phone on its side with the circle layout, it has the
+    /// leading half to itself (`PerformanceView.ringLandscapeLayout`).
+    var takesLeadingHalf: Bool { self == .ring || self == .compass }
 }
 
 extension ColorSurface {
@@ -73,16 +88,45 @@ extension ColorSurface {
         switch self {
         case .joystick: return .bar
         case .grid:     return .grid
+        case .ring:     return .ring
+        case .compass:  return .compass
         }
     }
 }
 
-/// The two shapes the play screen's input surface comes in: a strip, or a
-/// taller pad. They are the chord colors' shapes (the joystick bar and the
-/// chord grid).
+/// A tone mark's button (`ToneMarksRow`): a tone moved a semitone up (+1)
+/// or down (-1), or its leaving out turned round.
+enum ToneMarkButton: Hashable {
+    case move(ChordTone, by: Int)
+    case skip(ChordTone)
+}
+
+extension ColorRingArrangement {
+    var displayName: String {
+        switch self {
+        case .fixed: return "Fixed"
+        case .home:  return "Home"
+        }
+    }
+}
+
+/// The shapes the play screen's input surface comes in: a strip, a taller
+/// pad, or the ring with its marks. They are the chord colors' shapes (the
+/// joystick bar, the chord grid and the color ring).
 enum SurfaceShape {
     case bar
     case grid
+    case ring
+    case compass
+}
+
+extension ColorStepRanking {
+    var displayName: String {
+        switch self {
+        case .theory: return "Theory"
+        case .common: return "Common"
+        }
+    }
 }
 
 /// What a phone's screen is given to, chosen by the toggle in its row of
@@ -297,14 +341,94 @@ final class PerformanceState {
         }
     }
 
-    /// Leaves both color surfaces neutral.
+    /// Leaves every color surface neutral.
     private func clearColor() {
         joystickDirection = .center
         gridPosition = nil
+        ringPosition = nil
+        toneMarks = .none
+        playedRingPosition = nil
+        heldMarks = .none
+        heldPlace = nil
+        compassWalk = []
     }
     private(set) var joystickDirection: JoystickDirection = .center
     /// Where a finger is on the chord grid; nil when none is.
     private(set) var gridPosition: GridPosition? = nil
+
+    /// How the color ring is turned (`ColorRingArrangement`). The same
+    /// colors either way, so switching changes nothing that sounds.
+    var ringArrangement = ColorRingArrangement.fixed {
+        didSet {
+            guard ringArrangement != oldValue else { return }
+            logger?.log(.ring_arrangement_switched(arrangement: ringArrangement.displayName))
+        }
+    }
+    /// Whether the color ring keeps what it is set to. While it does, a
+    /// cell tapped and the marks stay until changed or reset, and every
+    /// chord is in their color. While it does not, they are played: the
+    /// cell only while a finger is on the ring, a mark only while its
+    /// button is held, and lifting goes back to the plain chord.
+    var keepsRingColor = true {
+        didSet {
+            guard keepsRingColor != oldValue else { return }
+            logger?.log(.ring_keep_switched(isOn: keepsRingColor))
+            playedRingPosition = nil
+            heldMarks = .none
+            ringColorChanged()
+        }
+    }
+    /// The color ring's cell, chosen by a tap and kept until another is
+    /// chosen or the color is reset: nil is the degree's own triad.
+    private(set) var ringPosition: ColorRingPosition? = nil
+    /// The marks on the ring's color's tones, kept as the cell is.
+    private(set) var toneMarks = ToneMarks.none
+    /// The cell a finger is on while the ring does not keep its color.
+    private(set) var playedRingPosition: ColorRingPosition? = nil
+    /// The marks whose buttons are held while the ring does not keep.
+    private(set) var heldMarks = ToneMarks.none
+    /// The ring's cell as it plays: the one kept, or the one a finger is
+    /// on, and the own triad with neither.
+    var ringCell: ColorRingPosition {
+        (keepsRingColor ? ringPosition : playedRingPosition) ?? ColorRingPosition(height: .triad, mode: nil)
+    }
+    /// The marks as they play: the ones kept, or the ones held.
+    var ringMarks: ToneMarks { keepsRingColor ? toneMarks : heldMarks }
+
+    /// The order the step compass's choices are in (`ColorStepRanking`).
+    var compassRanking = ColorStepRanking.theory {
+        didSet {
+            guard compassRanking != oldValue else { return }
+            logger?.log(.compass_ranking_switched(ranking: compassRanking.displayName))
+            compassColorChanged()
+        }
+    }
+    /// Whether the step compass keeps what it is set to. While it does not,
+    /// a place plays while a finger is on it, a step from the plain chord,
+    /// and can come down before the chord, so the chord starts colored.
+    /// While it does, each place tapped is a step from the last (two adds
+    /// are a 9th chord), kept for every chord until the middle clears it.
+    var keepsCompassColor = false {
+        didSet {
+            guard keepsCompassColor != oldValue else { return }
+            logger?.log(.compass_keep_switched(isOn: keepsCompassColor))
+            heldPlace = nil
+            compassWalk = []
+            compassColorChanged()
+        }
+    }
+    /// Whether the compass names each place by the chord it plays on the
+    /// chord held. Off, its places keep their own names ("+ tone", "raise"),
+    /// whatever chord is held. It changes nothing that sounds.
+    var compassShowsChords = true
+    /// The compass's place a finger is on while it does not keep.
+    private(set) var heldPlace: CompassPlace? = nil
+    /// The places tapped while the compass keeps, in order: each a step
+    /// from where the last led, so each degree takes the walk as its own.
+    private(set) var compassWalk: [CompassPlace] = []
+    /// The places the compass's color is made by: the walk kept, or the
+    /// place held.
+    var compassPlaces: [CompassPlace] { keepsCompassColor ? compassWalk : heldPlace.map { [$0] } ?? [] }
 
     /// What the Orchid's chord buttons held build (`OrchidState.build`); nil
     /// while they build nothing.
@@ -330,6 +454,12 @@ final class PerformanceState {
         case .grid:
             if let gridPosition { return ChordGrid.color(at: gridPosition, key: key ?? playedKey, degree: degree) }
             return field.isBase ? .grid(.triad, nil) : field.color
+        case .ring:
+            return ColorRing.color(at: ringCell, marks: ringMarks, key: key ?? playedKey, degree: degree)
+        case .compass:
+            let places = compassPlaces
+            guard !places.isEmpty else { return .base }
+            return .tones(StepCompass.walk(places, key: key ?? playedKey, degree: degree, ranking: compassRanking))
         }
     }
     private(set) var activeDegree: Degree? = nil
@@ -794,6 +924,135 @@ final class PerformanceState {
     func chordButtonsMoved(to build: ChordBuild?) {
         guard build != chordButtons else { return }
         chordButtons = build
+        mode.onColorChange(state: self)
+    }
+
+    /// The color ring's cell `position` was chosen. If the ring keeps its
+    /// color it is kept, so the chords played after it are in its color
+    /// too; if not, it plays until the finger lifts (`ringLifted`).
+    func ringChose(_ position: ColorRingPosition) {
+        if keepsRingColor {
+            guard position != ringPosition else { return }
+            ringPosition = position
+        } else {
+            guard position != playedRingPosition else { return }
+            playedRingPosition = position
+        }
+        ringColorChanged()
+    }
+
+    /// The finger on the color ring lifted. A cell it played is over; one
+    /// kept stays.
+    func ringLifted() {
+        guard !keepsRingColor, playedRingPosition != nil else { return }
+        playedRingPosition = nil
+        ringColorChanged()
+    }
+
+    /// A tone mark's button came down. If the ring keeps its color, the
+    /// mark is turned on, or off if it was on; if not, it is on while the
+    /// button is held (`releaseToneMark`).
+    func pressToneMark(_ button: ToneMarkButton) {
+        guard !keepsRingColor else {
+            switch button {
+            case let .move(tone, offset): toggleToneMove(tone, by: offset)
+            case let .skip(tone):         toggleToneSkip(tone)
+            }
+            return
+        }
+        switch button {
+        case let .move(tone, offset): heldMarks.setMove(tone, to: offset)
+        case let .skip(tone):         heldMarks.setSkip(tone, true)
+        }
+        ringColorChanged()
+    }
+
+    /// A tone mark's button lifted: a mark that was only held is off.
+    func releaseToneMark(_ button: ToneMarkButton) {
+        guard !keepsRingColor else { return }
+        switch button {
+        case let .move(tone, offset):
+            guard heldMarks.move(of: tone) == offset else { return }
+            heldMarks.setMove(tone, to: 0)
+        case let .skip(tone):
+            guard heldMarks.skips(tone) else { return }
+            heldMarks.setSkip(tone, false)
+        }
+        ringColorChanged()
+    }
+
+    /// A kept mark: `tone` moved by `offset` (+1 or -1), or the same move
+    /// again taken off.
+    func toggleToneMove(_ tone: ChordTone, by offset: Int) {
+        toneMarks.toggleMove(tone, by: offset)
+        ringColorChanged()
+    }
+
+    /// A kept mark: whether `tone` is left out turned round.
+    func toggleToneSkip(_ tone: ChordTone) {
+        toneMarks.toggleSkip(tone)
+        ringColorChanged()
+    }
+
+    /// Back to the plain chord: the own triad, with no marks.
+    func resetRingColor() {
+        guard ringPosition != nil || !toneMarks.isEmpty else { return }
+        ringPosition = nil
+        toneMarks = .none
+        ringColorChanged()
+    }
+
+    private func ringColorChanged() {
+        let degree = activeDegree ?? .I
+        let stackMode = ColorRing.mode(of: ringCell, key: playedKey, degree: degree)
+        logger?.log(.ring_color_changed(arrangement: ringArrangement.displayName,
+                                        color: "\(stackMode.displayName) "
+                                            + markedChordName(stackMode, height: ringCell.height, marks: ringMarks)))
+        mode.onColorChange(state: self)
+    }
+
+    /// A finger came down on the compass's `place`. Played, it is a step
+    /// from the plain chord until it lifts (`compassLifted`), the latest
+    /// place if several are down; kept, it is one more step of the walk.
+    func compassPressed(_ place: CompassPlace) {
+        if keepsCompassColor {
+            compassWalk.append(place)
+        } else {
+            guard place != heldPlace else { return }
+            heldPlace = place
+        }
+        compassColorChanged()
+    }
+
+    /// A finger lifted from the compass's `place`: if it was the place
+    /// playing, the chord is plain again. A walk kept is not changed.
+    func compassLifted(_ place: CompassPlace) {
+        guard !keepsCompassColor, heldPlace == place else { return }
+        heldPlace = nil
+        compassColorChanged()
+    }
+
+    /// The compass's middle: back to the plain chord.
+    func compassCleared() {
+        guard heldPlace != nil || !compassWalk.isEmpty else { return }
+        heldPlace = nil
+        compassWalk = []
+        compassColorChanged()
+    }
+
+    /// The chord the compass's places step from for `degree`: the plain
+    /// chord while it plays, the walk so far while it keeps.
+    func compassOrigin(for degree: Degree) -> ChordTones {
+        keepsCompassColor
+            ? StepCompass.walk(compassWalk, key: playedKey, degree: degree, ranking: compassRanking)
+            : StepCompass.base(key: playedKey, degree: degree)
+    }
+
+    private func compassColorChanged() {
+        let degree = activeDegree ?? .I
+        logger?.log(.compass_color_changed(
+            places: compassPlaces.map { "\($0.kind)\($0.rank)" },
+            color: chordLabel(key: playedKey, spec: ChordSpec(degree: degree, color: color(for: degree)))))
         mode.onColorChange(state: self)
     }
 

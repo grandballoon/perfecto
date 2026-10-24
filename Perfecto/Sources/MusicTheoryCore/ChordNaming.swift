@@ -63,8 +63,14 @@ func chordShape(key: Key, spec: ChordSpec) -> ChordShape {
         let stackMode = mode ?? ChordGrid.ownMode(key: key, degree: spec.degree)
         return ChordShape(stackThirds(stackMode.intervals, height: height),
                           tertianChordName(stackMode, height: height))
+    case let .marked(height, mode, marks):
+        let stackMode = mode ?? ChordGrid.ownMode(key: key, degree: spec.degree)
+        return ChordShape(markedStack(stackMode.intervals, height: height, marks: marks),
+                          markedChordName(stackMode, height: height, marks: marks))
     case let .built(build):
         return build.shape(base: base)
+    case let .tones(tones):
+        return ChordShape(tones.intervals, tones.name)
     }
 }
 
@@ -78,6 +84,12 @@ public func chordQualityName(key: Key, spec: ChordSpec) -> String {
 /// its name, "D".
 public func chordLabel(key: Key, spec: ChordSpec) -> String {
     let root = chordRootPitchClass(key: key, degree: spec.degree)
+    // Tones that are another chord over this root are named as that chord
+    // over its bass: "C/E", "A min/C".
+    if case let .tones(tones) = spec.color, let slash = tones.slash {
+        let other = PitchClass(rawValue: (root.rawValue + slash.root) % 12)!
+        return "\(other.name)\(slash.quality.isEmpty ? "" : " " + slash.quality)/\(root.name)"
+    }
     let quality = chordQualityName(key: key, spec: spec)
     return quality.isEmpty ? root.name : "\(root.name) \(quality)"
 }
@@ -90,8 +102,12 @@ public func colorActionLabel(_ color: ChordColor) -> String {
     case let .grid(height, mode):
         guard let mode else { return height.displayName }
         return "\(height.displayName) · \(mode.displayName)"
+    case let .marked(height, mode, _):
+        return colorActionLabel(.grid(height, mode)) + " · marked"
     case let .built(build):
         return build.legend
+    case let .tones(tones):
+        return tones.name
     }
 }
 

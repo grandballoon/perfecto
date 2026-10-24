@@ -34,7 +34,8 @@ struct PadEditor: View {
             degreeSelector
                 .frame(minHeight: 80, maxHeight: Self.keysHeight)
             colorSurface
-                .frame(maxHeight: state.colorSurface.shape.portraitHeight)
+                .frame(maxHeight: state.colorSurface == .joystick
+                       ? SurfaceShape.bar.portraitHeight : SurfaceShape.grid.portraitHeight)
         }
     }
 
@@ -165,7 +166,9 @@ struct PadEditor: View {
                     pads.endAudition()
                 }
             )
-        case .grid:
+        // The ring and the compass are for playing; a pad is colored from
+        // the grid.
+        case .grid, .ring, .compass:
             ChordGridPad(
                 key: sound?.key ?? state.key,
                 degree: sound?.chord.degree ?? .I,
