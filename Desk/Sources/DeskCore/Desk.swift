@@ -54,7 +54,7 @@ public struct SoundCatalog: Equatable, Sendable {
 /// the sound library.
 public struct DeskMenu: Equatable, Sendable {
     public enum Row: CaseIterable, Sendable {
-        case layout, ring, chordSound, lineSound, key, scale, octave, tempo, voiceLeading, ranking, output, saveMIDI
+        case layout, ring, chordSound, lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI
 
         public var name: String {
             switch self {
@@ -66,6 +66,7 @@ public struct DeskMenu: Equatable, Sendable {
             case .scale: "Scale"
             case .octave: "Octave"
             case .tempo: "Tempo"
+            case .grid: "Arranger grid"
             case .voiceLeading: "Voice leading"
             case .ranking: "Compass order"
             case .output: "Output"
@@ -267,6 +268,8 @@ public struct Desk: Equatable, Sendable {
             return [preview(.chord)]
         case .tempo:
             settings.tempo = min(DeskSettings.tempos.upperBound, max(DeskSettings.tempos.lowerBound, settings.tempo + 2 * Double(steps)))
+        case .grid:
+            settings.moveGrid(by: steps)
         case .voiceLeading:
             settings.voiceLeading.toggle()
         case .ranking:
@@ -306,10 +309,11 @@ public struct Desk: Equatable, Sendable {
         case .scale: settings.key.scale.displayName
         case .octave: "\(settings.octave)"
         case .tempo: "\(Int(settings.tempo)) bpm"
+        case .grid: settings.grid.name
         case .voiceLeading: settings.voiceLeading ? "On" : "Off"
         case .ranking: settings.ranking == .theory ? "Theory" : "Common first"
         case .output: settings.output.name
-        case .saveMIDI: arranger.beats.contains { $0 != nil } ? "A to save" : "Nothing written yet"
+        case .saveMIDI: !arranger.arrangement.isEmpty ? "A to save" : "Nothing written yet"
         }
     }
 }

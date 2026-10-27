@@ -239,55 +239,160 @@ struct TwoVoicesTests {
 @Suite("Arranger")
 struct ArrangerTests {
 
-    @Test func aWritesTheAimedChordAndMovesOn() {
+    /// Seconds a beat lasts at the settings' 96 bpm.
+    private let beat = 60.0 / 96
+
+    /// Presses `button` `times` times, from `time`, a frame down and a frame up each.
+    private func tap(_ rig: inout Rig<Arranger>, _ button: PadButton, _ times: Int = 1, from time: Double) {
+        for i in 0..<times {
+            let at = time + Double(i) * 0.02
+            rig.at(at) { $0.buttons = [button] }
+            rig.at(at + 0.01) { $0.buttons = [] }
+        }
+    }
+
+    private func placed(_ rig: Rig<Arranger>) -> [String] {
+        rig.layout.arrangement.chords.map { "\($0.chord.name) \($0.start)+\($0.length)" }
+    }
+
+    @Test func aWritesABeatAndMovesOn() {
         var rig = Rig(Arranger())
-        rig.at(1) { $0.buttons = [.a] }
-        rig.at(2) { $0.buttons = []; $0.left = lean(2 * 360 / 7) }
-        rig.at(3) { $0.buttons = [.a] }
-        #expect(rig.layout.beats.prefix(3).map { $0?.name } == ["C maj", "G maj", nil])
+        tap(&rig, .a, from: 1)
+        rig.at(2) { $0.left = lean(2 * 360 / 7) }
+        tap(&rig, .a, from: 3)
+        #expect(placed(rig) == ["C maj 0.0+1.0", "G maj 1.0+1.0"])
         #expect(rig.layout.cursor == 2)
     }
 
-    @Test func rtDeepHoldsLonger() {
+    @Test func rtWritesForAsLongAsItIsHeld() {
         var rig = Rig(Arranger())
+        let struck = rig.at(1) { $0.rightTrigger = 1 }
+        #expect(sounded(struck) == [[60, 64, 67]])
+        // A tick is felt as each beat passes.
+        let ticks = (1...30).flatMap { i in rig.at(1 + Double(i) * 0.05) }.filter { $0 == .rumble(.tick) }
+        #expect(ticks.count == 2)
+        // Let go a beat and a half after striking: snapped to the sixteenths.
+        rig.at(1 + 1.5 * beat) { $0.rightTrigger = 0 }
+        #expect(placed(rig) == ["C maj 0.0+1.5"])
+        #expect(rig.layout.cursor == 1.5)
+    }
+
+    @Test func aFreeGridKeepsTheLengthAsHeld() {
+        var rig = Rig(Arranger())
+        rig.settings.grid = .free
         rig.at(1) { $0.rightTrigger = 1 }
-        rig.at(1.2) { $0.rightTrigger = 0 }
-        #expect(rig.layout.cursor == 4)
-        #expect(rig.layout.chord(at: 3)?.name == "C maj")
+        rig.at(1 + 0.7 * beat) { $0.rightTrigger = 0 }
+        let length = rig.layout.arrangement.chords.first?.length ?? 0
+        #expect(abs(length - 0.7) < 0.001)
+    }
+
+    @Test func playingRtRecordsLiveAtThePlayhead() {
+        var rig = Rig(Arranger())
+        tap(&rig, .y, from: 0)
+        // Struck as the third beat starts, let go a beat later.
+        rig.at(2 * beat) { $0.rightTrigger = 1 }
+        rig.at(2.5 * beat)
+        rig.at(3 * beat) { $0.rightTrigger = 0 }
+        #expect(placed(rig) == ["C maj 2.0+1.0"])
+        #expect(rig.layout.cursor == 0)
+    }
+
+    @Test func theBumpersStretchTheChordAtTheCursor() {
+        var rig = Rig(Arranger())
+        tap(&rig, .a, from: 1)
+        tap(&rig, .rb, from: 2)
+        #expect(placed(rig) == ["C maj 0.0+1.25"])
+        // The cursor was at its end, and stays there.
+        #expect(rig.layout.cursor == 1.25)
+        tap(&rig, .lb, 2, from: 3)
+        #expect(placed(rig) == ["C maj 0.0+0.75"])
+    }
+
+    @Test func aBumperHeldStretchesSmoothly() {
+        var rig = Rig(Arranger())
+        rig.settings.grid = .free
+        tap(&rig, .a, from: 1)
+        rig.at(2) { $0.buttons = [.rb] }
+        rig.at(2 + Arranger.stretchDelay + 0.5) { $0.buttons = [.rb] }
+        let length = rig.layout.arrangement.chords.first?.length ?? 0
+        #expect(abs(length - (1 + 0.25 + 0.5 * Arranger.stretchRate)) < 0.001)
+    }
+
+    @Test func aStretchStopsAtTheNextChord() {
+        var rig = Rig(Arranger())
+        tap(&rig, .a, 2, from: 1)
+        tap(&rig, .left, 5, from: 2)
+        #expect(rig.layout.cursor == 0.75)
+        rig.at(3) { $0.buttons = [.rb] }
+        rig.at(6) { $0.buttons = [.rb] }
+        #expect(placed(rig) == ["C maj 0.0+1.0", "C maj 1.0+1.0"])
+    }
+
+    @Test func playingStrikesEachChordAsItStartsAndIsSilentBetween() {
+        var rig = Rig(Arranger())
+        tap(&rig, .a, from: 0)
+        tap(&rig, .right, 4, from: 0.1)
+        rig.at(0.3) { $0.left = lean(2 * 360 / 7) }
+        tap(&rig, .a, from: 0.4)
+        tap(&rig, .left, 12, from: 0.5)
+        #expect(placed(rig) == ["C maj 0.0+1.0", "G maj 2.0+1.0"])
+        #expect(rig.layout.cursor == 0)
+        let start = 10.0
+        let first = rig.at(start) { $0.buttons = [.y] }
+        #expect(sounded(first) == [[60, 64, 67]])
+        let gap = rig.at(start + 1.5 * beat) { $0.buttons = [] }
+        #expect(gap.contains(.silence(.chord)))
+        let second = rig.at(start + 2.25 * beat)
+        #expect(sounded(second) == [[67, 71, 74]])
+        // Round the loop, the first chord is struck again.
+        let again = rig.at(start + 16.1 * beat)
+        #expect(sounded(again) == [[60, 64, 67]])
     }
 
     @Test func undoTakesBackAWrite() {
         var rig = Rig(Arranger())
-        rig.at(1) { $0.buttons = [.a] }
-        rig.at(2) { $0.buttons = [.b] }
-        #expect(rig.layout.beats.allSatisfy { $0 == nil })
+        tap(&rig, .a, from: 1)
+        tap(&rig, .b, from: 2)
+        #expect(rig.layout.arrangement.isEmpty)
     }
 
-    @Test func playingStrikesEachChordOnItsBeat() {
+    @Test func theArrangementIsAMIDIFileWithItsLengths() {
         var rig = Rig(Arranger())
-        rig.at(0) { $0.buttons = [.a] }
-        rig.at(0.1) { $0.buttons = []; $0.left = lean(2 * 360 / 7) }
-        rig.at(0.2) { $0.buttons = [.a] }
-        for time in [0.3, 0.5] {
-            rig.at(time) { $0.buttons = [.left] }
-            rig.at(time + 0.1) { $0.buttons = [] }
-        }
-        #expect(rig.layout.cursor == 0)
-        let first = rig.at(1) { $0.buttons = [.y] }
-        #expect(sounded(first) == [[60, 64, 67]])
-        let second = rig.at(1 + 60.0 / 96)
-        #expect(sounded(second) == [[67, 71, 74]])
-        // The third beat holds the chord before.
-        let third = rig.at(1 + 2 * 60.0 / 96)
-        #expect(sounded(third) == [])
-    }
-
-    @Test func theArrangementIsAMIDIFile() {
-        var rig = Rig(Arranger())
-        rig.at(1) { $0.buttons = [.a] }
-        let file = rig.layout.midiFile(rig.settings)
-        let notes = file?.tracks.first?.events.filter { if case .noteOn = $0.kind { true } else { false } }
-        #expect(notes?.count == 3)
+        rig.at(1) { $0.rightTrigger = 1 }
+        rig.at(1 + 2 * beat) { $0.rightTrigger = 0 }
+        let events = rig.layout.midiFile(rig.settings)?.tracks.first?.events ?? []
+        let offs = events.filter { if case .noteOff = $0.kind { true } else { false } }.map(\.tick)
+        #expect(offs == [960, 960, 960])
         #expect(Arranger().midiFile(DeskSettings()) == nil)
+    }
+}
+
+@Suite("Arrangement")
+struct ArrangementTests {
+    private let c = DeskChord(key: Key(root: .C, scale: .major), degree: .I)
+    private let g = DeskChord(key: Key(root: .C, scale: .major), degree: .V)
+
+    @Test func aChordPlacedOverAnotherCutsItShort() {
+        var arrangement = Arrangement()
+        arrangement.place(c, at: 0, length: 4)
+        arrangement.place(g, at: 2, length: 1)
+        #expect(arrangement.chords == [Placed(start: 0, length: 2, chord: c), Placed(start: 2, length: 1, chord: g)])
+        arrangement.place(c, at: 1.5, length: 3)
+        #expect(arrangement.chords.map(\.start) == [0, 1.5])
+        #expect(arrangement.chords.first?.length == 1.5)
+    }
+
+    @Test func aChordEndsAtTheLoopsEnd() {
+        var arrangement = Arrangement()
+        arrangement.place(c, at: 15, length: 4)
+        #expect(arrangement.chords.first?.length == 1)
+    }
+
+    @Test func theGridSnapsLengths() {
+        #expect(BeatGrid.sixteenth.length(0.1) == 0.25)
+        #expect(BeatGrid.sixteenth.length(1.02) == 1)
+        #expect(BeatGrid.quarter.length(1.4) == 2)
+        #expect(BeatGrid.free.length(0.05) == 0.125)
+        #expect(BeatGrid.eighth.nearest(1.3) == 1.5)
     }
 }

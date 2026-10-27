@@ -338,8 +338,9 @@ struct BarView: View {
     }
 }
 
-/// The arranger: four bars of beats, the cursor and the playhead, and the
-/// chord the sticks aim at.
+/// The arranger: four bars of time, a lane to each, with every chord as
+/// long as it lasts, the cursor, the playhead, and the chord being written
+/// growing as it is held; and the chord the sticks aim at.
 struct ArrangerView: View {
     let layout: Arranger
     let settings: DeskSettings
@@ -348,25 +349,26 @@ struct ArrangerView: View {
     var body: some View {
         HStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 12) {
-                Caption(control: "D-pad · A · RT", title: "Four bars at \(Int(settings.tempo)) bpm")
-                Grid(horizontalSpacing: 6, verticalSpacing: 6) {
-                    ForEach(0..<Arranger.bars, id: \.self) { bar in
-                        GridRow {
+                HStack {
+                    Caption(control: "D-pad · RT · LB RB", title: "Four bars at \(Int(settings.tempo)) bpm")
+                    Spacer()
+                    Fact(name: "Grid · L3", value: settings.grid.name)
+                    Fact(name: "Cursor", value: position(layout.cursor))
+                }
+                VStack(spacing: 8) {
+                    ForEach(0..<Arrangement.bars, id: \.self) { bar in
+                        HStack(spacing: 8) {
                             Text("\(bar + 1)")
                                 .font(.system(size: 11, weight: .bold, design: .rounded))
                                 .foregroundStyle(Theme.faint)
-                            ForEach(0..<Arranger.beatsPerBar, id: \.self) { beat in
-                                cell(bar * Arranger.beatsPerBar + beat)
-                            }
+                                .frame(width: 14)
+                            BarLane(bar: bar, layout: layout, grid: settings.grid)
                         }
                     }
                 }
-                Text(layout.playing == nil ? "Y plays from the cursor, round the four bars." : "Playing. Y stops.")
-                    .font(.system(size: 11)).foregroundStyle(Theme.secondary)
-                if let writing = layout.writing {
-                    Text("Writing \(writing) beat\(writing == 1 ? "" : "s"): pull deeper to hold longer")
-                        .font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.chord)
-                }
+                Text(status)
+                    .font(.system(size: 11, weight: layout.writing == nil ? .regular : .semibold))
+                    .foregroundStyle(layout.writing == nil ? Theme.secondary : Theme.chord)
             }
             .panel()
             VStack(spacing: 12) {
@@ -381,9 +383,28 @@ struct ArrangerView: View {
                 TriggerBar(name: "RT", value: frame.rightTrigger)
                 TriggerBar(name: "LT", value: frame.leftTrigger, tint: Theme.melody)
             }
-            .frame(maxWidth: 520)
+            .frame(maxWidth: 460)
             .panel()
         }
+    }
+
+    private var status: String {
+        if let writing = layout.writing {
+            return (writing.isLive ? "Recording live: " : "Writing: ") + "\(beats(writing.length)) held, let go to place it"
+        }
+        if layout.playing != nil { return "Playing round the four bars. RT records live at the playhead; Y stops." }
+        return "Hold RT to write for as long as it's held. Y plays from the cursor."
+    }
+
+    /// "bar 2 · beat 3.5"
+    private func position(_ beats: Double) -> String {
+        let bar = Int(beats) / Arrangement.beatsPerBar + 1
+        let beat = beats.truncatingRemainder(dividingBy: Double(Arrangement.beatsPerBar)) + 1
+        return "bar \(bar) · beat \(beat.formatted(.number.precision(.fractionLength(0...2))))"
+    }
+
+    private func beats(_ beats: Double) -> String {
+        "\(beats.formatted(.number.precision(.fractionLength(2)))) beats"
     }
 
     /// The ring's inner band, compactly: a sector for each mode.
@@ -396,21 +417,98 @@ struct ArrangerView: View {
                           fit: chord.fit(in: settings.key), isAimed: layout.aim?.mode == sector.mode)
         }
     }
+}
 
-    private func cell(_ beat: Int) -> some View {
-        let chord = layout.beats[beat]
-        let held = chord == nil ? layout.chord(at: beat) : nil
-        let isCursor = beat == layout.cursor
-        let isPlaying = beat == layout.playhead
-        return Text(chord?.name ?? (held == nil ? "·" : "—"))
-            .font(.system(size: 13, weight: chord == nil ? .regular : .semibold, design: .rounded))
-            .lineLimit(1).minimumScaleFactor(0.6)
-            .foregroundStyle(isPlaying ? Color.black : chord == nil ? Theme.faint : Theme.text)
-            .frame(maxWidth: .infinity, minHeight: 54)
-            .background(isPlaying ? Theme.chord : chord == nil ? Theme.raised.opacity(0.4) : Theme.raised,
-                        in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(isCursor ? Theme.chord : .clear, lineWidth: 2))
+/// One bar of the arranger, left to right: its beats and grid lines, the
+/// chords in it (a chord over the bar line is drawn in both), the cursor
+/// and the playhead.
+struct BarLane: View {
+    let bar: Int
+    let layout: Arranger
+    let grid: BeatGrid
+
+    private var from: Double { Double(bar * Arrangement.beatsPerBar) }
+    private var to: Double { from + Double(Arrangement.beatsPerBar) }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let height = proxy.size.height
+            let x = { (beats: Double) in CGFloat((beats - from) / Double(Arrangement.beatsPerBar)) * width }
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.raised.opacity(0.35))
+                // The grid's lines, faint, and the beats', stronger.
+                ForEach(lines, id: \.self) { line in
+                    let isBeat = line == line.rounded()
+                    Rectangle()
+                        .fill(Theme.rule.opacity(isBeat ? 0.9 : 0.35))
+                        .frame(width: 1, height: isBeat ? height : height * 0.35)
+                        .offset(x: x(line), y: isBeat ? 0 : height * 0.65)
+                }
+                ForEach(chords, id: \.start) { placed in
+                    let start = max(placed.start, from), end = min(placed.end, to)
+                    ChordBlock(name: placed.start >= from ? placed.chord.name : "", isHeard: isHeard(placed))
+                        .frame(width: max(2, x(end) - x(start) - 2), height: height - 8)
+                        .offset(x: x(start) + 1, y: 4)
+                }
+                if let writing = layout.writing, writing.start < to, writing.start + writing.length > from {
+                    let start = max(writing.start, from), end = min(writing.start + max(writing.length, 0.05), to)
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Theme.chord.opacity(0.35))
+                        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.chord, lineWidth: 2))
+                        .frame(width: max(3, x(end) - x(start)), height: height - 8)
+                        .offset(x: x(start), y: 4)
+                }
+                if layout.cursor >= from && layout.cursor < to {
+                    Capsule().fill(Theme.chord)
+                        .frame(width: 3, height: height + 6)
+                        .offset(x: x(layout.cursor) - 1.5, y: -3)
+                }
+                if let playhead = layout.playhead, playhead >= from && playhead < to {
+                    Rectangle().fill(Theme.text)
+                        .frame(width: 2, height: height)
+                        .offset(x: x(playhead) - 1)
+                }
+            }
+        }
+        .frame(height: 58)
+    }
+
+    /// The grid's lines in the bar (beats alone with no grid).
+    private var lines: [Double] {
+        let step = min(grid.step ?? 1, 1)
+        return stride(from: from, to: to, by: step).map { $0 }
+    }
+
+    private var chords: [Placed] {
+        layout.arrangement.chords.filter { $0.start < to && $0.end > from }
+    }
+
+    private func isHeard(_ placed: Placed) -> Bool {
+        guard let playhead = layout.playhead, layout.writing == nil else { return false }
+        return placed.covers(playhead)
+    }
+}
+
+/// A chord on the arranger's timeline.
+struct ChordBlock: View {
+    let name: String
+    let isHeard: Bool
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .fill(isHeard ? Theme.chord : Theme.panel)
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(isHeard ? Theme.chord : Theme.rule))
+            .overlay(alignment: .leading) {
+                Text(name)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(isHeard ? Color.black : Theme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .padding(.horizontal, 8)
+            }
+            .clipped()
     }
 }
 

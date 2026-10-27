@@ -89,10 +89,21 @@ With RB held, the right stick is a Trautonium's bar: two octaves of continuous p
 
 ### Arranger
 
-The other layouts play; this one writes.
-The sticks aim a chord as Twin rings does, the d-pad moves a cursor over four bars of beats, A writes the aimed chord on the cursor's beat, and RT writes it held for as long as RT was pulled deep (one, two or four beats).
-X clears a beat, B undoes, LT listens to the aimed chord, the bumpers change the tempo, and Y plays the bars round from the cursor, through the same sound and MIDI as everything else.
-Menu › Save the arrangement writes it as a MIDI file to Music › Perfecto Desk.
+The other layouts play; this one writes, in time.
+The sticks aim a chord as Twin rings does, and it is placed in four bars, each chord with its own start and length, and silence where nothing is placed.
+The bars are drawn as four lanes, each chord as long as it lasts, with the cursor in orange and the playhead moving through them.
+
+There are three ways to give a chord its length:
+
+- **Hold to write.** With the bars stopped, RT held at the cursor sounds the aimed chord and writes it for as long as it is held, at the tempo.
+  It grows on the screen as it is held, a tick is felt on each beat, and on letting go it is snapped to the grid and the cursor moves to its end.
+- **Record live.** With the bars playing (Y), RT writes at the playhead: the chord starts where it was struck, on the nearest line of the grid, and is as long as it was held.
+- **Stretch.** LB and RB shorten and lengthen the chord at the cursor (or the one that has just ended there): a tap by a line of the grid, a hold smoothly, for as long as it is held, as far as the next chord.
+
+The grid is Free, 1/16, 1/8, 1/4 or 1/2, changed by L3 or Menu › Arranger grid; it snaps the cursor's moves and every length, and Free snaps nothing.
+A writes a beat's chord at the cursor, X clears the chord there, B undoes, LT listens to the aimed chord, and the d-pad moves the cursor a line of the grid or a bar.
+The tempo is in the menu.
+Menu › Save the arrangement writes it as a MIDI file to Music › Perfecto Desk, each chord as long as it was written.
 
 ## How the principles are carried
 
