@@ -439,15 +439,20 @@ final class SequencerState {
     func addLayers(_ layers: [[TimelineNote]]) {
         guard !layers.isEmpty else { return }
         snapshot()
-        var edited = timeline
-        for notes in layers {
-            if let empty = edited.layers.firstIndex(where: \.notes.isEmpty) {
-                edited.layers[empty].notes = notes
-            } else {
-                edited.layers.append(Layer(notes: notes))
-            }
-        }
-        timeline = edited
+        timeline.add(layers: layers)
+        save()
+    }
+
+    /// Lays a loop's take of `bars` bars on the timeline, begun `offset`
+    /// ticks into it: a layer for each line of `lines`, with the timeline
+    /// and the take repeated until they come round together
+    /// (`Timeline.layering`). One step to undo.
+    func layerTake(_ lines: [[TimelineNote]], bars: Int, from offset: Int) {
+        guard !lines.isEmpty else { return }
+        snapshot()
+        timeline = timeline.layering(lines, bars: bars, from: offset)
+        showALayerThatExists()
+        clampCursors()
         save()
     }
 

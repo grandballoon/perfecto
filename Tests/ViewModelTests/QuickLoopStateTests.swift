@@ -33,12 +33,19 @@ struct QuickLoopStateTests {
             state.release(.degree(degree))
         }
 
-        /// Records a first loop: I for two beats, V for two.
-        func recordFirstLoop() {
+        /// Chooses a take of `bars` bars and counts in: it is recording.
+        func startTake(bars: Int = 1) {
             loops.triggerTapped()
+            loops.choose(bars: bars)
+            clock.advance(seconds: Double(QuickLoopState.countIn))
+        }
+
+        /// Records a first loop of one bar: I for two beats, V for two.
+        /// The take ends by itself as V is let go.
+        func recordFirstLoop() {
+            startTake()
             play(.I, beats: 2)
             play(.V, beats: 2)
-            loops.triggerTapped()
         }
 
         var discards: [String] {
@@ -56,22 +63,130 @@ struct QuickLoopStateTests {
         #expect(!rig.loops.isRunning)
     }
 
-    @Test func theFirstTapStartsATakeAndAddsNothingYet() {
+    @Test func theFirstTapOffersTheLengthsAndTheNextPutsThemAway() {
         let rig = Rig()
         rig.loops.triggerTapped()
-        #expect(rig.loops.phase == .recording)
+        #expect(rig.loops.phase == .choosing)
+        rig.loops.triggerTapped()
+        #expect(rig.loops.phase == .idle)
         #expect(rig.loops.loops.isEmpty)
+    }
+
+    // MARK: – The count-in
+
+    /// A length chosen counts in for three seconds, felt at each, and then
+    /// records for that many bars.
+    @Test func aLengthChosenCountsInThenRecords() {
+        let rig = Rig()
+        rig.loops.triggerTapped()
+        rig.loops.choose(bars: 2)
+        #expect(rig.loops.bars == 2)
+        #expect(rig.loops.phase == .countingIn(remaining: 3))
+        #expect(rig.loops.cue == .count(3))
+        rig.clock.advance(seconds: 1)
+        #expect(rig.loops.phase == .countingIn(remaining: 2))
+        #expect(rig.loops.cue == .count(2))
+        rig.clock.advance(seconds: 1)
+        #expect(rig.loops.cue == .count(1))
+        rig.clock.advance(seconds: 1)
+        #expect(rig.loops.cue == .go)
+        let start = rig.clock.beats
+        #expect(rig.loops.phase == .recording(start: start, end: start + 8))
+        #expect(rig.logger.events.contains {
+            if case .loop_count_in_started(track: 0, bars: 2) = $0 { true } else { false }
+        })
+    }
+
+    /// The take runs out as the clock moves: half way through two bars at
+    /// 120, half of it is left, two seconds.
+    @Test func theTakeShowsHowMuchOfItIsLeft() throws {
+        let rig = Rig()
+        rig.startTake(bars: 2)
+        rig.clock.advance(beats: 4)
+        let progress = try #require(rig.loops.recordingProgress)
+        #expect(abs(progress.share - 0.5) < 1e-9)
+        #expect(abs(progress.secondsLeft - 2) < 1e-9)
+    }
+
+    /// A chord struck on the last count, or a moment before it, or held
+    /// through the count-in, starts the take.
+    @Test func aChordSoundingAsTheTakeBeginsIsItsFirst() {
+        let rig = Rig()
+        rig.loops.triggerTapped()
+        rig.loops.choose(bars: 1)
+        rig.clock.advance(seconds: 2.95)
+        rig.state.press(.degree(.IV))
+        rig.clock.advance(seconds: 0.05)
+        rig.clock.advance(beats: 1)
+        rig.state.release(.degree(.IV))
+        rig.clock.advance(beats: 3)
+
+        let notes = rig.timeline.layers[0].notes
+        #expect(notes.map(\.chord.degree) == [.IV])
+        #expect(notes.map(\.start) == [0])
+        #expect(notes.map(\.length) == [480])
+    }
+
+    /// A chord let go before the count-in ends is not in the take.
+    @Test func aChordEndedDuringTheCountInIsNotRecorded() {
+        let rig = Rig()
+        rig.loops.triggerTapped()
+        rig.loops.choose(bars: 1)
+        rig.state.press(.degree(.IV))
+        rig.clock.advance(seconds: 1)
+        rig.state.release(.degree(.IV))
+        rig.clock.advance(seconds: 2)
+        rig.play(.I, beats: 4)
+        #expect(rig.timeline.layers[0].notes.map(\.chord.degree) == [.I])
+    }
+
+    @Test func loopCallsOffTheCountIn() {
+        let rig = Rig()
+        rig.loops.triggerTapped()
+        rig.loops.choose(bars: 1)
+        rig.clock.advance(seconds: 1)
+        rig.loops.triggerTapped()
+        #expect(rig.loops.phase == .idle)
+        #expect(rig.loops.cue == nil)
+        rig.clock.advance(seconds: 5)
+        #expect(rig.loops.phase == .idle)
+        #expect(rig.discards == ["called off"])
+    }
+
+    @Test func loopCallsOffTheTakeBeingRecorded() {
+        let rig = Rig()
+        rig.startTake()
+        rig.play(.I, beats: 2)
+        rig.loops.triggerTapped()
+        rig.clock.advance(beats: 4)
+        #expect(rig.loops.phase == .idle)
+        #expect(rig.loops.loops.isEmpty)
+        #expect(rig.discards == ["called off"])
+    }
+
+    /// The keyboard's loop key has nothing to point with: it counts in to
+    /// the length chosen last, and calls off what is counting in.
+    @Test func theLoopKeyCountsInToTheLengthChosenLast() {
+        let rig = Rig()
+        rig.startTake(bars: 4)
+        rig.clock.advance(beats: 16)
+        rig.state.tap(.loop)
+        #expect(rig.loops.phase == .countingIn(remaining: 3))
+        #expect(rig.loops.bars == 4)
+        rig.state.tap(.loop)
+        #expect(rig.loops.phase == .idle)
     }
 
     // MARK: – The first loop
 
-    /// Played to the tempo that was set: four beats is one bar, and the
-    /// chords are where they were played.
+    /// Played to the tempo that was set: the bar chosen is the loop, and the
+    /// chords are where they were played. The cues are felt in order.
     @Test func theFirstLoopBecomesTheTimeline() {
         let rig = Rig()
         rig.recordFirstLoop()
 
         #expect(rig.loops.phase == .idle)
+        #expect(rig.loops.cue == .done)
         #expect(rig.loops.loops.count == 1)
         #expect(rig.timeline.barCount == 1)
         #expect(rig.state.bpm == 120)
@@ -81,30 +196,32 @@ struct QuickLoopStateTests {
         #expect(notes.map(\.length) == [960, 960])
     }
 
-    /// Played a little short of a bar, with no metronome: it is still one
-    /// bar, the tempo moves to make it so, and nothing played is moved.
-    @Test func aLooselyTimedLoopSetsTheTempo() {
+    /// The take lasts the bars chosen however little is played in it, and
+    /// the tempo stays as it was set.
+    @Test func theTakeLastsTheBarsChosen() {
         let rig = Rig()
-        rig.loops.triggerTapped()
-        rig.play(.I, beats: 2)
-        rig.play(.V, beats: 1.8)
-        rig.loops.triggerTapped()
-
-        #expect(rig.timeline.barCount == 1)
-        #expect(abs(rig.state.bpm - 120 * 4 / 3.8) < 1e-6)
-        let notes = rig.timeline.layers[0].notes
-        #expect(notes.map(\.start) == [0, 1011])                     // 2 of 3.8 beats through the bar
-        #expect(notes[1].end == 1920)
+        rig.state.setBPM(90)
+        rig.startTake(bars: 4)
+        rig.play(.I, beats: 1)
+        rig.clock.advance(beats: 14.9)
+        #expect(rig.loops.isTaking)
+        rig.clock.advance(beats: 0.1)
+        #expect(rig.loops.phase == .idle)
+        #expect(rig.timeline.barCount == 4)
+        #expect(rig.state.bpm == 90)
+        #expect(rig.timeline.layers[0].notes.map(\.length) == [480])
     }
 
-    /// It loops from the moment it is closed, as notes through its own voice.
-    @Test func theLoopPlaysFromTheMomentItIsClosed() {
+    /// It loops from the moment it ends, as notes through its own voice.
+    @Test func theLoopPlaysFromTheMomentItEnds() {
         let rig = Rig()
-        rig.loops.triggerTapped()
+        rig.startTake()
         rig.play(.I, beats: 2)
-        rig.play(.V, beats: 2)
+        rig.state.press(.degree(.V))
+        rig.clock.advance(beats: 1.9)
         rig.sink.reset()
-        rig.loops.triggerTapped()
+        rig.clock.advance(beats: 0.1)
+        rig.state.release(.degree(.V))
 
         #expect(rig.loops.isRunning)
         #expect(rig.sink.lastPlay?.notes == [60, 64, 67])
@@ -148,11 +265,10 @@ struct QuickLoopStateTests {
     /// in the key it was borrowed from, so it plays back as it was heard.
     @Test func aBorrowedChordIsRecordedInItsOwnKey() {
         let rig = Rig()
-        rig.loops.triggerTapped()
+        rig.startTake()
         rig.state.press(.root(.As))
         rig.clock.advance(beats: 4)
         rig.state.release(.root(.As))
-        rig.loops.triggerTapped()
 
         let note = rig.timeline.layers[0].notes[0]
         #expect(note.chord.degree == .viiDim)
@@ -162,12 +278,11 @@ struct QuickLoopStateTests {
         #expect(rig.sink.playCalls.map(\.notes) == [[70, 74, 77]])
     }
 
-    @Test func aKeyStillHeldWhenTheTakeClosesEndsThere() {
+    @Test func aKeyStillHeldWhenTheTakeEndsEndsThere() {
         let rig = Rig()
-        rig.loops.triggerTapped()
+        rig.startTake()
         rig.state.press(.degree(.I))
         rig.clock.advance(beats: 4)
-        rig.loops.triggerTapped()
 
         #expect(rig.state.activeDegree == nil)
         #expect(rig.timeline.layers[0].notes.map(\.length) == [1920])
@@ -178,103 +293,101 @@ struct QuickLoopStateTests {
 
     @Test func aTakeWithNothingPlayedIsDropped() {
         let rig = Rig()
-        rig.loops.triggerTapped()
+        rig.startTake()
         rig.clock.advance(beats: 4)
-        rig.loops.triggerTapped()
         #expect(rig.loops.loops.isEmpty)
         #expect(rig.loops.phase == .idle)
+        #expect(rig.loops.cue == .dropped)
         #expect(rig.discards == ["nothing played"])
-    }
-
-    /// An accidental double tap.
-    @Test func aTakeShorterThanHalfASecondIsDropped() {
-        let rig = Rig()
-        rig.loops.triggerTapped()
-        rig.play(.I, beats: 0.5)                                     // a quarter of a second
-        rig.loops.triggerTapped()
-        #expect(rig.loops.loops.isEmpty)
-        #expect(rig.discards == ["too short"])
-        #expect(rig.state.bpm == 120)
     }
 
     // MARK: – Later takes
 
-    /// A second take is layered at the point in the loop where it was
-    /// played, and the tempo stays.
+    /// A second take is laid at the point in the loop where it was played,
+    /// and the tempo stays. The loop plays through the count-in.
     @Test func aSecondTakeIsLayeredWhereItWasPlayed() {
         let rig = Rig()
         rig.recordFirstLoop()
         rig.clock.advance(beats: 1)
-        rig.loops.triggerTapped()
+        rig.startTake()                                              // six beats on: the loop's fourth beat
         rig.play(.IV, beats: 1)
-        rig.clock.advance(beats: 0.5)
-        rig.loops.triggerTapped()
+        rig.clock.advance(beats: 3)
 
         #expect(rig.loops.loops.count == 2)
         #expect(rig.state.bpm == 120)
         #expect(rig.timeline.barCount == 1)
         let second = rig.timeline.layers[1].notes
         #expect(second.map(\.chord.degree) == [.IV])
-        #expect(second.map(\.start) == [480])
+        #expect(second.map(\.start) == [1440])
         #expect(second.map(\.length) == [480])
     }
 
-    /// Both layers play together, each on a voice of its own.
     /// Layers are heard a moment after their time on the clock. A chord
     /// played to what is heard goes where it was heard, not that moment
     /// later, so it is in time with the layer when both play back.
-    @Test func aTakePlayedToWhatIsHeardLandsWhereItWasHeard() throws {
+    @Test func aTakePlayedToWhatIsHeardLandsWhereItWasHeard() {
         let rig = Rig(layerLead: 0.125)                // a quarter of a beat at 120
         rig.recordFirstLoop()                          // one bar; playing from its top
-        // The loop's second beat is heard a quarter of a beat late, and
-        // the key is pressed with it.
-        rig.clock.advance(beats: 1)
-        rig.loops.triggerTapped()
+        // The take begins on the loop's third beat, heard a quarter of a
+        // beat late, and the key is pressed with it.
+        rig.startTake()
         rig.clock.advance(beats: 0.25)
         rig.play(.IV, beats: 1)
-        rig.loops.triggerTapped()
+        rig.clock.advance(beats: 2.75)
         #expect(rig.timeline.layers.count == 2)
-        #expect(rig.timeline.layers.last?.notes.map(\.start) == [TimelineTime.ticksPerBeat])
+        #expect(rig.timeline.layers.last?.notes.map(\.start) == [2 * TimelineTime.ticksPerBeat])
     }
 
     @Test func layersPlayTogether() {
         let rig = Rig()
         rig.recordFirstLoop()
-        rig.clock.advance(beats: 1)
-        rig.loops.triggerTapped()
+        rig.startTake()
         rig.play(.IV, beats: 1)
-        rig.loops.triggerTapped()
-        rig.clock.advance(beats: 2.5)                                // to half a beat into the next round
+        rig.clock.advance(beats: 3)
         rig.sink.reset()
-        rig.clock.advance(beats: 4)
+        rig.clock.advance(beats: 4.01)
 
         let played = Set(rig.sink.playCalls.map(\.notes))
         #expect(played == [[60, 64, 67], [65, 69, 72], [67, 71, 74]])
     }
 
-    /// A take longer than the loop becomes a layer for each time round.
-    @Test func aTakeLongerThanTheLoopLayersOverItself() {
+    /// A take longer than the loop lengthens it, and the loop plays twice
+    /// under it.
+    @Test func aLongerTakeRepeatsTheLoopUnderIt() {
         let rig = Rig()
         rig.recordFirstLoop()
-        rig.loops.triggerTapped()
+        rig.startTake(bars: 2)                                       // on the loop's third beat
         rig.play(.IV, beats: 1)
-        rig.clock.advance(beats: 4)
+        rig.clock.advance(beats: 3)
         rig.play(.vi, beats: 1)
-        rig.loops.triggerTapped()
+        rig.clock.advance(beats: 3)
 
-        #expect(rig.loops.loops.count == 3)
-        #expect(rig.timeline.layers[1].notes.map(\.chord.degree) == [.IV])
-        #expect(rig.timeline.layers[2].notes.map(\.chord.degree) == [.vi])
-        #expect(rig.timeline.layers[2].notes.map(\.start) == [480])
+        #expect(rig.loops.loops.count == 2)
+        #expect(rig.timeline.barCount == 2)
+        #expect(rig.timeline.layers[0].notes.map(\.chord.degree) == [.I, .V, .I, .V])
+        #expect(rig.timeline.layers[1].notes.map(\.chord.degree) == [.IV, .vi])
+        #expect(rig.timeline.layers[1].notes.map(\.start) == [960, 2880])
+    }
+
+    /// A take shorter than the loop plays every time it comes round in it.
+    @Test func aShorterTakeIsRepeatedRoundTheLoop() {
+        let rig = Rig()
+        rig.startTake(bars: 2)
+        rig.play(.I, beats: 8)
+        rig.startTake(bars: 1)                                       // six beats into the loop
+        rig.play(.IV, beats: 1)
+        rig.clock.advance(beats: 3)
+
+        #expect(rig.timeline.barCount == 2)
+        #expect(rig.timeline.layers[1].notes.map(\.start) == [960, 2880])
     }
 
     /// The loop playing underneath is not recorded into the take over it.
     @Test func whatTheLoopPlaysIsNotRecordedAgain() {
         let rig = Rig()
         rig.recordFirstLoop()
-        rig.loops.triggerTapped()
+        rig.startTake()
         rig.clock.advance(beats: 4)
-        rig.loops.triggerTapped()
         #expect(rig.loops.loops.count == 1)
         #expect(rig.discards == ["nothing played"])
     }
@@ -283,13 +396,15 @@ struct QuickLoopStateTests {
         let rig = Rig()
         rig.recordFirstLoop()
         for _ in 1..<QuickLoopState.maxLoops {
-            rig.loops.triggerTapped()
+            rig.startTake()
             rig.play(.IV, beats: 1)
-            rig.loops.triggerTapped()
+            rig.clock.advance(beats: 3)
         }
         #expect(rig.loops.loops.count == QuickLoopState.maxLoops)
         #expect(!rig.loops.canStartNew)
         rig.loops.triggerTapped()
+        #expect(rig.loops.phase == .idle)
+        rig.state.tap(.loop)
         #expect(rig.loops.phase == .idle)
     }
 
@@ -301,12 +416,11 @@ struct QuickLoopStateTests {
         let rig = Rig()
         rig.state.effects.zones.zones = [KeyZone(), KeyZone(key: Key(root: .Ds, scale: .major), octave: 2)]
         rig.state.effects.zones.isOn = true
-        rig.loops.triggerTapped()
+        rig.startTake()
         rig.state.slide(on: .degree(.I), to: 0.8)
         rig.state.press(.degree(.I))
         rig.clock.advance(beats: 4)
         rig.state.release(.degree(.I))
-        rig.loops.triggerTapped()
 
         let note = rig.timeline.layers[0].notes[0]
         #expect(note.playing.key == Key(root: .Ds, scale: .major))
@@ -320,14 +434,14 @@ struct QuickLoopStateTests {
     @Test func aSlideInsideAHeldChordIsRecorded() {
         let rig = Rig()
         rig.state.effects.vocoder = VocoderSettings(isOn: true, followsSlide: true)
-        rig.loops.triggerTapped()
+        rig.startTake()
         rig.state.slide(on: .degree(.I), to: 0.2)
         rig.state.press(.degree(.I))
         rig.clock.advance(beats: 2)
         rig.state.slide(on: .degree(.I), to: 0.8)
-        rig.clock.advance(beats: 2)
+        rig.clock.advance(beats: 1.9)
         rig.state.release(.degree(.I))
-        rig.loops.triggerTapped()
+        rig.clock.advance(beats: 0.1)
 
         let note = rig.timeline.layers[0].notes[0]
         #expect(note.playing.effects?.vocoder.amount == 0.2)
@@ -340,11 +454,11 @@ struct QuickLoopStateTests {
     @Test func anArpeggiatedChordIsRecordedAsItsChord() {
         let rig = Rig()
         rig.state.effects.arpeggiator.isOn = true
-        rig.loops.triggerTapped()
-        rig.play(.I, beats: 4)
+        rig.startTake()
+        rig.play(.I, beats: 3.9)
         rig.state.effects.arpeggiator.isOn = false
         rig.sink.reset()
-        rig.loops.triggerTapped()
+        rig.clock.advance(beats: 0.1)
 
         let note = rig.timeline.layers[0].notes[0]
         #expect(note.pitch == .chord)
@@ -374,11 +488,17 @@ struct QuickLoopStateTests {
 
         /// Records a first loop: I held for a bar.
         func recordLoop() {
-            state.quickLoopState.triggerTapped()
+            startTake()
             state.press(.degree(.I))
             clock.advance(beats: 4)
             state.release(.degree(.I))
+        }
+
+        /// Chooses a take of one bar and counts in: it is recording.
+        func startTake() {
             state.quickLoopState.triggerTapped()
+            state.quickLoopState.choose(bars: 1)
+            clock.advance(seconds: Double(QuickLoopState.countIn))
         }
     }
 
@@ -425,14 +545,14 @@ struct QuickLoopStateTests {
     @Test func theBrightnessAChordIsPlayedWithIsHeardAndKeptByItsLoop() {
         let rig = SoundRig()
         rig.state.effects.slidePlaysBrightness = true
-        rig.state.quickLoopState.triggerTapped()
+        rig.startTake()
         rig.state.slide(on: .degree(.I), to: 0.2)
         rig.state.press(.degree(.I))
         rig.clock.advance(beats: 2)
         rig.state.slide(on: .degree(.I), to: 0.8)
-        rig.clock.advance(beats: 2)
+        rig.clock.advance(beats: 1.9)
         rig.state.release(.degree(.I))
-        rig.state.quickLoopState.triggerTapped()
+        rig.clock.advance(beats: 0.1)
         #expect(rig.keys.sounds.map(\.brightness) == [0.2, 0.2, 0.2])
         #expect(rig.keys.changes.map(\.brightness) == [0.8, 0.8, 0.8])
 
@@ -469,24 +589,78 @@ struct QuickLoopStateTests {
 
     // MARK: – Layers
 
-    @Test func aLayerCanBeSilencedAndBroughtBackInTime() {
+    /// A loop's chit pauses it, and resumes it in time.
+    @Test func aLoopCanBePausedAndResumedInTime() {
         let rig = Rig()
         rig.recordFirstLoop()
         let id = rig.loops.loops[0].id
-        rig.loops.togglePlayback(id: id)
+        rig.loops.loopTapped(id: id)
         #expect(rig.loops.loops[0].isPlaying == false)
         rig.sink.reset()
         rig.clock.advance(beats: 1)
         #expect(rig.sink.playCalls.isEmpty)
 
-        rig.loops.togglePlayback(id: id)
+        rig.loops.loopTapped(id: id)
         #expect(rig.loops.loops[0].isPlaying)
         rig.clock.advance(beats: 1.01)
         #expect(rig.sink.lastPlay?.notes == [67, 71, 74])            // the V, in its place
     }
 
+    // MARK: – Deleting
+
+    /// With the trash on, a loop's chit deletes it, and the trash stays on
+    /// for the next.
+    @Test func whileDeletingALoopsChitDeletesIt() {
+        let rig = Rig()
+        rig.recordFirstLoop()
+        rig.startTake()
+        rig.play(.IV, beats: 1)
+        rig.clock.advance(beats: 3)
+        rig.loops.toggleDeleting()
+        #expect(rig.loops.isDeleting)
+
+        rig.loops.loopTapped(id: rig.loops.loops[0].id)
+        #expect(rig.loops.loops.count == 1)
+        #expect(rig.timeline.layers.flatMap(\.notes).map(\.chord.degree) == [.IV])
+        #expect(rig.loops.isDeleting)
+        rig.loops.toggleDeleting()
+        #expect(!rig.loops.isDeleting)
+    }
+
+    /// A tap anywhere else, or on LOOP, stops deleting, as does there being
+    /// nothing left to delete.
+    @Test func deletingStopsWithATapElsewhere() {
+        let rig = Rig()
+        rig.recordFirstLoop()
+        rig.loops.toggleDeleting()
+        rig.loops.dismiss()
+        #expect(!rig.loops.isDeleting)
+        #expect(rig.loops.loops.count == 1)
+
+        rig.loops.toggleDeleting()
+        rig.loops.triggerTapped()
+        #expect(!rig.loops.isDeleting)
+        #expect(rig.loops.phase == .choosing)
+        rig.loops.dismiss()
+        #expect(rig.loops.phase == .idle)
+
+        rig.loops.toggleDeleting()
+        rig.loops.loopTapped(id: rig.loops.loops[0].id)
+        #expect(rig.loops.loops.isEmpty)
+        #expect(!rig.loops.isDeleting)
+    }
+
+    /// The layers a take is laid on stay while it is made.
+    @Test func nothingIsDeletedWhileATakeIsMade() {
+        let rig = Rig()
+        rig.recordFirstLoop()
+        rig.startTake()
+        rig.loops.toggleDeleting()
+        #expect(!rig.loops.isDeleting)
+    }
+
     /// Deleting every layer frees the length, so the next take sets a new one.
-    @Test func deletingEveryLayerFreesTheLengthAndTempo() {
+    @Test func deletingEveryLayerFreesTheLength() {
         let rig = Rig()
         rig.recordFirstLoop()
         rig.loops.removeLoop(id: rig.loops.loops[0].id)
@@ -494,16 +668,15 @@ struct QuickLoopStateTests {
         #expect(!rig.loops.isRunning)
         #expect(rig.clock.pendingCount == 0)
 
-        rig.loops.triggerTapped()
+        rig.startTake(bars: 2)
         rig.play(.I, beats: 8)
-        rig.loops.triggerTapped()
         #expect(rig.timeline.barCount == 2)
     }
 
-    @Test func clearingEverythingAlsoDropsTheTakeBeingRecorded() {
+    @Test func clearingEverythingAlsoDropsTheTakeBeingMade() {
         let rig = Rig()
         rig.recordFirstLoop()
-        rig.loops.triggerTapped()
+        rig.startTake()
         rig.loops.clearAll()
         #expect(rig.loops.phase == .idle)
         #expect(rig.loops.loops.isEmpty)
@@ -537,15 +710,17 @@ struct QuickLoopStateTests {
         rig.sequencer.steps[0] = SequencerStep(degree: .vi)
         #expect(rig.loops.loops.count == 1)
 
-        rig.loops.triggerTapped()                                    // starts the sequence, to play along to
+        rig.loops.triggerTapped()
+        rig.loops.choose(bars: 1)                                    // starts the sequence, to play along to
         #expect(rig.loops.isRunning)
+        rig.clock.advance(seconds: 3)                                // to its third beat
         rig.clock.advance(beats: 1)
         rig.play(.IV, beats: 1)
-        rig.loops.triggerTapped()
+        rig.clock.advance(beats: 2)
 
         #expect(rig.loops.loops.count == 2)
         #expect(rig.state.bpm == 120)
-        #expect(rig.timeline.layers[1].notes.map(\.start) == [480])
+        #expect(rig.timeline.layers[1].notes.map(\.start) == [1440])
     }
 
     /// A recorded loop can be opened and edited in the sequencer.

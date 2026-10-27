@@ -113,6 +113,8 @@ enum LogEvent {
     case sample_recorded(seconds: Double)
 
     // Looper
+    /// A length was chosen, and the count-in to a take of it began.
+    case loop_count_in_started(track: Int, bars: Int)
     case loop_record_started(track: Int)
     /// `setsLength`: the take that defined the loop's length; later takes are layered onto it.
     case loop_recorded(track: Int, seconds: Double, setsLength: Bool)
@@ -304,6 +306,10 @@ extension LogEvent: Encodable {
         case let .gamepad_connected(name):
             try c.encode("gamepad_connected", forKey: Key("type"))
             try c.encode(name, forKey: Key("name"))
+        case let .loop_count_in_started(track, bars):
+            try c.encode("loop_count_in_started", forKey: Key("type"))
+            try c.encode(track, forKey: Key("track"))
+            try c.encode(bars,  forKey: Key("bars"))
         case let .loop_record_started(track):
             try c.encode("loop_record_started", forKey: Key("type"))
             try c.encode(track, forKey: Key("track"))

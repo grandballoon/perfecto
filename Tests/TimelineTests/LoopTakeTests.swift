@@ -68,43 +68,6 @@ struct LoopTakeTests {
         #expect(note.changes == [SoundChange(offset: 240, effects: voiced)])
     }
 
-    // MARK: – Fitting the first loop
-
-    /// Played at about the tempo that was set: the tempo moves a little to
-    /// make it whole bars, and the bar count is the natural one.
-    @Test func aLoopNearWholeBarsIsReadAsThoseBars() {
-        let fit = Timeline.fit(loopOf: 7.8, at: 120, signature: .common)
-        #expect(fit.bars == 2)
-        #expect(abs(fit.bpm - 120 * 8 / 7.8) < 1e-9)                // a touch faster: 123.08
-    }
-
-    @Test func aShortLoopIsOneBar() {
-        let fit = Timeline.fit(loopOf: 3, at: 120, signature: .common)
-        #expect(fit.bars == 1)
-        #expect(abs(fit.bpm - 160) < 1e-9)
-    }
-
-    @Test func theBarLengthFollowsTheSignature() {
-        let waltz = TimeSignature(beats: 3, unit: .quarter)
-        #expect(Timeline.fit(loopOf: 6.1, at: 100, signature: waltz).bars == 2)
-        #expect(Timeline.fit(loopOf: 6.1, at: 100, signature: .common).bars == 2)   // 8 beats is nearer than 4
-        #expect(Timeline.fit(loopOf: 5.9, at: 100, signature: .common).bars == 1)
-    }
-
-    /// The tempo that fits must be one the app has.
-    @Test func theBarCountGivesWhenTheTempoWouldBeOutOfRange() {
-        // Eight bars would need 309 BPM; seven need 271.
-        let fast = Timeline.fit(loopOf: 30, at: 290, signature: .common)
-        #expect(fast.bars == 7)
-        #expect(abs(fast.bpm - 290 * 28 / 30) < 1e-9)
-        // Two bars would need 17.8 BPM; three need 26.7.
-        let slow = Timeline.fit(loopOf: 9, at: 20, signature: .common)
-        #expect(slow.bars == 3)
-        // One bar is the fewest there is: the tempo stops at the fastest.
-        let tiny = Timeline.fit(loopOf: 1, at: 120, signature: .common)
-        #expect(tiny.bars == 1 && tiny.bpm == MusicalTime.tempoRange.upperBound)
-    }
-
     // MARK: – Folding a later take onto the loop
 
     private func note(_ start: Int, _ length: Int) -> TimelineNote {
@@ -136,5 +99,66 @@ struct LoopTakeTests {
         let rounds = Timeline(barCount: 1).folded([held], from: 1720)           // 200 before the seam
         #expect(rounds[0][0].changes.map(\.offset) == [50])
         #expect(rounds[1][0].changes.map(\.offset) == [100])
+    }
+
+    // MARK: – Laying a take on the timeline
+
+    @Test func aFirstTakeMakesTheTimelineItsLength() {
+        let laid = Timeline().layering([[note(0, 100), note(2000, 100)]], bars: 2, from: 700)
+        #expect(laid.barCount == 2)
+        #expect(laid.layers.count == 1)
+        #expect(laid.layers[0].notes.map(\.start) == [0, 2000])               // from its top, whatever the offset
+    }
+
+    /// A take as long as the timeline is placed where in it it was played.
+    @Test func aTakeIsLaidWhereInTheTimelineItWasPlayed() {
+        let timeline = Timeline(barCount: 1, layers: [Layer(notes: [note(0, 1920)])])
+        let laid = timeline.layering([[note(0, 100), note(1200, 100)]], bars: 1, from: 1000)
+        #expect(laid.barCount == 1)
+        #expect(laid.layers[1].notes.map(\.start) == [280, 1000])              // what passed the end came round
+    }
+
+    /// A take shorter than the timeline is played again every time it
+    /// comes round within it.
+    @Test func aShorterTakeIsRepeatedRoundTheTimeline() {
+        let timeline = Timeline(barCount: 4, layers: [Layer(notes: [note(0, 1920)])])
+        let laid = timeline.layering([[note(0, 100)]], bars: 1, from: 500)
+        #expect(laid.barCount == 4)
+        #expect(laid.layers[1].notes.map(\.start) == [500, 2420, 4340, 6260])
+    }
+
+    /// A take longer than the timeline lengthens it, and what was there
+    /// plays again each time round, so nothing falls out of time.
+    @Test func aLongerTakeRepeatsTheTimelineUnderIt() {
+        let timeline = Timeline(barCount: 1, layers: [Layer(notes: [note(0, 960), note(960, 960)])])
+        let laid = timeline.layering([[note(0, 100), note(1920, 100)]], bars: 2, from: 960)
+        #expect(laid.barCount == 2)
+        #expect(laid.layers[0].notes.map(\.start) == [0, 960, 1920, 2880])
+        #expect(laid.layers[1].notes.map(\.start) == [960, 2880])
+    }
+
+    /// Lengths where neither is a whole number of the other meet at the
+    /// least they both go into.
+    @Test func lengthsThatDoNotDivideMeetWhereTheyComeRoundTogether() {
+        let timeline = Timeline(barCount: 3, layers: [Layer(notes: [note(0, 100)])])
+        let laid = timeline.layering([[note(0, 100)]], bars: 2, from: 0)
+        #expect(laid.barCount == 6)
+        #expect(laid.layers[0].notes.map(\.start) == [0, 5760])
+        #expect(laid.layers[1].notes.map(\.start) == [0, 3840, 7680])
+    }
+
+    /// A take is a layer of its own, or fills one that is empty.
+    @Test func aTakeFillsAnEmptyLayerFirst() {
+        let timeline = Timeline(barCount: 1, layers: [Layer(notes: [note(0, 100)]), Layer()])
+        let laid = timeline.layering([[note(0, 100)]], bars: 1, from: 0)
+        #expect(laid.layers.count == 2)
+        #expect(laid.layers[1].notes.count == 1)
+    }
+
+    @Test func aChordHeldOverTheEndOfTheTimelineCarriesOnFromItsStart() {
+        let timeline = Timeline(barCount: 1, layers: [Layer(notes: [note(0, 100)])])
+        let laid = timeline.laidRound([note(0, 600)], every: 1920, from: 1720)
+        #expect(laid.map(\.start) == [0, 1720])
+        #expect(laid.map(\.length) == [400, 200])
     }
 }

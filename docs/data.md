@@ -488,6 +488,12 @@ struct LoopTake {
     mutating func chordStarted(_ event: ChordEvent, pitch: NotePitch, playing: NotePlaying, at beats: Double)
     mutating func chordEnded(at beats: Double)
 }
+
+extension Timeline {
+    // A take of `bars` bars, begun `offset` ticks in, as layers; the timeline and the take are
+    // each repeated to the least length that holds both.
+    func layering(_ lines: [[TimelineNote]], bars: Int, from offset: Int) -> Timeline
+}
 ```
 
 Drawing the grid (`ViewModels/StepGridShape.swift`, `Views/StepGridGeometry.swift`):
@@ -692,16 +698,18 @@ final class SequencerState {
 }
 
 final class QuickLoopState {
-    var phase: Phase                       // .idle or .recording
+    var phase: Phase                       // .idle, .choosing, .countingIn(remaining:), .recording(start:end:)
+    var bars: Int                          // the next take's length: one of `lengths`, 1, 2, 4 or 8
+    var isDeleting: Bool                   // a loop's chit deletes it
+    var cue: LoopCue?                      // the last moment felt: .count(n), .go, .done, .dropped
     weak var host: (any LoopHost)?
 }
 struct QuickLoopEntry: Identifiable { let id: Layer.ID; var isPlaying: Bool }
 
 @MainActor protocol LoopHost: AnyObject {  // PerformanceState
     var loopSequencer: SequencerState? { get }
+    var loopClock: any ClockTickable { get }
     var bpm: Double { get }
-    func setBPM(_ value: Double)
-    var clockBeats: Double { get }
     var layerLead: Double { get }
     var playedNow: NotePlaying { get }
     func endChord()

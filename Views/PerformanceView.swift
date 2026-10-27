@@ -48,6 +48,7 @@ struct PerformanceView: View {
                 }
             }
         }
+        .closingLoopBar()
         .showingHotkeyTips()
         .showingFieldPad()
         .background(KeyboardInput(keyboard: state.keyboard))
@@ -173,8 +174,8 @@ struct PerformanceView: View {
 
     /// The circle's own arrangement on a phone on its side. The compass
     /// has the leading half to itself, as large as it can be; the note
-    /// display, the sound, the key and the voicing are over the chord
-    /// keys, which have the trailing half.
+    /// display, the sound, the loops, and the key and the voicing are
+    /// over the chord keys, which have the trailing half.
     private func ringLandscapeLayout(geo: GeometryProxy) -> some View {
         let half = geo.size.width / 2
         return HStack(spacing: 0) {
@@ -185,6 +186,7 @@ struct PerformanceView: View {
                 .frame(width: half, height: geo.size.height)
             VStack(spacing: 8) {
                 displayAndSound
+                LoopBar()
                 if state.showsKeyStrip { KeyStrip() }
                 chordKeys(.circle)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

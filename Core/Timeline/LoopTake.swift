@@ -75,19 +75,73 @@ struct LoopTake {
 
 extension Timeline {
 
-    /// The bars and tempo a first loop is taken to be. A loop played with
-    /// no metronome lasted `beats` beats at `bpm`; it is read as the whole
-    /// number of bars that puts the tempo nearest `bpm`, and the tempo is
-    /// what makes it exactly that many. If that tempo is outside `tempos`,
-    /// the bar count gives until it is not.
-    static func fit(loopOf beats: Double, at bpm: Double, signature: TimeSignature,
-                    tempos: ClosedRange<Double> = MusicalTime.tempoRange) -> (bars: Int, bpm: Double) {
-        let bar = signature.quarterBeatsPerBar
-        var bars = max(1, Int((beats / bar).rounded()))
-        func tempo(_ bars: Int) -> Double { bpm * Double(bars) * bar / beats }
-        while tempo(bars) > tempos.upperBound, bars > 1 { bars -= 1 }
-        while tempo(bars) < tempos.lowerBound { bars += 1 }
-        return (bars, tempo(bars).clamped(to: tempos))
+    /// The timeline with a take of `bars` bars layered on it: `lines`, each
+    /// a line of notes timed from the start of the take, which began
+    /// `offset` ticks into the timeline. Each line that played becomes a
+    /// layer. A take on an empty timeline makes it `bars` long. Otherwise
+    /// the timeline and the take are each repeated to the least length that
+    /// is a whole number of both, so every layer comes round in time with
+    /// the rest: a loop of one bar over one of four plays four times.
+    func layering(_ lines: [[TimelineNote]], bars: Int, from offset: Int) -> Timeline {
+        var layered = isEmpty ? Timeline(signature: signature, barCount: bars) : self
+        layered.repeatNotes(toBars: Self.leastCommonMultiple(layered.barCount, bars))
+        let period = bars * signature.ticksPerBar
+        let start = isEmpty ? 0 : offset
+        let laid = lines.map { layered.laidRound($0, every: period, from: start) }
+        layered.add(layers: laid.filter { !$0.isEmpty })
+        return layered
+    }
+
+    /// Makes the timeline `bars` long, a whole number of times its length,
+    /// with every layer playing what it had again each time round.
+    mutating func repeatNotes(toBars bars: Int) {
+        guard bars > barCount, bars.isMultiple(of: barCount) else { return }
+        let period = length
+        let times = bars / barCount
+        barCount = bars
+        for index in layers.indices {
+            let notes = layers[index].notes
+            layers[index].notes = (0..<times).flatMap { round in
+                notes.map { note in
+                    var copy = note
+                    copy.start += round * period
+                    return copy
+                }
+            }
+        }
+    }
+
+    /// `notes`, a take `period` ticks long begun `offset` ticks into the
+    /// timeline, played again every `period` ticks all the way round it, as
+    /// one line in order. `period` divides the timeline's length.
+    func laidRound(_ notes: [TimelineNote], every period: Int, from offset: Int) -> [TimelineNote] {
+        let repeated = (0..<length / period).flatMap { round in
+            notes.map { note in
+                var copy = note
+                copy.start += round * period
+                return copy
+            }
+        }
+        // One time round the whole timeline from the offset: what passes the
+        // end comes round to the start, where nothing else is.
+        return folded(repeated, from: offset).flatMap { $0 }.sorted { $0.start < $1.start }
+    }
+
+    /// Adds a layer for each of `lines`. The first of them take the places
+    /// of layers that are still empty.
+    mutating func add(layers lines: [[TimelineNote]]) {
+        for notes in lines {
+            if let empty = layers.firstIndex(where: \.notes.isEmpty) {
+                layers[empty].notes = notes
+            } else {
+                layers.append(Layer(notes: notes))
+            }
+        }
+    }
+
+    private static func leastCommonMultiple(_ a: Int, _ b: Int) -> Int {
+        func greatestCommonDivisor(_ a: Int, _ b: Int) -> Int { b == 0 ? a : greatestCommonDivisor(b, a % b) }
+        return a / greatestCommonDivisor(a, b) * b
     }
 
     /// `notes`, timed from `offset` ticks into the timeline, wrapped onto its

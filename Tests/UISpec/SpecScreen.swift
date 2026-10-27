@@ -57,6 +57,11 @@ extension SpecScreen {
             sequencer.addLayers([progression, progression, progression])
             sequencer.setLayer(sequencer.layers[1].id, muted: true)
         },
+        SpecScreen(name: "play-loops-deleting") { state in
+            state.sequencerState.addLayers([progression, progression])
+            state.quickLoopState.toggleDeleting()
+        },
+        SpecScreen(name: "play-loop-lengths") { $0.quickLoopState.triggerTapped() },
     ] + SidePanelPage.allCases.map { SpecScreen(name: "menu-\($0.rawValue)", menu: $0) }
 
     /// The menu's pages at their whole length, which the phone only shows a

@@ -669,7 +669,7 @@ final class PerformanceState {
 extension PerformanceState: LoopHost {
     var loopSequencer: SequencerState? { playingSequencer }
 
-    var clockBeats: Double { clock.beats }
+    var loopClock: any ClockTickable { clock }
 
     var playedNow: NotePlaying {
         NotePlaying(key: playedKey, octave: playedOctave, inversion: playedInversion, preset: synthPreset,
@@ -680,7 +680,7 @@ extension PerformanceState: LoopHost {
 extension PerformanceState: KeyboardHost {
     func tap(_ button: KeyboardButton) {
         switch button {
-        case .loop:     quickLoopState.triggerTapped()
+        case .loop:     quickLoopState.hotkeyTapped()
         case .midi:     isExternalSynth.toggle()
         case .playStop: quickLoopState.toggleRunning()
         }

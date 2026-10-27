@@ -56,7 +56,7 @@ struct GamepadStateTests {
         let (state, _) = makeState()
         state.gamepad.button(.rightShoulder, isPressed: true)
         state.gamepad.button(.rightShoulder, isPressed: false)
-        #expect(state.quickLoopState.phase == .recording)
+        #expect(state.quickLoopState.phase == .countingIn(remaining: QuickLoopState.countIn))
     }
 
     @Test func aButtonThatPlaysNothingDoesNothing() {

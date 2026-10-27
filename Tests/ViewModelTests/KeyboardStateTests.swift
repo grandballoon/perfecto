@@ -159,13 +159,12 @@ struct KeyboardStateTests {
         let loops = state.quickLoopState
         state.keyboard.keyDown(enter)
         state.keyboard.keyUp(code: enter.code)
-        #expect(loops.phase == .recording)
-        // A bar of the I chord.
+        #expect(loops.phase == .countingIn(remaining: QuickLoopState.countIn))
+        clock.advance(seconds: Double(QuickLoopState.countIn))
+        // Two bars of the I chord, the length chosen to start with.
         state.keyboard.keyDown(a)
-        clock.advance(beats: 4)
+        clock.advance(beats: 8)
         state.keyboard.keyUp(code: a.code)
-        state.keyboard.keyDown(enter)
-        state.keyboard.keyUp(code: enter.code)
         #expect(loops.phase == .idle)
         #expect(loops.loops.count == 1)
         #expect(loops.isRunning)
