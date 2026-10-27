@@ -47,6 +47,22 @@ extension LiveAudioTests {
             #expect(try await waitUntil(timeout: patience) { ended == 1 })
         }
 
+        @Test func theEngineStopsOffTheScreenAndRunsAgainOnComingBack() {
+            let output = output()
+            let stops = { logger.events.filter { if case .audio_engine_stopped = $0 { true } else { false } }.count }
+            let starts = { logger.events.filter { if case .audio_engine_started = $0 { true } else { false } }.count }
+            #expect((starts(), stops()) == (1, 0))
+            output.isInBackground = true
+            #expect((starts(), stops()) == (1, 1))
+            // The vocoder switched meanwhile does not start it.
+            output.isVocoding = true
+            output.isVocoding = false
+            #expect((starts(), stops()) == (1, 1))
+            output.isInBackground = false
+            #expect((starts(), stops()) == (2, 1))
+            #expect(started == true)
+        }
+
         @Test func theEngineRunsAgainAfterEachRecording() async throws {
             let output = output()
             for _ in 0..<2 {

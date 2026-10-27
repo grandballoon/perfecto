@@ -259,7 +259,7 @@ Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/` and the kernel's in `P
 
 - 48kHz, 256-sample buffer (~5.3ms latency)
 - `AVAudioSession` category: `.playback` with `mixWithOthers` — app must coexist with DAWs. While the mic sample is being recorded or the vocoder is on it is `.playAndRecord` (to the speaker, built-in mic), and goes back after
-- Loops playing in the background need background audio: `.playback` mode + `UIBackgroundModes` entitlement
+- Nothing sounds while the app is off the screen (the phone locked, another app in front): `PerformanceState.enterBackground` lets go of every key, place and voicing held, calls off a take, stops the loops and stops the engine (`AudioOutput.isInBackground`), and the app has no background audio mode; coming back starts the engine, and the loops wait to be started
 
 ## MIDI
 

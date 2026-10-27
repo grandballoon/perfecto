@@ -34,6 +34,9 @@ enum LogEvent {
     case audio_engine_started
     case audio_engine_stopped
     case audio_engine_failed(message: String)
+    /// The app left the screen, and everything it was playing stopped.
+    case app_left_screen
+    case app_returned
 
     // MIDI
     case midi_source_created(name: String, status: Int32)
@@ -175,6 +178,10 @@ extension LogEvent: Encodable {
             try c.encode("audio_engine_started", forKey: Key("type"))
         case .audio_engine_stopped:
             try c.encode("audio_engine_stopped", forKey: Key("type"))
+        case .app_left_screen:
+            try c.encode("app_left_screen", forKey: Key("type"))
+        case .app_returned:
+            try c.encode("app_returned", forKey: Key("type"))
         case let .audio_engine_failed(message):
             try c.encode("audio_engine_failed", forKey: Key("type"))
             try c.encode(message, forKey: Key("message"))

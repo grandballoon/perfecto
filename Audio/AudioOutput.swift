@@ -49,11 +49,29 @@ final class AudioOutput {
     /// it over MIDI.
     var isExternalSynth = false {
         didSet {
-            guard isExternalSynth != oldValue else { return }
+            guard isExternalSynth != oldValue, !isInBackground else { return }
             if isExternalSynth {
                 stop()
                 session.deactivate()
             } else {
+                start()
+            }
+        }
+    }
+
+    /// While on, the app is off the screen (the phone locked, another app
+    /// in front): a recording is ended, the engine is stopped and the
+    /// session given up, so nothing of the app's is heard.
+    var isInBackground = false {
+        didSet {
+            guard isInBackground != oldValue else { return }
+            if isInBackground {
+                sampleRecorder.stop()
+                if !isExternalSynth {
+                    stop()
+                    session.deactivate()
+                }
+            } else if !isExternalSynth {
                 start()
             }
         }
@@ -92,7 +110,7 @@ final class AudioOutput {
     }
 
     private func restart() {
-        guard !isExternalSynth else { return }
+        guard !isExternalSynth, !isInBackground else { return }
         stop()
         start()
     }

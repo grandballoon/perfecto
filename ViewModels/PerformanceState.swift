@@ -468,6 +468,32 @@ final class PerformanceState {
         key.degree(in: self.key)
     }
 
+    // MARK: – Leaving the screen
+
+    /// The app has left the screen (the phone locked, another app in
+    /// front): every key, place and voicing held is let go, by touch, key
+    /// or button, the take being made is called off, and the loops and the
+    /// app's own sound stop, so nothing goes on sounding. The keys come
+    /// up before the compass's place, so the chord is not struck again
+    /// plain on the way out.
+    func enterBackground() {
+        keyboard.releaseAll()
+        gamepad.releaseAll()
+        release(heldKeys)
+        if let heldPlace { compassLifted(heldPlace) }
+        releaseVoicing()
+        quickLoopState.stop()
+        output?.isInBackground = true
+        logger?.log(.app_left_screen)
+    }
+
+    /// The app is on the screen again: its sound starts again, and the
+    /// loops wait to be started.
+    func enterForeground() {
+        output?.isInBackground = false
+        logger?.log(.app_returned)
+    }
+
     // MARK: – Chord colors (delegate to mode)
 
     /// A finger came down on the compass's `place`. Played, it is a step

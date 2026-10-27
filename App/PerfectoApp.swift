@@ -37,6 +37,7 @@ struct PerfectoApp: App {
     }()
 
     @State private var gamepadInput = GamepadInput()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -47,6 +48,14 @@ struct PerfectoApp: App {
                 .onAppear {
                     MidiSink.logTopology()
                     gamepadInput.play(state.gamepad)
+                }
+                // Nothing sounds while the app is off the screen.
+                .onChange(of: scenePhase) { old, new in
+                    if new == .background {
+                        state.enterBackground()
+                    } else if old == .background {
+                        state.enterForeground()
+                    }
                 }
         }
     }

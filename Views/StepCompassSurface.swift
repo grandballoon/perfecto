@@ -78,6 +78,9 @@ struct StepCompassSurface: View {
 
     /// What the finger on the compass is on, while one is.
     @State private var touched: StepCompassGrid.Target?
+    /// False once the finger is gone, whether it lifted or was taken away:
+    /// a gesture the system calls off (the phone locked) never ends.
+    @GestureState private var isDown = false
 
     var body: some View {
         // The chord the places are named for, if they are named by chords.
@@ -110,6 +113,7 @@ struct StepCompassSurface: View {
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
+                        .updating($isDown) { _, isDown, _ in isDown = true }
                         .onChanged { drag in
                             guard let target = StepCompassGrid.target(at: drag.location, in: geo.size),
                                   target != touched else { return }
@@ -120,11 +124,12 @@ struct StepCompassSurface: View {
                             case .middle:           state.compassCleared()
                             }
                         }
-                        .onEnded { _ in
-                            if case .place(let place) = touched { state.compassLifted(place) }
-                            touched = nil
-                        }
                 )
+                .onChange(of: isDown) {
+                    guard !isDown else { return }
+                    if case .place(let place) = touched { state.compassLifted(place) }
+                    touched = nil
+                }
                 @Bindable var state = state
                 KeepSwitch(label: "Keep the compass's color", keeps: $state.keepsCompassColor)
                     .frame(height: keepSide)

@@ -217,6 +217,14 @@ final class QuickLoopState {
         sequencer.isPlaying.toggle()
     }
 
+    /// The app has left the screen: calls off the take being made, and
+    /// stops the loops, which wait to be started again.
+    func stop() {
+        cancelTake()
+        dismiss()
+        sequencer?.isPlaying = false
+    }
+
     /// Pauses a layer, or resumes it; it rejoins in time.
     func togglePlayback(id: Layer.ID) {
         guard let sequencer, let layer = sequencer.timeline.layer(id) else { return }

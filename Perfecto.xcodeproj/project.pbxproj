@@ -78,6 +78,7 @@
 		E7C1000000000000000000A6 /* KeyboardInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C1000000000000000000A5 /* KeyboardInput.swift */; };
 		E7C1000000000000000000C6 /* GamepadInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C1000000000000000000C5 /* GamepadInput.swift */; };
 		E7D1000000000000000000AD /* StepCompassStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D1000000000000000000AE /* StepCompassStateTests.swift */; };
+		AA5200000000000000000002 /* BackgroundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5200000000000000000001 /* BackgroundTests.swift */; };
 		E7B000000000000000000002 /* ChordKeyTouches.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B000000000000000000001 /* ChordKeyTouches.swift */; };
 		E7B000000000000000000004 /* ChordKeySurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B000000000000000000003 /* ChordKeySurface.swift */; };
 		E7B000000000000000000006 /* ChordKeyTouchesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B000000000000000000005 /* ChordKeyTouchesTests.swift */; };
@@ -268,6 +269,7 @@
 		E7C1000000000000000000A5 /* KeyboardInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardInput.swift; sourceTree = "<group>"; };
 		E7C1000000000000000000C5 /* GamepadInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamepadInput.swift; sourceTree = "<group>"; };
 		E7D1000000000000000000AE /* StepCompassStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCompassStateTests.swift; sourceTree = "<group>"; };
+		AA5200000000000000000001 /* BackgroundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTests.swift; sourceTree = "<group>"; };
 		E7B000000000000000000001 /* ChordKeyTouches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKeyTouches.swift; sourceTree = "<group>"; };
 		E7B000000000000000000003 /* ChordKeySurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKeySurface.swift; sourceTree = "<group>"; };
 		E7B000000000000000000005 /* ChordKeyTouchesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKeyTouchesTests.swift; sourceTree = "<group>"; };
@@ -646,6 +648,7 @@
 				E7F000000000000000000011 /* ArpeggiatorTests.swift */,
 				CCDD000000000000000000BB /* PlayModeTests.swift */,
 				E7D1000000000000000000AE /* StepCompassStateTests.swift */,
+				AA5200000000000000000001 /* BackgroundTests.swift */,
 				E7B000000000000000000005 /* ChordKeyTouchesTests.swift */,
 				A1B2C3D4E5F6A1B2C3D40012 /* ClockResolutionTests.swift */,
 				E8FE0175B43FFF4CFB8DA04D /* LoopTakeTests.swift */,
@@ -923,6 +926,7 @@
 				CCDD000000000000000000BA /* Expect+Voicing.swift in Sources */,
 				CCDD000000000000000000BC /* PlayModeTests.swift in Sources */,
 				E7D1000000000000000000AD /* StepCompassStateTests.swift in Sources */,
+				AA5200000000000000000002 /* BackgroundTests.swift in Sources */,
 				E7B000000000000000000006 /* ChordKeyTouchesTests.swift in Sources */,
 				A1B2C3D4E5F6A1B2C3D40011 /* ClockResolutionTests.swift in Sources */,
 				E8BE0175B43FFF4CFB8DA04D /* LoopTakeTests.swift in Sources */,
