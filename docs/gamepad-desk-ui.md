@@ -1,7 +1,8 @@
 # A controller at a laptop: design exploration
 
 What the app becomes if an Xbox 360 controller is the only input and a laptop's screen is the only display.
-This is an exploration, not a decision: nothing here is built, and nothing in it changes the phone.
+This began as an exploration, not a decision, and nothing in it changes the phone.
+All five models are now built as layouts of a Mac app of their own, Perfecto Desk (`Desk/`, whose README says how each is played and what is still open).
 
 The product's guiding sentence is: allowing the user to create consonant, beautiful music, in a theoretically rigorous way, with as much of the relevant option available and visible in a random access pattern.
 On the phone that means a finger can land anywhere, so every option is a place on glass.
@@ -512,7 +513,7 @@ Logging: `gamepad_struck(level:)`, `gamepad_pie_chose(stick:cell:)`, `gamepad_le
 ## Open questions
 
 - **Which controller, really.** An Xbox 360 controller has no native support on macOS: the GameController framework sees Xbox One and Series controllers (and DualShock and DualSense), and a 360 needs a third-party driver.
-  On Mac Catalyst the honest target is "an extended gamepad", with the 360 as the physical design reference; rumble through `GCController.haptics` exists for Xbox One and Series controllers and must be checked on each.
+  The desk reads a wired 360 itself, straight from USB, since nothing else claims it (`Xbox360USB`), and every other controller through GameController, with rumble through `GCController.haptics`; the wireless 360's receiver is not read.
 - **Does the trigger strike feel early or late?** A trigger has travel; reading the strike at 8% and the level from the first 20 ms needs to be tried against a button's strike with a metronome.
 - **How many radial bands does a thumb hold?** Three plus the centre is the guess; the prototype should log band changes the player did not mean (a band entered and left within 100 ms) to measure it.
 - **Is the degree pie fixed or turned?** The ring has Fixed and Home; the degree pie has the same choice (I always at the top, or the chord sounding at the top so its two smooth neighbours are always left and right).

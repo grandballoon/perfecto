@@ -79,13 +79,21 @@ public struct ColorStep: Hashable, Sendable {
     }
 }
 
+extension ChordTones {
+    /// The tones `spec` plays in `key`: any color, as the notes above its
+    /// root, so a step can be taken from a chord however it was colored.
+    public init(key: Key, spec: ChordSpec) {
+        self.init(chordShape(key: key, spec: spec).intervals)
+    }
+}
+
 public enum StepCompass {
     /// A kind's choices on the compass.
     public static let ranks = 1...2
 
     /// The chord `degree` plays in `key` before it is colored: its triad.
     public static func base(key: Key, degree: Degree) -> ChordTones {
-        ChordTones(chordShape(key: key, spec: ChordSpec(degree: degree, color: .base)).intervals)
+        ChordTones(key: key, spec: ChordSpec(degree: degree, color: .base))
     }
 
     /// Every step from `tones` on `degree` in `key`, by kind, each kind in

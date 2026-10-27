@@ -219,7 +219,7 @@
 		C1B000000000000000000003 /* MidiAnnouncerSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiAnnouncerSink.swift; sourceTree = "<group>"; };
 		C1B000000000000000000005 /* MidiNetwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiNetwork.swift; sourceTree = "<group>"; };
 		C1B000000000000000000007 /* MidiAnnouncerSinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidiAnnouncerSinkTests.swift; sourceTree = "<group>"; };
-		C6619ECDA0877D23A4CED870 /* SynthPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthPreset.swift; sourceTree = "<group>"; };
+		C6619ECDA0877D23A4CED870 /* SynthPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SynthPreset.swift; path = ../Perfecto/Sources/PerfectoSound/SynthPreset.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B1 /* RecordingSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSink.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B3 /* ManualClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualClock.swift; sourceTree = "<group>"; };
 		CCDD000000000000000000B5 /* RecordingLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingLogger.swift; sourceTree = "<group>"; };
@@ -274,7 +274,7 @@
 		E7B000000000000000000003 /* ChordKeySurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKeySurface.swift; sourceTree = "<group>"; };
 		E7B000000000000000000005 /* ChordKeyTouchesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKeyTouchesTests.swift; sourceTree = "<group>"; };
 		E7D1000000000000000000B0 /* StepCompassGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCompassGridTests.swift; sourceTree = "<group>"; };
-		E7D000000000000000000A01 /* SynthPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthPatch.swift; sourceTree = "<group>"; };
+		E7D000000000000000000A01 /* SynthPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SynthPatch.swift; path = ../Perfecto/Sources/PerfectoSound/SynthPatch.swift; sourceTree = "<group>"; };
 		E7D000000000000000000A31 /* LoopBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopBar.swift; sourceTree = "<group>"; };
 		E7C2000000000000000000D5 /* KeyStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyStrip.swift; sourceTree = "<group>"; };
 		E7D1000000000000000000A3 /* EffectStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectStrip.swift; sourceTree = "<group>"; };
@@ -334,18 +334,18 @@
 		E8F28E337FF797A3255740E5 /* KernelSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KernelSink.swift; sourceTree = "<group>"; };
 		E8FBD9A2C51E3C068FBF92CA /* SampleRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleRecorder.swift; sourceTree = "<group>"; };
 		E8FFC0C7ED7CCF06D52EA09C /* AudioGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioGraph.swift; sourceTree = "<group>"; };
-		E8F315B4C9A7B72D7DA88AED /* Recording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recording.swift; sourceTree = "<group>"; };
+		E8F315B4C9A7B72D7DA88AED /* Recording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Recording.swift; path = ../Perfecto/Sources/PerfectoSound/Recording.swift; sourceTree = "<group>"; };
 		E8F2E0700B4425144A8EFD07 /* SequencerEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerEditingTests.swift; sourceTree = "<group>"; };
 		E8F3FDD2A3C0BBF14C5BEF51 /* AudioOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutput.swift; sourceTree = "<group>"; };
 		E8F4D418AC806D523D7AF915 /* RecordingNoteSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingNoteSink.swift; sourceTree = "<group>"; };
 		E8F4F8EF9611175CC27937DA /* TimelinePlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelinePlayerTests.swift; path = ../TimelineTests/TimelinePlayerTests.swift; sourceTree = "<group>"; };
-		E8F5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = PerfectoKernelHost.mm; path = Kernel/PerfectoKernelHost.mm; sourceTree = "<group>"; };
+		E8F5487C9DD681A35DB1E06A /* PerfectoKernelHost.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = PerfectoKernelHost.mm; path = ../Perfecto/Sources/PerfectoKernelHost/PerfectoKernelHost.mm; sourceTree = "<group>"; };
 		E8F54BC70D008788E76436BD /* TimelineEdits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineEdits.swift; path = ../Timeline/TimelineEdits.swift; sourceTree = "<group>"; };
 		E8F550212E6CD50E45EBB500 /* LayerVoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LayerVoice.swift; path = ../Timeline/LayerVoice.swift; sourceTree = "<group>"; };
 		E8F58284663B94235A3982C9 /* Kernel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Kernel.cpp; path = ../Perfecto/Sources/PerfectoKernel/Kernel.cpp; sourceTree = "<group>"; };
 		E8F685223BDA89CF220270F3 /* TimelineCompile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineCompile.swift; path = ../Timeline/TimelineCompile.swift; sourceTree = "<group>"; };
 		E8F950E9C2022D71FCE997D1 /* LayerVoiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LayerVoiceTests.swift; path = ../TimelineTests/LayerVoiceTests.swift; sourceTree = "<group>"; };
-		E8FA457D71297BEF20FFDA85 /* KernelSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KernelSound.swift; path = Kernel/KernelSound.swift; sourceTree = "<group>"; };
+		E8FA457D71297BEF20FFDA85 /* KernelSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KernelSound.swift; path = ../Perfecto/Sources/PerfectoSound/KernelSound.swift; sourceTree = "<group>"; };
 		E8FA63F038BAC8C746621FEC /* TimelineTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineTime.swift; path = ../Timeline/TimelineTime.swift; sourceTree = "<group>"; };
 		E8FA81C116F5ED91B849FB51 /* KernelSinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KernelSinkTests.swift; sourceTree = "<group>"; };
 		E8FC650B3849366001FF61EF /* SampleRecorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleRecorderTests.swift; sourceTree = "<group>"; };
@@ -362,7 +362,7 @@
 		E8FD17E5F1BA786921BB086C /* ClockSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockSchedule.swift; sourceTree = "<group>"; };
 		E8FE0175B43FFF4CFB8DA04D /* LoopTakeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LoopTakeTests.swift; path = ../TimelineTests/LoopTakeTests.swift; sourceTree = "<group>"; };
 		E8FE63D4ED20FA619D20DCA6 /* NoteSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteSink.swift; sourceTree = "<group>"; };
-		E8FE8A78251193D9BD0E142D /* KernelAudioUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KernelAudioUnit.swift; path = Kernel/KernelAudioUnit.swift; sourceTree = "<group>"; };
+		E8FE8A78251193D9BD0E142D /* KernelAudioUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KernelAudioUnit.swift; path = ../Perfecto/Sources/PerfectoSound/KernelAudioUnit.swift; sourceTree = "<group>"; };
 		E8FEF12E13660BCE03274257 /* TimelineTimingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimelineTimingTests.swift; path = ../TimelineTests/TimelineTimingTests.swift; sourceTree = "<group>"; };
 		E8FF22E888530C5AB6654A78 /* KernelLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KernelLiveTests.swift; sourceTree = "<group>"; };
 		E8FF22E888530C5AB6654A79 /* AudioOutputLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputLiveTests.swift; sourceTree = "<group>"; };
@@ -1175,7 +1175,7 @@
 				DEVELOPMENT_TEAM = TX66B5HHB7;
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include",
-					"$(SRCROOT)/Audio/Kernel/include",
+					"$(SRCROOT)/Perfecto/Sources/PerfectoKernelHost/include",
 				);
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1187,7 +1187,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lukesovernconley.pocketchord;
 				SDKROOT = iphoneos;
-				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Perfecto/Sources/PerfectoKernelHost/include";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				SUPPORTS_MACCATALYST = YES;
@@ -1271,7 +1271,7 @@
 				DEVELOPMENT_TEAM = TX66B5HHB7;
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include",
-					"$(SRCROOT)/Audio/Kernel/include",
+					"$(SRCROOT)/Perfecto/Sources/PerfectoKernelHost/include",
 				);
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1283,7 +1283,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lukesovernconley.pocketchord;
 				SDKROOT = iphoneos;
-				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Perfecto/Sources/PerfectoKernelHost/include";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				SUPPORTS_MACCATALYST = YES;
@@ -1302,14 +1302,14 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include",
-					"$(SRCROOT)/Audio/Kernel/include",
+					"$(SRCROOT)/Perfecto/Sources/PerfectoKernelHost/include",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lukesovernconley.pocketchord.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Perfecto/Sources/PerfectoKernelHost/include";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				SUPPORTS_MACCATALYST = YES;
@@ -1329,14 +1329,14 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include",
-					"$(SRCROOT)/Audio/Kernel/include",
+					"$(SRCROOT)/Perfecto/Sources/PerfectoKernelHost/include",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lukesovernconley.pocketchord.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Audio/Kernel/include";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Perfecto/Sources/PerfectoKernel/include $(SRCROOT)/Perfecto/Sources/PerfectoKernelHost/include";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				SUPPORTS_MACCATALYST = YES;

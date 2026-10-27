@@ -1,5 +1,5 @@
 /// The built-in synth sounds, in the order the Sound panel lists them.
-enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
+public enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
     case electricPiano, glassKeys, organ, clav
     case sinePad, warmPad, strings, pulsePad, sweepPad
     case pluck, bell, kalimba, marimba
@@ -9,14 +9,14 @@ enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
     case micSample
 
     /// The kernel's capture the mic sample is recorded into and played from.
-    static let micCapture = 0
+    public static let micCapture = 0
 
-    enum Category: String, CaseIterable, Identifiable, Sendable {
+    public enum Category: String, CaseIterable, Identifiable, Sendable {
         case keys, pads, plucked, synth, bass, recorded
 
-        var id: String { rawValue }
+        public var id: String { rawValue }
 
-        var displayName: String {
+        public var displayName: String {
             switch self {
             case .keys:    return "Keys"
             case .pads:    return "Pads"
@@ -27,15 +27,15 @@ enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
             }
         }
 
-        var presets: [SynthPreset] { SynthPreset.allCases.filter { $0.category == self } }
+        public var presets: [SynthPreset] { SynthPreset.allCases.filter { $0.category == self } }
     }
 
     /// The sound the app starts with.
-    static let initial = SynthPreset.sinePad
+    public static let initial = SynthPreset.sinePad
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    var name: String {
+    public var name: String {
         switch self {
         case .electricPiano: return "Electric Piano"
         case .glassKeys:     return "Glass Keys"
@@ -70,7 +70,7 @@ enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
-    var category: Category {
+    public var category: Category {
         switch self {
         case .electricPiano, .glassKeys, .organ, .clav:  return .keys
         case .sinePad, .warmPad, .strings, .pulsePad, .sweepPad:
@@ -85,7 +85,7 @@ enum SynthPreset: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
-    var patch: SynthPatch {
+    public var patch: SynthPatch {
         typealias Osc = SynthPatch.Oscillator
         typealias Sweep = SynthPatch.Sweep
         switch self {

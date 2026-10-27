@@ -12,7 +12,7 @@
 /// and an LFO that moves the pitch, the pulses' width and the filter. The
 /// oscillators or the FM pair can be several copies of themselves (`unison`)
 /// and can wander from their pitch (`driftCents`).
-struct SynthPatch: Equatable, Sendable {
+public struct SynthPatch: Equatable, Sendable {
 
     enum Wave: Equatable, Sendable {
         case sine, triangle, square, sawtooth

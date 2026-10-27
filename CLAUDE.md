@@ -13,6 +13,10 @@ There its "Perfecto" MIDI source is on the machine the DAW runs on, so no networ
 A mouse is one finger.
 A window is laid out as a phone is, upright or on its side by its shape.
 
+**The desk is a Mac app of its own** (`Desk/`, Perfecto Desk), played from a game controller, the Xbox 360 its design reference (`docs/gamepad-desk-ui.md`; `Desk/README.md` says how it is played and built).
+It is not the Catalyst app: it is built with SwiftPM on the Perfecto package's libraries, the theory core and the sound library (`PerfectoSound`: `SynthPreset`, `SynthPatch`, `KernelAudioUnit` and its Objective-C++ host, which live in the package and which the phone's app compiles from there).
+Its layouts are a pure core (`DeskCore`: controller frames in, effects as data out) and a thin shell that reads the controllers and plays the effects on the kernel and MIDI.
+
 **v0.1.0 is Play mode alone.**
 The app is being stripped to a solid first release: the play screen with the chord keys, the step compass, the key strip, the effect strip, loops and the piano.
 Everything else built so far is parked, kept on the `color-ring` branch (and most of it on `main`) to come back after the release: the sequencer's screen and its mode, Strum, Lead, Drone and Repeat, the Tonnetz, the pads, the Trautonium, the chord–scale tree, the Dissonance Lab, the MIDI controller and the Orchid, the desk layout and the screen toggle, the solo strip, and the joystick, the chord grid and the color ring.

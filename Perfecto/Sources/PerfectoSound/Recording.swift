@@ -1,17 +1,22 @@
 import AVFoundation
 
 /// Recorded sound: one channel of samples, and the rate they were taken at.
-struct Recording: Equatable, Sendable {
-    var samples: [Float]
-    var sampleRate: Double
+public struct Recording: Equatable, Sendable {
+    public var samples: [Float]
+    public var sampleRate: Double
 
-    var duration: TimeInterval { sampleRate > 0 ? Double(samples.count) / sampleRate : 0 }
+    public init(samples: [Float], sampleRate: Double) {
+        self.samples = samples
+        self.sampleRate = sampleRate
+    }
+
+    public var duration: TimeInterval { sampleRate > 0 ? Double(samples.count) / sampleRate : 0 }
 }
 
 extension Recording {
 
     /// Reads the recording kept at `url`.
-    init(contentsOf url: URL) throws {
+    public init(contentsOf url: URL) throws {
         let file = try AVAudioFile(forReading: url, commonFormat: .pcmFormatFloat32, interleaved: false)
         let frames = AVAudioFrameCount(file.length)
         guard frames > 0, let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames) else {
@@ -24,7 +29,7 @@ extension Recording {
     }
 
     /// Keeps the recording at `url`, in place of what was there.
-    func write(to url: URL) throws {
+    public func write(to url: URL) throws {
         guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate,
                                          channels: 1, interleaved: false),
               let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(max(samples.count, 1)))

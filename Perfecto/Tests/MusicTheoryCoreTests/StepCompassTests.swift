@@ -21,6 +21,12 @@ struct StepCompassTests {
 
     // MARK: – Tones and their names
 
+    @Test func tonesAreReadFromAnyColor() {
+        #expect(ChordTones(key: cMajor, spec: ChordSpec(degree: .V, color: .grid(.seventh, nil))) == ChordTones([0, 4, 7, 10]))
+        #expect(ChordTones(key: cMajor, spec: ChordSpec(degree: .ii, color: .grid(.ninth, nil))) == ChordTones([0, 3, 7, 10, 2]))
+        #expect(ChordTones(key: cMajor, spec: ChordSpec(degree: .I, color: .base)) == StepCompass.base(key: cMajor, degree: .I))
+    }
+
     @Test func tonesAreNamedAsTheAppNamesChords() {
         #expect(ChordTones([0, 4, 7]).name == "maj")
         #expect(ChordTones([0, 3, 7, 10]).name == "min7")
