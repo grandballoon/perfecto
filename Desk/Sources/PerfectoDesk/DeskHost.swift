@@ -78,6 +78,11 @@ final class DeskHost {
         show(force: true)
     }
 
+    func arrange(_ ring: RingArrangement) {
+        live.settings.ringArrangement = ring
+        show(force: true)
+    }
+
     func toggleMenu() {
         perform(live.toggleMenu())
         show(force: true)

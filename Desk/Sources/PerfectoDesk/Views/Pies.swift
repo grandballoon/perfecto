@@ -129,12 +129,14 @@ struct TargetLabel: View {
     }
 }
 
-/// The color ring on the right stick: three bands of seven sectors, the
-/// degree's own mode at the top, darker anticlockwise and brighter
-/// clockwise, and a gap where the darkest and brightest would meet.
+/// The color ring on the right stick: three bands of seven sectors, darker
+/// anticlockwise and brighter clockwise, turned as its arrangement says.
+/// Each mode is named round the outside, the key's own marked, and the gap
+/// where the darkest and brightest would meet says so.
 struct RingView: View {
-    /// Inside out, each darkest first.
+    /// Inside out, each darkest first, as `pie.sectors` are.
     let rings: [[Target]]
+    let pie: RingPie
     let stick: Stick
     /// The chord in the middle: the plain triad, or what is kept.
     let centre: (title: String, detail: String)
@@ -143,7 +145,8 @@ struct RingView: View {
         GeometryReader { proxy in
             let size = min(proxy.size.width, proxy.size.height)
             let middle = CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
-            let outer = size / 2
+            // Room round the outside for the modes' names.
+            let outer = size / 2 - 26
             let inner = outer * 0.3
             let band = (outer - inner) / CGFloat(max(1, rings.count))
             ZStack {
@@ -156,6 +159,11 @@ struct RingView: View {
                             .stroke(stroke(cell), style: StrokeStyle(lineWidth: cell.isKept ? 2.5 : 1,
                                                                      dash: cell.fit == .borrowed ? [3, 2] : []))
                     }
+                }
+                // The key's own mode: its sector edged on the outside.
+                ForEach(pie.sectors.filter(\.isOwn), id: \.bearing) { sector in
+                    RingSector(bearing: sector.bearing, span: RingPie.sectorSpan - 2, inner: outer + 2, outer: outer + 5)
+                        .fill(Theme.chord)
                 }
                 Circle()
                     .fill(Theme.raised.opacity(0.6))
@@ -173,24 +181,42 @@ struct RingView: View {
                 .position(middle)
                 ForEach(Array(rings.enumerated()), id: \.offset) { ring, cells in
                     ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
-                        VStack(spacing: 0) {
-                            Text(cell.name)
-                                .font(.system(size: ring == 0 ? 11 : 10, weight: .semibold, design: .rounded))
-                            if ring == rings.count - 1 {
-                                Text(cell.detail)
-                                    .font(.system(size: 8, weight: .medium))
-                                    .opacity(0.7)
-                            }
-                        }
-                        .foregroundStyle(cell.isAimed ? Color.black : Theme.text)
-                        .italic(cell.fit == .borrowed)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .frame(width: band * 1.6)
-                        .position(point(middle, bearing: cell.bearing,
-                                        distance: inner + band * (CGFloat(ring) + 0.5)))
+                        Text(cell.name)
+                            .font(.system(size: ring == 0 ? 11 : 10, weight: .semibold, design: .rounded))
+                            .foregroundStyle(cell.isAimed ? Color.black : Theme.text)
+                            .italic(cell.fit == .borrowed)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .frame(width: band * 1.6)
+                            .position(point(middle, bearing: cell.bearing,
+                                            distance: inner + band * (CGFloat(ring) + 0.5)))
                     }
                 }
+                // The modes, named round the outside.
+                ForEach(pie.sectors, id: \.bearing) { sector in
+                    VStack(spacing: 0) {
+                        Text(sector.mode.displayName)
+                            .font(.system(size: 10, weight: sector.isOwn ? .bold : .medium))
+                        if sector.isOwn {
+                            Text("key's own")
+                                .font(.system(size: 8, weight: .semibold))
+                        }
+                    }
+                    .foregroundStyle(sector.isOwn ? Theme.chord : Theme.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .position(point(middle, bearing: sector.bearing, distance: outer + 16))
+                }
+                // The gap: where the ring ends, brightest on one side, darkest on the other.
+                VStack(spacing: 1) {
+                    Text("ring ends")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                    Text("\(pie.sectors.last!.mode.displayName) | \(pie.sectors.first!.mode.displayName)")
+                        .font(.system(size: 8, weight: .medium))
+                }
+                .foregroundStyle(Theme.faint)
+                .fixedSize()
+                .position(point(middle, bearing: pie.gap, distance: inner + (outer - inner) * 0.55))
             }
         }
         .aspectRatio(1, contentMode: .fit)

@@ -54,11 +54,12 @@ public struct SoundCatalog: Equatable, Sendable {
 /// the sound library.
 public struct DeskMenu: Equatable, Sendable {
     public enum Row: CaseIterable, Sendable {
-        case layout, chordSound, lineSound, key, scale, octave, tempo, voiceLeading, ranking, output, saveMIDI
+        case layout, ring, chordSound, lineSound, key, scale, octave, tempo, voiceLeading, ranking, output, saveMIDI
 
         public var name: String {
             switch self {
             case .layout: "Layout"
+            case .ring: "Color ring"
             case .chordSound: "Chord sound"
             case .lineSound: "Line sound"
             case .key: "Key"
@@ -248,6 +249,8 @@ public struct Desk: Equatable, Sendable {
         case .layout:
             let all = LayoutKind.allCases
             layout = all[((all.firstIndex(of: layout)! + steps) % all.count + all.count) % all.count]
+        case .ring:
+            settings.moveRingArrangement(by: steps)
         case .chordSound, .lineSound:
             let line: Line = row == .chordSound ? .chord : .melody
             setSound(catalog.sound(steps, from: sound(of: line)), for: line)
@@ -296,6 +299,7 @@ public struct Desk: Equatable, Sendable {
     public func value(of row: DeskMenu.Row) -> String {
         switch row {
         case .layout: layout.name
+        case .ring: settings.ringArrangement.name
         case .chordSound: catalog.name(of: settings.chordSound)
         case .lineSound: catalog.name(of: settings.lineSound)
         case .key: settings.key.root.name

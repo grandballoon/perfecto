@@ -8,6 +8,8 @@ struct TwinRingsView: View {
     let layout: TwinRings
     let settings: DeskSettings
     let frame: GamepadFrame
+    /// Lays the ring another way, chosen with the mouse.
+    let arrange: (RingArrangement) -> Void
 
     var body: some View {
         HStack(spacing: 20) {
@@ -26,14 +28,48 @@ struct TwinRingsView: View {
                     PieView(targets: layout.compassTargets(settings), stick: frame.right,
                             centre: (layout.chord(settings).name, "flick keeps"))
                 } else {
-                    Caption(control: "Right stick", title: layout.isExtended ? "The ring to the 13th" : "The color ring: mode round, height out")
-                    RingView(rings: layout.ringTargets(settings), stick: frame.right,
+                    HStack {
+                        Caption(control: "Right stick", title: layout.isExtended ? "The ring to the 13th" : "The color ring: mode round, height out")
+                        Spacer()
+                        ArrangementSwitch(chosen: settings.ringArrangement, choose: arrange)
+                    }
+                    RingView(rings: layout.ringTargets(settings), pie: settings.ring(layout.degree), stick: frame.right,
                              centre: (layout.chord(settings).name, layout.kept == nil && layout.keptStep == nil ? "plain" : "kept"))
+                    Text(settings.ringArrangement.summary)
+                        .font(.system(size: 11)).foregroundStyle(Theme.secondary)
                 }
                 TriggerBar(name: "RT", value: frame.rightTrigger)
                 SoundingLine(line: layout.line, title: "Strike with RT or A")
             }
             .panel()
+        }
+    }
+}
+
+/// The ring's three arrangements, as a switch: L3 or Menu › Color ring
+/// change it from the controller.
+struct ArrangementSwitch: View {
+    let chosen: RingArrangement
+    let choose: (RingArrangement) -> Void
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Text("L3")
+                .font(.system(size: 9, weight: .heavy, design: .rounded))
+                .foregroundStyle(Theme.faint)
+                .padding(.trailing, 4)
+            ForEach(RingArrangement.allCases, id: \.self) { arrangement in
+                Button {
+                    choose(arrangement)
+                } label: {
+                    Text(arrangement.name)
+                        .font(.system(size: 11, weight: .semibold))
+                        .padding(.horizontal, 9).padding(.vertical, 4)
+                        .foregroundStyle(arrangement == chosen ? Color.black : Theme.text)
+                        .background(arrangement == chosen ? Theme.chord : Theme.raised, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 }
@@ -352,12 +388,12 @@ struct ArrangerView: View {
 
     /// The ring's inner band, compactly: a sector for each mode.
     private var ringTargets: [Target] {
-        RingPie.offsets(key: settings.key, degree: layout.degree).map { offset in
-            let cell = RingCell(offset: offset, height: .seventh)
+        let pie = settings.ring(layout.degree)
+        return pie.sectors.map { sector in
             let chord = DeskChord(key: settings.key, degree: layout.degree,
-                                  color: RingPie.color(of: cell, key: settings.key, degree: layout.degree))
-            return Target(bearing: Double(offset) * RingPie.sectorSpan, name: chord.name, detail: "",
-                          fit: chord.fit(in: settings.key), isAimed: layout.aim?.offset == offset)
+                                  color: pie.color(of: RingCell(mode: sector.mode, height: .seventh)))
+            return Target(bearing: sector.bearing, name: chord.name, detail: "",
+                          fit: chord.fit(in: settings.key), isAimed: layout.aim?.mode == sector.mode)
         }
     }
 

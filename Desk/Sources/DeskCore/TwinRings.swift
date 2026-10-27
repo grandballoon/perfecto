@@ -54,9 +54,13 @@ public struct TwinRings: Layout {
             if !holds, !strike.isHeld, !input.isDown(.a) { out += line.release() }
         }
         if input.pressed(.x) { settings.voiceLeading.toggle() }
-        if input.pressed(.l3) || (input.pressed(.r3) && aim == nil && compassAim == nil) {
+        if input.pressed(.r3), aim == nil, compassAim == nil {
             kept = nil
             keptStep = nil
+        }
+        if input.pressed(.l3) {
+            settings.moveRingArrangement(by: 1)
+            out.append(.rumble(.tick))
         }
         let revoiced = voicingPad(input, settings: &settings)
 
@@ -101,8 +105,8 @@ public struct TwinRings: Layout {
             }
             if input.pressed(.r3), let compassAim { keptStep = compassAim }
         } else {
-            let gate = RingPie.gate(key: settings.key, degree: degree)
-            for event in ring.step(input.frame.right, gate: gate, at: time) {
+            let pie = settings.ring(degree)
+            for event in ring.step(input.frame.right, gate: pie.gate, at: time) {
                 switch event {
                 case .aim: break
                 case .flick:
@@ -116,7 +120,7 @@ public struct TwinRings: Layout {
                 let next = RadialBands.three.band(input.frame.right.radius, from: band)
                 if band != nil, next != band { out.append(.rumble(.tick)) }
                 band = next
-                aim = RingPie.cell(sector: sector, band: next, extended: isExtended, key: settings.key, degree: degree)
+                aim = pie.cell(sector: sector, band: next, extended: isExtended)
                 if input.pressed(.r3) { kept = aim }
             } else {
                 band = nil
@@ -169,7 +173,7 @@ public struct TwinRings: Layout {
     /// The chord the hands are on now.
     public func chord(_ settings: DeskSettings) -> DeskChord {
         let cell = aim ?? kept
-        let color = cell.map { RingPie.color(of: $0, key: settings.key, degree: degree) } ?? .base
+        let color = cell.map { settings.ring(degree).color(of: $0) } ?? .base
         let ringChord = DeskChord(key: settings.key, degree: degree, color: color)
         guard let place = compassAim ?? keptStep else { return ringChord }
         return CompassPie.chord(at: place, from: ringChord, ranking: settings.ranking) ?? ringChord
@@ -184,17 +188,15 @@ public struct TwinRings: Layout {
     /// The ring's cells for the degree chosen, ring by ring (inside out),
     /// each sector darkest first.
     public func ringTargets(_ settings: DeskSettings) -> [[Target]] {
-        let offsets = RingPie.offsets(key: settings.key, degree: degree)
+        let pie = settings.ring(degree)
         let sounding = line.isSounding ? line.chord : nil
         return RingPie.heights(extended: isExtended).map { height in
-            offsets.map { offset in
-                let cell = RingCell(offset: offset, height: height)
-                let chord = DeskChord(key: settings.key, degree: degree,
-                                      color: RingPie.color(of: cell, key: settings.key, degree: degree))
-                let mode = RingPie.mode(at: offset, key: settings.key, degree: degree)
-                return Target(bearing: Double(offset) * RingPie.sectorSpan, name: chord.name,
-                              detail: mode?.displayName ?? "", fit: chord.fit(in: settings.key),
-                              isNear: chord.isOneStep(from: sounding), isAimed: cell == aim, isKept: cell == kept)
+            pie.sectors.map { sector in
+                let cell = RingCell(mode: sector.mode, height: height)
+                let chord = DeskChord(key: settings.key, degree: degree, color: pie.color(of: cell))
+                return Target(bearing: sector.bearing, name: chord.name, detail: sector.mode.displayName,
+                              fit: chord.fit(in: settings.key), isNear: chord.isOneStep(from: sounding),
+                              isAimed: cell == aim, isKept: cell == kept)
             }
         }
     }
@@ -228,8 +230,8 @@ public struct TwinRings: Layout {
         legend[.button(.y)] = "Hold " + (holds ? "on" : "off")
         legend[.button(.lb)] = "Tap: key a 5th down · hold: compass"
         legend[.button(.rb)] = "Tap: key a 5th up · hold: to 13th"
-        legend[.button(.l3)] = "Plain color"
-        legend[.button(.r3)] = "Keep aimed cell"
+        legend[.button(.l3)] = "Ring: \(settings.ringArrangement.name) → next"
+        legend[.button(.r3)] = "Keep aimed cell · at rest: plain"
         return legend
     }
 }

@@ -27,6 +27,8 @@ struct DeskTests {
         _ = desk.step(frame(1, [.start]))
         #expect(desk.menu != nil)
         _ = desk.step(frame(2, [.down]))
+        _ = desk.step(frame(2.5))
+        _ = desk.step(frame(2.6, [.down]))
         let out = desk.step(frame(3, [.right]))
         #expect(desk.settings.chordSound == "organ")
         #expect(out == [.preview(sound: "organ", notes: [60, 64, 67])])
@@ -38,6 +40,8 @@ struct DeskTests {
         var desk = Desk(catalog: catalog)
         _ = desk.step(frame(1, [.start]))
         _ = desk.step(frame(2, [.down]))
+        _ = desk.step(frame(2.5))
+        _ = desk.step(frame(2.6, [.down]))
         _ = desk.step(frame(3, [.a]))
         #expect(desk.menu?.library == DeskMenu.Library(line: .chord, category: 0, index: 0))
         _ = desk.step(frame(4, [.right]))
@@ -50,7 +54,7 @@ struct DeskTests {
     @Test func theMenusKeyRowMovesBySemitones() {
         var desk = Desk(catalog: catalog)
         _ = desk.step(frame(1, [.start]))
-        for (i, button) in [PadButton.down, .down, .down, .right].enumerated() {
+        for (i, button) in [PadButton.down, .down, .down, .down, .right].enumerated() {
             _ = desk.step(frame(Double(i) * 2 + 2, [button]))
             _ = desk.step(frame(Double(i) * 2 + 3))
         }

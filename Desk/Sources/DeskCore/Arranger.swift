@@ -55,10 +55,11 @@ public struct Arranger: Layout {
         // The aim: the degree and the ring, as Twin rings has them.
         degreeSector = DegreePie.gate.select(input.frame.left, from: degreeSector)
         if let degreeSector, input.frame.left.radius >= PieGate.rest { degree = DegreePie.degree(at: degreeSector) }
-        ringSector = RingPie.gate(key: settings.key, degree: degree).select(input.frame.right, from: ringSector)
+        let pie = settings.ring(degree)
+        ringSector = pie.gate.select(input.frame.right, from: ringSector)
         if let ringSector {
             band = RadialBands.three.band(input.frame.right.radius, from: band)
-            aim = RingPie.cell(sector: ringSector, band: band!, extended: false, key: settings.key, degree: degree)
+            aim = pie.cell(sector: ringSector, band: band!, extended: false)
         } else {
             band = nil
             aim = nil
@@ -118,7 +119,7 @@ public struct Arranger: Layout {
     /// The chord the sticks aim at.
     public func aimed(_ settings: DeskSettings) -> DeskChord {
         DeskChord(key: settings.key, degree: degree,
-                  color: aim.map { RingPie.color(of: $0, key: settings.key, degree: degree) } ?? .base)
+                  color: aim.map { settings.ring(degree).color(of: $0) } ?? .base)
     }
 
     /// Writes `chord` at the cursor, held for `count` beats, and moves the

@@ -30,7 +30,7 @@ Unlike the phone, a note's velocity is how hard it was struck, and what is playe
 ## The controls every layout shares
 
 - **Back** goes to the next layout; a click on the layouts along the top does too.
-- **Start** opens the menu: the layout, the chords' and the line's sounds, the key, the scale, the octave, the tempo, voice leading, the step compass's order, the output, and saving the arrangement as a MIDI file.
+- **Start** opens the menu: the layout, how the color ring is laid out, the chords' and the line's sounds, the key, the scale, the octave, the tempo, voice leading, the step compass's order, the output, and saving the arrangement as a MIDI file.
   The d-pad moves and changes, A opens, B closes.
   A on a sound opens the library: left and right through its categories, up and down through its sounds, each heard as it is reached.
 - **B** lets go of everything (but in Petals, where it strikes, and the Arranger, where it undoes).
@@ -42,14 +42,25 @@ Unlike the phone, a note's velocity is how hard it was struck, and what is playe
 
 The recommended model.
 The left stick is a pie of the seven degrees in the cycle of thirds (I iii V vii° ii IV vi), so neighbouring sectors share two notes and rolling the thumb round is the smoothest chain of chords the key has.
-The right stick is the color ring: its angle the mode (the degree's own at the top, darker anticlockwise, brighter clockwise), its radius the stack height (7th, 9th, 11th; with RB held, 9th to 13th).
+The right stick is the color ring: its angle the mode, darker anticlockwise and brighter clockwise, each sector a note or two from the next; its radius the stack height (7th, 9th, 11th; with RB held, 9th to 13th).
+The modes are named round the outside, the key's own is marked, and the gap where the darkest and brightest would meet is labelled.
 RT strikes, louder the faster it is pulled, and its depth then swells and brightens what sounds; A strikes at a fixed level.
 
 A lean on the right stick is played while it is held and goes back when it is let go.
 A flick (out and back quickly) keeps the cell it pointed at, so kept and played are told apart by the hand, with no latch.
 LB held puts the step compass on the right stick: up adds a tone, right raises one, down takes one away, left lowers one, each kind's second choice a little clockwise of its first.
 LT is the arpeggio, off and then quarter, eighth and sixteenth notes as it is pulled, a tick felt at each.
-A bumper tapped moves the key a fifth; X switches voice leading; Y holds the chord after the strike lets go; L3 goes back to the plain color.
+A bumper tapped moves the key a fifth; X switches voice leading; Y holds the chord after the strike lets go; R3 at rest goes back to the plain color.
+
+The ring can be laid out three ways, since each gives up something the others keep.
+L3 turns to the next, as do Menu › Color ring and the switch over the ring; Petals and the Arranger follow the same choice.
+
+- **Home**: the major scale's seven modes, turned so the degree's own is at the top, so up is always the chord as the key has it.
+  The ring is lopsided by as much as the own mode is near an end (on I, one sector brighter and five darker), so the gap moves with the degree.
+- **Fixed**: the same seven modes, never turned: Dorian at the top and the gap at the bottom, so a direction always means the same mode, and the key's own chord is wherever its mode is.
+- **Centred**: the degree's own mode at the top with the modes nearest it in brightness either side, from the major, melodic minor and harmonic minor scales (the chord grid's rows), so it is balanced on every degree as far as the brightest and darkest modes allow.
+
+A kept color names its mode, not its place, so it stays kept when the ring is turned another way.
 
 ### Petals and depth
 

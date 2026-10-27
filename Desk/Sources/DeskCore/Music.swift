@@ -36,8 +36,40 @@ public struct DeskSettings: Equatable, Codable, Sendable {
     public var output = DeskOutput.both
     /// The order of the step compass's choices, where a layout uses it.
     public var ranking = ColorStepRanking.theory
+    /// How the color ring is laid round the stick.
+    public var ringArrangement = RingArrangement.home
 
     public init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement
+    }
+
+    /// Each setting as it was kept, and any kept before it existed as it
+    /// starts: settings saved by an older desk still load.
+    public init(from decoder: any Decoder) throws {
+        let saved = try decoder.container(keyedBy: CodingKeys.self)
+        func read<T: Decodable>(_ key: CodingKeys, _ value: inout T) {
+            if let kept = try? saved.decodeIfPresent(T.self, forKey: key) { value = kept }
+        }
+        read(.key, &key)
+        read(.octave, &octave)
+        read(.inversion, &inversion)
+        read(.voiceLeading, &voiceLeading)
+        read(.chordSound, &chordSound)
+        read(.lineSound, &lineSound)
+        read(.tempo, &tempo)
+        read(.output, &output)
+        read(.ranking, &ranking)
+        read(.ringArrangement, &ringArrangement)
+    }
+
+    /// The ring laid the next way round (`steps` < 0, the way before).
+    public mutating func moveRingArrangement(by steps: Int) {
+        let all = RingArrangement.allCases
+        let at = all.firstIndex(of: ringArrangement)!
+        ringArrangement = all[((at + steps) % all.count + all.count) % all.count]
+    }
 
     public static let octaves = 1...6
     public static let tempos = 40.0...220.0

@@ -180,17 +180,14 @@ public struct Petals: Layout {
 
     /// The chord `petal` strikes now.
     public func chord(_ petal: Petal, _ settings: DeskSettings) -> DeskChord {
-        let offsets = RingPie.offsets(key: settings.key, degree: degree)
-        let offset = min(offsets.last!, max(offsets.first!, shift))
+        let pie = settings.ring(degree)
+        let mode = pie.mode(steps: shift)
         switch petal {
         case .height(let height):
-            let cell = RingCell(offset: offset, height: height)
-            return DeskChord(key: settings.key, degree: degree,
-                             color: RingPie.color(of: cell, key: settings.key, degree: degree))
+            return DeskChord(key: settings.key, degree: degree, color: pie.color(of: RingCell(mode: mode, height: height)))
         case .mark(let mark):
             let triad = DeskChord(key: settings.key, degree: degree,
-                                  color: RingPie.color(of: RingCell(offset: offset, height: .triad),
-                                                       key: settings.key, degree: degree))
+                                  color: pie.color(of: RingCell(mode: mode, height: .triad)))
             return DeskChord(key: settings.key, degree: degree, color: .tones(mark.applied(to: triad.tones)))
         }
     }
@@ -224,14 +221,15 @@ public struct Petals: Layout {
         let height = presses.last.flatMap { press -> StackHeight? in
             if case .height(let height) = press.petal { return height } else { return nil }
         } ?? .seventh
-        return (-3...3).map { offset in
-            let mode = RingPie.mode(at: offset, key: settings.key, degree: degree)
-            let cell = RingCell(offset: offset, height: height)
-            let chord = DeskChord(key: settings.key, degree: degree,
-                                  color: RingPie.color(of: cell, key: settings.key, degree: degree))
-            return Target(bearing: Double(offset), name: mode == nil ? "—" : chord.name,
-                          detail: mode?.displayName ?? "past the ring", fit: chord.fit(in: settings.key),
-                          isAimed: offset == shift)
+        let pie = settings.ring(degree)
+        return (-3...3).map { steps in
+            guard pie.reaches(steps) else {
+                return Target(bearing: Double(steps), name: "—", detail: "past the ring")
+            }
+            let mode = pie.mode(steps: steps)
+            let chord = DeskChord(key: settings.key, degree: degree, color: pie.color(of: RingCell(mode: mode, height: height)))
+            return Target(bearing: Double(steps), name: chord.name, detail: mode.displayName,
+                          fit: chord.fit(in: settings.key), isAimed: steps == pie.clamped(shift))
         }
     }
 
