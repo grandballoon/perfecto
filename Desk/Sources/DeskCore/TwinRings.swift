@@ -1,7 +1,7 @@
 import MusicTheoryCore
 
 /// Model 1, Twin rings: each stick is a ring the app already has. The left
-/// stick is a pie of the seven degrees in the cycle of thirds; the right is
+/// stick is a pie of the seven degrees in scale order; the right is
 /// the color ring, its angle the mode and its radius the stack height; the
 /// right trigger strikes, how fast it is pulled how loud. A colored chord is
 /// one gesture, and a change of color under a held chord is the right thumb

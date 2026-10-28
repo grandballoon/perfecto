@@ -14,7 +14,7 @@ struct TwinRingsView: View {
     var body: some View {
         HStack(spacing: 20) {
             VStack(spacing: 12) {
-                Caption(control: "Left stick", title: "Degree, in the cycle of thirds")
+                Caption(control: "Left stick", title: "Degree, I at the top and on clockwise")
                 PieView(targets: layout.degreeTargets(settings), stick: frame.left,
                         centre: (numeral(layout.degree, in: settings.key), settings.key.root.name + " " + settings.key.scale.displayName))
                 TriggerBar(name: "LT", value: frame.leftTrigger, steps: TriggerSteps.three.count, tint: Theme.melody)

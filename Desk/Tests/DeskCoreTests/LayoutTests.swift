@@ -13,8 +13,8 @@ struct TwinRingsTests {
 
     @Test func theLeftStickChoosesTheDegreeAndKeepsIt() {
         var rig = Rig(TwinRings())
-        // iii is the second sector clockwise, in the cycle of thirds.
-        rig.at(1) { $0.left = lean(360 / 7) }
+        // iii is two sectors clockwise of I, in scale order.
+        rig.at(1) { $0.left = lean(2 * 360 / 7) }
         rig.at(2) { $0.left = .rest }
         let result1 = rig.at(3) { $0.buttons = [.a] }
         #expect(sounded(result1) == [[64, 67, 71]])
@@ -308,7 +308,7 @@ struct ArrangerTests {
     @Test func aWritesABeatAndMovesOn() {
         var rig = Rig(Arranger())
         tap(&rig, .a, from: 1)
-        rig.at(2) { $0.left = lean(2 * 360 / 7) }
+        rig.at(2) { $0.left = lean(4 * 360 / 7) }
         tap(&rig, .a, from: 3)
         #expect(placed(rig) == ["C maj 0.0+1.0", "G maj 1.0+1.0"])
         #expect(rig.layout.cursor == 2)
@@ -382,7 +382,7 @@ struct ArrangerTests {
         var rig = Rig(Arranger())
         tap(&rig, .a, from: 0)
         tap(&rig, .right, 4, from: 0.1)
-        rig.at(0.3) { $0.left = lean(2 * 360 / 7) }
+        rig.at(0.3) { $0.left = lean(4 * 360 / 7) }
         tap(&rig, .a, from: 0.4)
         tap(&rig, .left, 12, from: 0.5)
         #expect(placed(rig) == ["C maj 0.0+1.0", "G maj 2.0+1.0"])

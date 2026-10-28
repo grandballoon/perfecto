@@ -88,10 +88,10 @@ struct ConsonanceTests {
         _ = desk.step(GamepadFrame(time: 1, buttons: [.a]))
         _ = desk.step(GamepadFrame(time: 1.1))
         // V, G major, brings B and D, two new notes: the stick leaves I chosen.
-        _ = desk.step(GamepadFrame(time: 2, left: lean(2 * 360 / 7)))
+        _ = desk.step(GamepadFrame(time: 2, left: lean(4 * 360 / 7)))
         #expect(desk.twinRings.degree == .I)
         // iii, E minor, brings only B.
-        _ = desk.step(GamepadFrame(time: 3, left: lean(360 / 7)))
+        _ = desk.step(GamepadFrame(time: 3, left: lean(2 * 360 / 7)))
         let played = desk.step(GamepadFrame(time: 3.2, left: .rest, buttons: [.a]))
         #expect(sounded(played) == [[64, 67, 71]])
     }
@@ -101,7 +101,7 @@ struct ConsonanceTests {
         // The run is heard while the guard is off, too.
         _ = desk.step(GamepadFrame(time: 1, buttons: [.a]))
         _ = desk.step(GamepadFrame(time: 1.1))
-        _ = desk.step(GamepadFrame(time: 2, left: lean(2 * 360 / 7)))
+        _ = desk.step(GamepadFrame(time: 2, left: lean(4 * 360 / 7)))
         _ = desk.step(GamepadFrame(time: 2.1))
         desk.settings.consonance.mode = .run
         let refused = desk.step(GamepadFrame(time: 3, buttons: [.a]))

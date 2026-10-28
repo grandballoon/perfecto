@@ -408,10 +408,12 @@ public enum DiatonicCycle {
     }
 }
 
-/// The key's seven degrees round a stick, in the cycle of thirds, I at the top.
+/// The key's seven degrees round a stick in scale order, I at the top and
+/// on clockwise: I ii iii IV V vi vii°.
 public enum DegreePie {
     public static let gate = PieGate.even(7)
+    public static let order = Degree.allCases
 
-    public static func degree(at sector: Int) -> Degree { DiatonicCycle.thirds[sector] }
-    public static func sector(of degree: Degree) -> Int { DiatonicCycle.thirds.firstIndex(of: degree)! }
+    public static func degree(at sector: Int) -> Degree { order[sector] }
+    public static func sector(of degree: Degree) -> Int { order.firstIndex(of: degree)! }
 }

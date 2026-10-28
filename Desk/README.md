@@ -59,7 +59,7 @@ A degree on a stick whose chord the guard blocks is not chosen, and a chord bein
 ### Twin rings
 
 The recommended model.
-The left stick is a pie of the seven degrees in the cycle of thirds (I iii V vii° ii IV vi), so neighbouring sectors share two notes and rolling the thumb round is the smoothest chain of chords the key has.
+The left stick is a pie of the seven degrees in scale order, I at the top and on clockwise (I ii iii IV V vi vii°); the chords sharing two notes with the one sounding are lit, wherever they are.
 The right stick is the color ring: its angle the mode, darker anticlockwise and brighter clockwise, each sector a note or two from the next; its radius the stack height (7th, 9th, 11th; with RB held, 9th to 13th).
 The modes are named round the outside, the key's own is marked, and the gap where the darkest and brightest would meet is labelled.
 RT strikes, louder the faster it is pulled, and its depth then swells and brightens what sounds; A strikes at a fixed level.
@@ -175,7 +175,7 @@ Menu › Save the arrangement writes it as a MIDI file to Music › Perfecto Des
 - **Consonance.** Every target is a chord of the key unless it says otherwise: a borrowed chord is drawn dashed and in italics, and one with a semitone clash is dimmed.
   The pies offer the key's own chords first, the line offers the key's own notes, and the bar comes to rest in tune.
 - **Nearness.** What is one step from the chord sounding is lit, in every layout that has a sounding chord: the ring's cells a note away, the degrees sharing two notes, and in the Neighbourhood nothing but the near.
-  The degree pie is in the cycle of thirds so that what is near on the stick is near in the ear, and voice leading (X in Twin rings) keeps each chord as close to the last as it can be.
+  On the degree pie the chords sharing two notes with the one sounding are lit, and voice leading (X in Twin rings) keeps each chord as close to the last as it can be.
 - **Low threshold.** A plays the tonic's chord on the first press, in any layout that strikes, and the screen names every target by what it would sound before it sounds.
   The keyboard plays everything, so a controller is not needed to start.
 - **Wide walls.** Five layouts on one core: harmony by name, by color, by step, as two voices, and as a written progression, with the sound library and MIDI under all of them.

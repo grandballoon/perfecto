@@ -121,7 +121,7 @@ public func numeral(_ degree: Degree, in key: Key) -> String {
 
 /// The key's degrees round the left stick, as targets.
 func degreeTargets(chosen: Degree, sounding: DeskChord?, settings: DeskSettings) -> [Target] {
-    DiatonicCycle.thirds.enumerated().map { sector, degree in
+    DegreePie.order.enumerated().map { sector, degree in
         let chord = DeskChord(key: settings.key, degree: degree)
         return Target(bearing: DegreePie.gate.bearings[sector], name: chord.name,
                       detail: numeral(degree, in: settings.key), fit: .inKey,
