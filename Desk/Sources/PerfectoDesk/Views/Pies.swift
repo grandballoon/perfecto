@@ -14,6 +14,8 @@ struct PieView: View {
     let targets: [Target?]
     let stick: Stick
     var accent: Color = Theme.chord
+    /// A second shell of targets, further out, at the same bearings.
+    var outer: [Target?]? = nil
     /// What the middle says: the chord there, and a line under it.
     var centre: (title: String, detail: String)?
     var compact = false
@@ -53,8 +55,18 @@ struct PieView: View {
                 }
                 ForEach(Array(targets.enumerated()), id: \.offset) { _, target in
                     if let target {
-                        TargetLabel(target: target, accent: accent, compact: compact)
-                            .position(point(middle, bearing: target.bearing, distance: radius * 0.72))
+                        TargetLabel(target: target, accent: accent, compact: compact || outer != nil)
+                            .opacity(target.isHidden ? 0.4 : 1)
+                            .position(point(middle, bearing: target.bearing, distance: radius * (outer == nil ? 0.72 : 0.56)))
+                    }
+                }
+                if let outer {
+                    ForEach(Array(outer.enumerated()), id: \.offset) { _, target in
+                        if let target {
+                            TargetLabel(target: target, accent: accent, compact: true)
+                                .opacity(target.isHidden ? 0.35 : 0.9)
+                                .position(point(middle, bearing: target.bearing, distance: radius * 0.9))
+                        }
                     }
                 }
             }

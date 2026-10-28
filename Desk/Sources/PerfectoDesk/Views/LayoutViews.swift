@@ -27,10 +27,35 @@ struct TwinRingsView: View {
                     Caption(control: "Y + right stick", title: "Favorites in \(settings.favorites.table.name): A pins, X unpins")
                     PieView(targets: layout.favoriteTargets(settings), stick: frame.right,
                             centre: (layout.chord(settings).name, "flick keeps"))
+                } else if layout.isOnVoices {
+                    HStack {
+                        Caption(control: layout.compassLatched ? "Both sticks" : "LB + both sticks",
+                                title: "The voices: each a semitone or two, to the consonant chords nearest")
+                        Spacer()
+                        Text("L3: compass").font(.system(size: 10, weight: .bold, design: .rounded)).foregroundStyle(Theme.faint)
+                    }
+                    HStack(alignment: .center, spacing: 14) {
+                        BassColumn(targets: layout.bassTargets(settings), stick: frame.left)
+                            .frame(width: 104)
+                        let shells = layout.voiceTargets(settings)
+                        PieView(targets: shells.inner, stick: frame.right, outer: shells.outer,
+                                centre: (layout.chord(settings).name,
+                                         layout.resetsTo(settings).map { "R3: back to \($0.name)" } ?? "flick takes a step"))
+                    }
                 } else if layout.isOnCompass {
-                    Caption(control: "LB + right stick", title: "The step compass: a tone added, raised, taken away, lowered")
+                    HStack {
+                        Caption(control: layout.compassLatched ? "Right stick" : "LB + right stick",
+                                title: "The step compass: a tone added, raised, taken away, lowered")
+                        Spacer()
+                        if layout.compassLatched {
+                            Text("ON · long-press LB to turn off")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(Theme.chord)
+                        }
+                    }
                     PieView(targets: layout.compassTargets(settings), stick: frame.right,
-                            centre: (layout.chord(settings).name, "flick keeps"))
+                            centre: (layout.chord(settings).name,
+                                     layout.resetsTo(settings).map { "R3: back to \($0.name)" } ?? "flick keeps"))
                 } else {
                     HStack {
                         Caption(control: "Right stick", title: layout.isExtended ? "The ring to the 13th" : "The color ring: mode round, height out")
@@ -52,6 +77,33 @@ struct TwinRingsView: View {
                 SoundingLine(line: layout.line, title: "Strike with RT or A")
             }
             .panel()
+        }
+    }
+}
+
+/// The bass's moves, upright as the left stick moves it: two semitones up
+/// at the top, two down at the bottom.
+struct BassColumn: View {
+    /// Up a semitone, up two, down a semitone, down two.
+    let targets: [Target?]
+    let stick: Stick
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Caption(control: "Left stick", title: "Bass")
+            ForEach([1, 0, 2, 3], id: \.self) { index in
+                if index == 2 {
+                    Capsule().fill(Theme.chord.opacity(abs(stick.y) > 0.3 ? 0.9 : 0.25))
+                        .frame(width: 10, height: 10)
+                        .offset(y: CGFloat(-stick.y) * 8)
+                }
+                if let target = targets[index] {
+                    TargetLabel(target: target, accent: Theme.chord, compact: true)
+                        .opacity(target.isHidden ? 0.4 : 1)
+                } else {
+                    Text("—").font(.system(size: 11)).foregroundStyle(Theme.faint)
+                }
+            }
         }
     }
 }

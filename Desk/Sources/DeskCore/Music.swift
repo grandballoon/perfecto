@@ -3,6 +3,24 @@ import MusicTheoryCore
 // What the layouts play, as values: a chord in a key, the settings every
 // layout shares, and the effects the shell is asked to perform.
 
+/// What Twin rings' LB layer puts on the sticks.
+public enum LBLayer: String, CaseIterable, Codable, Sendable {
+    /// The step compass: a tone of the chord added, raised, taken away or
+    /// lowered, its root kept.
+    case compass
+    /// The voices: the top two on the right stick and the bass on the left,
+    /// each moved a semitone or two to the consonant chords nearest
+    /// (`VoiceLeading`), the root free to move.
+    case voices
+
+    public var name: String {
+        switch self {
+        case .compass: "Compass"
+        case .voices: "Voices"
+        }
+    }
+}
+
 /// Where notes go: the kernel's own sound, MIDI, or both.
 public enum DeskOutput: String, CaseIterable, Codable, Sendable {
     case synth, midi, both
@@ -45,11 +63,13 @@ public struct DeskSettings: Equatable, Codable, Sendable {
     public var grid = BeatGrid.sixteenth
     /// Colors pinned to the chords of keys, in named tables.
     public var favorites = Favorites()
+    /// What LB puts on the sticks in Twin rings.
+    public var lbLayer = LBLayer.compass
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, ringOrder, ringFilter, grid, favorites
+        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, ringOrder, ringFilter, grid, favorites, lbLayer
     }
 
     /// Each setting as it was kept, and any kept before it existed as it
@@ -73,6 +93,7 @@ public struct DeskSettings: Equatable, Codable, Sendable {
         read(.ringFilter, &ringFilter)
         read(.grid, &grid)
         read(.favorites, &favorites)
+        read(.lbLayer, &lbLayer)
     }
 
     /// The ring laid the next way round (`steps` < 0, the way before).
@@ -129,10 +150,14 @@ public struct DeskSettings: Equatable, Codable, Sendable {
 public struct DeskChord: Hashable, Sendable {
     public let key: Key
     public let spec: ChordSpec
+    /// The notes it is sounded on, when they were chosen one voice at a
+    /// time (`VoiceLeading`) rather than worked out from the voicing set.
+    public let voicing: [Int]?
 
-    public init(key: Key, spec: ChordSpec) {
+    public init(key: Key, spec: ChordSpec, voicing: [Int]? = nil) {
         self.key = key
         self.spec = spec
+        self.voicing = voicing
     }
 
     public init(key: Key, degree: Degree, color: ChordColor = .base) {
@@ -141,20 +166,29 @@ public struct DeskChord: Hashable, Sendable {
 
     /// The chord `tones` on `root`, read in `home`: its own degree there, or
     /// borrowed from the parallel mode nearest it.
-    public init(root: PitchClass, tones: ChordTones, in home: Key) {
+    public init(root: PitchClass, tones: ChordTones, in home: Key, voicing: [Int]? = nil) {
         let chord = KeyDegree(root: root, in: home)
-        self.init(key: chord.key, spec: ChordSpec(degree: chord.degree, color: .tones(tones)))
+        self.init(key: chord.key, spec: ChordSpec(degree: chord.degree, color: .tones(tones)), voicing: voicing)
     }
 
     public var root: PitchClass { chordRootPitchClass(key: key, degree: spec.degree) }
     public var tones: ChordTones { ChordTones(key: key, spec: spec) }
-    /// "G 7", "C/E".
-    public var name: String { chordLabel(key: key, spec: spec) }
+    /// "G 7", "C/E"; a voiced chord over another of its notes is named over
+    /// that bass, "A min/C".
+    public var name: String {
+        let label = chordLabel(key: key, spec: spec)
+        guard let bass = voicing?.first.map({ (($0 % 12) + 12) % 12 }), bass != root.rawValue, !label.contains("/") else {
+            return label
+        }
+        return label + "/" + PitchClass(rawValue: bass)!.name
+    }
 
     /// The notes it sounds with `settings`' octave and inversion, voice-led
     /// from `previous` if they say so.
+    /// A voiced chord sounds its own notes, moved by octaves only.
     public func notes(_ settings: DeskSettings, octaveShift: Int = 0, roll: Int = 0, after previous: [Int]? = nil) -> [Int] {
-        computeVoicing(key: key, spec: spec, inversion: settings.inversion.rolled(by: roll),
+        if let voicing { return voicing.map { $0 + 12 * octaveShift } }
+        return computeVoicing(key: key, spec: spec, inversion: settings.inversion.rolled(by: roll),
                        octave: settings.octave + octaveShift, voiceLeading: settings.voiceLeading,
                        previousVoicing: previous.map { Voicing(notes: $0) }).notes
     }

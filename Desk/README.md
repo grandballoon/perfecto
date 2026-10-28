@@ -48,9 +48,25 @@ RT strikes, louder the faster it is pulled, and its depth then swells and bright
 
 A lean on the right stick is played while it is held and goes back when it is let go.
 A flick (out and back quickly) keeps the cell it pointed at, so kept and played are told apart by the hand, with no latch.
-LB held puts the step compass on the right stick: up adds a tone, right raises one, down takes one away, left lowers one, each kind's second choice a little clockwise of its first.
+LB held puts the step compass on the right stick while it is held, and a long-press of LB (held a third of a second) leaves it on after LB is let go, until another long-press; a tap of LB still moves the key a fifth down. The compass: up adds a tone, right raises one, down takes one away, left lowers one, each kind's second choice a little clockwise of its first.
+The LB layer has a second view, the **voices** (L3 while the layer is on, or Menu › LB layer, switches between it and the compass).
+It is chords as voices moving, after Dmitri Tymoczko's *A Geometry of Music*: a chord is a point with a coordinate for each voice, and the chords near it are the ones a small motion of its voices reaches.
+The consonant chords are the nearly even ones, which are exactly those a small motion joins, so nearness keeps consonance close at hand.
+
+- The **right stick** moves the two highest voices: up and down the top voice, right and left the middle one, the upper right and lower left both together, and the other two diagonals in contrast (closer and wider).
+  The inner ring moves each voice a semitone and the outer ring two, so the shells round a chord are its neighbours a semitone and two away.
+- The **left stick**, up and down, moves the bass, while the voices are on.
+- Every move is exact, so a direction always means the same motion; a move that lands on a chord that is not consonant (a triad, a 7th, an added 9th, or the evenly divided diminished and augmented) is dimmed and cannot be taken, and one that would cross or meet another voice is not offered.
+- The root is free to move: C major's top voice up two is A minor over C, its bass down a semitone E minor over B.
+- A flick takes the step and the next steps walk on from there; a lean held plays the move and goes back; R3 while leaning takes it.
+  R3 at rest takes the walk back to the chord it started from, then the compass's step, then the color.
+  Choosing another degree on the left stick (with the layer off) starts afresh.
+
+A chord of four voices or more moves its two highest and its lowest; the others stay.
+
 LT is the arpeggio, off and then quarter, eighth and sixteenth notes as it is pulled, a tick felt at each.
-A bumper tapped moves the key a fifth; X switches voice leading; Y holds the chord after the strike lets go; R3 at rest goes back to the plain color.
+A bumper tapped moves the key a fifth; X switches voice leading; Y holds the chord after the strike lets go.
+R3 with the stick at rest is the middle: it takes back the compass's step first, to the chord as it was before the compass, and then the color, to the plain chord; the middle of the compass says what it will go back to.
 
 The ring can be laid out three ways, since each gives up something the others keep.
 L3 turns to the next, as do Menu › Color ring and the switch over the ring; Petals and the Arranger follow the same choice.

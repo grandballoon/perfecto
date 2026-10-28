@@ -79,6 +79,56 @@ struct TwinRingsTests {
         #expect(rig.settings.key == Key(root: .C, scale: .major))
     }
 
+    @Test func aLongPressOfLBLeavesTheCompassOn() {
+        var rig = Rig(TwinRings())
+        rig.at(1) { $0.buttons = [.lb] }
+        let latched = rig.at(1 + TapOrHold.tapTime) { $0.buttons = [.lb] }
+        #expect(latched.contains(.rumble(.bump)))
+        rig.at(1.5) { $0.buttons = [] }
+        // Let go, the compass is still on the right stick, and the key has not moved.
+        #expect(rig.layout.isOnCompass)
+        #expect(rig.settings.key == Key(root: .C, scale: .major))
+        rig.at(2) { $0.right = lean(0) }
+        #expect(rig.layout.chord(rig.settings).name == "C maj7")
+        rig.at(2.1) { $0.right = .rest }
+        // Another long-press turns it off.
+        rig.at(3) { $0.buttons = [.lb] }
+        rig.at(3 + TapOrHold.tapTime) { $0.buttons = [.lb] }
+        rig.at(3.5) { $0.buttons = [] }
+        #expect(!rig.layout.isOnCompass)
+    }
+
+    @Test func aTapOfLBStillMovesTheKeyWithTheCompassOn() {
+        var rig = Rig(TwinRings())
+        rig.at(1) { $0.buttons = [.lb] }
+        rig.at(1.5) { $0.buttons = [.lb] }
+        rig.at(1.6) { $0.buttons = [] }
+        rig.at(2) { $0.buttons = [.lb] }
+        rig.at(2.1) { $0.buttons = [] }
+        #expect(rig.settings.key == Key(root: .F, scale: .major))
+        #expect(rig.layout.isOnCompass)
+    }
+
+    @Test func r3AtRestTakesTheCompassBackAndThenTheColor() {
+        var rig = Rig(TwinRings())
+        // A Mixolydian 7th kept on the ring, and the compass's first add kept on it.
+        rig.at(1) { $0.right = lean(-RingPie.sectorSpan, 0.6) }
+        rig.at(1.1) { $0.right = .rest }
+        rig.at(2) { $0.buttons = [.lb] }
+        rig.at(2.05) { $0.right = lean(0) }
+        rig.at(2.1) { $0.right = .rest }
+        rig.at(2.2) { $0.buttons = [] }
+        #expect(rig.layout.chord(rig.settings).name != "C 7")
+        #expect(rig.layout.resetsTo(rig.settings)?.name == "C 7")
+        rig.at(3) { $0.buttons = [.r3] }
+        rig.at(3.1) { $0.buttons = [] }
+        #expect(rig.layout.chord(rig.settings).name == "C 7")
+        rig.at(4) { $0.buttons = [.r3] }
+        rig.at(4.1) { $0.buttons = [] }
+        #expect(rig.layout.chord(rig.settings).name == "C maj")
+        #expect(rig.layout.resetsTo(rig.settings) == nil)
+    }
+
     @Test func theLeftTriggerArpeggiates() {
         var rig = Rig(TwinRings())
         rig.at(1) { $0.buttons = [.a] }

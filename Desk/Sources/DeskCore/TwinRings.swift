@@ -50,8 +50,25 @@ public struct TwinRings: Layout {
     public private(set) var isExtended = false
     /// Whether LB has the right stick on the step compass.
     public private(set) var isOnCompass = false
+    /// Whether a long-press of LB has left the compass on, so it stays on
+    /// the right stick without LB held, until another long-press.
+    public private(set) var compassLatched = false
+    /// When LB went down, while it is held and has not yet been held long.
+    private var lbHeldSince: Double?
     /// Whether Y has the right stick on the favorites.
     public private(set) var isOnFavorites = false
+    /// Whether the LB layer is on with the voices on the sticks.
+    public private(set) var isOnVoices = false
+    /// The move of the upper voices leaned at, and of the bass.
+    public private(set) var voiceAim: VoiceMove?
+    public private(set) var bassAim: VoiceMove?
+    /// The chord the voices have walked to, kept until R3 takes it back or
+    /// another degree is chosen.
+    public private(set) var walked: DeskChord?
+    private var voices = StickGesture()
+    private var voiceBand: Int?
+    private var bass = StickGesture()
+    private var bassBand: Int?
 
     /// The favorites' gate: a direction for each of a chord's eight.
     public static let favoritesGate = PieGate.even(Favorites.perChord)
@@ -92,26 +109,55 @@ public struct TwinRings: Layout {
                 settings.voiceLeading.toggle()
             }
         }
-        if input.pressed(.r3), aim == nil, compassAim == nil, favoriteAim == nil {
-            kept = nil
-            keptStep = nil
-            keptFavorite = nil
+        // R3 with the stick at rest, the middle: the voices' walk taken back
+        // first, then a step of the compass, then the color, to the plain chord.
+        if input.pressed(.r3), aim == nil, compassAim == nil, favoriteAim == nil, voiceAim == nil, bassAim == nil,
+           resetsTo(settings) != nil {
+            if walked != nil {
+                walked = nil
+            } else if keptStep != nil {
+                keptStep = nil
+            } else {
+                kept = nil
+                keptFavorite = nil
+            }
+            out.append(.rumble(.tick))
         }
+        // L3: with the LB layer on, compass or voices; otherwise the ring's arrangement.
         if input.pressed(.l3) {
-            settings.moveRingArrangement(by: 1)
+            if isOnCompass {
+                settings.lbLayer = settings.lbLayer == .compass ? .voices : .compass
+                compass.reset()
+                compassAim = nil
+                letGoOfVoices()
+            } else {
+                settings.moveRingArrangement(by: 1)
+            }
             out.append(.rumble(.tick))
         }
         let revoiced = voicingPad(input, settings: &settings)
 
-        // The bumpers: a tap moves the key a fifth, a hold is a layer.
+        // The bumpers: a tap moves the key a fifth, a hold is a layer. LB
+        // held long turns the compass on to stay, or off again.
         if input.pressed(.lb) {
             lb.press(at: time)
+            lbHeldSince = time
             ring.reset()
             aim = nil
         }
+        if let since = lbHeldSince, input.isDown(.lb), time - since >= TapOrHold.tapTime {
+            lbHeldSince = nil
+            lb.use()
+            compassLatched.toggle()
+            out.append(.rumble(.bump))
+        }
         if input.released(.lb) {
-            compass.reset()
-            compassAim = nil
+            lbHeldSince = nil
+            if !compassLatched {
+                compass.reset()
+                compassAim = nil
+                letGoOfVoices()
+            }
             if lb.release(at: time) {
                 settings.moveKey(byFifths: -1)
                 out.append(.rumble(.bump))
@@ -122,12 +168,22 @@ public struct TwinRings: Layout {
             settings.moveKey(byFifths: 1)
             out.append(.rumble(.bump))
         }
-        isOnCompass = input.isDown(.lb)
+        isOnCompass = input.isDown(.lb) || compassLatched
+        isOnVoices = isOnCompass && settings.lbLayer == .voices
         isExtended = input.isDown(.rb)
 
-        // The left stick: the degree, kept when the stick comes back.
-        degreeSector = DegreePie.gate.select(input.frame.left, from: degreeSector)
-        if let degreeSector, input.frame.left.radius >= PieGate.rest { degree = DegreePie.degree(at: degreeSector) }
+        // The left stick: the degree, kept when the stick comes back; with
+        // the voices on, the bass.
+        if isOnVoices {
+            out += stepBass(input, settings)
+        } else {
+            degreeSector = DegreePie.gate.select(input.frame.left, from: degreeSector)
+            if let degreeSector, input.frame.left.radius >= PieGate.rest {
+                let chosen = DegreePie.degree(at: degreeSector)
+                if chosen != degree { walked = nil }
+                degree = chosen
+            }
+        }
 
         // The right stick: the ring, with LB the compass, with Y the favorites.
         if isOnFavorites {
@@ -145,6 +201,8 @@ public struct TwinRings: Layout {
                 }
             }
             if input.pressed(.r3), let favoriteAim { keptFavorite = favoriteAim }
+        } else if isOnVoices {
+            out += stepVoices(input, settings)
         } else if isOnCompass {
             for event in compass.step(input.frame.right, gate: CompassPie.gate, at: time) {
                 lb.use()
@@ -224,7 +282,9 @@ public struct TwinRings: Layout {
     }
 
     public mutating func releaseAll() -> [DeskEffect] {
+        letGoOfVoices()
         holds = false
+        lbHeldSince = nil
         ring.reset()
         compass.reset()
         aim = nil
@@ -235,6 +295,24 @@ public struct TwinRings: Layout {
 
     /// The chord the hands are on now.
     public func chord(_ settings: DeskSettings) -> DeskChord {
+        let from = voiced(settings)
+        if let voiceAim, let moved = VoiceLeading.neighbour(of: from.notes(settings), by: voiceAim, in: settings.key) {
+            return moved
+        }
+        if let bassAim, let moved = VoiceLeading.bassNeighbour(of: from.notes(settings), by: bassAim, in: settings.key) {
+            return moved
+        }
+        return from
+    }
+
+    /// The chord the voices move from: where they have walked to, or the
+    /// colored chord.
+    func voiced(_ settings: DeskSettings) -> DeskChord {
+        walked ?? colored(settings)
+    }
+
+    /// The chord the degree, the ring or a favorite, and the compass make.
+    func colored(_ settings: DeskSettings) -> DeskChord {
         // A favorite, or else the ring's cell, and the compass's step from it.
         let pinned = settings.favorites.colors(settings.key, degree)
         let color: ChordColor
@@ -249,6 +327,129 @@ public struct TwinRings: Layout {
     }
 
     // MARK: – What the screen shows
+
+    /// The chord R3 at rest goes back to: the chord before the compass's
+    /// step, or with none the plain chord; nil when it is plain already.
+    public func resetsTo(_ settings: DeskSettings) -> DeskChord? {
+        var back = self
+        back.compassAim = nil
+        back.favoriteAim = nil
+        back.aim = nil
+        back.voiceAim = nil
+        back.bassAim = nil
+        if back.walked != nil {
+            back.walked = nil
+        } else if back.keptStep != nil {
+            back.keptStep = nil
+        } else if back.kept != nil || back.keptFavorite != nil {
+            back.kept = nil
+            back.keptFavorite = nil
+        } else {
+            return nil
+        }
+        return back.chord(settings)
+    }
+
+    // MARK: – The voices
+
+    /// The right stick on the upper voices: a lean plays the move, a flick
+    /// takes it, R3 while leaning takes it too; the outer ring moves each
+    /// voice two semitones.
+    private mutating func stepVoices(_ input: PadInput, _ settings: DeskSettings) -> [DeskEffect] {
+        var out: [DeskEffect] = []
+        for event in voices.step(input.frame.right, gate: VoiceLeading.gate, at: input.time) {
+            lb.use()
+            if case .flick = event, let move = voiceAim, let next = move.chord(from: voiced(settings), settings, bass: false) {
+                walked = next
+                out.append(.rumble(.bump))
+            }
+        }
+        if let direction = voices.target {
+            let band = RadialBands.two.band(input.frame.right.radius, from: voiceBand)
+            if voiceBand != nil, band != voiceBand { out.append(.rumble(.tick)) }
+            voiceBand = band
+            let move = VoiceMove(direction: direction, shell: band + 1)
+            let next = move.chord(from: voiced(settings), settings, bass: false)
+            voiceAim = next == nil ? nil : move
+            if input.pressed(.r3), let next {
+                walked = next
+                voiceAim = nil
+            }
+        } else {
+            voiceBand = nil
+            voiceAim = nil
+        }
+        return out
+    }
+
+    /// The left stick on the bass, up and down, as the right is on the upper voices.
+    private mutating func stepBass(_ input: PadInput, _ settings: DeskSettings) -> [DeskEffect] {
+        var out: [DeskEffect] = []
+        for event in bass.step(input.frame.left, gate: VoiceLeading.bassGate, at: input.time) {
+            lb.use()
+            if case .flick = event, let move = bassAim, let next = move.chord(from: voiced(settings), settings, bass: true) {
+                walked = next
+                out.append(.rumble(.bump))
+            }
+        }
+        if let direction = bass.target {
+            let band = RadialBands.two.band(input.frame.left.radius, from: bassBand)
+            if bassBand != nil, band != bassBand { out.append(.rumble(.tick)) }
+            bassBand = band
+            let move = VoiceMove(direction: direction, shell: band + 1)
+            bassAim = move.chord(from: voiced(settings), settings, bass: true) == nil ? nil : move
+        } else {
+            bassBand = nil
+            bassAim = nil
+        }
+        return out
+    }
+
+    private mutating func letGoOfVoices() {
+        voices.reset()
+        bass.reset()
+        voiceAim = nil
+        bassAim = nil
+        voiceBand = nil
+        bassBand = nil
+    }
+
+    /// The moves of the upper voices from the chord the voices are on, the
+    /// inner shell (a semitone) and the outer (two), clockwise from up; nil
+    /// where a move crosses voices, and dimmed where it is not consonant.
+    public func voiceTargets(_ settings: DeskSettings) -> (inner: [Target?], outer: [Target?]) {
+        let from = voiced(settings)
+        let notes = from.notes(settings)
+        func targets(_ shell: Int) -> [Target?] {
+            VoiceLeading.moves.indices.map { direction in
+                let move = VoiceMove(direction: direction, shell: shell)
+                guard VoiceLeading.moved(notes, by: move) != nil else { return nil }
+                let bearing = VoiceLeading.gate.bearings[direction]
+                guard let chord = VoiceLeading.neighbour(of: notes, by: move, in: settings.key) else {
+                    return Target(bearing: bearing, name: "·", detail: VoiceLeading.names[direction], isHidden: true)
+                }
+                return Target(bearing: bearing, name: chord.name, detail: shell == 1 ? VoiceLeading.names[direction] : "",
+                              fit: chord.fit(in: settings.key), isAimed: move == voiceAim)
+            }
+        }
+        return (targets(1), targets(2))
+    }
+
+    /// The bass's moves: up a semitone and two, then down a semitone and two.
+    public func bassTargets(_ settings: DeskSettings) -> [Target?] {
+        let notes = voiced(settings).notes(settings)
+        return [(0, 1), (0, 2), (1, 1), (1, 2)].map { direction, shell in
+            let move = VoiceMove(direction: direction, shell: shell)
+            guard VoiceLeading.bassMoved(notes, by: move) != nil else { return nil }
+            let arrow = direction == 0 ? "↑" : "↓"
+            let detail = "bass " + String(repeating: arrow, count: shell)
+            guard let chord = VoiceLeading.bassNeighbour(of: notes, by: move, in: settings.key) else {
+                return Target(bearing: direction == 0 ? 0 : 180, name: "·", detail: detail, isHidden: true)
+            }
+            return Target(bearing: direction == 0 ? 0 : 180, name: chord.name, detail: detail,
+                          fit: chord.fit(in: settings.key), isAimed: move == bassAim)
+        }
+    }
 
     public func degreeTargets(_ settings: DeskSettings) -> [Target] {
         DeskCore.degreeTargets(chosen: degree, sounding: line.isSounding ? line.chord : nil, settings: settings)
@@ -288,7 +489,7 @@ public struct TwinRings: Layout {
         var base = self
         base.compassAim = nil
         base.keptStep = nil
-        let from = base.chord(settings)
+        let from = base.colored(settings)
         return CompassPie.places.indices.map { index in
             let chord = CompassPie.chord(at: index, from: from, ranking: settings.ranking)
             return Target(bearing: CompassPie.gate.bearings[index], name: chord?.name ?? "—",
@@ -312,10 +513,26 @@ public struct TwinRings: Layout {
         legend[.button(.x)] = isOnFavorites ? "Unpin the favorite aimed at"
             : "Voice leading " + (settings.voiceLeading ? "on" : "off")
         legend[.button(.y)] = "Tap: hold " + (holds ? "on" : "off") + " · hold: favorites"
-        legend[.button(.lb)] = "Tap: key a 5th down · hold: compass"
+        legend[.button(.lb)] = "Tap: key a 5th down · long-press: compass " + (compassLatched ? "off" : "on")
         legend[.button(.rb)] = "Tap: key a 5th up · hold: to 13th"
         legend[.button(.l3)] = "Ring: \(settings.ringArrangement.name) → next"
-        legend[.button(.r3)] = "Keep aimed cell · at rest: plain"
+        legend[.button(.r3)] = resetsTo(settings).map { "Keep aimed · at rest: back to \($0.name)" } ?? "Keep the cell aimed"
+        if isOnCompass {
+            legend[.button(.l3)] = "LB layer: \(settings.lbLayer.name) → " + (settings.lbLayer == .compass ? "Voices" : "Compass")
+        }
+        if isOnVoices {
+            legend[.leftStick] = "Bass ↑ ↓: flick takes, hold plays"
+            legend[.rightStick] = "Voices: ↕ top, ↔ middle, diagonals both; outer ring two semitones"
+        }
         return legend
+    }
+}
+
+extension VoiceMove {
+    /// The consonant chord this move makes from `chord`'s notes, if there is one.
+    func chord(from chord: DeskChord, _ settings: DeskSettings, bass: Bool) -> DeskChord? {
+        let notes = chord.notes(settings)
+        return bass ? VoiceLeading.bassNeighbour(of: notes, by: self, in: settings.key)
+            : VoiceLeading.neighbour(of: notes, by: self, in: settings.key)
     }
 }
