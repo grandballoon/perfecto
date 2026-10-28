@@ -23,7 +23,11 @@ struct TwinRingsView: View {
             }
             .panel()
             VStack(spacing: 12) {
-                if layout.isOnCompass {
+                if layout.isOnFavorites {
+                    Caption(control: "Y + right stick", title: "Favorites in \(settings.favorites.table.name): A pins, X unpins")
+                    PieView(targets: layout.favoriteTargets(settings), stick: frame.right,
+                            centre: (layout.chord(settings).name, "flick keeps"))
+                } else if layout.isOnCompass {
                     Caption(control: "LB + right stick", title: "The step compass: a tone added, raised, taken away, lowered")
                     PieView(targets: layout.compassTargets(settings), stick: frame.right,
                             centre: (layout.chord(settings).name, "flick keeps"))

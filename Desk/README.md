@@ -62,6 +62,20 @@ L3 turns to the next, as do Menu › Color ring and the switch over the ring; Pe
 
 A kept color names its mode, not its place, so it stays kept when the ring is turned another way.
 
+#### Favorites
+
+Colors can be pinned to the chords of a key and played from their own layer.
+Favorites are kept in named tables ("Jazz", "Pop", "Film"); one table is played at a time, and a table can be made a key's own, so changing to that key turns to it.
+A chord holds up to eight favorites in a table, one for each of the right stick's directions.
+
+- **Hold Y**: the right stick is a pie of the chord's favorites in the table played, a flick keeping one and a lean playing it, as the compass does; the compass still steps from a kept favorite.
+- **Y + A** pins the chord the hands are on (flick to keep a color first: the right thumb cannot lean and press Y at once), and **Y + X** unpins the favorite aimed at.
+- **A tap of Y** still holds the chord, as before.
+
+The Favorites tab beside the stage (next to Controls) does the same with the mouse, from any layout: it lists the tables (a click plays one; the pencil renames it), adds and removes them, makes the one played the key's own, pins the chord sounding, and shows each chord of the key's favorites with a button to unpin each.
+A borrowed chord is pinned by its notes to the degree of its root; a root outside the key cannot be pinned.
+Favorites are kept with the settings between launches.
+
 ### Petals and depth
 
 The easiest to start with, and the crispest rhythm.

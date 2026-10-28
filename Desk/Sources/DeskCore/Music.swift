@@ -40,11 +40,13 @@ public struct DeskSettings: Equatable, Codable, Sendable {
     public var ringArrangement = RingArrangement.home
     /// The grid the arranger snaps its times to.
     public var grid = BeatGrid.sixteenth
+    /// Colors pinned to the chords of keys, in named tables.
+    public var favorites = Favorites()
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, grid
+        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, grid, favorites
     }
 
     /// Each setting as it was kept, and any kept before it existed as it
@@ -65,6 +67,7 @@ public struct DeskSettings: Equatable, Codable, Sendable {
         read(.ranking, &ranking)
         read(.ringArrangement, &ringArrangement)
         read(.grid, &grid)
+        read(.favorites, &favorites)
     }
 
     /// The ring laid the next way round (`steps` < 0, the way before).

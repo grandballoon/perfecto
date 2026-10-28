@@ -107,6 +107,11 @@ final class KeyboardKeys {
 
     private func handle(_ event: NSEvent) -> NSEvent? {
         shift = event.modifierFlags.contains(.shift)
+        // A text field being typed in (a table's name) has the keys to itself.
+        if event.window?.firstResponder is NSText {
+            held = []
+            return event
+        }
         guard event.type != .flagsChanged, !event.modifierFlags.contains(.command),
               let key = Self.name(of: event), KeyboardPad.keys.contains(key) else { return event }
         if event.type == .keyDown {

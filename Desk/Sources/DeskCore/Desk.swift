@@ -132,12 +132,26 @@ public struct Desk: Equatable, Sendable {
             let all = LayoutKind.allCases
             return choose(all[(all.firstIndex(of: layout)! + 1) % all.count])
         }
+        let key = settings.key
+        defer { if settings.key != key { settings.favorites.keyChanged(to: settings.key) } }
         switch layout {
         case .twinRings: return twinRings.step(input, settings: &settings)
         case .petals: return petals.step(input, settings: &settings)
         case .neighbourhood: return neighbourhood.step(input, settings: &settings)
         case .twoVoices: return twoVoices.step(input, settings: &settings)
         case .arranger: return arranger.step(input, settings: &settings)
+        }
+    }
+
+    /// The chord to pin: what the layout is sounding, or else what the
+    /// hands are on.
+    public var pinnable: DeskChord? {
+        switch layout {
+        case .twinRings: twinRings.line.isSounding ? twinRings.line.chord : twinRings.chord(settings)
+        case .petals: petals.line.isSounding ? petals.line.chord : nil
+        case .neighbourhood: neighbourhood.line.isSounding ? neighbourhood.line.chord : neighbourhood.centre
+        case .twoVoices: twoVoices.chords.isSounding ? twoVoices.chords.chord : twoVoices.chord(settings)
+        case .arranger: arranger.line.isSounding ? arranger.line.chord : arranger.aimed(settings)
         }
     }
 
@@ -259,9 +273,11 @@ public struct Desk: Equatable, Sendable {
         case .key:
             let root = (settings.key.root.rawValue + steps + 12) % 12
             settings.key = Key(root: PitchClass(rawValue: root)!, scale: settings.key.scale)
+            settings.favorites.keyChanged(to: settings.key)
             return [preview(.chord)]
         case .scale:
             settings.moveScale(by: steps)
+            settings.favorites.keyChanged(to: settings.key)
             return [preview(.chord)]
         case .octave:
             settings.moveOctave(by: steps)

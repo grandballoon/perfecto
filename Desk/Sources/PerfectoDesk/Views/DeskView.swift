@@ -14,7 +14,7 @@ struct DeskView: View {
             HStack(alignment: .top, spacing: 16) {
                 stage(desk)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                HandView(legend: desk.legend, frame: host.frame, isKeyboard: !host.hasController)
+                SideColumn()
                     .frame(width: 330)
                     .frame(maxHeight: .infinity, alignment: .top)
                     .panel()

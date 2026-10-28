@@ -1,6 +1,7 @@
 import AppKit
 import DeskCore
 import Foundation
+import MusicTheoryCore
 import Observation
 import PerfectoSound
 import os
@@ -80,6 +81,46 @@ final class DeskHost {
 
     func arrange(_ ring: RingArrangement) {
         live.settings.ringArrangement = ring
+        show(force: true)
+    }
+
+    // MARK: – Favorites, from the sidebar
+
+    /// Pins the chord the layout is sounding, or the hands are on.
+    func pinPlayed() {
+        guard let chord = live.pinnable else { return }
+        live.settings.favorites.pin(chord, in: live.settings.key)
+        show(force: true)
+    }
+
+    func unpin(_ degree: Degree, at index: Int) {
+        live.settings.favorites.unpin(live.settings.key, degree, at: index)
+        show(force: true)
+    }
+
+    func addTable() {
+        live.settings.favorites.addTable(named: "Table")
+        show(force: true)
+    }
+
+    func renameTable(_ index: Int, to name: String) {
+        live.settings.favorites.rename(index, to: name)
+        show(force: true)
+    }
+
+    func removeTable(_ index: Int) {
+        live.settings.favorites.removeTable(index)
+        show(force: true)
+    }
+
+    func playTable(_ index: Int) {
+        live.settings.favorites.play(index)
+        show(force: true)
+    }
+
+    /// Makes the table played the key's own, or not.
+    func setKeyDefault(_ isOn: Bool) {
+        live.settings.favorites.setDefault(for: live.settings.key, isOn)
         show(force: true)
     }
 

@@ -20,6 +20,10 @@ public struct TwinRings: Layout {
     /// The step compass's place leaned at and kept, while LB is held.
     public private(set) var compassAim: Int?
     public private(set) var keptStep: Int?
+    /// The favorite leaned at and kept, while Y is held: an index of the
+    /// degree's favorites in the table played.
+    public private(set) var favoriteAim: Int?
+    public private(set) var keptFavorite: Int?
     /// Whether a chord goes on sounding when the strike lets go.
     public private(set) var holds = false
     public private(set) var line = ChordLine()
@@ -31,8 +35,10 @@ public struct TwinRings: Layout {
     private var compass = StickGesture()
     private var strike = TriggerStrike()
     private var struckLevel = 0.8
+    private var favorites = StickGesture()
     private var lb = TapOrHold()
     private var rb = TapOrHold()
+    private var y = TapOrHold()
 
     public init() {}
 
@@ -40,6 +46,11 @@ public struct TwinRings: Layout {
     public private(set) var isExtended = false
     /// Whether LB has the right stick on the step compass.
     public private(set) var isOnCompass = false
+    /// Whether Y has the right stick on the favorites.
+    public private(set) var isOnFavorites = false
+
+    /// The favorites' gate: a direction for each of a chord's eight.
+    public static let favoritesGate = PieGate.even(Favorites.perChord)
 
     public mutating func step(_ input: PadInput, settings: inout DeskSettings) -> [DeskEffect] {
         var out: [DeskEffect] = []
@@ -49,14 +60,38 @@ public struct TwinRings: Layout {
             holds = false
             out += line.release()
         }
+        // Y: a tap holds; held, it is the favorites' layer.
         if input.pressed(.y) {
-            holds.toggle()
-            if !holds, !strike.isHeld, !input.isDown(.a) { out += line.release() }
+            y.press(at: time)
+            ring.reset()
+            aim = nil
         }
-        if input.pressed(.x) { settings.voiceLeading.toggle() }
-        if input.pressed(.r3), aim == nil, compassAim == nil {
+        if input.released(.y) {
+            favorites.reset()
+            favoriteAim = nil
+            if y.release(at: time) {
+                holds.toggle()
+                if !holds, !strike.isHeld, !input.isDown(.a) { out += line.release() }
+            }
+        }
+        isOnFavorites = input.isDown(.y)
+        if input.pressed(.x) {
+            if isOnFavorites {
+                y.use()
+                if let favoriteAim {
+                    settings.favorites.unpin(settings.key, degree, at: favoriteAim)
+                    if keptFavorite == favoriteAim { keptFavorite = nil }
+                    self.favoriteAim = nil
+                    out.append(.rumble(.bump))
+                }
+            } else {
+                settings.voiceLeading.toggle()
+            }
+        }
+        if input.pressed(.r3), aim == nil, compassAim == nil, favoriteAim == nil {
             kept = nil
             keptStep = nil
+            keptFavorite = nil
         }
         if input.pressed(.l3) {
             settings.moveRingArrangement(by: 1)
@@ -90,8 +125,23 @@ public struct TwinRings: Layout {
         degreeSector = DegreePie.gate.select(input.frame.left, from: degreeSector)
         if let degreeSector, input.frame.left.radius >= PieGate.rest { degree = DegreePie.degree(at: degreeSector) }
 
-        // The right stick: the ring, or with LB the compass.
-        if isOnCompass {
+        // The right stick: the ring, with LB the compass, with Y the favorites.
+        if isOnFavorites {
+            let count = settings.favorites.colors(settings.key, degree).count
+            for event in favorites.step(input.frame.right, gate: Self.favoritesGate, at: time) {
+                y.use()
+                switch event {
+                case .aim(let index): favoriteAim = index < count ? index : nil
+                case .flick(let index):
+                    guard index < count else { continue }
+                    keptFavorite = keptFavorite == index ? nil : index
+                    favoriteAim = nil
+                    out.append(.rumble(.bump))
+                case .lift: favoriteAim = nil
+                }
+            }
+            if input.pressed(.r3), let favoriteAim { keptFavorite = favoriteAim }
+        } else if isOnCompass {
             for event in compass.step(input.frame.right, gate: CompassPie.gate, at: time) {
                 lb.use()
                 switch event {
@@ -141,7 +191,13 @@ public struct TwinRings: Layout {
             }
         }
         if input.pressed(.a) {
-            out += line.strike(chord(settings), level: 0.8, settings: settings, at: time)
+            if isOnFavorites {
+                // Y + A pins the chord the hands are on.
+                y.use()
+                out.append(.rumble(settings.favorites.pin(chord(settings), in: settings.key) ? .bump : .tick))
+            } else {
+                out += line.strike(chord(settings), level: 0.8, settings: settings, at: time)
+            }
         }
         if input.released(.a), !holds, !strike.isHeld { out += line.release() }
 
@@ -172,11 +228,17 @@ public struct TwinRings: Layout {
 
     /// The chord the hands are on now.
     public func chord(_ settings: DeskSettings) -> DeskChord {
-        let cell = aim ?? kept
-        let color = cell.map { settings.ring(degree).color(of: $0) } ?? .base
-        let ringChord = DeskChord(key: settings.key, degree: degree, color: color)
-        guard let place = compassAim ?? keptStep else { return ringChord }
-        return CompassPie.chord(at: place, from: ringChord, ranking: settings.ranking) ?? ringChord
+        // A favorite, or else the ring's cell, and the compass's step from it.
+        let pinned = settings.favorites.colors(settings.key, degree)
+        let color: ChordColor
+        if let favorite = favoriteAim ?? keptFavorite, pinned.indices.contains(favorite) {
+            color = pinned[favorite]
+        } else {
+            color = (aim ?? kept).map { settings.ring(degree).color(of: $0) } ?? .base
+        }
+        let base = DeskChord(key: settings.key, degree: degree, color: color)
+        guard let place = compassAim ?? keptStep else { return base }
+        return CompassPie.chord(at: place, from: base, ranking: settings.ranking) ?? base
     }
 
     // MARK: – What the screen shows
@@ -201,6 +263,19 @@ public struct TwinRings: Layout {
         }
     }
 
+    /// The degree's favorites in the table played, round the stick, while Y
+    /// is held.
+    public func favoriteTargets(_ settings: DeskSettings) -> [Target?] {
+        let pinned = settings.favorites.colors(settings.key, degree)
+        return (0..<Favorites.perChord).map { index in
+            guard pinned.indices.contains(index) else { return nil }
+            let chord = DeskChord(key: settings.key, degree: degree, color: pinned[index])
+            return Target(bearing: Self.favoritesGate.bearings[index], name: chord.name, detail: "\(index + 1)",
+                          fit: chord.fit(in: settings.key), isAimed: index == favoriteAim,
+                          isKept: index == keptFavorite)
+        }
+    }
+
     /// The step compass's places from the ring's chord, while LB is held.
     public func compassTargets(_ settings: DeskSettings) -> [Target] {
         var base = self
@@ -219,15 +294,17 @@ public struct TwinRings: Layout {
     public func legend(_ settings: DeskSettings) -> Legend {
         var legend = commonLegend(settings)
         legend[.leftStick] = "Degree · \(numeral(degree, in: settings.key))"
-        legend[.rightStick] = isOnCompass ? "Step compass: flick keeps, hold plays"
+        legend[.rightStick] = isOnFavorites ? "Favorites: flick keeps, hold plays"
+            : isOnCompass ? "Step compass: flick keeps, hold plays"
             : isExtended ? "Ring to the 13th: flick keeps, hold plays"
             : "Color ring: flick keeps, hold plays"
         legend[.rightTrigger] = "Strike · pull = swell"
         legend[.leftTrigger] = "Arpeggio " + (ArpeggioRate(rawValue: arpeggioStep)?.name ?? "off")
-        legend[.button(.a)] = "Strike"
+        legend[.button(.a)] = isOnFavorites ? "Pin this chord to \(settings.favorites.table.name)" : "Strike"
         legend[.button(.b)] = "Let go"
-        legend[.button(.x)] = "Voice leading " + (settings.voiceLeading ? "on" : "off")
-        legend[.button(.y)] = "Hold " + (holds ? "on" : "off")
+        legend[.button(.x)] = isOnFavorites ? "Unpin the favorite aimed at"
+            : "Voice leading " + (settings.voiceLeading ? "on" : "off")
+        legend[.button(.y)] = "Tap: hold " + (holds ? "on" : "off") + " · hold: favorites"
         legend[.button(.lb)] = "Tap: key a 5th down · hold: compass"
         legend[.button(.rb)] = "Tap: key a 5th up · hold: to 13th"
         legend[.button(.l3)] = "Ring: \(settings.ringArrangement.name) → next"
