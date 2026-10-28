@@ -180,7 +180,7 @@ public struct Petals: Layout {
 
     /// The chord `petal` strikes now.
     public func chord(_ petal: Petal, _ settings: DeskSettings) -> DeskChord {
-        let pie = settings.ring(degree)
+        let pie = settings.brightnessRing(degree)
         let mode = pie.mode(steps: shift)
         switch petal {
         case .height(let height):
@@ -221,7 +221,7 @@ public struct Petals: Layout {
         let height = presses.last.flatMap { press -> StackHeight? in
             if case .height(let height) = press.petal { return height } else { return nil }
         } ?? .seventh
-        let pie = settings.ring(degree)
+        let pie = settings.brightnessRing(degree)
         return (-3...3).map { steps in
             guard pie.reaches(steps) else {
                 return Target(bearing: Double(steps), name: "—", detail: "past the ring")

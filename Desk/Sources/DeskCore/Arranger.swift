@@ -95,11 +95,13 @@ public struct Arranger: Layout {
         // The aim: the degree and the ring, as Twin rings has them.
         degreeSector = DegreePie.gate.select(input.frame.left, from: degreeSector)
         if let degreeSector, input.frame.left.radius >= PieGate.rest { degree = DegreePie.degree(at: degreeSector) }
-        let pie = settings.ring(degree)
-        ringSector = pie.gate.select(input.frame.right, from: ringSector)
-        if let ringSector {
+        // Turned to nearness from the chord the cursor follows, which aiming does not change.
+        let pie = settings.ring(degree, near: arrangement.chord(near: cursor)?.chord)
+        let (gate, reachable) = pie.gate(extended: false)
+        ringSector = gate.select(input.frame.right, from: ringSector)
+        if let ringSector, reachable.indices.contains(ringSector) {
             band = RadialBands.three.band(input.frame.right.radius, from: band)
-            aim = pie.cell(sector: ringSector, band: band!, extended: false)
+            aim = pie.cell(sector: reachable[ringSector], band: band!, extended: false)
         } else {
             band = nil
             aim = nil

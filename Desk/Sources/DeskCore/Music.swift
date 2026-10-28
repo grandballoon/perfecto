@@ -38,6 +38,9 @@ public struct DeskSettings: Equatable, Codable, Sendable {
     public var ranking = ColorStepRanking.theory
     /// How the color ring is laid round the stick.
     public var ringArrangement = RingArrangement.home
+    /// The order the ring's sectors go round in, and which cells it lets through.
+    public var ringOrder = RingOrder.brightness
+    public var ringFilter = RingFilter.all
     /// The grid the arranger snaps its times to.
     public var grid = BeatGrid.sixteenth
     /// Colors pinned to the chords of keys, in named tables.
@@ -46,7 +49,7 @@ public struct DeskSettings: Equatable, Codable, Sendable {
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, grid, favorites
+        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, ringOrder, ringFilter, grid, favorites
     }
 
     /// Each setting as it was kept, and any kept before it existed as it
@@ -66,6 +69,8 @@ public struct DeskSettings: Equatable, Codable, Sendable {
         read(.output, &output)
         read(.ranking, &ranking)
         read(.ringArrangement, &ringArrangement)
+        read(.ringOrder, &ringOrder)
+        read(.ringFilter, &ringFilter)
         read(.grid, &grid)
         read(.favorites, &favorites)
     }

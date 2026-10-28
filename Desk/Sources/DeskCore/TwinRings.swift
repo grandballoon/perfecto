@@ -35,6 +35,10 @@ public struct TwinRings: Layout {
     private var compass = StickGesture()
     private var strike = TriggerStrike()
     private var struckLevel = 0.8
+    /// The chord last struck, which the ring's nearest order is turned to:
+    /// not the chord sounding, which a lean changes, or the ring would turn
+    /// under the thumb.
+    public private(set) var struck: DeskChord?
     private var favorites = StickGesture()
     private var lb = TapOrHold()
     private var rb = TapOrHold()
@@ -155,8 +159,9 @@ public struct TwinRings: Layout {
             }
             if input.pressed(.r3), let compassAim { keptStep = compassAim }
         } else {
-            let pie = settings.ring(degree)
-            for event in ring.step(input.frame.right, gate: pie.gate, at: time) {
+            let pie = settings.ring(degree, near: struck)
+            let (gate, reachable) = pie.gate(extended: isExtended)
+            for event in ring.step(input.frame.right, gate: gate, at: time) {
                 switch event {
                 case .aim: break
                 case .flick:
@@ -165,12 +170,12 @@ public struct TwinRings: Layout {
                 case .lift: break
                 }
             }
-            if let sector = ring.target {
+            if let target = ring.target, reachable.indices.contains(target) {
                 if isExtended { rb.use() }
                 let next = RadialBands.three.band(input.frame.right.radius, from: band)
                 if band != nil, next != band { out.append(.rumble(.tick)) }
                 band = next
-                aim = pie.cell(sector: sector, band: next, extended: isExtended)
+                aim = pie.cell(sector: reachable[target], band: next, extended: isExtended)
                 if input.pressed(.r3) { kept = aim }
             } else {
                 band = nil
@@ -183,7 +188,8 @@ public struct TwinRings: Layout {
             switch event {
             case .strike(let level):
                 struckLevel = level
-                out += line.strike(chord(settings), level: level, brightness: 1, settings: settings, at: time)
+                struck = chord(settings)
+                out += line.strike(struck!, level: level, brightness: 1, settings: settings, at: time)
             case .depth(let depth):
                 out += line.shape(level: struckLevel * (0.6 + 0.4 * depth), brightness: 0.55 + 0.45 * depth)
             case .release:
@@ -196,7 +202,8 @@ public struct TwinRings: Layout {
                 y.use()
                 out.append(.rumble(settings.favorites.pin(chord(settings), in: settings.key) ? .bump : .tick))
             } else {
-                out += line.strike(chord(settings), level: 0.8, settings: settings, at: time)
+                struck = chord(settings)
+                out += line.strike(struck!, level: 0.8, settings: settings, at: time)
             }
         }
         if input.released(.a), !holds, !strike.isHeld { out += line.release() }
@@ -250,7 +257,7 @@ public struct TwinRings: Layout {
     /// The ring's cells for the degree chosen, ring by ring (inside out),
     /// each sector darkest first.
     public func ringTargets(_ settings: DeskSettings) -> [[Target]] {
-        let pie = settings.ring(degree)
+        let pie = settings.ring(degree, near: struck)
         let sounding = line.isSounding ? line.chord : nil
         return RingPie.heights(extended: isExtended).map { height in
             pie.sectors.map { sector in
@@ -258,7 +265,7 @@ public struct TwinRings: Layout {
                 let chord = DeskChord(key: settings.key, degree: degree, color: pie.color(of: cell))
                 return Target(bearing: sector.bearing, name: chord.name, detail: sector.mode.displayName,
                               fit: chord.fit(in: settings.key), isNear: chord.isOneStep(from: sounding),
-                              isAimed: cell == aim, isKept: cell == kept)
+                              isAimed: cell == aim, isKept: cell == kept, isHidden: !pie.allows(cell))
             }
         }
     }

@@ -39,6 +39,12 @@ struct TwinRingsView: View {
                     }
                     RingView(rings: layout.ringTargets(settings), pie: settings.ring(layout.degree), stick: frame.right,
                              centre: (layout.chord(settings).name, layout.kept == nil && layout.keptStep == nil ? "plain" : "kept"))
+                    HStack(spacing: 14) {
+                        Fact(name: "Order", value: settings.ringOrder.name)
+                        Fact(name: "Filter", value: settings.ringFilter.name)
+                        Spacer()
+                        Text("Menu changes them").font(.system(size: 10)).foregroundStyle(Theme.faint)
+                    }
                     Text(settings.ringArrangement.summary)
                         .font(.system(size: 11)).foregroundStyle(Theme.secondary)
                 }

@@ -158,6 +158,7 @@ struct RingView: View {
                         RingSector(bearing: cell.bearing, span: RingPie.sectorSpan, inner: from + 1, outer: from + band - 1)
                             .stroke(stroke(cell), style: StrokeStyle(lineWidth: cell.isKept ? 2.5 : 1,
                                                                      dash: cell.fit == .borrowed ? [3, 2] : []))
+                            .opacity(cell.isHidden ? 0.35 : 1)
                     }
                 }
                 // The key's own mode: its sector edged on the outside.
@@ -180,7 +181,7 @@ struct RingView: View {
                 .foregroundStyle(Theme.text)
                 .position(middle)
                 ForEach(Array(rings.enumerated()), id: \.offset) { ring, cells in
-                    ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
+                    ForEach(Array(cells.enumerated()).filter { !$0.element.isHidden }, id: \.offset) { _, cell in
                         Text(cell.name)
                             .font(.system(size: ring == 0 ? 11 : 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(cell.isAimed ? Color.black : Theme.text)
@@ -223,6 +224,7 @@ struct RingView: View {
     }
 
     private func fill(_ cell: Target) -> Color {
+        if cell.isHidden { return Theme.raised.opacity(0.3) }
         if cell.isAimed { return Theme.chord }
         if cell.isNear { return Theme.near.opacity(0.22) }
         if cell.fit == .borrowed { return Theme.borrowed.opacity(0.1) }

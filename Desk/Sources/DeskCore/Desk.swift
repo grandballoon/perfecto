@@ -54,12 +54,14 @@ public struct SoundCatalog: Equatable, Sendable {
 /// the sound library.
 public struct DeskMenu: Equatable, Sendable {
     public enum Row: CaseIterable, Sendable {
-        case layout, ring, chordSound, lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI
+        case layout, ring, ringOrder, ringFilter, chordSound, lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI
 
         public var name: String {
             switch self {
             case .layout: "Layout"
             case .ring: "Color ring"
+            case .ringOrder: "Ring order"
+            case .ringFilter: "Ring filter"
             case .chordSound: "Chord sound"
             case .lineSound: "Line sound"
             case .key: "Key"
@@ -266,6 +268,10 @@ public struct Desk: Equatable, Sendable {
             layout = all[((all.firstIndex(of: layout)! + steps) % all.count + all.count) % all.count]
         case .ring:
             settings.moveRingArrangement(by: steps)
+        case .ringOrder:
+            settings.moveRingOrder(by: steps)
+        case .ringFilter:
+            settings.moveRingFilter(by: steps)
         case .chordSound, .lineSound:
             let line: Line = row == .chordSound ? .chord : .melody
             setSound(catalog.sound(steps, from: sound(of: line)), for: line)
@@ -319,6 +325,8 @@ public struct Desk: Equatable, Sendable {
         switch row {
         case .layout: layout.name
         case .ring: settings.ringArrangement.name
+        case .ringOrder: settings.ringOrder.name
+        case .ringFilter: settings.ringFilter.name
         case .chordSound: catalog.name(of: settings.chordSound)
         case .lineSound: catalog.name(of: settings.lineSound)
         case .key: settings.key.root.name

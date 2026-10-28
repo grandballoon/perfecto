@@ -79,9 +79,11 @@ public struct Target: Equatable, Sendable {
     public var isNear: Bool
     public var isAimed: Bool
     public var isKept: Bool
+    /// Left out by a filter: drawn in its place, but not reached.
+    public var isHidden: Bool
 
     public init(bearing: Double, name: String, detail: String, fit: ChordFit = .inKey, isNear: Bool = false,
-                isAimed: Bool = false, isKept: Bool = false) {
+                isAimed: Bool = false, isKept: Bool = false, isHidden: Bool = false) {
         self.bearing = bearing
         self.name = name
         self.detail = detail
@@ -89,6 +91,7 @@ public struct Target: Equatable, Sendable {
         self.isNear = isNear
         self.isAimed = isAimed
         self.isKept = isKept
+        self.isHidden = isHidden
     }
 }
 

@@ -58,9 +58,26 @@ L3 turns to the next, as do Menu › Color ring and the switch over the ring; Pe
 - **Home**: the major scale's seven modes, turned so the degree's own is at the top, so up is always the chord as the key has it.
   The ring is lopsided by as much as the own mode is near an end (on I, one sector brighter and five darker), so the gap moves with the degree.
 - **Fixed**: the same seven modes, never turned: Dorian at the top and the gap at the bottom, so a direction always means the same mode, and the key's own chord is wherever its mode is.
+  In brightness order its two sides are mirror images: each mode faces its inversion across the stick (Lydian and Locrian, Ionian and Phrygian, Mixolydian and Aeolian), with Dorian, its own mirror, at the top.
 - **Centred**: the degree's own mode at the top with the modes nearest it in brightness either side, from the major, melodic minor and harmonic minor scales (the chord grid's rows), so it is balanced on every degree as far as the brightest and darkest modes allow.
 
 A kept color names its mode, not its place, so it stays kept when the ring is turned another way.
+
+The sectors can also go round in different orders (Menu › Ring order), so that a direction and a grouping come to mean a quality.
+Each combines with the arrangement: Home and Centred keep the key's own mode at the top, and Fixed keeps every direction the same from degree to degree.
+
+- **Brightness**: darkest anticlockwise to brightest clockwise, a note at a time (for these modes, the circle of fifths).
+- **Quality**: modes with a major third clockwise and with a minor third anticlockwise, each side's brightest by the seam at the top, the diminished at the far end.
+- **Character note**: by the one note that makes each mode itself: Ionian and Aeolian, which alter nothing, in the middle; a note raised (Dorian ♮6, Lydian ♯4) clockwise; a note lowered (Aeolian's neighbours Mixolydian ♭7 and Phrygian ♭2, then Locrian with two) anticlockwise.
+- **Fewest borrowed**: the fewest notes from outside the key at the top, fanning out either side to the most by the gap.
+- **Common first**: the modes most played at the top (Ionian, Aeolian, Dorian, Mixolydian, Lydian, Phrygian, Locrian), fanning out; with Fixed, Ionian is always at the top.
+- **Nearest**: nearest the chord last struck at the top, fanning out, so it turns as you play; it follows the chord struck, not the one a lean is sounding, so it never turns under the thumb.
+
+In the fanned orders, of two modes ranked alike, the brighter goes clockwise.
+
+A filter (Menu › Ring filter) leaves some cells out of reach: **In key**, **Major third**, **Minor third**, or **No clash** (no tone a semitone over another).
+The cells it leaves out keep their places, dimmed and unlabelled, so a direction still means what it did; a sector with nothing left in it is out of the stick's reach.
+The order and the filter shape the right stick's ring in Twin Rings and the Arranger; Petals' triggers always step darker and brighter by brightness.
 
 #### Favorites
 
