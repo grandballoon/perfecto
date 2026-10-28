@@ -41,7 +41,11 @@ final class Xbox360USB: @unchecked Sendable {
     /// Spins the motors for a moment.
     func play(_ rumble: Rumble) {
         queue.async {
-            let (low, high, time) = rumble == .tick ? (0.0, 0.5, 0.04) : (0.7, 0.2, 0.08)
+            let (low, high, time): (Double, Double, Double) = switch rumble {
+            case .tick: (0, 0.5, 0.04)
+            case .bump: (0.7, 0.2, 0.08)
+            case .refuse: (0.5, 0, 0.14)
+            }
             self.send(Xbox360.rumble(low: low, high: high))
             self.rumbleEnd?.cancel()
             let end = DispatchWorkItem { self.send(Xbox360.rumble(low: 0, high: 0)) }

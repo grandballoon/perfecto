@@ -73,13 +73,22 @@ public enum VoiceLeading {
 
     /// The chord qualities that count as consonant, as tones above the root,
     /// in the order an ambiguous set is read: triads, then the 7ths and the
-    /// added 9ths, then the evenly divided ones.
-    static let consonant: [[Int]] = [
+    /// added 9ths, then the evenly divided ones, then the 9ths. The 11ths
+    /// and 13ths, which stack a tone over another, are not among them.
+    public static let consonant: [[Int]] = [
         [0, 4, 7], [0, 3, 7], [0, 5, 7],
         [0, 4, 7, 10], [0, 4, 7, 11], [0, 3, 7, 10], [0, 3, 6, 10], [0, 5, 7, 10],
         [0, 2, 4, 7], [0, 2, 3, 7],
         [0, 3, 6], [0, 4, 8], [0, 3, 6, 9],
+        [0, 2, 4, 7, 10], [0, 2, 4, 7, 11], [0, 2, 3, 7, 10], [0, 2, 4, 7, 9], [0, 2, 5, 7, 10],
     ]
+
+    /// Whether `pitches` (pitch classes, three or more) make a consonant chord
+    /// on one of them.
+    public static func isConsonant(_ pitches: Set<Int>) -> Bool {
+        guard pitches.count >= 3 else { return false }
+        return pitches.contains { root in consonant.contains(pitches.map { ($0 - root + 12) % 12 }.sorted()) }
+    }
 
     /// The chord `notes` sound, read in `key`, if it is consonant: the root
     /// is the bass if it can be, and otherwise the note that reads most

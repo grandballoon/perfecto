@@ -46,7 +46,10 @@ public struct TwoVoices: Layout {
         }
         if input.pressed(.a) {
             drones.toggle()
-            if drones, !chords.isSounding {
+            if drones, !chords.isSounding, let why = settings.consonance.refusal(of: chord(settings), in: settings.key) {
+                drones = false
+                out.append(.refuse(why))
+            } else if drones, !chords.isSounding {
                 out += chords.strike(chord(settings), level: 0.7, settings: settings, at: time)
             } else if !drones, !swell.isHeld {
                 out += chords.release()
@@ -71,11 +74,18 @@ public struct TwoVoices: Layout {
 
         // The left hand: the degree, and LT's swell.
         degreeSector = DegreePie.gate.select(input.frame.left, from: degreeSector)
-        if let degreeSector, input.frame.left.radius >= PieGate.rest { degree = DegreePie.degree(at: degreeSector) }
+        if let degreeSector, input.frame.left.radius >= PieGate.rest {
+            // A degree whose chord the guard will not play is not chosen.
+            var chosen = self
+            chosen.degree = DegreePie.degree(at: degreeSector)
+            if settings.playable(chosen.chord(settings)) { degree = chosen.degree }
+        }
         for event in swell.step(input.frame.leftTrigger, at: time) {
             switch event {
             case .strike:
-                if !chords.isSounding {
+                if let why = settings.consonance.refusal(of: chord(settings), in: settings.key), !chords.isSounding {
+                    out.append(.refuse(why))
+                } else if !chords.isSounding {
                     out += chords.strike(chord(settings), level: 0.15, brightness: 0.5, settings: settings, at: time)
                 }
             case .depth(let depth):
@@ -84,7 +94,7 @@ public struct TwoVoices: Layout {
                 if !drones { out += chords.release() }
             }
         }
-        out += chords.change(to: chord(settings), settings: settings)
+        if settings.playable(chord(settings)) { out += chords.change(to: chord(settings), settings: settings) }
 
         // The right hand: a petal or the bar, and RT's pressure.
         isOnBar = input.isDown(.rb)
@@ -94,6 +104,10 @@ public struct TwoVoices: Layout {
             case .strike(let level):
                 if let pitch {
                     let note = settings.key.note(nearest: pitch)
+                    if let why = settings.consonance.refusal(ofNote: note, in: settings.key) {
+                        out.append(.refuse(why))
+                        continue
+                    }
                     out += melody.strike(note, level: level, sound: settings.lineSound)
                     out += melody.glide(to: pitch)
                 }
@@ -129,7 +143,8 @@ public struct TwoVoices: Layout {
         return settings.key.scale.intervals.map { interval in
             let note = lineTonic(settings) + interval
             let isChordTone = chordPitches.contains(note % 12)
-            return (note, isChordTone, isChordTone || !chordTonesOnly)
+            let isAllowed = settings.consonance.allows(note: note, in: settings.key)
+            return (note, isChordTone, (isChordTone || !chordTonesOnly) && isAllowed)
         }
     }
 

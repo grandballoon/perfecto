@@ -36,6 +36,24 @@ Unlike the phone, a note's velocity is how hard it was struck, and what is playe
 - **B** lets go of everything (but in Petals, where it strikes, and the Arranger, where it undoes).
 - The **d-pad** rolls the inversion (left and right) and moves the octave (up and down), unless a layout needs it for something else.
 
+## The consonance guard
+
+A switch in the menu (Consonance guard) makes the chords and notes that are not consonant unplayable, in every layout.
+What it blocks stays where it is, dimmed and out of reach, so a direction keeps its meaning; a button that would strike it does nothing, the controller knocks twice for no, and the screen says why ("G maj is outside the run").
+A chip beside the key says which guard is on.
+
+"Consonant" is one rule throughout: triads (major, minor, suspended, diminished, augmented), 7ths, added 9ths and 9ths; the 11ths and 13ths, which stack a tone over another, are not.
+The guard's mode says against what it is read:
+
+- **Always**: a chord of a consonant quality, and a line's note of the key.
+- **With what's sounding**: as always, and a chord must share a note with the chord sounding (so the move is near), and sit with the line's note; a line's note must make a consonant chord with the chord under it (over C major, D is an added 9th and plays, C♯ does not).
+  With nothing sounding there is nothing to be near.
+- **With the run**: as always, and within the notes of the last six chords played: a chord can bring at most one note from outside them, so the music drifts to new keys a note at a time, and a line's note must be one of them.
+  The run is heard whether the guard is on or not; Menu › Forget the run starts it afresh, and the chip shows its notes.
+
+**Guard: key's notes only** blocks chords and notes from outside the key as well, in any mode.
+A degree on a stick whose chord the guard blocks is not chosen, and a chord being held never changes into one it blocks.
+
 ## The layouts
 
 ### Twin rings

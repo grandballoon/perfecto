@@ -49,13 +49,21 @@ final class SystemGamepads {
     /// Plays `rumble` on the controller's motors, if it has any.
     func play(_ rumble: Rumble) {
         guard let engine = engine() else { return }
-        let (intensity, sharpness) = rumble == .tick ? (0.45, 0.9) : (0.9, 0.3)
-        let event = CHHapticEvent(eventType: .hapticTransient, parameters: [
-            CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(intensity)),
-            CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(sharpness)),
-        ], relativeTime: 0)
+        let (intensity, sharpness): (Float, Float) = switch rumble {
+        case .tick: (0.45, 0.9)
+        case .bump: (0.9, 0.3)
+        case .refuse: (0.6, 0.1)
+        }
+        // A refusal is two quick dull knocks: no.
+        let times: [TimeInterval] = rumble == .refuse ? [0, 0.08] : [0]
+        let events = times.map { time in
+            CHHapticEvent(eventType: .hapticTransient, parameters: [
+                CHHapticEventParameter(parameterID: .hapticIntensity, value: intensity),
+                CHHapticEventParameter(parameterID: .hapticSharpness, value: sharpness),
+            ], relativeTime: time)
+        }
         do {
-            let player = try engine.makePlayer(with: CHHapticPattern(events: [event], parameters: []))
+            let player = try engine.makePlayer(with: CHHapticPattern(events: events, parameters: []))
             try player.start(atTime: CHHapticTimeImmediate)
         } catch {
             log.debug("rumble failed: \(error.localizedDescription)")

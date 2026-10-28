@@ -83,6 +83,9 @@ struct TopBar: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.secondary)
                 Spacer()
+                if desk.settings.consonance.mode != .off {
+                    GuardChip(consonance: desk.settings.consonance)
+                }
                 Fact(name: "Key", value: desk.settings.summary)
                 Fact(name: "Voicing", value: desk.settings.voicingName + (desk.settings.voiceLeading ? " · led" : ""))
                 Fact(name: "Chords", value: desk.catalog.name(of: desk.settings.chordSound))
@@ -124,7 +127,7 @@ struct StatusLine: View {
                     .font(.system(size: 11)).foregroundStyle(Theme.secondary)
             }
             if let (rumble, _) = host.rumble {
-                Text(rumble == .tick ? "· tick" : "· bump")
+                Text(rumble == .tick ? "· tick" : rumble == .bump ? "· bump" : "· no")
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundStyle(Theme.near)
             }
@@ -234,5 +237,30 @@ struct LibraryView: View {
                 .font(.system(size: 11)).foregroundStyle(Theme.secondary)
         }
         .panel()
+    }
+}
+
+/// The consonance guard while it is on: its mode, and in the run the notes
+/// it has heard.
+struct GuardChip: View {
+    let consonance: ConsonanceGuard
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "shield.lefthalf.filled").font(.system(size: 10))
+            Text(consonance.mode.name + (consonance.inKey ? " · in key" : ""))
+                .font(.system(size: 11, weight: .semibold))
+            if consonance.mode == .run {
+                Text(pool).font(.system(size: 10, weight: .medium, design: .rounded)).opacity(0.75)
+            }
+        }
+        .foregroundStyle(Color.black)
+        .padding(.horizontal, 9).padding(.vertical, 4)
+        .background(Theme.near, in: Capsule())
+    }
+
+    private var pool: String {
+        let notes = consonance.pool.sorted().map { PitchClass(rawValue: $0)!.name }
+        return notes.isEmpty ? "nothing heard yet" : notes.joined(separator: " ")
     }
 }

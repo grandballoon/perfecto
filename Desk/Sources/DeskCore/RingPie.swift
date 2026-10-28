@@ -140,12 +140,17 @@ public struct RingPie: Equatable, Sendable {
     public let own: HeptatonicMode
     private let key: Key
     private let degree: Degree
+    /// The consonance guard, which leaves out what it will not play as the
+    /// filter does.
+    private let consonance: ConsonanceGuard
 
     /// The modes most played, most first.
     static let popularity: [HeptatonicMode] = [.ionian, .aeolian, .dorian, .mixolydian, .lydian, .phrygian, .locrian]
 
     public init(_ arrangement: RingArrangement, order: RingOrder = .brightness, filter: RingFilter = .all,
-                key: Key, degree: Degree, near sounding: DeskChord? = nil) {
+                key: Key, degree: Degree, near sounding: DeskChord? = nil,
+                consonance: ConsonanceGuard = ConsonanceGuard()) {
+        self.consonance = consonance
         self.arrangement = arrangement
         self.order = order
         self.filter = filter
@@ -241,6 +246,7 @@ public struct RingPie: Equatable, Sendable {
 
     /// Whether the filter lets `cell` be reached.
     public func allows(_ cell: RingCell) -> Bool {
+        guard consonance.allows(DeskChord(key: key, degree: degree, color: color(of: cell)), in: key) else { return false }
         switch filter {
         case .all: return true
         case .majorThird: return cell.mode.intervals.contains(4)
@@ -307,7 +313,8 @@ extension DeskSettings {
     /// The ring for `degree` as these settings lay it, turned to nearness
     /// from `sounding`.
     public func ring(_ degree: Degree, near sounding: DeskChord? = nil) -> RingPie {
-        RingPie(ringArrangement, order: ringOrder, filter: ringFilter, key: key, degree: degree, near: sounding)
+        RingPie(ringArrangement, order: ringOrder, filter: ringFilter, key: key, degree: degree, near: sounding,
+                consonance: consonance)
     }
 
     /// The ring in brightness order, unfiltered: what Petals' triggers step

@@ -121,8 +121,12 @@ public struct Petals: Layout {
                     out += effect(button, settings: &settings, at: time)
                 } else {
                     let petal: Petal = isMarking ? .mark(Self.marks[button]!) : .height(Self.heights[button]!)
-                    presses.append((button, petal))
-                    out += line.strike(chord(petal, settings), level: 0.8, settings: settings, at: time)
+                    if let why = settings.consonance.refusal(of: chord(petal, settings), in: settings.key) {
+                        out.append(.refuse(why))
+                    } else {
+                        presses.append((button, petal))
+                        out += line.strike(chord(petal, settings), level: 0.8, settings: settings, at: time)
+                    }
                 }
             }
             if input.released(button), let at = presses.firstIndex(where: { $0.button == button }) {
@@ -131,11 +135,13 @@ public struct Petals: Layout {
             }
         }
 
-        // What sounds follows the hands: the press heard is the latest.
+        // What sounds follows the hands, as far as the guard lets it: the
+        // press heard is the latest.
         if let petal = presses.last?.petal {
-            out += line.change(to: chord(petal, settings), settings: settings)
+            if settings.playable(chord(petal, settings)) { out += line.change(to: chord(petal, settings), settings: settings) }
         } else if let held = line.chord, line.isSounding {
-            out += line.change(to: DeskChord(key: settings.key, degree: degree, color: held.spec.color), settings: settings)
+            let next = DeskChord(key: settings.key, degree: degree, color: held.spec.color)
+            if settings.playable(next) { out += line.change(to: next, settings: settings) }
         }
         out += line.bend(octaves: bend.octaves, roll: bend.roll, settings: settings)
         out += line.arpeggiate(arpeggio, settings: settings, at: time)
@@ -211,7 +217,7 @@ public struct Petals: Layout {
             case .mark(let mark): detail = "\(button.name) · \(mark.name)"
             }
             return Target(bearing: 180 + Double(index) * 90, name: chord.name, detail: detail,
-                          fit: chord.fit(in: settings.key), isAimed: button == heard)
+                          fit: chord.fit(in: settings.key), isAimed: button == heard, isHidden: !settings.playable(chord))
         }
     }
 

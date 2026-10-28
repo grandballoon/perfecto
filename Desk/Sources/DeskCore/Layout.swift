@@ -126,6 +126,6 @@ func degreeTargets(chosen: Degree, sounding: DeskChord?, settings: DeskSettings)
         return Target(bearing: DegreePie.gate.bearings[sector], name: chord.name,
                       detail: numeral(degree, in: settings.key), fit: .inKey,
                       isNear: chord.sharesTwo(with: sounding.map { DeskChord(key: $0.key, degree: $0.spec.degree) }),
-                      isAimed: degree == chosen)
+                      isAimed: degree == chosen, isHidden: !settings.playable(chord))
     }
 }

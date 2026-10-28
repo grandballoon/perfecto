@@ -54,11 +54,14 @@ public struct SoundCatalog: Equatable, Sendable {
 /// the sound library.
 public struct DeskMenu: Equatable, Sendable {
     public enum Row: CaseIterable, Sendable {
-        case layout, ring, ringOrder, ringFilter, lbLayer, chordSound, lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI
+        case layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, chordSound, lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI
 
         public var name: String {
             switch self {
             case .layout: "Layout"
+            case .consonance: "Consonance guard"
+            case .guardInKey: "Guard: key's notes only"
+            case .forgetRun: "Forget the run"
             case .ring: "Color ring"
             case .ringOrder: "Ring order"
             case .ringFilter: "Ring filter"
@@ -136,14 +139,17 @@ public struct Desk: Equatable, Sendable {
             return choose(all[(all.firstIndex(of: layout)! + 1) % all.count])
         }
         let key = settings.key
-        defer { if settings.key != key { settings.favorites.keyChanged(to: settings.key) } }
+        let out: [DeskEffect]
         switch layout {
-        case .twinRings: return twinRings.step(input, settings: &settings)
-        case .petals: return petals.step(input, settings: &settings)
-        case .neighbourhood: return neighbourhood.step(input, settings: &settings)
-        case .twoVoices: return twoVoices.step(input, settings: &settings)
-        case .arranger: return arranger.step(input, settings: &settings)
+        case .twinRings: out = twinRings.step(input, settings: &settings)
+        case .petals: out = petals.step(input, settings: &settings)
+        case .neighbourhood: out = neighbourhood.step(input, settings: &settings)
+        case .twoVoices: out = twoVoices.step(input, settings: &settings)
+        case .arranger: out = arranger.step(input, settings: &settings)
         }
+        if settings.key != key { settings.favorites.keyChanged(to: settings.key) }
+        settings.consonance.hear(out)
+        return out
     }
 
     /// The chord to pin: what the layout is sounding, or else what the
@@ -182,13 +188,16 @@ public struct Desk: Equatable, Sendable {
     }
 
     private mutating func releaseLayout() -> [DeskEffect] {
+        let out: [DeskEffect]
         switch layout {
-        case .twinRings: twinRings.releaseAll()
-        case .petals: petals.releaseAll()
-        case .neighbourhood: neighbourhood.releaseAll()
-        case .twoVoices: twoVoices.releaseAll()
-        case .arranger: arranger.releaseAll()
+        case .twinRings: out = twinRings.releaseAll()
+        case .petals: out = petals.releaseAll()
+        case .neighbourhood: out = neighbourhood.releaseAll()
+        case .twoVoices: out = twoVoices.releaseAll()
+        case .arranger: out = arranger.releaseAll()
         }
+        settings.consonance.hear(out)
+        return out
     }
 
     /// What every control does now.
@@ -267,6 +276,12 @@ public struct Desk: Equatable, Sendable {
         case .layout:
             let all = LayoutKind.allCases
             layout = all[((all.firstIndex(of: layout)! + steps) % all.count + all.count) % all.count]
+        case .consonance:
+            settings.moveGuard(by: steps)
+        case .guardInKey:
+            settings.consonance.inKey.toggle()
+        case .forgetRun:
+            settings.consonance.forgetRun()
         case .ring:
             settings.moveRingArrangement(by: steps)
         case .ringOrder:
@@ -327,6 +342,9 @@ public struct Desk: Equatable, Sendable {
     public func value(of row: DeskMenu.Row) -> String {
         switch row {
         case .layout: layout.name
+        case .consonance: settings.consonance.mode.name
+        case .guardInKey: settings.consonance.inKey ? "On" : "Off"
+        case .forgetRun: settings.consonance.recent.isEmpty ? "Nothing heard" : "A to forget"
         case .ring: settings.ringArrangement.name
         case .ringOrder: settings.ringOrder.name
         case .ringFilter: settings.ringFilter.name

@@ -28,8 +28,9 @@ final class DeskHost {
     private(set) var hasController = false
     /// The last rumble, shown as well as felt.
     private(set) var rumble: (Rumble, Double)?
-    /// A line about something just done (a file saved).
+    /// A line about something just done (a file saved, a chord refused).
     private(set) var notice: String?
+    @ObservationIgnored private var noticeTime = 0.0
 
     @ObservationIgnored private var live: Desk
     @ObservationIgnored private let audio = DeskAudio()
@@ -183,6 +184,12 @@ final class DeskHost {
                 audio.preview(sound: sound, notes: notes)
             case let .saveMIDI(bytes, name):
                 save(bytes, name: name)
+            case let .refuse(why):
+                gamepads.play(.refuse)
+                xbox360.play(.refuse)
+                rumble = (.refuse, ProcessInfo.processInfo.systemUptime)
+                notice = why
+                noticeTime = ProcessInfo.processInfo.systemUptime
             }
         }
     }
@@ -204,6 +211,10 @@ final class DeskHost {
         if live != desk { desk = live }
         if liveSounding != sounding { sounding = liveSounding }
         if let rumble, time - rumble.1 > 0.4 { self.rumble = nil }
+        if notice != nil, noticeTime > 0, time - noticeTime > 3 {
+            notice = nil
+            noticeTime = 0
+        }
         if lastSaved.map({ $0.0 != live.settings || $0.1 != live.layout }) ?? true {
             lastSaved = (live.settings, live.layout)
             Saved(settings: live.settings, layout: live.layout).store()

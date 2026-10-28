@@ -126,7 +126,9 @@ public struct Arranger: Layout {
         }
 
         // A: a beat's chord at the cursor.
-        if input.pressed(.a), writing == nil {
+        if input.pressed(.a), writing == nil, let why = settings.consonance.refusal(of: aimed(settings), in: settings.key) {
+            out.append(.refuse(why))
+        } else if input.pressed(.a), writing == nil {
             let chord = aimed(settings), at = cursor
             edit { $0.place(chord, at: at, length: 1) }
             cursor = wrap(cursor + 1)
@@ -136,6 +138,10 @@ public struct Arranger: Layout {
         for event in commit.step(input.frame.rightTrigger, at: time) {
             switch event {
             case .strike(let level):
+                if let why = settings.consonance.refusal(of: aimed(settings), in: settings.key) {
+                    out.append(.refuse(why))
+                    continue
+                }
                 let live = playhead != nil
                 let start = live ? wrap(grid.nearest(playhead!)) : cursor
                 writing = Writing(start: start, since: time, length: 0, isLive: live)
@@ -169,7 +175,7 @@ public struct Arranger: Layout {
                 ticked = beat
                 out.append(.rumble(.tick))
             }
-            out += line.change(to: aimed(settings), settings: settings)
+            if settings.playable(aimed(settings)) { out += line.change(to: aimed(settings), settings: settings) }
         }
 
         // LB and RB: the chord at the cursor shorter and longer.
@@ -203,7 +209,7 @@ public struct Arranger: Layout {
         if input.pressed(.b), writing == nil, let last = undo.popLast() { arrangement = last }
 
         // LT listens to the chord aimed, while nothing plays or is written.
-        let listening = input.frame.leftTrigger > 0.1 && playing == nil && writing == nil
+        let listening = input.frame.leftTrigger > 0.1 && playing == nil && writing == nil && settings.playable(aimed(settings))
         if listening {
             out += isAuditioning ? line.change(to: aimed(settings), settings: settings)
                 : line.strike(aimed(settings), level: 0.3 + 0.6 * input.frame.leftTrigger, settings: settings, at: time)

@@ -67,7 +67,13 @@ public struct Neighbourhood: Layout {
         }
 
         if input.pressed(.b) { out += line.release() }
-        if input.pressed(.a) { out += line.strike(centre, level: swell, brightness: brightness, settings: settings, at: time) }
+        if input.pressed(.a) {
+            if let why = settings.consonance.refusal(of: centre, in: settings.key) {
+                out.append(.refuse(why))
+            } else {
+                out += line.strike(centre, level: swell, brightness: brightness, settings: settings, at: time)
+            }
+        }
         if input.pressed(.x) { out += move(to: DeskChord(key: settings.key, degree: .I), settings, at: time) }
         if input.pressed(.lb) || input.pressed(.rb) {
             let lenses = Lens.allCases
@@ -92,7 +98,9 @@ public struct Neighbourhood: Layout {
         if pathArmed, abs(left.x) > 0.7, abs(left.x) > abs(left.y) {
             pathArmed = false
             let next = pathIndex + (left.x > 0 ? 1 : -1)
-            if path.indices.contains(next) {
+            if path.indices.contains(next), let why = settings.consonance.refusal(of: path[next], in: settings.key) {
+                out.append(.refuse(why))
+            } else if path.indices.contains(next) {
                 pathIndex = next
                 centre = path[next]
                 out += line.strike(centre, level: swell, brightness: brightness, settings: settings, at: time)
@@ -103,7 +111,9 @@ public struct Neighbourhood: Layout {
         // The right stick: a neighbour, or with Y held a bookmark.
         if input.pressed(.y) || input.released(.y) { out += endAudition(settings) }
         isOnPalette = input.isDown(.y)
-        let targets = isOnPalette ? palette : neighbours(settings).map { $0?.chord }
+        // What the guard will not play cannot be reached.
+        let targets = (isOnPalette ? palette : neighbours(settings).map { $0?.chord })
+            .map { $0.flatMap { settings.playable($0) ? $0 : nil } }
         for event in gesture.step(input.frame.right, gate: Self.gate, at: time) {
             switch event {
             case .aim(let index):
@@ -139,6 +149,7 @@ public struct Neighbourhood: Layout {
     /// Makes `chord` the centre, on the path after where the centre was,
     /// and strikes it.
     private mutating func move(to chord: DeskChord, _ settings: DeskSettings, at time: Double) -> [DeskEffect] {
+        if let why = settings.consonance.refusal(of: chord, in: settings.key) { return [.refuse(why)] }
         centre = chord
         path = Array(path.prefix(pathIndex + 1)) + [chord]
         pathIndex = path.count - 1
@@ -197,12 +208,14 @@ public struct Neighbourhood: Layout {
         if isOnPalette {
             return palette.enumerated().map { index, chord in
                 chord.map { Target(bearing: Self.gate.bearings[index], name: $0.name, detail: "bookmark \(index + 1)",
-                                   fit: $0.fit(in: settings.key), isAimed: index == audition) }
+                                   fit: $0.fit(in: settings.key), isAimed: index == audition,
+                                   isHidden: !settings.playable($0)) }
             }
         }
         return neighbours(settings).enumerated().map { index, neighbour in
             neighbour.map { Target(bearing: Self.gate.bearings[index], name: $0.chord.name, detail: $0.move,
-                                   fit: $0.chord.fit(in: settings.key), isAimed: index == audition) }
+                                   fit: $0.chord.fit(in: settings.key), isAimed: index == audition,
+                                   isHidden: !settings.playable($0.chord)) }
         }
     }
 

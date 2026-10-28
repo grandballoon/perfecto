@@ -180,8 +180,11 @@ public struct TwinRings: Layout {
             degreeSector = DegreePie.gate.select(input.frame.left, from: degreeSector)
             if let degreeSector, input.frame.left.radius >= PieGate.rest {
                 let chosen = DegreePie.degree(at: degreeSector)
-                if chosen != degree { walked = nil }
-                degree = chosen
+                // A degree whose chord the guard will not play is not chosen.
+                if chosen != degree, allows({ $0.degree = chosen; $0.walked = nil }, settings) {
+                    walked = nil
+                    degree = chosen
+                }
             }
         }
 
@@ -191,9 +194,10 @@ public struct TwinRings: Layout {
             for event in favorites.step(input.frame.right, gate: Self.favoritesGate, at: time) {
                 y.use()
                 switch event {
-                case .aim(let index): favoriteAim = index < count ? index : nil
+                case .aim(let index):
+                    favoriteAim = index < count && allows({ $0.favoriteAim = index }, settings) ? index : nil
                 case .flick(let index):
-                    guard index < count else { continue }
+                    guard index < count, allows({ $0.favoriteAim = index }, settings) else { continue }
                     keptFavorite = keptFavorite == index ? nil : index
                     favoriteAim = nil
                     out.append(.rumble(.bump))
@@ -207,8 +211,9 @@ public struct TwinRings: Layout {
             for event in compass.step(input.frame.right, gate: CompassPie.gate, at: time) {
                 lb.use()
                 switch event {
-                case .aim(let place): compassAim = place
+                case .aim(let place): compassAim = allows({ $0.compassAim = place }, settings) ? place : nil
                 case .flick(let place):
+                    guard allows({ $0.compassAim = place }, settings) else { continue }
                     keptStep = keptStep == place ? nil : place
                     compassAim = nil
                     out.append(.rumble(.bump))
@@ -245,6 +250,10 @@ public struct TwinRings: Layout {
         for event in strike.step(input.frame.rightTrigger, at: time) {
             switch event {
             case .strike(let level):
+                if let why = settings.consonance.refusal(of: chord(settings), in: settings.key) {
+                    out.append(.refuse(why))
+                    continue
+                }
                 struckLevel = level
                 struck = chord(settings)
                 out += line.strike(struck!, level: level, brightness: 1, settings: settings, at: time)
@@ -259,6 +268,8 @@ public struct TwinRings: Layout {
                 // Y + A pins the chord the hands are on.
                 y.use()
                 out.append(.rumble(settings.favorites.pin(chord(settings), in: settings.key) ? .bump : .tick))
+            } else if let why = settings.consonance.refusal(of: chord(settings), in: settings.key) {
+                out.append(.refuse(why))
             } else {
                 struck = chord(settings)
                 out += line.strike(struck!, level: 0.8, settings: settings, at: time)
@@ -266,8 +277,8 @@ public struct TwinRings: Layout {
         }
         if input.released(.a), !holds, !strike.isHeld { out += line.release() }
 
-        // What sounds follows the hands.
-        out += line.change(to: chord(settings), settings: settings)
+        // What sounds follows the hands, as far as the guard lets it.
+        if settings.playable(chord(settings)) { out += line.change(to: chord(settings), settings: settings) }
         if revoiced { out += line.revoice(settings) }
 
         // LT: the arpeggio, off and then faster as it is pulled.
@@ -405,6 +416,13 @@ public struct TwinRings: Layout {
         return out
     }
 
+    /// Whether the guard would play the chord the hands would be on after `change`.
+    private func allows(_ change: (inout TwinRings) -> Void, _ settings: DeskSettings) -> Bool {
+        var changed = self
+        change(&changed)
+        return settings.playable(changed.chord(settings))
+    }
+
     private mutating func letGoOfVoices() {
         voices.reset()
         bass.reset()
@@ -429,7 +447,7 @@ public struct TwinRings: Layout {
                     return Target(bearing: bearing, name: "·", detail: VoiceLeading.names[direction], isHidden: true)
                 }
                 return Target(bearing: bearing, name: chord.name, detail: shell == 1 ? VoiceLeading.names[direction] : "",
-                              fit: chord.fit(in: settings.key), isAimed: move == voiceAim)
+                              fit: chord.fit(in: settings.key), isAimed: move == voiceAim, isHidden: !settings.playable(chord))
             }
         }
         return (targets(1), targets(2))
@@ -447,7 +465,7 @@ public struct TwinRings: Layout {
                 return Target(bearing: direction == 0 ? 0 : 180, name: "·", detail: detail, isHidden: true)
             }
             return Target(bearing: direction == 0 ? 0 : 180, name: chord.name, detail: detail,
-                          fit: chord.fit(in: settings.key), isAimed: move == bassAim)
+                          fit: chord.fit(in: settings.key), isAimed: move == bassAim, isHidden: !settings.playable(chord))
         }
     }
 
@@ -480,7 +498,7 @@ public struct TwinRings: Layout {
             let chord = DeskChord(key: settings.key, degree: degree, color: pinned[index])
             return Target(bearing: Self.favoritesGate.bearings[index], name: chord.name, detail: "\(index + 1)",
                           fit: chord.fit(in: settings.key), isAimed: index == favoriteAim,
-                          isKept: index == keptFavorite)
+                          isKept: index == keptFavorite, isHidden: !settings.playable(chord))
         }
     }
 
@@ -495,7 +513,7 @@ public struct TwinRings: Layout {
             return Target(bearing: CompassPie.gate.bearings[index], name: chord?.name ?? "—",
                           detail: CompassPie.edit(at: index, from: from, ranking: settings.ranking) ?? "",
                           fit: chord?.fit(in: settings.key) ?? .inKey, isAimed: index == compassAim,
-                          isKept: index == keptStep)
+                          isKept: index == keptStep, isHidden: chord.map { !settings.playable($0) } ?? false)
         }
     }
 
@@ -532,7 +550,8 @@ extension VoiceMove {
     /// The consonant chord this move makes from `chord`'s notes, if there is one.
     func chord(from chord: DeskChord, _ settings: DeskSettings, bass: Bool) -> DeskChord? {
         let notes = chord.notes(settings)
-        return bass ? VoiceLeading.bassNeighbour(of: notes, by: self, in: settings.key)
+        let next = bass ? VoiceLeading.bassNeighbour(of: notes, by: self, in: settings.key)
             : VoiceLeading.neighbour(of: notes, by: self, in: settings.key)
+        return next.flatMap { settings.playable($0) ? $0 : nil }
     }
 }

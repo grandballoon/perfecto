@@ -65,11 +65,13 @@ public struct DeskSettings: Equatable, Codable, Sendable {
     public var favorites = Favorites()
     /// What LB puts on the sticks in Twin rings.
     public var lbLayer = LBLayer.compass
+    /// Which chords and notes can be played, and what the guard has heard.
+    public var consonance = ConsonanceGuard()
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, ringOrder, ringFilter, grid, favorites, lbLayer
+        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, ringOrder, ringFilter, grid, favorites, lbLayer, consonance
     }
 
     /// Each setting as it was kept, and any kept before it existed as it
@@ -94,6 +96,7 @@ public struct DeskSettings: Equatable, Codable, Sendable {
         read(.grid, &grid)
         read(.favorites, &favorites)
         read(.lbLayer, &lbLayer)
+        read(.consonance, &consonance)
     }
 
     /// The ring laid the next way round (`steps` < 0, the way before).
@@ -226,6 +229,8 @@ public enum Rumble: Equatable, Sendable {
     case tick
     /// A move made: a chord changed by a flick, a key changed.
     case bump
+    /// A move refused: what was asked for is not playable now.
+    case refuse
 }
 
 /// What a layout asks the shell to do.
@@ -243,6 +248,8 @@ public enum DeskEffect: Equatable, Sendable {
     case preview(sound: String, notes: [Int])
     /// Save `file`'s bytes as a Standard MIDI File called `name`.
     case saveMIDI(bytes: [UInt8], name: String)
+    /// Something asked for was not played, and why: shown, and felt as `Rumble.refuse`.
+    case refuse(String)
 }
 
 /// The rates an arpeggio can step at, in beats a note.
