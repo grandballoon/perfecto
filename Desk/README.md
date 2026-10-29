@@ -106,6 +106,31 @@ Over MIDI the drums are on channel 10, as General MIDI has them (36 the kick, 38
 
 The kit is made in code (`Sources/PerfectoDrumKit`), not recorded: a kick (played higher, it is the toms), a snare, a hi-hat (shut short, the closed hat; left to ring, the open one) and a clap.
 
+#### The timeline
+
+A bar along the top of Face Chords records what is played, layer over layer, plays it back, and edits it.
+RT held is the timeline's hand, as LT is the chords' second layer: a button pressed while RT is held is the timeline's until it is let go, so it never strikes a chord.
+It leaves R3 and LB to the second voice and L3 and RB to the drums.
+
+- **RT + A** records a new layer, with every other layer playing along; again, it stops recording.
+  The first take starts where its first chord was played, so there is no silence before it.
+- **RT + X** plays, and stops; both start from the chords chosen, or from the top.
+- **RT + ← →** choose the chord before or after; with LT held too, they stretch the choice over several.
+  **RT + ↑ ↓** choose the layer.
+- **With chords chosen, a chord played is written into them**, each at its own time: the progression changes and its rhythm does not.
+- **RT + Y** loops the span chosen, its ends on the nearest beats: the layer repeats it for as long as the song plays, in step with where it was recorded, and its chords can still be chosen and changed.
+  With nothing chosen it ends the loop.
+- **RT + B** quantizes the chords chosen (with none, the whole layer) to the grid (Menu › Arranger grid; a sixteenth with none).
+- **RT + right stick**: left and right nudge the chords chosen a 32nd of a beat earlier or later, again and again while held (by a line of the grid with LT); up mutes the layer; down deletes the chords chosen.
+- **RT + left stick**: left undoes, right redoes.
+- **RT tapped alone** lets go of the choice.
+
+A chord changed without letting go stays joined to the next through every edit, so a progression played legato stays legato.
+A song with a loop in it plays until it is stopped; one without stops at its end.
+The mouse does the same from the bar: its buttons, a click on a chord to choose it (Shift stretches the choice), on a layer's number to choose the layer, and on its M to mute it.
+The timeline stops when the desk goes to another layout and plays on under the menu.
+Its playback goes to the kernel's sound only, not yet to MIDI, and it records the chords alone, not yet the drums or the second voice.
+
 ### Twin rings
 
 The recommended model.
@@ -240,6 +265,8 @@ The layouts are a functional core with an imperative shell.
   Each layout is a `Layout`, stepped by frames against the `DeskSettings` they share, and every chord is a `DeskChord` voiced by the theory core's `computeVoicing`.
   Its tests script frames and check the effects by equality.
 - What the screen shows is a value too, made by the C++ core (`scene.hpp`), so the Godot desk's scripts only draw it.
+- The timeline is a core of the C++ desk alone, beside `Desk` and not inside it, so the desk the parity test plays is unchanged: the song and its edits are values (`song.hpp`: layers of events, loops, nudge, quantize, rechord), the hands and the transport are `Timeline` (`timeline.hpp`), and `Studio` (`studio.hpp`) composes the two, handing the desk each frame without what RT holds and the timeline what the desk sounds.
+  What plays back is worked out 50 ms ahead and stamped with the moment it sounds, and the shell puts each on its kernel frame.
 - The Godot desk's shell is `godot/extension` (`PerfectoDesk`, in C++), which reads the controller and the keyboard through Godot, steps the C++ core, and plays its effects on the kernel, MIDI and the motors (`godot/README.md`).
 - The Mac desk's shell is `Sources/PerfectoDesk`: `DeskHost` reads the controllers 250 times a second, merges them into one frame, steps the desk, and performs its effects on `DeskAudio` (the kernel's Audio Unit, with every preset loaded), `DeskMIDI` and the controllers' motors.
   The screen is shown the desk at most 60 times a second, and only when it has changed.

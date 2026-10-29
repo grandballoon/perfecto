@@ -44,7 +44,7 @@ const char *name(desk::ChordFit fit) {
     return "in_key";
 }
 
-constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 10> actionNames = {{
+constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 22> actionNames = {{
     {desk::Action::Kind::chooseLayout, "choose_layout"},
     {desk::Action::Kind::toggleMenu, "toggle_menu"},
     {desk::Action::Kind::arrangeRing, "arrange_ring"},
@@ -55,6 +55,18 @@ constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 10> action
     {desk::Action::Kind::renameTable, "rename_table"},
     {desk::Action::Kind::playTable, "play_table"},
     {desk::Action::Kind::setKeyDefault, "set_key_default"},
+    {desk::Action::Kind::record, "timeline_record"},
+    {desk::Action::Kind::play, "timeline_play"},
+    {desk::Action::Kind::loop, "timeline_loop"},
+    {desk::Action::Kind::quantize, "timeline_quantize"},
+    {desk::Action::Kind::erase, "timeline_erase"},
+    {desk::Action::Kind::undo, "timeline_undo"},
+    {desk::Action::Kind::redo, "timeline_redo"},
+    {desk::Action::Kind::chooseLane, "timeline_choose_lane"},
+    {desk::Action::Kind::muteLane, "timeline_mute_lane"},
+    {desk::Action::Kind::selectEvent, "timeline_select"},
+    {desk::Action::Kind::stretchChoice, "timeline_stretch"},
+    {desk::Action::Kind::deselect, "timeline_deselect"},
 }};
 
 const char *name(desk::Action::Kind kind) {
@@ -91,6 +103,10 @@ Variant v(const desk::FavoritesView::Table &table);
 Variant v(const desk::FavoritesView::Degree &degree);
 Variant v(const desk::MenuView::Row &row);
 Variant v(const desk::MenuView::Library::Category &category);
+Variant v(const desk::TimelineBar::Block &block);
+Variant v(const desk::TimelineBar::Lane &lane);
+Variant v(const desk::TimelineBar::Control &control);
+Variant v(const desk::TimelineBar &bar);
 
 template <class T> Variant v(const std::vector<T> &values);
 
@@ -401,6 +417,58 @@ Variant v(const desk::MenuView &menu) {
     return d;
 }
 
+Variant v(const desk::TimelineBar::Block &block) {
+    Dictionary d;
+    d["id"] = block.id;
+    d["from"] = block.from;
+    d["to"] = block.to;
+    d["name"] = text(block.name);
+    d["channel"] = block.channel;
+    d["chosen"] = block.isChosen;
+    d["heard"] = block.isHeard;
+    d["echo"] = block.isEcho;
+    d["left_out"] = block.isLeftOut;
+    return d;
+}
+
+Variant v(const desk::TimelineBar::Lane &lane) {
+    Dictionary d;
+    d["id"] = lane.id;
+    d["name"] = text(lane.name);
+    d["blocks"] = v(lane.blocks);
+    d["loop"] = v(lane.loop);
+    d["muted"] = lane.isMuted;
+    d["chosen"] = lane.isChosen;
+    d["recording"] = lane.isRecording;
+    return d;
+}
+
+Variant v(const desk::TimelineBar::Control &control) {
+    Dictionary action;
+    action["kind"] = name(control.action.kind);
+    Dictionary d;
+    d["label"] = text(control.label);
+    d["keys"] = text(control.keys);
+    d["lit"] = control.isLit;
+    d["enabled"] = control.isEnabled;
+    d["action"] = action;
+    return d;
+}
+
+Variant v(const desk::TimelineBar &bar) {
+    Dictionary d;
+    d["from"] = bar.from;
+    d["to"] = bar.to;
+    d["beats_per_bar"] = bar.beatsPerBar;
+    d["playhead"] = v(bar.playhead);
+    d["lanes"] = v(bar.lanes);
+    d["controls"] = v(bar.controls);
+    d["status"] = text(bar.status);
+    d["status_tint"] = v(bar.statusTint);
+    d["hint"] = text(bar.hint);
+    return d;
+}
+
 } // namespace
 
 Dictionary sceneVariant(const desk::Scene &scene) {
@@ -435,6 +503,7 @@ Dictionary sceneVariant(const desk::Scene &scene) {
     d["hand"] = hand;
     d["favorites"] = favorites;
     d["menu"] = scene.menu ? v(*scene.menu) : Variant();
+    d["timeline"] = v(scene.timeline);
     return d;
 }
 

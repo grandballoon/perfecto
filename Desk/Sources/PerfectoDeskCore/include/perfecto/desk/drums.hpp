@@ -8,7 +8,7 @@
 // frame however unevenly the desk is stepped.
 //
 // It has no Swift original: the drums are the Godot desk's alone, played
-// beside the desk (`Band`) and not inside it, so the desk the parity test
+// beside the desk (`Studio`) and not inside it, so the desk the parity test
 // plays is unchanged.
 
 #ifndef PERFECTO_DESK_DRUMS_HPP

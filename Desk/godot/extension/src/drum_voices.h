@@ -40,8 +40,9 @@ private:
     int firstSound_;
     /// The notes each drum has struck that may still sound, by their ids.
     std::map<perfecto::desk::Drum, std::vector<int64_t>> sounding_;
-    /// Drum notes' ids, far from the desk's lines' (`DeskVoices`).
-    int64_t lastID_ = int64_t(1) << 40;
+    /// Drum notes' ids, far from the desk's lines' (`DeskVoices`) and the
+    /// timeline's tracks' (`TimelineVoices`, from 1 << 40).
+    int64_t lastID_ = int64_t(1) << 41;
 };
 
 } // namespace perfecto_godot

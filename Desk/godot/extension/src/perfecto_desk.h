@@ -1,14 +1,16 @@
-// The desk in Godot: it holds the `Band` (the desk and the drums), gives it a
-// frame from the controller and the keyboard each time it is stepped, and
-// performs what it returns, its notes and drums on the kernel and MIDI and
-// its rumbles on the controller's motors. Everything it decides is the core's; the scripts
-// draw the scene it shows and hand over what is left to them (a notice, a
-// file to save).
+// The desk in Godot: it holds the `Studio` (the desk, the drums and the
+// timeline), gives it a frame from the controller and the keyboard each time
+// it is stepped, and performs what it returns, its notes, drums and the
+// timeline's playback on the kernel and MIDI, and its rumbles on the
+// controller's motors. Everything it decides is the core's; the scripts draw
+// the scene it shows and hand over what is left to them (a notice, a file to
+// save).
 //
-//     desk.gd ── step() ──→ PerfectoDesk ── frame ──→ perfecto::desk::Band
+//     desk.gd ── step() ──→ PerfectoDesk ── frame ──→ perfecto::desk::Studio
 //        ↑                    │   ↑                          │
 //        └── scene(), the     │   └──────── effects ─────────┘
 //            effects left     ├─→ DeskVoices, DrumVoices → PerfectoStream (the kernel)
+//                             ├─→ TimelineVoices → PerfectoStream
 //                             ├─→ DeskMidi ("Perfecto Desk")
 //                             └─→ Input (rumble)
 
@@ -19,9 +21,10 @@
 #include "desk_voices.h"
 #include "drum_voices.h"
 #include "perfecto_stream.h"
+#include "timeline_voices.h"
 
-#include <perfecto/desk/band.hpp>
 #include <perfecto/desk/scene.hpp>
+#include <perfecto/desk/studio.hpp>
 
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/variant/array.hpp>
@@ -78,10 +81,11 @@ protected:
     static void _bind_methods();
 
 private:
-    std::optional<perfecto::desk::Band> band_;
+    std::optional<perfecto::desk::Studio> studio_;
     godot::Ref<PerfectoStream> stream_;
     std::unique_ptr<DeskVoices> voices_;
     std::unique_ptr<DrumVoices> drums_;
+    std::unique_ptr<TimelineVoices> timelineVoices_;
     std::unique_ptr<DeskMidi> midi_;
     std::map<perfecto::desk::Line, std::vector<int>> sounding_;
     std::optional<int> device_;
@@ -92,7 +96,7 @@ private:
 
     double now() const;
     perfecto::desk::GamepadFrame frame(double time, bool keyboard);
-    godot::Array play(const perfecto::desk::Band::Played &played, double time);
+    godot::Array play(const perfecto::desk::Studio::Played &played, double time);
     void drum(const perfecto::desk::DrumEffect &effect, double time);
     void settingsChanged(const perfecto::desk::DeskSettings &before);
     void rumble(perfecto::desk::Rumble kind, double time);

@@ -1,11 +1,11 @@
 // The drums: patterns, the machine that plays them in time, the hands that
-// play them in Face Chords, and the band that plays them beside the desk.
+// play them in Face Chords, and the studio that plays them beside the desk.
 
 #include <doctest.h>
 
-#include "perfecto/desk/band.hpp"
 #include "perfecto/desk/drums.hpp"
 #include "perfecto/desk/scene.hpp"
+#include "perfecto/desk/studio.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -354,63 +354,63 @@ TEST_CASE("the legend says what the drums' controls do") {
 
 } // TEST_SUITE
 
-TEST_SUITE("Band") {
+TEST_SUITE("Studio · drums") {
 
 TEST_CASE("in Face Chords the drum pads strike drums, not chords") {
-    Band band(Desk(catalog, DeskSettings(), LayoutKind::faceChords));
-    CHECK(band.reachable());
-    band.step(frame(1, {PadButton::rb}));
-    const auto pad = band.step(frame(1.1, {PadButton::rb, PadButton::a}));
+    Studio studio(Desk(catalog, DeskSettings(), LayoutKind::faceChords));
+    CHECK(studio.reachable());
+    studio.step(frame(1, {PadButton::rb}));
+    const auto pad = studio.step(frame(1.1, {PadButton::rb, PadButton::a}));
     CHECK_FALSE(strikesChords(pad.effects));
     CHECK(pad.drums == std::vector<DrumEffect>{DrumEffect::hit(Drum::kick, 0.9, 1.1)});
-    band.step(frame(1.2));
-    CHECK(strikesChords(band.step(frame(1.3, {PadButton::a})).effects));
+    studio.step(frame(1.2));
+    CHECK(strikesChords(studio.step(frame(1.3, {PadButton::a})).effects));
 }
 
 TEST_CASE("in Face Chords the toms' LT leaves a held chord as it is") {
-    Band band(Desk(catalog, DeskSettings(), LayoutKind::faceChords));
-    band.step(frame(1, {PadButton::b}));
-    CHECK(band.desk().faceChords().heard()->second == perfecto::theory::Degree::IV);
-    band.step(frame(1.1, {PadButton::b, PadButton::rb}));
-    const auto toms = band.step(frame(1.2, {PadButton::b, PadButton::rb}, 0.9));
+    Studio studio(Desk(catalog, DeskSettings(), LayoutKind::faceChords));
+    studio.step(frame(1, {PadButton::b}));
+    CHECK(studio.desk().faceChords().heard()->second == perfecto::theory::Degree::IV);
+    studio.step(frame(1.1, {PadButton::b, PadButton::rb}));
+    const auto toms = studio.step(frame(1.2, {PadButton::b, PadButton::rb}, 0.9));
     CHECK_FALSE(strikesChords(toms.effects));
-    CHECK(band.desk().faceChords().heard()->second == perfecto::theory::Degree::IV);
+    CHECK(studio.desk().faceChords().heard()->second == perfecto::theory::Degree::IV);
 }
 
 TEST_CASE("the beat plays on under the menu, and stops with another layout") {
-    Band band(Desk(catalog, DeskSettings(), LayoutKind::faceChords));
-    band.step(frame(1, {PadButton::l3}));
-    band.step(frame(1.1));
-    band.step(frame(1.2, {PadButton::start}));
-    CHECK(band.desk().menu().has_value());
-    CHECK_FALSE(band.reachable());
-    CHECK(band.drums().machine().isPlaying());
-    CHECK_FALSE(band.step(frame(1.6)).drums.empty());
-    band.step(frame(1.7, {PadButton::start}));
-    band.step(frame(1.8));
-    band.step(frame(1.9, {PadButton::back}));
-    CHECK(band.desk().layout() == LayoutKind::twinRings);
-    CHECK_FALSE(band.drums().machine().isPlaying());
+    Studio studio(Desk(catalog, DeskSettings(), LayoutKind::faceChords));
+    studio.step(frame(1, {PadButton::l3}));
+    studio.step(frame(1.1));
+    studio.step(frame(1.2, {PadButton::start}));
+    CHECK(studio.desk().menu().has_value());
+    CHECK_FALSE(studio.reachable());
+    CHECK(studio.drums().machine().isPlaying());
+    CHECK_FALSE(studio.step(frame(1.6)).drums.empty());
+    studio.step(frame(1.7, {PadButton::start}));
+    studio.step(frame(1.8));
+    studio.step(frame(1.9, {PadButton::back}));
+    CHECK(studio.desk().layout() == LayoutKind::twinRings);
+    CHECK_FALSE(studio.drums().machine().isPlaying());
 }
 
 TEST_CASE("a layout chosen by the mouse stops the beat, and so does letting go") {
-    Band band(Desk(catalog, DeskSettings(), LayoutKind::faceChords));
-    band.step(frame(1, {PadButton::l3}));
-    band.choose(LayoutKind::petals);
-    CHECK_FALSE(band.drums().machine().isPlaying());
-    band.choose(LayoutKind::faceChords);
-    band.step(frame(2));
-    band.step(frame(2.1, {PadButton::l3}));
-    CHECK(band.drums().machine().isPlaying());
-    band.letGo();
-    CHECK_FALSE(band.drums().machine().isPlaying());
+    Studio studio(Desk(catalog, DeskSettings(), LayoutKind::faceChords));
+    studio.step(frame(1, {PadButton::l3}));
+    studio.choose(LayoutKind::petals);
+    CHECK_FALSE(studio.drums().machine().isPlaying());
+    studio.choose(LayoutKind::faceChords);
+    studio.step(frame(2));
+    studio.step(frame(2.1, {PadButton::l3}));
+    CHECK(studio.drums().machine().isPlaying());
+    studio.letGo();
+    CHECK_FALSE(studio.drums().machine().isPlaying());
 }
 
 TEST_CASE("the screen shows the beat under Face Chords, and the pads while RB is held") {
-    Band band(Desk(catalog, DeskSettings(), LayoutKind::faceChords));
-    band.step(frame(1, {PadButton::l3}));
-    band.step(frame(1.13));
-    auto shown = scene(band, false);
+    Studio studio(Desk(catalog, DeskSettings(), LayoutKind::faceChords));
+    studio.step(frame(1, {PadButton::l3}));
+    studio.step(frame(1.13));
+    auto shown = scene(studio, false);
     const auto &panel = shown.stage.at(0);
     const auto captions = items<Caption>(panel);
     CHECK(captions.back().title == "Drums");
@@ -429,8 +429,8 @@ TEST_CASE("the screen shows the beat under Face Chords, and the pads while RB is
     CHECK(std::any_of(shown.hand.right.begin(), shown.hand.right.end(),
                       [](const auto &e) { return e.mark == "RB" && e.text == "Hold: drum pads"; }));
 
-    band.step(frame(1.2, {PadButton::rb, PadButton::x}));
-    shown = scene(band, false);
+    studio.step(frame(1.2, {PadButton::rb, PadButton::x}));
+    shown = scene(studio, false);
     const auto pads = items<Faces>(shown.stage.at(0)).at(0);
     CHECK(pads.faces[1] == Faces::Face{PadButton::x, 270, "Closed hat", "", "+LT Mid tom", true, false});
     CHECK(pads.detail == "Drum pads");
@@ -440,10 +440,31 @@ TEST_CASE("the screen shows the beat under Face Chords, and the pads while RB is
                       [](const auto &e) { return e.mark == "X" && e.isHeld && e.text == "Closed hat"; }));
 }
 
+TEST_CASE("the drums take their buttons before the timeline, and the hand shows both") {
+    Studio studio(Desk(catalog, DeskSettings(), LayoutKind::faceChords));
+    studio.step(frame(1));
+    // RB and RT held, and A: a kick, and no take begins.
+    GamepadFrame kick = frame(1.1, {PadButton::rb, PadButton::a});
+    kick.rightTrigger = 1;
+    CHECK(studio.step(kick).drums == std::vector<DrumEffect>{DrumEffect::hit(Drum::kick, 0.9, 1.1)});
+    CHECK_FALSE(studio.timeline().recording());
+    studio.step(frame(1.2));
+    // RT and A without RB: the timeline records.
+    GamepadFrame record = frame(1.3, {PadButton::a});
+    record.rightTrigger = 1;
+    studio.step(record);
+    CHECK(studio.timeline().recording());
+    const auto shown = scene(studio, false);
+    CHECK(shown.timeline.has_value());
+    CHECK(std::any_of(shown.hand.right.begin(), shown.hand.right.end(),
+                      [](const auto &e) { return e.mark == "RB" && e.text == "Hold: drum pads"; }));
+    CHECK(std::any_of(shown.hand.right.begin(), shown.hand.right.end(), [](const auto &e) { return e.mark == "RT"; }));
+}
+
 TEST_CASE("in another layout the screen has no drums") {
-    Band band(Desk(catalog, DeskSettings(), LayoutKind::twinRings));
-    CHECK_FALSE(band.reachable());
-    for (const auto &panel : scene(band, false).stage)
+    Studio studio(Desk(catalog, DeskSettings(), LayoutKind::twinRings));
+    CHECK_FALSE(studio.reachable());
+    for (const auto &panel : scene(studio, false).stage)
         for (const auto &caption : items<Caption>(panel)) CHECK(caption.title != "Drums");
 }
 

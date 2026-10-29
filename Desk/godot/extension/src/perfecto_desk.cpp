@@ -83,14 +83,15 @@ void PerfectoDesk::setup(const Ref<PerfectoStream> &stream, const Array &presets
     stream_ = stream;
     voices_ = std::make_unique<DeskVoices>(stream, numbers);
     drums_ = std::make_unique<DrumVoices>(stream, int(presets.size()));
+    timelineVoices_ = std::make_unique<TimelineVoices>(stream, numbers);
     midi_ = std::make_unique<DeskMidi>();
-    band_.emplace(desk::Desk(desk::SoundCatalog(categories), desk::DeskSettings(), desk::LayoutKind::faceChords));
-    voices_->setTempo(band_->desk().settings.tempo);
+    studio_.emplace(desk::Desk(desk::SoundCatalog(categories), desk::DeskSettings(), desk::LayoutKind::faceChords));
+    voices_->setTempo(studio_->desk().settings.tempo);
     shown_.reset();
 }
 
 void PerfectoDesk::set_face_map(const Dictionary &plain, const Dictionary &layered) {
-    if (!band_) return;
+    if (!studio_) return;
     namespace theory = perfecto::theory;
     // Godot's joypad buttons A, B, X and Y are 0 to 3.
     static constexpr std::array<desk::PadButton, 4> faces = {desk::PadButton::a, desk::PadButton::b,
@@ -106,7 +107,7 @@ void PerfectoDesk::set_face_map(const Dictionary &plain, const Dictionary &layer
         }
         return degrees;
     };
-    band_->setFaceMap({layer(plain), layer(layered)});
+    studio_->setFaceMap({layer(plain), layer(layered)});
 }
 
 desk::GamepadFrame PerfectoDesk::frame(double time, bool keyboard) {
@@ -137,7 +138,7 @@ desk::GamepadFrame PerfectoDesk::frame(double time, bool keyboard) {
 }
 
 Array PerfectoDesk::step(bool keyboard) {
-    if (!band_) return {};
+    if (!studio_) return {};
     const double time = now();
     followRenders();
     voices_->tick(time);
@@ -145,24 +146,38 @@ Array PerfectoDesk::step(bool keyboard) {
         knock_.reset();
         if (device_) Input::get_singleton()->start_joy_vibration(*device_, 0, 0.6f, 0.05f);
     }
-    const auto before = band_->desk().settings;
-    const Array out = play(band_->step(frame(time, keyboard)), time);
+    const auto before = studio_->desk().settings;
+    const Array out = play(studio_->step(frame(time, keyboard)), time);
     settingsChanged(before);
     return out;
 }
 
 Array PerfectoDesk::perform(const Dictionary &dictionary) {
     const auto action = actionOf(dictionary);
-    if (!band_ || !action) return {};
-    const auto before = band_->desk().settings;
-    const Array out = play(band_->perform(*action), now());
+    if (!studio_ || !action) return {};
+    const auto before = studio_->desk().settings;
+    const Array out = play(studio_->perform(*action), now());
     settingsChanged(before);
     return out;
 }
 
-Array PerfectoDesk::play(const desk::Band::Played &played, double time) {
+Array PerfectoDesk::play(const desk::Studio::Played &played, double time) {
     Array out;
-    const auto output = band_->desk().settings.output;
+    const auto output = studio_->desk().settings.output;
+    for (const auto &effect : played.playback) {
+        std::visit(
+            [&](const auto &e) {
+                using T = std::decay_t<decltype(e)>;
+                if constexpr (std::is_same_v<T, desk::TimelineEffect::Sound>) {
+                    if (desk::sounds(output)) timelineVoices_->sound(e.track, e.notes, e.sound, e.level, e.time - time);
+                } else if constexpr (std::is_same_v<T, desk::TimelineEffect::Silence>) {
+                    timelineVoices_->silence(e.track, e.time - time);
+                } else {
+                    timelineVoices_->silenceAll();
+                }
+            },
+            effect.value());
+    }
     for (const auto &effect : played.drums) drum(effect, time);
     for (const auto &effect : played.effects) {
         std::visit(
@@ -212,7 +227,7 @@ Array PerfectoDesk::play(const desk::Band::Played &played, double time) {
 /// A drum's hit or choke, on the kernel and MIDI as the output says, placed
 /// as far ahead of `time` as the core gave it.
 void PerfectoDesk::drum(const desk::DrumEffect &effect, double time) {
-    const auto output = band_->desk().settings.output;
+    const auto output = studio_->desk().settings.output;
     std::visit(
         [&](const auto &e) {
             using T = std::decay_t<decltype(e)>;
@@ -230,8 +245,11 @@ void PerfectoDesk::drum(const desk::DrumEffect &effect, double time) {
 /// What follows from a setting changed: a sink switched off falls silent,
 /// and the delay follows the tempo.
 void PerfectoDesk::settingsChanged(const desk::DeskSettings &before) {
-    const auto &after = band_->desk().settings;
-    if (desk::sounds(before.output) && !desk::sounds(after.output)) voices_->silenceAll();
+    const auto &after = studio_->desk().settings;
+    if (desk::sounds(before.output) && !desk::sounds(after.output)) {
+        voices_->silenceAll();
+        timelineVoices_->silenceAll();
+    }
     if (desk::sendsMIDI(before.output) && !desk::sendsMIDI(after.output)) midi_->silenceAll();
     if (before.tempo != after.tempo) voices_->setTempo(after.tempo);
 }
@@ -262,13 +280,13 @@ void PerfectoDesk::followRenders() {
 }
 
 Dictionary PerfectoDesk::scene() {
-    if (!band_) return {};
-    shown_ = desk::scene(*band_, !device_.has_value());
+    if (!studio_) return {};
+    shown_ = desk::scene(*studio_, !device_.has_value());
     return sceneVariant(*shown_);
 }
 
 bool PerfectoDesk::scene_changed() const {
-    return band_ && (!shown_ || desk::scene(*band_, !device_.has_value()) != *shown_);
+    return studio_ && (!shown_ || desk::scene(*studio_, !device_.has_value()) != *shown_);
 }
 
 Dictionary PerfectoDesk::sounding() const {
@@ -288,9 +306,10 @@ String PerfectoDesk::input_name() const {
 }
 
 void PerfectoDesk::let_go() {
-    if (!band_) return;
-    play(band_->letGo(), now());
+    if (!studio_) return;
+    play(studio_->letGo(), now());
     voices_->silenceAll();
+    timelineVoices_->silenceAll();
     midi_->silenceAll();
 }
 

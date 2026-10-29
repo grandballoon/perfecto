@@ -492,13 +492,13 @@ MenuView menu(const Desk &desk, const DeskMenu &menu) {
     return view;
 }
 
-/// What `desk` shows, its hand by `legend` and `held`, and the drums
-/// under Face Chords if there are any.
-Scene sceneOf(const Desk &desk, const Legend &legend, const GamepadFrame &held, bool keyboard, const Drums *drums,
-              double time) {
+} // namespace
+
+Scene scene(const Desk &desk, const Legend &legend, const GamepadFrame &held, bool keyboard, const Drums *drums,
+            double time) {
     const auto frame = desk.frame() ? desk.frame()->shown() : GamepadFrame();
     const auto &settings = desk.settings;
-    Scene scene{topBar(desk), {}, hand(legend, held, keyboard), favorites(desk), std::nullopt};
+    Scene scene{topBar(desk), {}, hand(legend, held, keyboard), favorites(desk), std::nullopt, std::nullopt};
     switch (desk.layout()) {
     case LayoutKind::faceChords: scene.stage = faceChords(desk.faceChords(), settings, held, drums, time); break;
     case LayoutKind::twinRings: scene.stage = twinRings(desk.twinRings(), settings, frame); break;
@@ -511,17 +511,9 @@ Scene sceneOf(const Desk &desk, const Legend &legend, const GamepadFrame &held, 
     return scene;
 }
 
-} // namespace
-
 Scene scene(const Desk &desk, bool keyboard) {
     const auto frame = desk.frame() ? desk.frame()->shown() : GamepadFrame();
-    return sceneOf(desk, desk.legend(), frame, keyboard, nullptr, 0);
-}
-
-Scene scene(const Band &band, bool keyboard) {
-    // The hand is shown as it is, before the drums took their buttons.
-    const auto frame = band.frame() ? band.frame()->shown() : GamepadFrame();
-    return sceneOf(band.desk(), band.legend(), frame, keyboard, &band.drums(), band.frame() ? band.frame()->time : 0);
+    return scene(desk, desk.legend(), frame, keyboard, nullptr, 0);
 }
 
 std::vector<DeskEffect> perform(Desk &desk, const Action &action) {
@@ -550,6 +542,18 @@ std::vector<DeskEffect> perform(Desk &desk, const Action &action) {
         if (valid(action.index, favorites.tables().size())) favorites.play(action.index);
         break;
     case Action::Kind::setKeyDefault: favorites.setDefault(desk.settings.key, action.value != 0); break;
+    case Action::Kind::record:
+    case Action::Kind::play:
+    case Action::Kind::loop:
+    case Action::Kind::quantize:
+    case Action::Kind::erase:
+    case Action::Kind::undo:
+    case Action::Kind::redo:
+    case Action::Kind::chooseLane:
+    case Action::Kind::muteLane:
+    case Action::Kind::selectEvent:
+    case Action::Kind::stretchChoice:
+    case Action::Kind::deselect: break; // The studio's.
     }
     return {};
 }

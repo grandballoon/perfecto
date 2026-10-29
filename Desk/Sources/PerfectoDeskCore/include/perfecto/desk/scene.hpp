@@ -11,7 +11,7 @@
 #ifndef PERFECTO_DESK_SCENE_HPP
 #define PERFECTO_DESK_SCENE_HPP
 
-#include "perfecto/desk/band.hpp"
+#include "perfecto/desk/drums.hpp"
 #include "perfecto/desk/desk.hpp"
 #include "perfecto/desk/layout.hpp"
 #include "perfecto/desk/pad.hpp"
@@ -62,6 +62,20 @@ struct Action {
         renameTable,
         playTable,
         setKeyDefault,
+        // The timeline's (`Studio::perform`): a layer by its id in `index`,
+        // an event by its id in `value`.
+        record,
+        play,
+        loop,
+        quantize,
+        erase,
+        undo,
+        redo,
+        chooseLane,
+        muteLane,
+        selectEvent,
+        stretchChoice,
+        deselect,
     };
 
     Kind kind;
@@ -457,6 +471,67 @@ struct MenuView {
     bool operator==(const MenuView &) const = default;
 };
 
+/// The timeline along the top of the stage: a lane to each layer, its
+/// chords as blocks in time, and the controls a mouse can use. Places are in
+/// beats from the song's start.
+struct TimelineBar {
+    struct Block {
+        int id;
+        double from;
+        double to;
+        /// The chord's name.
+        std::string name;
+        /// The voice that plays it.
+        int channel;
+        bool isChosen;
+        /// Sounding now.
+        bool isHeard;
+        /// A loop's repetition: drawn faint, and chosen through the loop.
+        bool isEcho;
+        /// Recorded, and outside the layer's loop: not heard.
+        bool isLeftOut;
+
+        bool operator==(const Block &) const = default;
+    };
+
+    struct Lane {
+        int id;
+        std::string name;
+        std::vector<Block> blocks;
+        std::optional<std::pair<double, double>> loop;
+        bool isMuted;
+        bool isChosen;
+        bool isRecording;
+
+        bool operator==(const Lane &) const = default;
+    };
+
+    /// A button for the mouse, with the controller's way to it.
+    struct Control {
+        std::string label;
+        std::string keys;
+        bool isLit;
+        bool isEnabled;
+        Action action;
+
+        bool operator==(const Control &) const = default;
+    };
+
+    /// The beats shown.
+    double from;
+    double to;
+    int beatsPerBar;
+    std::optional<double> playhead;
+    std::vector<Lane> lanes;
+    std::vector<Control> controls;
+    /// What it is doing, and what can be done next.
+    std::string status;
+    Tint statusTint;
+    std::string hint;
+
+    bool operator==(const TimelineBar &) const = default;
+};
+
 /// Everything the screen shows.
 struct Scene {
     TopBar top;
@@ -464,6 +539,8 @@ struct Scene {
     Hand hand;
     FavoritesView favorites;
     std::optional<MenuView> menu;
+    /// The timeline, over Face Chords.
+    std::optional<TimelineBar> timeline;
 
     bool operator==(const Scene &) const = default;
 };
@@ -471,9 +548,10 @@ struct Scene {
 /// What `desk` shows, the controls as the keyboard plays them if `keyboard`.
 Scene scene(const Desk &desk, bool keyboard);
 
-/// What `band` shows: its desk, with the drums under Face Chords and the
-/// drums' controls in the hand.
-Scene scene(const Band &band, bool keyboard);
+/// What `desk` shows, its hand by `legend` as the hands hold `held`, and
+/// `drums`, if there are any, under Face Chords at `time` (`scene(Studio)`).
+Scene scene(const Desk &desk, const Legend &legend, const GamepadFrame &held, bool keyboard, const Drums *drums,
+            double time);
 
 /// Does what a mouse chose, and says what to sound.
 std::vector<DeskEffect> perform(Desk &desk, const Action &action);
