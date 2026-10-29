@@ -225,6 +225,38 @@ struct Diamond {
     bool operator==(const Diamond &) const = default;
 };
 
+/// The face buttons as large tiles where they are on the controller, each
+/// with the number and the name of the chord it strikes now, and in the
+/// middle the chord sounding.
+struct Faces {
+    struct Face {
+        PadButton button;
+        /// Where it is in the diamond: A at the bottom.
+        double bearing;
+        /// "IV", or empty for a button that strikes nothing in this layer.
+        std::string numeral;
+        /// "F".
+        std::string name;
+        /// The other layer's chord on it, if it has another: "+LT ii" while
+        /// LT is let go, "−LT IV" while it is held.
+        std::string other;
+        bool isHeld;
+        /// It is the button heard.
+        bool isHeard;
+
+        bool operator==(const Face &) const = default;
+    };
+
+    std::vector<Face> faces;
+    /// The chord sounding, its number and its name; empty with none.
+    std::string numeral;
+    std::string name;
+    /// What the middle says with nothing sounding, or under the chord.
+    std::string detail;
+
+    bool operator==(const Faces &) const = default;
+};
+
 /// Targets in a row, the one aimed at lit: the modes from darker to brighter.
 struct Scale {
     std::vector<Target> targets;
@@ -303,7 +335,7 @@ struct Lanes {
 };
 
 using Item = std::variant<Caption, Note, Pie, Pies, Ring, Triggers, Facts, Choices, Sounding, Voices, Diamond,
-                          Scale, Chips, Bar, Lanes>;
+                          Faces, Scale, Chips, Bar, Lanes>;
 
 /// A panel of the stage: its items top to bottom.
 struct Panel {

@@ -22,6 +22,9 @@ const NOTICE_SHOWN := 3.0
 ## From C2 to C7: where the desk's chords and lines are.
 const PIANO_LOW := 36
 const PIANO_HIGH := 96
+## What Face Chords' face buttons strike (see `FaceButtons`).
+const FACE_CHORDS := "res://desk/face_chords.json"
+const DEGREE_NAMES := ["I", "ii", "iii", "IV", "V", "vi", "vii°"]
 const T := Paint.Text
 
 var stream := PerfectoStream.new()
@@ -49,12 +52,25 @@ func _ready() -> void:
 	add_child(player)
 	player.play()
 	desk.setup(stream, presets)
+	read_face_chords()
 	renaming.visible = false
 	renaming.text_submitted.connect(_renamed)
 	renaming.focus_exited.connect(func(): renaming.visible = false)
 	add_child(renaming)
 	get_tree().auto_accept_quit = false
 	scene = desk.scene()
+
+
+## Plays Face Chords' buttons as `face_chords.json` says, if it is there;
+## a mistake in it is shown and leaves the standard map.
+func read_face_chords() -> void:
+	if not FileAccess.file_exists(FACE_CHORDS):
+		return
+	var buttons := FaceButtons.read(FACE_CHORDS, DEGREE_NAMES)
+	if buttons.error:
+		show_notice(buttons.error)
+	else:
+		desk.set_face_map(buttons.plain, buttons.shifted)
 
 
 ## Lays the window out in points, as the Mac desk's: 1440 by 900 to start

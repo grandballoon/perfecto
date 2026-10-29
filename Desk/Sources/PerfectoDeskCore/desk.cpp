@@ -91,10 +91,10 @@ bool Desk::operator==(const Desk &other) const {
     const auto untimed = [](const std::optional<GamepadFrame> &frame) {
         return frame ? std::optional<GamepadFrame>(frame->untimed()) : std::nullopt;
     };
-    return settings == other.settings && layout_ == other.layout_ && twinRings_ == other.twinRings_ &&
-           petals_ == other.petals_ && neighbourhood_ == other.neighbourhood_ && twoVoices_ == other.twoVoices_ &&
-           arranger_ == other.arranger_ && menu_ == other.menu_ && catalog_ == other.catalog_ &&
-           untimed(frame_) == untimed(other.frame_);
+    return settings == other.settings && layout_ == other.layout_ && faceChords_ == other.faceChords_ &&
+           twinRings_ == other.twinRings_ && petals_ == other.petals_ && neighbourhood_ == other.neighbourhood_ &&
+           twoVoices_ == other.twoVoices_ && arranger_ == other.arranger_ && menu_ == other.menu_ &&
+           catalog_ == other.catalog_ && untimed(frame_) == untimed(other.frame_);
 }
 
 std::vector<DeskEffect> Desk::step(const GamepadFrame &frame) {
@@ -110,6 +110,7 @@ std::vector<DeskEffect> Desk::step(const GamepadFrame &frame) {
     const Key key = settings.key;
     std::vector<DeskEffect> out;
     switch (layout_) {
+    case LayoutKind::faceChords: out = faceChords_.step(input, settings); break;
     case LayoutKind::twinRings: out = twinRings_.step(input, settings); break;
     case LayoutKind::petals: out = petals_.step(input, settings); break;
     case LayoutKind::neighbourhood: out = neighbourhood_.step(input, settings); break;
@@ -123,6 +124,7 @@ std::vector<DeskEffect> Desk::step(const GamepadFrame &frame) {
 
 std::optional<DeskChord> Desk::pinnable() const {
     switch (layout_) {
+    case LayoutKind::faceChords: return faceChords_.line().isSounding() ? faceChords_.line().chord() : std::nullopt;
     case LayoutKind::twinRings:
         return twinRings_.line().isSounding() ? twinRings_.line().chord() : twinRings_.chord(settings);
     case LayoutKind::petals:
@@ -159,6 +161,7 @@ std::vector<DeskEffect> Desk::letGo() { return releaseLayout(); }
 std::vector<DeskEffect> Desk::releaseLayout() {
     std::vector<DeskEffect> out;
     switch (layout_) {
+    case LayoutKind::faceChords: out = faceChords_.releaseAll(); break;
     case LayoutKind::twinRings: out = twinRings_.releaseAll(); break;
     case LayoutKind::petals: out = petals_.releaseAll(); break;
     case LayoutKind::neighbourhood: out = neighbourhood_.releaseAll(); break;
@@ -185,6 +188,7 @@ Legend Desk::legend() const {
                 {PadControl::button(PadButton::start), "Close"}};
     }
     switch (layout_) {
+    case LayoutKind::faceChords: return faceChords_.legend(settings);
     case LayoutKind::twinRings: return twinRings_.legend(settings);
     case LayoutKind::petals: return petals_.legend(settings);
     case LayoutKind::neighbourhood: return neighbourhood_.legend(settings);

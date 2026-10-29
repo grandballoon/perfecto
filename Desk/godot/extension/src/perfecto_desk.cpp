@@ -11,7 +11,9 @@
 #include <godot_cpp/variant/packed_int32_array.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <map>
 #include <utility>
 
 using namespace godot;
@@ -81,9 +83,29 @@ void PerfectoDesk::setup(const Ref<PerfectoStream> &stream, const Array &presets
     stream_ = stream;
     voices_ = std::make_unique<DeskVoices>(stream, numbers);
     midi_ = std::make_unique<DeskMidi>();
-    desk_.emplace(desk::SoundCatalog(categories));
+    desk_.emplace(desk::SoundCatalog(categories), desk::DeskSettings(), desk::LayoutKind::faceChords);
     voices_->setTempo(desk_->settings.tempo);
     shown_.reset();
+}
+
+void PerfectoDesk::set_face_map(const Dictionary &plain, const Dictionary &layered) {
+    if (!desk_) return;
+    namespace theory = perfecto::theory;
+    // Godot's joypad buttons A, B, X and Y are 0 to 3.
+    static constexpr std::array<desk::PadButton, 4> faces = {desk::PadButton::a, desk::PadButton::b,
+                                                             desk::PadButton::x, desk::PadButton::y};
+    const auto layer = [](const Dictionary &given) {
+        std::map<desk::PadButton, theory::Degree> degrees;
+        const Array buttons = given.keys();
+        for (int64_t i = 0; i < buttons.size(); ++i) {
+            const int64_t button = buttons[i], degree = given[buttons[i]];
+            if (button < 0 || button >= int64_t(faces.size())) continue;
+            if (degree < 0 || degree >= int64_t(theory::allDegrees.size())) continue;
+            degrees[faces[size_t(button)]] = theory::allDegrees[size_t(degree)];
+        }
+        return degrees;
+    };
+    desk_->setFaceMap({layer(plain), layer(layered)});
 }
 
 desk::GamepadFrame PerfectoDesk::frame(double time, bool keyboard) {
@@ -263,6 +285,7 @@ void PerfectoDesk::_bind_methods() {
     ClassDB::bind_method(D_METHOD("has_controller"), &PerfectoDesk::has_controller);
     ClassDB::bind_method(D_METHOD("midi_ready"), &PerfectoDesk::midi_ready);
     ClassDB::bind_method(D_METHOD("let_go"), &PerfectoDesk::let_go);
+    ClassDB::bind_method(D_METHOD("set_face_map", "plain", "layered"), &PerfectoDesk::set_face_map);
 }
 
 } // namespace perfecto_godot

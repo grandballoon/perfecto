@@ -43,8 +43,9 @@ TEST_CASE("the top bar names the layouts and what the desk is set to") {
     const Desk desk(catalog);
     const auto top = scene(desk, false).top;
     CHECK(top.layouts.size() == allLayoutKinds.size());
-    CHECK(top.layouts[0] == "Twin Rings");
-    CHECK(top.chosen == 0);
+    CHECK(top.layouts[0] == "Face Chords");
+    CHECK(top.layouts[1] == "Twin Rings");
+    CHECK(top.chosen == 1);
     CHECK(top.summary == summary(LayoutKind::twinRings));
     CHECK_FALSE(top.guard.has_value());
     CHECK(top.facts[0] == std::pair<std::string, std::string>{"Key", "C Major"});
@@ -128,7 +129,7 @@ TEST_CASE("the menu lists every row, the one chosen lit") {
 
 TEST_CASE("a click chooses a layout, and one out of range does nothing") {
     Desk desk(catalog);
-    perform(desk, {Action::Kind::chooseLayout, 1});
+    perform(desk, {Action::Kind::chooseLayout, 2});
     CHECK(desk.layout() == LayoutKind::petals);
     const auto stage = scene(desk, false).stage;
     REQUIRE(items<Diamond>(stage[1]).size() == 1);
@@ -177,7 +178,7 @@ TEST_CASE("the chord sounding is pinned by the mouse, and unpinned") {
 
 TEST_CASE("the arranger's lanes are four bars, the grid in each, the cursor at the start") {
     Desk desk(catalog);
-    perform(desk, {Action::Kind::chooseLayout, 4});
+    perform(desk, {Action::Kind::chooseLayout, 5});
     const auto stage = scene(desk, false).stage;
     const auto lanes = items<Lanes>(stage[0]).at(0).lanes;
     REQUIRE(lanes.size() == 4);
@@ -191,12 +192,30 @@ TEST_CASE("the arranger's lanes are four bars, the grid in each, the cursor at t
     CHECK(items<Pies>(stage[1]).at(0).pies.size() == 2);
 }
 
-TEST_CASE("every layout has a stage of two panels") {
+TEST_CASE("every layout but Face Chords has a stage of two panels") {
     for (size_t i = 0; i < allLayoutKinds.size(); ++i) {
         Desk desk(catalog);
         perform(desk, {Action::Kind::chooseLayout, static_cast<int>(i)});
-        CHECK(scene(desk, false).stage.size() == 2);
+        CHECK(scene(desk, false).stage.size() == (allLayoutKinds[i] == LayoutKind::faceChords ? 1u : 2u));
     }
+}
+
+TEST_CASE("Face Chords shows each button's chord by number and name, and the chord sounding") {
+    Desk desk(catalog, DeskSettings(), LayoutKind::faceChords);
+    auto faces = items<Faces>(scene(desk, false).stage.at(0)).at(0);
+    REQUIRE(faces.faces.size() == 4);
+    CHECK(faces.faces[0] == Faces::Face{PadButton::a, 180, "I", "C maj", "", false, false});
+    CHECK(faces.faces[3] == Faces::Face{PadButton::b, 90, "IV", "F maj", "+LT ii", false, false});
+    CHECK(faces.numeral.empty());
+    CHECK(faces.detail == "Hold a face button");
+    desk.step(frame(1, {PadButton::b}));
+    desk.step(GamepadFrame{.time = 2, .leftTrigger = 1, .buttons = {PadButton::b}});
+    const auto scene = perfecto::desk::scene(desk, false);
+    faces = items<Faces>(scene.stage.at(0)).at(0);
+    CHECK(faces.faces[3] == Faces::Face{PadButton::b, 90, "ii", "D min", "−LT IV", true, true});
+    CHECK(faces.numeral == "ii");
+    CHECK(faces.name == "D min");
+    CHECK(items<Caption>(scene.stage.at(0)).at(0).title == "LT held");
 }
 
 }

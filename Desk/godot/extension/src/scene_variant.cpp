@@ -84,6 +84,7 @@ Variant v(const desk::Lanes::GridLine &line);
 Variant v(const desk::Lanes::Block &block);
 Variant v(const desk::Lanes::Lane &lane);
 Variant v(const desk::Diamond::Petal &petal);
+Variant v(const desk::Faces::Face &face);
 Variant v(const desk::Panel &panel);
 Variant v(const desk::Hand::Entry &entry);
 Variant v(const desk::FavoritesView::Table &table);
@@ -214,6 +215,19 @@ Variant v(const desk::Diamond::Petal &petal) {
     return d;
 }
 
+Variant v(const desk::Faces::Face &face) {
+    Dictionary d;
+    d["button"] = text(desk::name(face.button));
+    d["bearing"] = face.bearing;
+    d["numeral"] = text(face.numeral);
+    d["name"] = text(face.name);
+    d["other"] = text(face.other);
+    d["held"] = face.isHeld;
+    d["heard"] = face.isHeard;
+    d["tint"] = v(desk::tint(face.button));
+    return d;
+}
+
 Variant item(const desk::Item &item) {
     return std::visit(
         [](const auto &value) -> Variant {
@@ -281,6 +295,13 @@ Variant item(const desk::Item &item) {
             } else if constexpr (std::is_same_v<T, desk::Diamond>) {
                 Dictionary d = tagged("diamond");
                 d["petals"] = v(value.petals);
+                return d;
+            } else if constexpr (std::is_same_v<T, desk::Faces>) {
+                Dictionary d = tagged("faces");
+                d["faces"] = v(value.faces);
+                d["numeral"] = text(value.numeral);
+                d["name"] = text(value.name);
+                d["detail"] = text(value.detail);
                 return d;
             } else if constexpr (std::is_same_v<T, desk::Scale>) {
                 Dictionary d = tagged("scale");

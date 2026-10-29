@@ -53,6 +53,7 @@ plays it with the patched Godot (see "A smaller mix chunk" below), at the 128-fr
 Stock Godot (`Godot --path project`) also runs it, at its own 512 frames.
 
 It plays from the first controller Godot knows (an Xbox One or Series controller, over Bluetooth or USB, and most others) and from the computer keyboard, always, as `../README.md` lays it out.
+It opens on Face Chords, whose face buttons play the chords `project/desk/face_chords.json` gives (`../README.md` says how).
 Notes go to the kernel's sound, to MIDI from the source **Perfecto Desk**, or both (Menu › Output), and a saved arrangement goes to Music › Perfecto Desk.
 
 Not yet as the Mac desk had it:
@@ -64,7 +65,7 @@ Not yet as the Mac desk had it:
 ## Measuring
 
 The kernel spike that chose Godot is kept as a scene of its own, `project/measure`: chords from a controller or the keyboard on the kernel, and what the mixing thread is doing, measured as it plays.
-Its face buttons are read from `project/measure/pad.json`: a degree for each of A, B, X and Y without LT and with it held; pulling or letting go of LT while a button holds a chord switches it to that button's chord in the other layer.
+Its face buttons are read from `project/measure/pad.json`, by the reader Face Chords uses (`project/desk/face_buttons.gd`): a degree for each of A, B, X and Y without LT and with it held; pulling or letting go of LT while a button holds a chord switches it to that button's chord in the other layer.
 
 ```bash
 ./play.sh res://measure/measure.tscn

@@ -100,6 +100,7 @@ static func draw_item(canvas: CanvasItem, rect: Rect2, item: Dictionary, hits: A
 		"sounding": sounding(canvas, rect, item)
 		"voices": voices(canvas, rect, item)
 		"diamond": diamond(canvas, rect, item)
+		"faces": faces(canvas, square(rect), item)
 		"scale": scale(canvas, rect, item["targets"])
 		"chips": chips(canvas, rect, item)
 		"bar": bar(canvas, rect, item)
@@ -382,6 +383,54 @@ static func diamond(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
 		var at := Paint.point(middle, petal["target"]["bearing"], distance)
 		var chip_rect := control_chip(canvas, at + Vector2(0, -22), petal["button"], petal["held"], petal["tint"], 1.3)
 		target_label(canvas, at + Vector2(0, chip_rect.size.y / 2 + 6), petal["target"], Paint.color(petal["tint"]), false)
+
+
+## Face Chords: the face buttons as tiles where they are on the controller,
+## each with the number and the name of its chord, and the chord heard in
+## the middle.
+static func faces(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
+	var middle := rect.get_center()
+	var side := rect.size.x
+	var tile := Vector2(side * 0.3, side * 0.24)
+	for face in item["faces"]:
+		face_tile(canvas, Rect2(Paint.point(middle, face["bearing"], side * 0.33) - tile / 2, tile), face)
+	# The middle, between the tiles: the chord heard, by number and name.
+	var room := side * 0.34
+	if item["numeral"]:
+		var number := T.new(item["numeral"], int(side * 0.13), 800, true).fitted(room)
+		var name := T.new(item["name"], int(side * 0.05), 600, true).fitted(room)
+		var detail := T.new(item["detail"], 11, 500).fitted(room)
+		var top := middle.y - (number.height() + name.height() + detail.height()) / 2
+		number.draw(canvas, Vector2(middle.x, top), Paint.CHORD, true)
+		name.draw(canvas, Vector2(middle.x, top + number.height()), Paint.color("text"), true)
+		detail.draw(canvas, Vector2(middle.x, top + number.height() + name.height()), Paint.color("secondary"), true)
+	else:
+		T.new(item["detail"], 13, 500).fitted(room).draw_centred(canvas, middle, Paint.color("secondary"))
+
+
+## A face button's tile: the button, its chord's number large and its name,
+## and the other layer's chord in a corner. The button heard is filled with
+## its color, one held beneath it edged.
+static func face_tile(canvas: CanvasItem, rect: Rect2, face: Dictionary) -> void:
+	var tint := Paint.color(face["tint"])
+	var heard: bool = face["heard"]
+	var held: bool = face["held"]
+	var radius := rect.size.y * 0.18
+	Paint.box(canvas, rect, tint if heard else Paint.color("raised"), radius, tint if held or heard else Paint.color("rule", 0.6),
+			3.0 if held else 1.0)
+	var ink := Paint.INK if heard else Paint.color("text")
+	var pad := rect.size.y * 0.1
+	var mark := T.new(face["button"], int(rect.size.y * 0.13), 800, true)
+	mark.draw(canvas, rect.position + Vector2(pad, pad * 0.8), Paint.INK if heard else tint)
+	if face["other"]:
+		var other := T.new(face["other"], int(rect.size.y * 0.11), 600, true)
+		other.draw(canvas, Vector2(rect.end.x - pad - other.width(), rect.position.y + pad * 0.8), Color(ink, 0.55))
+	var room := rect.size.x - 2 * pad
+	var number := T.new(face["numeral"] if face["numeral"] else "–", int(rect.size.y * 0.36), 800, true).fitted(room)
+	var name := T.new(face["name"], int(rect.size.y * 0.15), 600, true).fitted(room)
+	var top := rect.get_center().y - (number.height() + name.height()) / 2 + rect.size.y * 0.05
+	number.draw(canvas, Vector2(rect.get_center().x, top), ink if face["numeral"] else Paint.color("faint"), true)
+	name.draw(canvas, Vector2(rect.get_center().x, top + number.height()), Color(ink, 0.85), true)
 
 
 ## A control's own mark, centred on `at`: a face button round in its color,

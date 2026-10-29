@@ -35,6 +35,7 @@ struct DeskView: View {
     @ViewBuilder
     private func stage(_ desk: Desk) -> some View {
         switch desk.layout {
+        case .faceChords: FaceChordsView(layout: desk.faceChords, settings: desk.settings, frame: host.frame)
         case .twinRings:
             TwinRingsView(layout: desk.twinRings, settings: desk.settings, frame: host.frame) { host.arrange($0) }
         case .petals: PetalsView(layout: desk.petals, settings: desk.settings, frame: host.frame)

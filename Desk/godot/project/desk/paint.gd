@@ -86,7 +86,8 @@ class Text:
 
 	func _init(s: String, px: int, weight := 400, rounded := false, italic := false, mono := false) -> void:
 		string = s
-		size = px
+		# A font has no size under 1: a tiny window draws its smallest.
+		size = maxi(1, px)
 		font = Paint.font(weight, rounded, italic, mono)
 
 	func width() -> float:

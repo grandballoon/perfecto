@@ -5,6 +5,7 @@
 #define PERFECTO_DESK_DESK_HPP
 
 #include "perfecto/desk/arranger.hpp"
+#include "perfecto/desk/face_chords.hpp"
 #include "perfecto/desk/layout.hpp"
 #include "perfecto/desk/music.hpp"
 #include "perfecto/desk/neighbourhood.hpp"
@@ -109,6 +110,7 @@ public:
     bool operator==(const Desk &other) const;
 
     LayoutKind layout() const { return layout_; }
+    const FaceChords &faceChords() const { return faceChords_; }
     const TwinRings &twinRings() const { return twinRings_; }
     const Petals &petals() const { return petals_; }
     const Neighbourhood &neighbourhood() const { return neighbourhood_; }
@@ -134,6 +136,9 @@ public:
     /// Lets go of everything the layout holds: the app is quitting.
     std::vector<DeskEffect> letGo();
 
+    /// Plays `map` on the face buttons in Face Chords.
+    void setFaceMap(FaceChords::Map map) { faceChords_.setMap(std::move(map)); }
+
     /// What every control does now.
     Legend legend() const;
 
@@ -142,6 +147,7 @@ public:
 
 private:
     LayoutKind layout_;
+    FaceChords faceChords_;
     TwinRings twinRings_;
     Petals petals_;
     Neighbourhood neighbourhood_;

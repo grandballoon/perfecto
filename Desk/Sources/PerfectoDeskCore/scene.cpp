@@ -110,6 +110,40 @@ std::vector<Panel> twinRings(const TwinRings &layout, const DeskSettings &settin
     return {left, right};
 }
 
+std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &settings, const GamepadFrame &frame) {
+    const auto &map = layout.map();
+    const bool layered = layout.isLayered();
+    const auto heard = layout.heard();
+    Faces faces;
+    for (const PadButton button : FaceChords::faces) {
+        Faces::Face face{button, FaceChords::bearing(button), "", "", "", frame.isDown(button),
+                         heard && heard->first == button};
+        if (const auto degree = map.degree(button, layered)) {
+            face.numeral = numeral(*degree, settings.key);
+            face.name = DeskChord(settings.key, *degree).name();
+        }
+        const auto other = map.degree(button, !layered);
+        if (other && other != map.degree(button, layered))
+            face.other = (layered ? "−LT " : "+LT ") + numeral(*other, settings.key);
+        faces.faces.push_back(face);
+    }
+    if (heard) {
+        faces.numeral = numeral(heard->second, settings.key);
+        faces.name = layout.line().chord() ? layout.line().chord()->name() : "";
+        faces.detail = settings.summary() + " · " + settings.voicingName();
+    } else {
+        faces.detail = "Hold a face button";
+    }
+    const auto legend = layout.legend(settings);
+    Panel panel{{
+        Caption{"Face buttons", layered ? "LT held" : "Chords by number", legend.at(PadControl::leftTrigger()),
+                layered ? Tint::borrowed : Tint::faint},
+        faces,
+        Triggers{{{"LT", frame.leftTrigger, {0.5}, Tint::borrowed}}},
+    }};
+    return {panel};
+}
+
 std::vector<Panel> petals(const Petals &layout, const DeskSettings &settings, const GamepadFrame &frame) {
     const auto bend = layout.bend();
     const bool bent = bend.octaves != 0 || bend.roll != 0;
@@ -408,6 +442,7 @@ Scene scene(const Desk &desk, bool keyboard) {
     const auto &settings = desk.settings;
     Scene scene{topBar(desk), {}, hand(desk, frame, keyboard), favorites(desk), std::nullopt};
     switch (desk.layout()) {
+    case LayoutKind::faceChords: scene.stage = faceChords(desk.faceChords(), settings, frame); break;
     case LayoutKind::twinRings: scene.stage = twinRings(desk.twinRings(), settings, frame); break;
     case LayoutKind::petals: scene.stage = petals(desk.petals(), settings, frame); break;
     case LayoutKind::neighbourhood: scene.stage = neighbourhood(desk.neighbourhood(), settings, frame); break;

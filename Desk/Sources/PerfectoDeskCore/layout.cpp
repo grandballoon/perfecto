@@ -12,6 +12,7 @@ using namespace theory;
 
 std::string name(LayoutKind kind) {
     switch (kind) {
+    case LayoutKind::faceChords: return "Face Chords";
     case LayoutKind::twinRings: return "Twin Rings";
     case LayoutKind::petals: return "Petals & Depth";
     case LayoutKind::neighbourhood: return "Neighbourhood";
@@ -23,6 +24,8 @@ std::string name(LayoutKind kind) {
 
 std::string summary(LayoutKind kind) {
     switch (kind) {
+    case LayoutKind::faceChords:
+        return "The key's chords by number on the face buttons: A the tonic, the major chords plain, the minor with LT.";
     case LayoutKind::twinRings:
         return "Left stick the degree, right stick the color ring, RT strikes: 154 chords in one gesture.";
     case LayoutKind::petals:

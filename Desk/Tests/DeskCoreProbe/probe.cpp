@@ -95,6 +95,17 @@ std::vector<std::string> screenOf(const Desk &desk) {
     const DeskSettings &s = desk.settings;
     std::vector<std::string> lines;
     switch (desk.layout()) {
+    case LayoutKind::faceChords: {
+        const FaceChords &faces = desk.faceChords();
+        const auto index = [](PadButton button) { return std::to_string(indexIn(FaceChords::faces, button)); };
+        for (const PadButton button : FaceChords::faces) {
+            const auto degree = faces.map().degree(button, faces.isLayered());
+            lines.push_back("face " + index(button) + " " + (degree ? numeral(*degree, s.key) : "-"));
+        }
+        const auto heard = faces.heard();
+        lines.push_back("heard " + (heard ? index(heard->first) + " " + numeral(heard->second, s.key) : "-"));
+        break;
+    }
     case LayoutKind::twinRings: {
         const TwinRings &rings = desk.twinRings();
         const auto resets = rings.resetsTo(s);

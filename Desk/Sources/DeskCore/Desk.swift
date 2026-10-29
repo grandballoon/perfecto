@@ -101,6 +101,7 @@ public struct DeskMenu: Equatable, Sendable {
 public struct Desk: Equatable, Sendable {
     public var settings: DeskSettings
     public private(set) var layout: LayoutKind
+    public private(set) var faceChords = FaceChords()
     public private(set) var twinRings = TwinRings()
     public private(set) var petals = Petals()
     public private(set) var neighbourhood = Neighbourhood()
@@ -114,7 +115,7 @@ public struct Desk: Equatable, Sendable {
     /// Two desks are the same if they are in the same state: when the last
     /// frame came is not part of it.
     public static func == (a: Desk, b: Desk) -> Bool {
-        a.settings == b.settings && a.layout == b.layout && a.twinRings == b.twinRings && a.petals == b.petals
+        a.settings == b.settings && a.layout == b.layout && a.faceChords == b.faceChords && a.twinRings == b.twinRings && a.petals == b.petals
             && a.neighbourhood == b.neighbourhood && a.twoVoices == b.twoVoices && a.arranger == b.arranger
             && a.menu == b.menu && a.catalog == b.catalog && a.frame?.untimed == b.frame?.untimed
     }
@@ -141,6 +142,7 @@ public struct Desk: Equatable, Sendable {
         let key = settings.key
         let out: [DeskEffect]
         switch layout {
+        case .faceChords: out = faceChords.step(input, settings: &settings)
         case .twinRings: out = twinRings.step(input, settings: &settings)
         case .petals: out = petals.step(input, settings: &settings)
         case .neighbourhood: out = neighbourhood.step(input, settings: &settings)
@@ -156,6 +158,7 @@ public struct Desk: Equatable, Sendable {
     /// hands are on.
     public var pinnable: DeskChord? {
         switch layout {
+        case .faceChords: faceChords.line.isSounding ? faceChords.line.chord : nil
         case .twinRings: twinRings.line.isSounding ? twinRings.line.chord : twinRings.chord(settings)
         case .petals: petals.line.isSounding ? petals.line.chord : nil
         case .neighbourhood: neighbourhood.line.isSounding ? neighbourhood.line.chord : neighbourhood.centre
@@ -187,9 +190,15 @@ public struct Desk: Equatable, Sendable {
         releaseLayout()
     }
 
+    /// Plays `map` on the face buttons in Face Chords.
+    public mutating func setFaceMap(_ map: FaceChords.Map) {
+        faceChords.map = map
+    }
+
     private mutating func releaseLayout() -> [DeskEffect] {
         let out: [DeskEffect]
         switch layout {
+        case .faceChords: out = faceChords.releaseAll()
         case .twinRings: out = twinRings.releaseAll()
         case .petals: out = petals.releaseAll()
         case .neighbourhood: out = neighbourhood.releaseAll()
@@ -212,6 +221,7 @@ public struct Desk: Equatable, Sendable {
                     .button(.right): "More", .button(.a): "Open", .button(.b): "Close", .button(.start): "Close"]
         }
         switch layout {
+        case .faceChords: return faceChords.legend(settings)
         case .twinRings: return twinRings.legend(settings)
         case .petals: return petals.legend(settings)
         case .neighbourhood: return neighbourhood.legend(settings)

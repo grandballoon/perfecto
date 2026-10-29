@@ -1,12 +1,12 @@
-## What the face buttons strike, as `pad.json` (or the file given with
-## `--pad`) says: a degree for each of A, B, X and Y, without LT and with it
-## held. A button a layer leaves out strikes nothing in it.
+## What the face buttons strike, as a file says: a degree for each of A, B,
+## X and Y, without LT and with it held. A button a layer leaves out strikes
+## nothing in it. The desk's Face Chords reads `face_chords.json`, and the
+## measuring scene `pad.json` (or the file given with `--pad`).
 ##
 ##   {"plain": {"A": "I", "B": "IV", "X": "V", "Y": "vii°"},
 ##    "LT":    {"A": "I", "B": "ii", "X": "iii", "Y": "vi"}}
 class_name FaceButtons
 
-const DEFAULT_PATH := "res://measure/pad.json"
 const BUTTONS := {"A": JOY_BUTTON_A, "B": JOY_BUTTON_B, "X": JOY_BUTTON_X, "Y": JOY_BUTTON_Y}
 const LAYERS := ["plain", "LT"]
 

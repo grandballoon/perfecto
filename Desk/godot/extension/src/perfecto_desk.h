@@ -67,6 +67,10 @@ public:
     /// Lets go of everything: the app is quitting.
     void let_go();
 
+    /// Plays Face Chords' face buttons by two layers, without LT and with it:
+    /// each a joypad button (A to Y) to a degree's index (0 is I).
+    void set_face_map(const godot::Dictionary &plain, const godot::Dictionary &layered);
+
 protected:
     static void _bind_methods();
 

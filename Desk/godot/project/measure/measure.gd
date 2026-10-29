@@ -38,6 +38,7 @@ const CHORDS := [
 	[47, 59, 62, 65],
 ]
 const DEGREE_NAMES := ["I", "ii", "iii", "IV", "V", "vi", "vii°"]
+const PAD_PATH := "res://measure/pad.json"
 ## LT counts as held past this far, and let go short of it, apart enough
 ## that a trigger resting near one place cannot flicker between the layers.
 const SHIFT_PULL := 0.55
@@ -140,7 +141,7 @@ func leave() -> void:
 
 func read_arguments() -> void:
 	var args := OS.get_cmdline_user_args()
-	var pad_path := FaceButtons.DEFAULT_PATH
+	var pad_path := PAD_PATH
 	for i in args.size():
 		match args[i]:
 			"--sound":

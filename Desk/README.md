@@ -5,6 +5,7 @@ It is a Godot app (`godot/`, whose README says how it is built and run), for the
 The Mac desk it grew from, a SwiftUI app on the Swift cores (`Sources/PerfectoDesk`, `Sources/DeskCore`), still builds and is to be retired.
 The design it builds is `docs/gamepad-desk-ui.md`, which takes the Xbox 360 controller as the reference and lays out five ways of playing it.
 Where the instincts in that note diverge, all of them are built, as layouts to choose between and refine.
+Beside them is Face Chords, the simplest, which the desk opens on: it is the standard the screen is refined against.
 
 ## Running it
 
@@ -36,7 +37,7 @@ Unlike the phone, a note's velocity is how hard it was struck, and what is playe
 - **Start** opens the menu: the layout, how the color ring is laid out, the chords' and the line's sounds, the key, the scale, the octave, the tempo, voice leading, the step compass's order, the output, and saving the arrangement as a MIDI file.
   The d-pad moves and changes, A opens, B closes.
   A on a sound opens the library: left and right through its categories, up and down through its sounds, each heard as it is reached.
-- **B** lets go of everything (but in Petals, where it strikes, and the Arranger, where it undoes).
+- **B** lets go of everything (but in Face Chords and Petals, where it strikes, and the Arranger, where it undoes).
 - The **d-pad** rolls the inversion (left and right) and moves the octave (up and down), unless a layout needs it for something else.
 
 ## The consonance guard
@@ -58,6 +59,18 @@ The guard's mode says against what it is read:
 A degree on a stick whose chord the guard blocks is not chosen, and a chord being held never changes into one it blocks.
 
 ## The layouts
+
+### Face Chords
+
+The key's chords by number on the four face buttons, as a guitarist's chart has them.
+A always plays I.
+Without LT, B, X and Y play IV, V and vii°; with LT held, ii, iii and vi.
+The map is `godot/project/desk/face_chords.json`, read when the desk starts (a degree for each button, without LT and with it); a mistake in it is shown and leaves this one.
+What sounds is always the latest face button held, read in the layer LT is in now: pulling or letting go of LT while a button is held changes the chord as a new press does, and a button let go hands the chord back to one still held beneath it.
+With no face button held nothing sounds, and LT alone strikes nothing.
+LT is on past halfway, and held a little either side of it, so a trigger resting near the middle cannot flicker between two chords.
+The screen shows each button as a tile where it is on the controller, with its chord's number and name and the other layer's chord in a corner, and the chord heard large in the middle.
+The d-pad rolls the inversion and moves the octave, and the chord held moves with it.
 
 ### Twin rings
 

@@ -170,6 +170,62 @@ struct PetalsView: View {
     }
 }
 
+/// Face Chords: the face buttons as tiles where they are on the controller,
+/// each with the number and the name of its chord, and the chord heard in
+/// the middle.
+struct FaceChordsView: View {
+    let layout: FaceChords
+    let settings: DeskSettings
+    let frame: GamepadFrame
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Caption(control: "Face buttons", title: layout.isLayered ? "LT held" : "Chords by number")
+            GeometryReader { proxy in
+                let middle = CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
+                let distance = min(proxy.size.width, proxy.size.height) * 0.34
+                ZStack {
+                    heard.position(middle)
+                    ForEach(FaceChords.faces, id: \.self) { button in
+                        tile(button)
+                            .position(point(middle, bearing: FaceChords.bearing(button), distance: distance))
+                    }
+                }
+            }
+            .frame(minHeight: 320)
+            TriggerBar(name: "LT", value: frame.leftTrigger, steps: 2, tint: Theme.borrowed)
+        }
+        .panel()
+    }
+
+    private var heard: some View {
+        VStack(spacing: 2) {
+            if let heard = layout.heard {
+                Text(numeral(heard.degree, in: settings.key)).font(.system(size: 44, weight: .heavy, design: .rounded))
+                Text(layout.line.chord?.name ?? "").font(.system(size: 20, weight: .semibold, design: .rounded))
+            } else {
+                Text("Hold a face button").font(.system(size: 13)).foregroundStyle(Theme.secondary)
+            }
+        }
+        .foregroundStyle(Theme.chord)
+    }
+
+    private func tile(_ button: PadButton) -> some View {
+        let degree = layout.map.degree(button, layered: layout.isLayered)
+        let tint = Theme.color(of: button) ?? Theme.chord
+        let lit = layout.heard?.button == button
+        return VStack(spacing: 2) {
+            Text(button.rawValue.uppercased()).font(.system(size: 11, weight: .heavy, design: .rounded))
+            Text(degree.map { numeral($0, in: settings.key) } ?? "–").font(.system(size: 30, weight: .heavy, design: .rounded))
+            Text(degree.map { DeskChord(key: settings.key, degree: $0).name } ?? "").font(.system(size: 14, weight: .semibold))
+        }
+        .foregroundStyle(lit ? Color.black : tint)
+        .frame(width: 112, height: 96)
+        .background(RoundedRectangle(cornerRadius: 18).fill(lit ? tint : Theme.raised))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(tint.opacity(frame.isDown(button) ? 1 : 0.5), lineWidth: 2))
+    }
+}
+
 /// The four face buttons, where they are on the controller, each with the
 /// chord it would strike now.
 struct Diamond: View {
