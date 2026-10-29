@@ -343,7 +343,9 @@ TopBar topBar(const Desk &desk) {
     return top;
 }
 
-Hand hand(const Desk &desk, const GamepadFrame &frame, bool keyboard) {
+} // namespace
+
+Hand hand(const Legend &legend, const GamepadFrame &frame, bool keyboard) {
     static const std::vector<PadControl> left = {
         PadControl::leftTrigger(),          PadControl::button(PadButton::lb),   PadControl::leftStick(),
         PadControl::button(PadButton::l3),  PadControl::button(PadButton::up),   PadControl::button(PadButton::down),
@@ -354,7 +356,6 @@ Hand hand(const Desk &desk, const GamepadFrame &frame, bool keyboard) {
         PadControl::button(PadButton::r3), PadControl::button(PadButton::y),  PadControl::button(PadButton::x),
         PadControl::button(PadButton::b),  PadControl::button(PadButton::a),  PadControl::button(PadButton::start),
     };
-    const auto legend = desk.legend();
     const auto entries = [&](const std::vector<PadControl> &controls) {
         std::vector<Hand::Entry> out;
         for (const auto &control : controls) {
@@ -386,6 +387,8 @@ Hand hand(const Desk &desk, const GamepadFrame &frame, bool keyboard) {
     };
     return {keyboard ? "Keyboard" : "Controller", entries(left), entries(right)};
 }
+
+namespace {
 
 FavoritesView favorites(const Desk &desk) {
     const auto &settings = desk.settings;
@@ -440,7 +443,7 @@ MenuView menu(const Desk &desk, const DeskMenu &menu) {
 Scene scene(const Desk &desk, bool keyboard) {
     const auto frame = desk.frame() ? desk.frame()->shown() : GamepadFrame();
     const auto &settings = desk.settings;
-    Scene scene{topBar(desk), {}, hand(desk, frame, keyboard), favorites(desk), std::nullopt};
+    Scene scene{topBar(desk), {}, hand(desk.legend(), frame, keyboard), favorites(desk), std::nullopt, std::nullopt};
     switch (desk.layout()) {
     case LayoutKind::faceChords: scene.stage = faceChords(desk.faceChords(), settings, frame); break;
     case LayoutKind::twinRings: scene.stage = twinRings(desk.twinRings(), settings, frame); break;
@@ -479,6 +482,18 @@ std::vector<DeskEffect> perform(Desk &desk, const Action &action) {
         if (valid(action.index, favorites.tables().size())) favorites.play(action.index);
         break;
     case Action::Kind::setKeyDefault: favorites.setDefault(desk.settings.key, action.value != 0); break;
+    case Action::Kind::record:
+    case Action::Kind::play:
+    case Action::Kind::loop:
+    case Action::Kind::quantize:
+    case Action::Kind::erase:
+    case Action::Kind::undo:
+    case Action::Kind::redo:
+    case Action::Kind::chooseLane:
+    case Action::Kind::muteLane:
+    case Action::Kind::selectEvent:
+    case Action::Kind::stretchChoice:
+    case Action::Kind::deselect: break; // The studio's.
     }
     return {};
 }

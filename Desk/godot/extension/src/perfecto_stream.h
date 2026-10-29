@@ -71,6 +71,9 @@ public:
     /// start, as the game thread can best tell it.
     int64_t frame_now() const;
     void set_lead_frames(int frames) { lead = frames; }
+    /// The frame `seconds` from now, the lead after it: a note sent for a
+    /// moment a little ahead sounds that far after one sent now.
+    int64_t frame_ahead(double seconds) const;
     int latency_frames() const;
     double sample_rate() const { return rate; }
     godot::Dictionary take_mix_stats();

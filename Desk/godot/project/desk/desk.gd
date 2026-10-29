@@ -3,9 +3,10 @@
 ## effects; this steps it every frame, draws the scene it shows, and does
 ## what is left to a script: notices, saving files, and the mouse.
 ##
-## The window, top to bottom: the layouts and what the desk is set to; the
-## stage beside the hand (what every control does) or the favorites; a line
-## saying what plays; the piano. The menu opens over it all.
+## The window, top to bottom: the layouts and what the desk is set to; in
+## Face Chords, the timeline; the stage beside the hand (what every control
+## does) or the favorites; a line saying what plays; the piano. The menu
+## opens over it all.
 extends Control
 
 const PAD := 18.0
@@ -189,6 +190,12 @@ func choose(action: Dictionary) -> void:
 			renaming.select_all()
 		"none":
 			pass
+		"timeline_select":
+			# Shift stretches the choice to the chord clicked.
+			var stretch := Input.is_key_pressed(KEY_SHIFT)
+			desk.perform(action.merged({"kind": "timeline_stretch"}, true) if stretch else action)
+			scene = desk.scene()
+			queue_redraw()
 		_:
 			desk.perform(action)
 			scene = desk.scene()
@@ -214,6 +221,10 @@ func _draw() -> void:
 	var y := inner.position.y
 	top_bar(Rect2(inner.position.x, y, inner.size.x, TOP))
 	y += TOP + GAP
+	if scene["timeline"] != null:
+		var bar := TimelineView.height(scene["timeline"])
+		TimelineView.draw(self, Rect2(inner.position.x, y, inner.size.x, bar), scene["timeline"], hits)
+		y += bar + GAP
 	var middle := inner.end.y - PIANO - GAP - STATUS - GAP - y
 	Stage.draw(self, Rect2(inner.position.x, y, inner.size.x - SIDE - 16, middle), scene["stage"], hits)
 	side_column(Rect2(inner.end.x - SIDE, y, SIDE, middle))

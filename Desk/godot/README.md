@@ -8,16 +8,17 @@ It plays the same layouts as the Mac desk did (`../README.md` says how each is p
 ```
 project/desk/desk.gd ── step() each frame ──→ PerfectoDesk (C++)
    draws scene() ←─────────────────────────────   │  reads the controller and the keyboard (Godot's Input)
-   saves files, shows notices ←── what is left ──  │  steps perfecto::desk::Desk: a frame in, effects out
+   saves files, shows notices ←── what is left ──  │  steps perfecto::desk::Studio (the desk and its timeline): a frame in, effects out
                                                    ├─→ DeskVoices → PerfectoStream → the kernel, on Godot's mixing thread
+                                                   ├─→ TimelineVoices: the timeline's playback, each note on its own frame
                                                    ├─→ DeskMidi: the "Perfecto Desk" MIDI source
                                                    └─→ rumble on the controller's motors
 ```
 
 - **Every decision is the core's.**
   What the screen shows is a value the desk core makes (`scene.hpp`: the layouts, each layout's stage as panels of items, the hand, the favorites, the menu), and what the mouse can do is an `Action` it performs, both tested by equality in `Desk/Tests/PerfectoDeskCoreTests/scene_tests.cpp`.
-- **The extension** (`extension/src`) is the imperative shell in C++: `PerfectoDesk` holds the desk and plays its effects, `DeskVoices` keeps each line's notes on the kernel, `DeskMidi` sends them as MIDI, and `scene_variant` hands the scene to the scripts as Godot values.
-- **The scripts only draw** (`project/desk`): `desk.gd` steps the desk, draws everything around the stage and takes the mouse, `stage.gd` draws a stage's panels from their items, and `paint.gd` has the colors, light and dark, the fonts and the shapes.
+- **The extension** (`extension/src`) is the imperative shell in C++: `PerfectoDesk` holds the desk and its timeline (`Studio`) and plays their effects, `DeskVoices` keeps each line's notes on the kernel, `TimelineVoices` each of the timeline's tracks, `DeskMidi` sends the desk's notes as MIDI, and `scene_variant` hands the scene to the scripts as Godot values.
+- **The scripts only draw** (`project/desk`): `desk.gd` steps the desk, draws everything around the stage and takes the mouse, `stage.gd` draws a stage's panels from their items, `timeline_view.gd` the timeline's bar, and `paint.gd` has the colors, light and dark, the fonts and the shapes.
 - **Notes are struck a lead ahead** (the longest render seen and a millisecond), so every press is equally late.
 - **The desk is stepped once a frame**, and the project runs at up to 250 frames a second with vsync off, as the Mac desk stepped at 250 Hz: a frame is how late a press can be read.
 

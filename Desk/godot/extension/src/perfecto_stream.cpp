@@ -174,6 +174,10 @@ bool PerfectoStream::change(int64_t id, const Playing &playing, int64_t frame) {
     return perfecto_kernel_send(kernel, &e);
 }
 
+int64_t PerfectoStream::frame_ahead(double seconds) const {
+    return frame_now() + lead + int64_t(std::llround(std::max(0.0, seconds) * rate));
+}
+
 int64_t PerfectoStream::time() const { return int64_t(perfecto_kernel_time(kernel)); }
 
 int64_t PerfectoStream::frame_now() const {
