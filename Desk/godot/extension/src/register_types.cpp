@@ -1,3 +1,4 @@
+#include "perfecto_desk.h"
 #include "perfecto_stream.h"
 
 #include <gdextension_interface.h>
@@ -11,6 +12,7 @@ static void initialize(ModuleInitializationLevel level) {
     if (level != MODULE_INITIALIZATION_LEVEL_SCENE) return;
     GDREGISTER_CLASS(perfecto_godot::PerfectoStream);
     GDREGISTER_CLASS(perfecto_godot::PerfectoPlayback);
+    GDREGISTER_CLASS(perfecto_godot::PerfectoDesk);
 }
 
 static void uninitialize(ModuleInitializationLevel) {}

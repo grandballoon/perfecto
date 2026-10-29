@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+# Builds the desk's library into ../project/bin: the kernel and its Godot
+# stream, the theory core and the desk's core, and the class that plays the
+# desk on them. Every core is compiled from where it lives, so the desk, the
+# phone and the Mac desk sound and decide alike.
+
+env = SConscript("godot-cpp/SConstruct")
+
+root = "../../.."
+kernel = root + "/Perfecto/Sources/PerfectoKernel"
+theory = root + "/Perfecto/Sources/PerfectoTheory"
+desk = root + "/Desk/Sources/PerfectoDeskCore"
+env.Append(CPPPATH=["src/", kernel, kernel + "/include", theory + "/include", desk + "/include"])
+# The cores are C++20. Each step is rounded as Swift rounds it, never two
+# fused into one, as their CMake and SwiftPM builds say.
+env.Append(CXXFLAGS=["-std=c++20", "-ffp-contract=off"])
+if env["platform"] == "macos":
+    env.Append(LINKFLAGS=["-framework", "CoreMIDI", "-framework", "CoreFoundation"])
+
+
+def built(folder, name):
+    # Each core's objects are built here, not beside its sources.
+    return [env.SharedObject("build/" + name + "/" + source.name.replace(".cpp", ""), source)
+            for source in Glob(folder + "/*.cpp")]
+
+
+sources = Glob("src/*.cpp") + built(kernel, "kernel") + built(theory, "theory") + built(desk, "desk")
+
+name = "../project/bin/libperfecto{}{}".format(env["suffix"], env["SHLIBSUFFIX"])
+Default(env.SharedLibrary(name, source=sources))

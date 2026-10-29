@@ -1,7 +1,7 @@
 ## The kernel's cost, offline, inside Godot: each sound at several voice
 ## counts, rendered on a kernel of its own as fast as it goes.
 ##
-##   godot --headless --path project --script res://bench.gd
+##   godot --headless --path project --script res://measure/bench.gd
 extends SceneTree
 
 const VOICES := [0, 1, 8, 16, 32, 64]

@@ -44,11 +44,26 @@ public:
     void set_mix(float chorus_rate, float reverb_tail, float reverb_predelay, float reverb_damping,
                  float delay_time, float delay_feedback);
 
+    void set_delay_time(float seconds);
+
     // Notes. `frame` 0 is as soon as possible; -1 is the lead from now
     // (`set_lead_frames`), so every note so sent is as late as every other.
     bool note_on(int64_t id, int note, float velocity, int sound, float pan, float reverb, int64_t frame);
     bool note_off(int64_t id, int64_t frame);
-    bool note_change(int64_t id, float brightness, float level, float reverb);
+    bool note_change(int64_t id, float brightness, float level, float reverb, float bend);
+
+    /// What a note is doing besides its pitch, which a change glides.
+    struct Playing {
+        float brightness = 1;
+        float reverb = 0;
+        /// Semitones from its pitch.
+        float bend = 0;
+        float level = 1;
+    };
+
+    // The same, for C++ callers (the desk), with all of a note's playing.
+    bool start(int64_t id, int note, float velocity, int sound, float pan, const Playing &playing, int64_t frame);
+    bool change(int64_t id, const Playing &playing, int64_t frame);
 
     // The kernel's clock and what the mixing thread has done since asked.
     int64_t time() const;
@@ -91,6 +106,8 @@ private:
     std::atomic<int64_t> clock_start{0};
     std::atomic<uint64_t> clock_frame{0};
     bool send(const PerfectoEvent &event);
+    /// `frame`, or for -1 the lead from now, noted for the strike-to-render figures.
+    int64_t stamp(int64_t frame);
     int64_t waited(int64_t start, uint64_t frame, int32_t frames);
 };
 

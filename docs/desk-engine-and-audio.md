@@ -242,6 +242,8 @@ A dropped-in audio file needs a file system the player can reach, which is natur
    Done: the theory core (`Perfecto/Sources/PerfectoTheory`) and `DeskCore` (`Desk/Sources/PerfectoDeskCore`), each with every Swift test ported and parity tests against the Swift (their READMEs say how they are tested).
    The desk's parity tests play both cores with the same long runs of controller frames and compare every effect, legend and target they make.
 4. **The desk in Godot on PC and the Deck**, Twin Rings first, the shell as thin as the Mac's.
+   Begun on the Mac: every layout plays in `Desk/godot/`, which is now the canonical desk, on the C++ cores; what the screen shows is a value of the core's (`scene.hpp`), so the scripts only draw.
+   Still to do: keeping the settings, the wired 360, MIDI on Linux, and the Deck.
 5. **The visualizer, live**, with two or three scenes and the output ring's analysis.
 6. **Arrangements: assigned sets and offline export.**
 7. **Dropped-in audio files**: energy-only first, harmony estimates after.
@@ -259,7 +261,7 @@ A dropped-in audio file needs a file system the player can reach, which is natur
 
 ## 9. Spike results: the kernel in Godot
 
-> Measured 2026-10-29 on an M2 MacBook, Godot 4.7.2, with the spike in `spikes/godot-kernel/` (its README says how to build and run it).
+> Measured 2026-10-29 on an M2 MacBook, Godot 4.7.2, with the spike then in `spikes/godot-kernel/`, now the desk's Godot app (`Desk/godot/`), where the spike is kept as its measurement scene (its README says how to build and run both).
 > Not yet measured: the Steam Deck, the time a controller's press takes to reach a script, and the sound leaving the speaker (which needs a loopback recording).
 
 ### 9.1 What was built
@@ -304,7 +306,7 @@ Godot 4.7.2 does this with its own `AudioStreamGenerator` too; stopping the play
 
 Godot's source settles where the chunk comes from: `AudioServer::init` sets it to 512 frames, under a comment that it should become a project setting because it "limits audio latency to an absolute minimum of 11ms".
 The one other thing its comments say depends on it is the ramp of a bus's or player's volume, which is spread over one chunk, so with a shorter chunk a change of volume is ramped faster and may click.
-The spike's patch (`spikes/godot-kernel/engine/mix-buffer-frames.patch`, three lines) reads the chunk from a project setting, `audio/driver/mix_buffer_frames`, and leaves the ramp as it is.
+The spike's patch (`Desk/godot/engine/mix-buffer-frames.patch`, three lines) reads the chunk from a project setting, `audio/driver/mix_buffer_frames`, and leaves the ramp as it is.
 Godot 4.7.2 built from source with it (the editor, Metal only, eight minutes on the M2) was measured as before, with the device buffer set to match through the output latency setting, which Godot's CoreAudio driver rounds to a power of two in frames.
 
 | Chunk (frames, at 44.1 kHz) | 512 | 256 | 128 |

@@ -6,7 +6,7 @@
 ##    "LT":    {"A": "I", "B": "ii", "X": "iii", "Y": "vi"}}
 class_name FaceButtons
 
-const DEFAULT_PATH := "res://pad.json"
+const DEFAULT_PATH := "res://measure/pad.json"
 const BUTTONS := {"A": JOY_BUTTON_A, "B": JOY_BUTTON_B, "X": JOY_BUTTON_X, "Y": JOY_BUTTON_Y}
 const LAYERS := ["plain", "LT"]
 

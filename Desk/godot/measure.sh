@@ -19,5 +19,5 @@ fi
 for args in "--asap" "" "--sound superSaw --voices 32 --hold" "--sound superSaw --voices 64 --hold"; do
     echo "== ${args:-four-note chords struck a lead ahead}"
     # shellcheck disable=SC2086
-    "$godot" --path . -- --measure $args 2>&1 | grep -E "Mix rate|Since|Strike|ERROR|leak"
+    "$godot" --path . res://measure/measure.tscn -- --measure $args 2>&1 | grep -E "Mix rate|Since|Strike|ERROR|leak"
 done

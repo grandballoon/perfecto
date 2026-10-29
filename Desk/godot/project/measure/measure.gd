@@ -1,5 +1,6 @@
-## The spike's one screen: chords from a controller or the keyboard on the
-## kernel, and what the mixing thread is doing, measured as it plays.
+## The kernel spike's screen, kept to measure with: chords from a controller
+## or the keyboard on the kernel, and what the mixing thread is doing,
+## measured as it plays (`./play.sh res://measure/measure.tscn`).
 ##
 ## A B X Y: the chords pad.json gives them in C, without LT and with it held
 ## (A I, B IV, X V, Y vii°; with LT, A I, B ii, X iii, Y vi). Pulling or

@@ -1,23 +1,26 @@
 # Perfecto Desk
 
-Perfecto at a desk: a Mac app played from a game controller, on the same theory core and sound library as the phone.
+Perfecto at a desk: an app played from a game controller, on the same theory core and sound library as the phone.
+It is a Godot app (`godot/`, whose README says how it is built and run), for the Mac now and the Steam Deck and consoles after (`docs/desk-engine-and-audio.md`).
+The Mac desk it grew from, a SwiftUI app on the Swift cores (`Sources/PerfectoDesk`, `Sources/DeskCore`), still builds and is to be retired.
 The design it builds is `docs/gamepad-desk-ui.md`, which takes the Xbox 360 controller as the reference and lays out five ways of playing it.
 Where the instincts in that note diverge, all of them are built, as layouts to choose between and refine.
 
 ## Running it
 
 ```bash
-Desk/scripts/bundle.sh
+Desk/godot/play.sh
 ```
 
-That builds `Desk/build/Perfecto Desk.app`, which opens like any app.
-`swift run PerfectoDesk` in `Desk/` runs the same app without a bundle, and `swift test` there runs the core's tests.
+plays the Godot desk, once it is built (`godot/README.md`).
+The Mac desk is `Desk/scripts/bundle.sh`, which builds `Desk/build/Perfecto Desk.app`, or `swift run PerfectoDesk` in `Desk/`.
 
 It plays from:
 
 - **An Xbox One or Series controller** (or any controller macOS knows), over Bluetooth or USB, read through GameController, with its motors used for rumble.
 - **A wired Xbox 360 controller**, read straight from USB (`Xbox360USB`): macOS has no driver for the 360, so nothing else claims it.
   The wireless 360 needs its receiver, which speaks another protocol and is not read.
+  Only the Mac desk reads it so far.
 - **The computer keyboard**, always, so every layout can be tried without a controller: WASD is the left stick, IJKL the right (Shift holds it half out, for the inner ring), the arrows the d-pad, Space A, B X Y themselves, Q and E the bumpers, Z and C the triggers, R and O the sticks pressed in, Return Start and Tab Back.
 
 The screen's right-hand panel always says what every control does now, relabelled as layers change, and lights each control while it is held.
@@ -189,11 +192,13 @@ The layouts are a functional core with an imperative shell.
   The analog surfaces are read by small gates (`PieGate`, `RadialBands`, `TriggerStrike`, `TriggerSteps`, `StickGesture`, `TapOrHold`), each holding on past its edges so a resting thumb cannot flicker.
   Each layout is a `Layout`, stepped by frames against the `DeskSettings` they share, and every chord is a `DeskChord` voiced by the theory core's `computeVoicing`.
   Its tests script frames and check the effects by equality.
-- `PerfectoDesk` is the shell: `DeskHost` reads the controllers 250 times a second, merges them into one frame, steps the desk, and performs its effects on `DeskAudio` (the kernel's Audio Unit, with every preset loaded), `DeskMIDI` and the controllers' motors.
+- What the screen shows is a value too, made by the C++ core (`scene.hpp`), so the Godot desk's scripts only draw it.
+- The Godot desk's shell is `godot/extension` (`PerfectoDesk`, in C++), which reads the controller and the keyboard through Godot, steps the C++ core, and plays its effects on the kernel, MIDI and the motors (`godot/README.md`).
+- The Mac desk's shell is `Sources/PerfectoDesk`: `DeskHost` reads the controllers 250 times a second, merges them into one frame, steps the desk, and performs its effects on `DeskAudio` (the kernel's Audio Unit, with every preset loaded), `DeskMIDI` and the controllers' motors.
   The screen is shown the desk at most 60 times a second, and only when it has changed.
 - The theory core (`MusicTheoryCore`) and the sound library (`PerfectoSound`: the presets, their patches and the kernel as an Audio Unit) come from the Perfecto package, the same files the phone's app compiles.
 
-Settings and the layout are kept between launches.
+The Mac desk keeps the settings and the layout between launches; the Godot desk does not yet.
 Events worth knowing are logged to the unified log under `com.perfecto.desk`.
 
 ## Open

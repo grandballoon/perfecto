@@ -13,10 +13,12 @@ There its "Perfecto" MIDI source is on the machine the DAW runs on, so no networ
 A mouse is one finger.
 A window is laid out as a phone is, upright or on its side by its shape.
 
-**The desk is a Mac app of its own** (`Desk/`, Perfecto Desk), played from a game controller, the Xbox 360 its design reference (`docs/gamepad-desk-ui.md`; `Desk/README.md` says how it is played and built).
-It is not the Catalyst app: it is built with SwiftPM on the Perfecto package's libraries, the theory core and the sound library (`PerfectoSound`: `SynthPreset`, `SynthPatch`, `KernelAudioUnit` and its Objective-C++ host, which live in the package and which the phone's app compiles from there).
-Its layouts are a pure core (`DeskCore`: controller frames in, effects as data out) and a thin shell that reads the controllers and plays the effects on the kernel and MIDI.
-`DeskCore` is also in C++ (`Desk/Sources/PerfectoDeskCore`, on the C++ theory core), for the desk on game engines and consoles: a port that the Swift stays the reference for, changed with it in the same commit, and played against it frame for frame by `DeskCoreParityTests`.
+**The desk is an app of its own** (`Desk/`, Perfecto Desk), played from a game controller, the Xbox 360 its design reference (`docs/gamepad-desk-ui.md`; `Desk/README.md` says how it is played).
+It is not the Catalyst app.
+The canonical desk is the Godot app (`Desk/godot/`, whose README says how it is built), for the Mac now and the Steam Deck and consoles after (`docs/desk-engine-and-audio.md`).
+Its layouts are a pure core in C++ (`Desk/Sources/PerfectoDeskCore`, on the C++ theory core: controller frames in, effects as data out), which also says what the screen shows (`scene.hpp`, a value the scripts only draw), and a thin shell: a GDExtension in C++ (`Desk/godot/extension`) that reads the controllers, steps the core and plays its effects on the kernel (as a Godot `AudioStream`) and MIDI.
+New desk work goes there.
+The Mac desk it grew from, a SwiftUI app built with SwiftPM on the Swift cores (`DeskCore`, `PerfectoDesk`), is to be retired once the Godot desk has all it had (it still lacks kept settings and the wired 360); with it go the Swift `DeskCore` and `DeskCoreParityTests`, which play the two cores frame for frame, and the C++ core becomes the only one. Until then a change to one core is a change to the other in the same commit.
 
 **v0.1.0 is Play mode alone.**
 The app is being stripped to a solid first release: the play screen with the chord keys, the step compass, the key strip, the effect strip, loops and the piano.

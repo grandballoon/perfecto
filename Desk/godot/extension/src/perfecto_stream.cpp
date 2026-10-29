@@ -122,6 +122,8 @@ void PerfectoStream::set_mix(float chorus_rate, float reverb_tail, float reverb_
     perfecto_kernel_set_delay_feedback(kernel, delay_feedback);
 }
 
+void PerfectoStream::set_delay_time(float seconds) { perfecto_kernel_set_delay_time(kernel, seconds); }
+
 bool PerfectoStream::send(const PerfectoEvent &e) {
     if (e.time == 0) sent_at.store(now_ns(), std::memory_order_release);
     return perfecto_kernel_send(kernel, &e);
@@ -129,30 +131,46 @@ bool PerfectoStream::send(const PerfectoEvent &e) {
 
 bool PerfectoStream::note_on(int64_t id, int note, float velocity, int sound, float pan, float reverb,
                              int64_t frame) {
-    if (frame < 0) {
-        frame = frame_now() + lead;
-        sent_at.store(now_ns(), std::memory_order_release);
-        stamped.store(frame, std::memory_order_release);
-    }
-    PerfectoEvent e = event(PerfectoEventNoteOn, id, uint64_t(frame));
+    return start(id, note, velocity, sound, pan, Playing{1, reverb, 0, 1}, frame);
+}
+
+int64_t PerfectoStream::stamp(int64_t frame) {
+    if (frame >= 0) return frame;
+    frame = frame_now() + lead;
+    sent_at.store(now_ns(), std::memory_order_release);
+    stamped.store(frame, std::memory_order_release);
+    return frame;
+}
+
+bool PerfectoStream::start(int64_t id, int note, float velocity, int sound, float pan, const Playing &playing,
+                           int64_t frame) {
+    PerfectoEvent e = event(PerfectoEventNoteOn, id, uint64_t(stamp(frame)));
     e.note = note;
     e.velocity = velocity;
     e.sound = sound;
     e.pan = pan;
-    e.reverb = reverb;
+    e.brightness = playing.brightness;
+    e.reverb = playing.reverb;
+    e.bend = playing.bend;
+    e.level = playing.level;
     return send(e);
 }
 
 bool PerfectoStream::note_off(int64_t id, int64_t frame) {
-    const PerfectoEvent e = event(PerfectoEventNoteOff, id, uint64_t(frame));
+    const PerfectoEvent e = event(PerfectoEventNoteOff, id, uint64_t(stamp(frame)));
     return perfecto_kernel_send(kernel, &e);
 }
 
-bool PerfectoStream::note_change(int64_t id, float brightness, float level, float reverb) {
-    PerfectoEvent e = event(PerfectoEventNoteChange, id, 0);
-    e.brightness = brightness;
-    e.level = level;
-    e.reverb = reverb;
+bool PerfectoStream::note_change(int64_t id, float brightness, float level, float reverb, float bend) {
+    return change(id, Playing{brightness, reverb, bend, level}, 0);
+}
+
+bool PerfectoStream::change(int64_t id, const Playing &playing, int64_t frame) {
+    PerfectoEvent e = event(PerfectoEventNoteChange, id, uint64_t(stamp(frame)));
+    e.brightness = playing.brightness;
+    e.reverb = playing.reverb;
+    e.bend = playing.bend;
+    e.level = playing.level;
     return perfecto_kernel_send(kernel, &e);
 }
 
@@ -289,7 +307,8 @@ void PerfectoStream::_bind_methods() {
     ClassDB::bind_method(D_METHOD("note_on", "id", "note", "velocity", "sound", "pan", "reverb", "frame"),
                          &PerfectoStream::note_on);
     ClassDB::bind_method(D_METHOD("note_off", "id", "frame"), &PerfectoStream::note_off);
-    ClassDB::bind_method(D_METHOD("note_change", "id", "brightness", "level", "reverb"), &PerfectoStream::note_change);
+    ClassDB::bind_method(D_METHOD("note_change", "id", "brightness", "level", "reverb", "bend"),
+                         &PerfectoStream::note_change, DEFVAL(0.0));
     ClassDB::bind_method(D_METHOD("time"), &PerfectoStream::time);
     ClassDB::bind_method(D_METHOD("frame_now"), &PerfectoStream::frame_now);
     ClassDB::bind_method(D_METHOD("set_lead_frames", "frames"), &PerfectoStream::set_lead_frames);
