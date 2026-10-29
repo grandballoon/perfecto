@@ -18,6 +18,7 @@ It is not the Catalyst app.
 The canonical desk is the Godot app (`Desk/godot/`, whose README says how it is built), for the Mac now and the Steam Deck and consoles after (`docs/desk-engine-and-audio.md`).
 Its layouts are a pure core in C++ (`Desk/Sources/PerfectoDeskCore`, on the C++ theory core: controller frames in, effects as data out), which also says what the screen shows (`scene.hpp`, a value the scripts only draw), and a thin shell: a GDExtension in C++ (`Desk/godot/extension`) that reads the controllers, steps the core and plays its effects on the kernel (as a Godot `AudioStream`) and MIDI.
 New desk work goes there.
+Face Chords has drums, a beat and pads, which are the Godot desk's alone: a core of their own beside the desk (`drums.hpp`, composed with it by `band.hpp`, so the parity-tested desk is unchanged) and a kit synthesized in code (`Desk/Sources/PerfectoDrumKit`), played from the kernel's captures.
 The Mac desk it grew from, a SwiftUI app built with SwiftPM on the Swift cores (`DeskCore`, `PerfectoDesk`), is to be retired once the Godot desk has all it had (it still lacks kept settings and the wired 360); with it go the Swift `DeskCore` and `DeskCoreParityTests`, which play the two cores frame for frame, and the C++ core becomes the only one. Until then a change to one core is a change to the other in the same commit.
 
 **v0.1.0 is Play mode alone.**

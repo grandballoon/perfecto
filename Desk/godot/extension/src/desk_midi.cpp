@@ -6,6 +6,7 @@
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreMIDI/CoreMIDI.h>
+#include <mach/mach_time.h>
 #endif
 
 using perfecto::desk::Line;
@@ -15,6 +16,12 @@ namespace perfecto_godot {
 namespace {
 
 uint8_t channel(Line line) { return line == Line::chord ? 0 : 1; }
+
+/// General MIDI's drums.
+constexpr uint8_t drumChannel = 9;
+/// How long after its strike a drum's note is let go: drums ring as they
+/// will, and a note-off is only manners.
+constexpr double drumGate = 0.05;
 
 uint8_t byte(double value) { return uint8_t(std::clamp(std::round(value * 127), 0.0, 127.0)); }
 
@@ -53,14 +60,21 @@ DeskMidi::~DeskMidi() {
     MIDIClientDispose(port_->client);
 }
 
-/// Sends each message at once, as MIDI 1.0 in universal packets.
-void DeskMidi::send(const std::vector<std::array<uint8_t, 3>> &messages) {
+/// Sends each message at once, or stamped for `ahead` seconds from now, as
+/// MIDI 1.0 in universal packets.
+void DeskMidi::send(const std::vector<std::array<uint8_t, 3>> &messages, double ahead) {
     if (!port_ || messages.empty()) return;
+    MIDITimeStamp stamp = 0;
+    if (ahead > 0) {
+        mach_timebase_info_data_t base;
+        mach_timebase_info(&base);
+        stamp = mach_absolute_time() + MIDITimeStamp(ahead * 1e9 * base.denom / base.numer);
+    }
     MIDIEventList list;
     MIDIEventPacket *packet = MIDIEventListInit(&list, kMIDIProtocol_1_0);
     for (const auto &message : messages) {
         const uint32_t word = uint32_t(0x20) << 24 | uint32_t(message[0]) << 16 | uint32_t(message[1]) << 8 | message[2];
-        packet = MIDIEventListAdd(&list, sizeof list, packet, 0, 1, &word);
+        packet = MIDIEventListAdd(&list, sizeof list, packet, stamp, 1, &word);
         if (!packet) break;
     }
     MIDIReceivedEventList(port_->source, &list);
@@ -72,7 +86,7 @@ struct DeskMidi::Port {};
 
 DeskMidi::DeskMidi(const std::string &) {}
 DeskMidi::~DeskMidi() = default;
-void DeskMidi::send(const std::vector<std::array<uint8_t, 3>> &) {}
+void DeskMidi::send(const std::vector<std::array<uint8_t, 3>> &, double) {}
 
 #endif
 
@@ -128,6 +142,12 @@ void DeskMidi::silence(Line line) {
 
 void DeskMidi::silenceAll() {
     for (const Line line : perfecto::desk::allLines) silence(line);
+}
+
+void DeskMidi::hit(int note, double level, double ahead) {
+    const uint8_t velocity = uint8_t(std::clamp(std::round(level * 127), 1.0, 127.0));
+    send({{uint8_t(0x90 | drumChannel), uint8_t(note), velocity}}, ahead);
+    send({{uint8_t(0x80 | drumChannel), uint8_t(note), 0}}, ahead + drumGate);
 }
 
 } // namespace perfecto_godot

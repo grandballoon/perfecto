@@ -48,10 +48,11 @@ func _ready() -> void:
 	fit_window()
 	Paint.follow_system()
 	var presets := Sounds.load_into(stream)
+	# Before the stream plays: the desk loads the drums' recordings into the kernel.
+	desk.setup(stream, presets)
 	player.stream = stream
 	add_child(player)
 	player.play()
-	desk.setup(stream, presets)
 	read_face_chords()
 	renaming.visible = false
 	renaming.text_submitted.connect(_renamed)

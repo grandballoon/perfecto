@@ -39,6 +39,11 @@ public:
     // Sounds: a preset's patch, as `dump-presets` writes it.
     void set_sound(int sound, const godot::Dictionary &patch);
     int sound_count() const;
+    /// The same, for C++ callers, with the patch as the kernel has it.
+    void set_patch(int sound, const PerfectoPatch &patch);
+    /// Makes `samples`, made at `sample_rate`, what `capture` holds, for a
+    /// sampled patch to play. Before the stream plays.
+    void load_capture(int capture, const std::vector<float> &samples, double sample_rate);
 
     // The mix every note shares.
     void set_mix(float chorus_rate, float reverb_tail, float reverb_predelay, float reverb_damping,
@@ -71,6 +76,9 @@ public:
     /// start, as the game thread can best tell it.
     int64_t frame_now() const;
     void set_lead_frames(int frames) { lead = frames; }
+    /// The frame `seconds` from now, the lead after it: a note sent for a
+    /// moment a little ahead sounds that far after one sent now.
+    int64_t frame_ahead(double seconds) const;
     int latency_frames() const;
     double sample_rate() const { return rate; }
     godot::Dictionary take_mix_stats();

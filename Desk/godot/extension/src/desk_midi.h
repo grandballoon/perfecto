@@ -3,7 +3,8 @@
 // `DeskMIDI`).
 //
 // The chords are on channel 1 and the line on channel 2, so a DAW can give
-// each its own instrument. A note's velocity is how hard it was struck, and
+// each its own instrument; the drums are on channel 10, as General MIDI has
+// them, each hit stamped with the moment it sounds. A note's velocity is how hard it was struck, and
 // what is played on a held note goes out as controllers: its level as
 // expression (CC 11), its brightness as CC 74, and a slide as pitch bend
 // over ±24 semitones (set by RPN 0 when the source is made).
@@ -39,6 +40,9 @@ public:
     void shape(perfecto::desk::Line line, double level, double brightness, double bend);
     void silence(perfecto::desk::Line line);
     void silenceAll();
+    /// Strikes the drum `note` (General MIDI's), `level` hard, `ahead`
+    /// seconds from now, and lets it go a moment after.
+    void hit(int note, double level, double ahead);
 
     static constexpr uint8_t bendRange = 24;
 
@@ -58,7 +62,8 @@ private:
     /// What was last sent to each line's controllers, so nothing is sent twice.
     std::map<perfecto::desk::Line, Sent> sent_;
 
-    void send(const std::vector<std::array<uint8_t, 3>> &messages);
+    /// Sends `messages` now, or `ahead` seconds from now.
+    void send(const std::vector<std::array<uint8_t, 3>> &messages, double ahead = 0);
 };
 
 } // namespace perfecto_godot

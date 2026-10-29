@@ -40,6 +40,12 @@ These are the theory core's (its README), and these besides:
   The Swift settings are `Codable`; here they are plain values, and an engine keeps them as it keeps anything else.
 - **Text is UTF-8**, every legend and name as the Swift has it, byte for byte.
 
+## What is not a port
+
+Two parts have no Swift original, and the parity test does not play them: what the screen shows (`scene.hpp`), and the drums (`drums.hpp`, a beat and pads in Face Chords).
+The drums are played beside the desk, not inside it: `Band` (`band.hpp`) gives each frame to the drums first, which take the buttons they play, and steps the desk with what is left, so `Desk` is as the Swift has it.
+Their recordings are made in code by `Sources/PerfectoDrumKit`, which has tests of its own (`Tests/PerfectoDrumKitTests`), built and run with these.
+
 ## Its tests
 
 Two sets, each of which has been seen to catch a bug planted in the port:

@@ -103,14 +103,19 @@ void PerfectoStream::prepare(double sample_rate) {
     perfecto_kernel_prepare(kernel, sample_rate);
 }
 
-void PerfectoStream::set_sound(int sound, const Dictionary &d) {
-    const PerfectoPatch p = patch(d);
+void PerfectoStream::set_sound(int sound, const Dictionary &d) { set_patch(sound, patch(d)); }
+
+int PerfectoStream::sound_count() const { return perfecto_kernel_sound_count(); }
+
+void PerfectoStream::set_patch(int sound, const PerfectoPatch &p) {
     if (sound >= int(patches.size())) patches.resize(sound + 1);
     patches[sound] = p;
     perfecto_kernel_set_sound(kernel, sound, &p);
 }
 
-int PerfectoStream::sound_count() const { return perfecto_kernel_sound_count(); }
+void PerfectoStream::load_capture(int capture, const std::vector<float> &samples, double sample_rate) {
+    perfecto_kernel_capture_load(kernel, capture, samples.data(), int32_t(samples.size()), sample_rate);
+}
 
 void PerfectoStream::set_mix(float chorus_rate, float reverb_tail, float reverb_predelay, float reverb_damping,
                              float delay_time, float delay_feedback) {
@@ -172,6 +177,10 @@ bool PerfectoStream::change(int64_t id, const Playing &playing, int64_t frame) {
     e.bend = playing.bend;
     e.level = playing.level;
     return perfecto_kernel_send(kernel, &e);
+}
+
+int64_t PerfectoStream::frame_ahead(double seconds) const {
+    return frame_now() + lead + int64_t(std::llround(std::max(0.0, seconds) * rate));
 }
 
 int64_t PerfectoStream::time() const { return int64_t(perfecto_kernel_time(kernel)); }
