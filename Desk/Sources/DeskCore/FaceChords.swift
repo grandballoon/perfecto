@@ -9,6 +9,23 @@ import MusicTheoryCore
 /// What sounds is always the latest face button held, read in the layer LT is
 /// in now: pulling or letting go of LT while a button is held is a change of
 /// chord as a new press is, and with no button held nothing sounds.
+///
+/// A second voice can be added (R3), a line of chords of its own over the
+/// first: the desk's melody line, in its sound and on its MIDI channel, an
+/// octave up. Each press goes to one voice or both, chosen as it is pressed,
+/// and each voice sounds the latest button it holds:
+///
+/// - with one voice, every press is the first's;
+/// - with LB held, a press is the second's alone;
+/// - with both voices on (LB double-clicked), a press is both's, but with LB
+///   held, or with LT pulled at the same moment (either first, within
+///   `together`), the second's alone, over what the first is holding.
+///
+/// A pull of LT that strikes with a face button so is the second voice's: it
+/// plays that button's LT chord there, and the first voice reads LT as let go
+/// for as long as the pull is held, so it keeps its chord. Every other pull is
+/// both voices' layer, as with one. A press already struck on both before the
+/// pull came is taken back from the first, which returns to what it held.
 public struct FaceChords: Layout {
     /// A degree for each face button, without LT and with it held. A button
     /// a layer leaves out strikes nothing in it.
@@ -48,76 +65,189 @@ public struct FaceChords: Layout {
     /// LT as a switch: on past halfway, held a little either side of it.
     static let layerTrigger = TriggerSteps(edges: [0.5])
 
-    /// What the hands ask for: the latest press with a chord in this layer.
-    private struct Wanted: Equatable, Sendable {
+    /// Two presses of LB within this many seconds are a double-click.
+    public static let doubleClick = 0.3
+    /// A face button and LT within this many seconds of each other are struck
+    /// together.
+    public static let together = 0.08
+    /// How far over the first voice the second sounds, in octaves.
+    public static let overOctaves = 1
+
+    /// What one voice holds and sounds.
+    public struct Voice: Equatable, Sendable {
+        /// The face buttons it holds, the most recent last.
+        public fileprivate(set) var held: [PadButton] = []
+        /// What was last struck, or refused: a chord is struck once for it.
+        fileprivate var struck: Struck?
+        public fileprivate(set) var line: ChordLine
+
+        /// The button and degree it sounds now, if it sounds one.
+        public var heard: (button: PadButton, degree: Degree)? {
+            guard line.isSounding, let struck else { return nil }
+            return (struck.button, struck.degree)
+        }
+    }
+
+    fileprivate struct Struck: Equatable, Sendable {
         let button: PadButton
         let degree: Degree
+    }
+
+    /// A face button pressed, and when: LT pulled soon after, with both
+    /// voices on, makes it the second voice's alone.
+    private struct Press: Equatable, Sendable {
+        let button: PadButton
+        let time: Double
     }
 
     public var map: Map
     /// Whether LT is held: the second layer.
     public private(set) var isLayered = false
-    /// The face buttons held, the most recent last.
-    public private(set) var held: [PadButton] = []
-    /// What was last struck, or refused: a chord is struck once for it.
-    private var struck: Wanted?
-    public private(set) var line = ChordLine()
+    /// The first voice, and the second (silent until it is added).
+    public private(set) var voices = [Voice(line: ChordLine(.chord)), Voice(line: ChordLine(.melody))]
+    /// Whether the second voice has been added (R3).
+    public private(set) var hasSecond = false
+    /// Whether a press plays both voices (LB double-clicked).
+    public private(set) var isTogether = false
+    /// Whether the pull of LT held is the second voice's alone.
+    public private(set) var isOverPull = false
+    /// When LT was last pulled past halfway.
+    private var layeredAt = 0.0
+    /// When LB was last pressed, while a second press would be a double-click.
+    private var lbPressedAt: Double?
+    private var latePresses: [Press] = []
 
     public init(map: Map = .standard) {
         self.map = map
     }
 
-    /// The button and degree heard now, if one is.
-    public var heard: (button: PadButton, degree: Degree)? {
-        guard line.isSounding, let struck else { return nil }
-        return (struck.button, struck.degree)
-    }
+    public var line: ChordLine { voices[0].line }
 
-    private var wanted: Wanted? {
-        for press in held.reversed() {
-            if let degree = map.degree(press, layered: isLayered) { return Wanted(button: press, degree: degree) }
+    /// The button and degree the first voice sounds now, if it sounds one.
+    public var heard: (button: PadButton, degree: Degree)? { voices[0].heard }
+
+    /// Whether `voice` reads LT as held.
+    private func isLayered(_ voice: Int) -> Bool { isLayered && !(voice == 0 && isOverPull) }
+
+    /// What the hands ask `voice` for: its latest press with a chord in its
+    /// layer.
+    private func wanted(_ voice: Int) -> Struck? {
+        for press in voices[voice].held.reversed() {
+            if let degree = map.degree(press, layered: isLayered(voice)) { return Struck(button: press, degree: degree) }
         }
         return nil
     }
 
-    public mutating func step(_ input: PadInput, settings: inout DeskSettings) -> [DeskEffect] {
-        var out: [DeskEffect] = []
-        if voicingPad(input, settings: &settings) { out += line.revoice(settings) }
+    /// The voices a face button pressed now goes to.
+    private func route(_ input: PadInput) -> [Int] {
+        if !hasSecond { return [0] }
+        if input.isDown(.lb) { return [1] }
+        if !isTogether { return [0] }
+        if strikesWithLT(input) { return [1] }
+        return [0, 1]
+    }
 
-        let layered = Self.layerTrigger.step(input.frame.leftTrigger, from: isLayered ? 1 : 0) == 1
-        if layered != isLayered { out.append(.rumble(.tick)) }
-        isLayered = layered
+    /// Whether a face button pressed now is struck together with LT, as the
+    /// second voice's alone.
+    private func strikesWithLT(_ input: PadInput) -> Bool {
+        isTogether && isLayered && input.time - layeredAt <= Self.together
+    }
 
-        for button in Self.faces {
-            if input.pressed(button) { held.append(button) }
-            if input.released(button) { held.removeAll { $0 == button } }
-        }
-
+    /// Strikes what `voice` is asked for, if it is not what it sounds.
+    private mutating func settle(_ voice: Int, settings: DeskSettings, at time: Double) -> [DeskEffect] {
         // What sounds is what the hands ask for now: a new press, a press let
         // go and LT pulled or let go are each a change of chord, and nothing
         // held is silence.
-        let next = wanted
-        if next != struck {
-            struck = next
-            if let next {
-                let chord = DeskChord(key: settings.key, degree: next.degree)
-                if let why = settings.consonance.refusal(of: chord, in: settings.key) {
-                    out.append(.refuse(why))
-                    out += line.release()
-                } else {
-                    out += line.strike(chord, level: 0.8, settings: settings, at: input.time)
-                }
+        let next = wanted(voice)
+        if next == voices[voice].struck { return [] }
+        voices[voice].struck = next
+        guard let next else { return voices[voice].line.release() }
+        let chord = DeskChord(key: settings.key, degree: next.degree)
+        if let why = settings.consonance.refusal(of: chord, in: settings.key) {
+            return [.refuse(why)] + voices[voice].line.release()
+        }
+        return voices[voice].line.strike(chord, level: 0.8, settings: settings, at: time)
+    }
+
+    private mutating func takeAwaySecond() -> [DeskEffect] {
+        hasSecond = false
+        isTogether = false
+        isOverPull = false
+        lbPressedAt = nil
+        latePresses = []
+        voices[1].held = []
+        voices[1].struck = nil
+        return voices[1].line.release()
+    }
+
+    public mutating func step(_ input: PadInput, settings: inout DeskSettings) -> [DeskEffect] {
+        var out: [DeskEffect] = []
+        let time = input.time
+        if voicingPad(input, settings: &settings) {
+            for voice in voices.indices { out += voices[voice].line.revoice(settings) }
+        }
+
+        if input.pressed(.r3) {
+            if hasSecond {
+                out += takeAwaySecond()
             } else {
-                out += line.release()
+                hasSecond = true
+                out += voices[1].line.bend(octaves: Self.overOctaves, roll: 0, settings: settings)
+            }
+            out.append(.rumble(.bump))
+        }
+        if hasSecond, input.pressed(.lb) {
+            if let lbPressedAt, time - lbPressedAt <= Self.doubleClick {
+                isTogether.toggle()
+                self.lbPressedAt = nil
+                out.append(.rumble(.bump))
+            } else {
+                lbPressedAt = time
             }
         }
+
+        let layered = Self.layerTrigger.step(input.frame.leftTrigger, from: isLayered ? 1 : 0) == 1
+        if layered != isLayered { out.append(.rumble(.tick)) }
+        if layered, !isLayered {
+            layeredAt = time
+            // LT just after a face button, with both voices on: they were
+            // struck together, so the pull and the press are the second
+            // voice's alone.
+            for press in latePresses where isTogether && time - press.time <= Self.together {
+                voices[0].held.removeAll { $0 == press.button }
+                isOverPull = true
+            }
+        }
+        if !layered { isOverPull = false }
+        isLayered = layered
+        latePresses.removeAll { time - $0.time > Self.together }
+
+        for button in Self.faces {
+            if input.pressed(button) {
+                for voice in route(input) { voices[voice].held.append(button) }
+                if strikesWithLT(input) { isOverPull = true } else { latePresses.append(Press(button: button, time: time)) }
+            }
+            if input.released(button) {
+                for voice in voices.indices { voices[voice].held.removeAll { $0 == button } }
+                latePresses.removeAll { $0.button == button }
+            }
+        }
+
+        for voice in voices.indices { out += settle(voice, settings: settings, at: time) }
         return out
     }
 
     public mutating func releaseAll() -> [DeskEffect] {
-        held = []
-        struck = nil
-        return line.release()
+        var out: [DeskEffect] = []
+        for voice in voices.indices {
+            voices[voice].held = []
+            voices[voice].struck = nil
+            out += voices[voice].line.release()
+        }
+        isOverPull = false
+        lbPressedAt = nil
+        latePresses = []
+        return out
     }
 
     public func legend(_ settings: DeskSettings) -> Legend {
@@ -136,7 +266,13 @@ public struct FaceChords: Layout {
         }
         let other = others.sorted { $0.rawValue < $1.rawValue }.map { numeral($0, in: settings.key) }
             .joined(separator: " ")
-        legend[.leftTrigger] = isLayered ? "Let go: \(other)" : "Hold: \(other)"
+        legend[.leftTrigger] = (isLayered ? "Let go: \(other)" : "Hold: \(other)")
+            + (isTogether ? " · with a face: voice 2" : "")
+        legend[.button(.r3)] = hasSecond ? "Take away voice 2" : "Add a second voice"
+        if hasSecond {
+            legend[.button(.lb)] = isTogether ? "Hold: voice 2 over · double-click: voice 1"
+                : "Hold: voice 2 · double-click: both"
+        }
         return legend
     }
 }

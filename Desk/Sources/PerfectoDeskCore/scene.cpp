@@ -114,10 +114,11 @@ std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &sett
     const auto &map = layout.map();
     const bool layered = layout.isLayered();
     const auto heard = layout.heard();
+    const auto over = layout.voices()[1].heard();
     Faces faces;
     for (const PadButton button : FaceChords::faces) {
         Faces::Face face{button, FaceChords::bearing(button), "", "", "", frame.isDown(button),
-                         heard && heard->first == button};
+                         heard && heard->first == button, over && over->first == button};
         if (const auto degree = map.degree(button, layered)) {
             face.numeral = numeral(*degree, settings.key);
             face.name = DeskChord(settings.key, *degree).name();
@@ -134,12 +135,27 @@ std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &sett
     } else {
         faces.detail = "Hold a face button";
     }
+    if (over) {
+        const auto &line = layout.voices()[1].line;
+        faces.over = numeral(over->second, settings.key) + " · " + (line.chord() ? line.chord()->name() : "");
+    }
     const auto legend = layout.legend(settings);
+    Caption voices{"R3 · LB", "One voice", "R3 adds a second", Tint::faint};
+    if (layout.isTogether()) {
+        voices.title = "Both voices";
+        voices.aside = "LB, or a face with LT: voice 2 over";
+        voices.asideTint = Tint::melody;
+    } else if (layout.hasSecond()) {
+        voices.title = "Second voice";
+        voices.aside = "Hold LB for it · double-click LB for both";
+        voices.asideTint = Tint::melody;
+    }
     Panel panel{{
         Caption{"Face buttons", layered ? "LT held" : "Chords by number", legend.at(PadControl::leftTrigger()),
                 layered ? Tint::borrowed : Tint::faint},
         faces,
         Triggers{{{"LT", frame.leftTrigger, {0.5}, Tint::borrowed}}},
+        voices,
     }};
     return {panel};
 }

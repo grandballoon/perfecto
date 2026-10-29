@@ -46,55 +46,132 @@ double FaceChords::bearing(PadButton button) {
     }
 }
 
-std::optional<std::pair<PadButton, Degree>> FaceChords::heard() const {
-    if (!line_.isSounding() || !struck_) return std::nullopt;
-    return std::pair(struck_->button, struck_->degree);
+FaceChords::FaceChords(Map map)
+    : map_(std::move(map)), voices_{Voice{{}, std::nullopt, ChordLine(Line::chord)},
+                                    Voice{{}, std::nullopt, ChordLine(Line::melody)}} {}
+
+std::optional<std::pair<PadButton, Degree>> FaceChords::Voice::heard() const {
+    if (!line.isSounding()) return std::nullopt;
+    return struck;
 }
 
-std::optional<FaceChords::Wanted> FaceChords::wanted() const {
-    for (auto press = held_.rbegin(); press != held_.rend(); ++press)
-        if (const auto degree = map_.degree(*press, isLayered_)) return Wanted{*press, *degree};
+std::optional<std::pair<PadButton, Degree>> FaceChords::wanted(size_t voice) const {
+    const auto &held = voices_[voice].held;
+    for (auto press = held.rbegin(); press != held.rend(); ++press)
+        if (const auto degree = map_.degree(*press, isLayered(voice))) return std::pair(*press, *degree);
     return std::nullopt;
+}
+
+std::vector<size_t> FaceChords::route(const PadInput &input) const {
+    if (!hasSecond_) return {0};
+    if (input.isDown(PadButton::lb)) return {1};
+    if (!isTogether_) return {0};
+    if (strikesWithLT(input)) return {1};
+    return {0, 1};
+}
+
+bool FaceChords::strikesWithLT(const PadInput &input) const {
+    return isTogether_ && isLayered_ && input.time() - layeredAt_ <= together;
+}
+
+std::vector<DeskEffect> FaceChords::settle(size_t voice, const DeskSettings &settings, double time) {
+    // What sounds is what the hands ask for now: a new press, a press let go
+    // and LT pulled or let go are each a change of chord, and nothing held
+    // is silence.
+    Voice &v = voices_[voice];
+    const auto next = wanted(voice);
+    if (next == v.struck) return {};
+    v.struck = next;
+    if (!next) return v.line.release();
+    const DeskChord chord(settings.key, next->second);
+    if (const auto why = settings.consonance.refusal(chord, settings.key)) {
+        std::vector<DeskEffect> out = {DeskEffect::refuse(*why)};
+        append(out, v.line.release());
+        return out;
+    }
+    return v.line.strike(chord, 0.8, settings, time);
+}
+
+std::vector<DeskEffect> FaceChords::takeAwaySecond() {
+    hasSecond_ = false;
+    isTogether_ = false;
+    isOverPull_ = false;
+    lbPressedAt_.reset();
+    latePresses_.clear();
+    Voice &second = voices_[1];
+    second.held.clear();
+    second.struck.reset();
+    return second.line.release();
 }
 
 std::vector<DeskEffect> FaceChords::step(const PadInput &input, DeskSettings &settings) {
     std::vector<DeskEffect> out;
-    if (voicingPad(input, settings)) append(out, line_.revoice(settings));
+    const double time = input.time();
+    if (voicingPad(input, settings))
+        for (Voice &voice : voices_) append(out, voice.line.revoice(settings));
+
+    if (input.pressed(PadButton::r3)) {
+        if (hasSecond_) {
+            append(out, takeAwaySecond());
+        } else {
+            hasSecond_ = true;
+            append(out, voices_[1].line.bend(overOctaves, 0, settings));
+        }
+        out.push_back(DeskEffect::rumble(Rumble::bump));
+    }
+    if (hasSecond_ && input.pressed(PadButton::lb)) {
+        if (lbPressedAt_ && time - *lbPressedAt_ <= doubleClick) {
+            isTogether_ = !isTogether_;
+            lbPressedAt_.reset();
+            out.push_back(DeskEffect::rumble(Rumble::bump));
+        } else {
+            lbPressedAt_ = time;
+        }
+    }
 
     const bool layered = layerTrigger().step(input.frame.leftTrigger, isLayered_ ? 1 : 0) == 1;
     if (layered != isLayered_) out.push_back(DeskEffect::rumble(Rumble::tick));
-    isLayered_ = layered;
-
-    for (const PadButton button : faces) {
-        if (input.pressed(button)) held_.push_back(button);
-        if (input.released(button)) std::erase(held_, button);
-    }
-
-    // What sounds is what the hands ask for now: a new press, a press let go
-    // and LT pulled or let go are each a change of chord, and nothing held
-    // is silence.
-    const auto next = wanted();
-    if (next != struck_) {
-        struck_ = next;
-        if (next) {
-            const DeskChord chord(settings.key, next->degree);
-            if (const auto why = settings.consonance.refusal(chord, settings.key)) {
-                out.push_back(DeskEffect::refuse(*why));
-                append(out, line_.release());
-            } else {
-                append(out, line_.strike(chord, 0.8, settings, input.time()));
-            }
-        } else {
-            append(out, line_.release());
+    if (layered && !isLayered_) {
+        layeredAt_ = time;
+        // LT just after a face button, with both voices on: they were struck
+        // together, so the pull and the press are the second voice's alone.
+        for (const Press &press : latePresses_) {
+            if (!isTogether_ || time - press.time > together) continue;
+            std::erase(voices_[0].held, press.button);
+            isOverPull_ = true;
         }
     }
+    if (!layered) isOverPull_ = false;
+    isLayered_ = layered;
+    std::erase_if(latePresses_, [&](const Press &press) { return time - press.time > together; });
+
+    for (const PadButton button : faces) {
+        if (input.pressed(button)) {
+            for (const size_t voice : route(input)) voices_[voice].held.push_back(button);
+            if (strikesWithLT(input)) isOverPull_ = true;
+            else latePresses_.push_back({button, time});
+        }
+        if (input.released(button)) {
+            for (Voice &voice : voices_) std::erase(voice.held, button);
+            std::erase_if(latePresses_, [&](const Press &press) { return press.button == button; });
+        }
+    }
+
+    for (size_t voice = 0; voice < voices_.size(); ++voice) append(out, settle(voice, settings, time));
     return out;
 }
 
 std::vector<DeskEffect> FaceChords::releaseAll() {
-    held_.clear();
-    struck_.reset();
-    return line_.release();
+    std::vector<DeskEffect> out;
+    for (Voice &voice : voices_) {
+        voice.held.clear();
+        voice.struck.reset();
+        append(out, voice.line.release());
+    }
+    isOverPull_ = false;
+    lbPressedAt_.reset();
+    latePresses_.clear();
+    return out;
 }
 
 Legend FaceChords::legend(const DeskSettings &settings) const {
@@ -112,7 +189,12 @@ Legend FaceChords::legend(const DeskSettings &settings) const {
     others.erase(std::unique(others.begin(), others.end()), others.end());
     std::string other;
     for (const Degree degree : others) other += (other.empty() ? "" : " ") + numeral(degree, settings.key);
-    legend[PadControl::leftTrigger()] = isLayered_ ? "Let go: " + other : "Hold: " + other;
+    legend[PadControl::leftTrigger()] =
+        (isLayered_ ? "Let go: " + other : "Hold: " + other) + (isTogether_ ? " · with a face: voice 2" : "");
+    legend[PadControl::button(PadButton::r3)] = hasSecond_ ? "Take away voice 2" : "Add a second voice";
+    if (hasSecond_)
+        legend[PadControl::button(PadButton::lb)] =
+            isTogether_ ? "Hold: voice 2 over · double-click: voice 1" : "Hold: voice 2 · double-click: both";
     return legend;
 }
 

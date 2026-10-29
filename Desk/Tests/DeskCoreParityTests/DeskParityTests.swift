@@ -249,7 +249,10 @@ enum DeskParityText {
             let index = { (button: PadButton) in FaceChords.faces.firstIndex(of: button)! }
             return FaceChords.faces.map { button in
                 "face \(index(button)) " + (faces.map.degree(button, layered: faces.isLayered).map { numeral($0, in: s.key) } ?? "-")
-            } + ["heard " + (faces.heard.map { "\(index($0.button)) \(numeral($0.degree, in: s.key))" } ?? "-")]
+            } + faces.voices.enumerated().map { voice, line in
+                "heard \(voice) " + (line.heard.map { "\(index($0.button)) \(numeral($0.degree, in: s.key))" } ?? "-")
+            } + ["voices " + (faces.hasSecond ? "second" : "one") + (faces.isTogether ? " together" : "")
+                + (faces.isOverPull ? " over" : "")]
         case .twinRings:
             let rings = desk.twinRings
             let voices = rings.voiceTargets(s)

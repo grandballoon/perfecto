@@ -224,6 +224,7 @@ Variant v(const desk::Faces::Face &face) {
     d["other"] = text(face.other);
     d["held"] = face.isHeld;
     d["heard"] = face.isHeard;
+    d["over"] = face.isOver;
     d["tint"] = v(desk::tint(face.button));
     return d;
 }
@@ -302,6 +303,7 @@ Variant item(const desk::Item &item) {
                 d["numeral"] = text(value.numeral);
                 d["name"] = text(value.name);
                 d["detail"] = text(value.detail);
+                d["over"] = text(value.over);
                 return d;
             } else if constexpr (std::is_same_v<T, desk::Scale>) {
                 Dictionary d = tagged("scale");

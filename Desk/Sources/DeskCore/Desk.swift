@@ -158,7 +158,7 @@ public struct Desk: Equatable, Sendable {
     /// hands are on.
     public var pinnable: DeskChord? {
         switch layout {
-        case .faceChords: faceChords.line.isSounding ? faceChords.line.chord : nil
+        case .faceChords: faceChords.voices.first { $0.line.isSounding }?.line.chord
         case .twinRings: twinRings.line.isSounding ? twinRings.line.chord : twinRings.chord(settings)
         case .petals: petals.line.isSounding ? petals.line.chord : nil
         case .neighbourhood: neighbourhood.line.isSounding ? neighbourhood.line.chord : neighbourhood.centre

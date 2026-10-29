@@ -218,4 +218,22 @@ TEST_CASE("Face Chords shows each button's chord by number and name, and the cho
     CHECK(items<Caption>(scene.stage.at(0)).at(0).title == "LT held");
 }
 
+TEST_CASE("Face Chords shows the second voice: the button it sounds, its chord, and how the voices are played") {
+    Desk desk(catalog, DeskSettings(), LayoutKind::faceChords);
+    CHECK(items<Caption>(scene(desk, false).stage.at(0)).at(1) == Caption{"R3 · LB", "One voice", "R3 adds a second", Tint::faint});
+    desk.step(frame(1, {PadButton::r3}));
+    desk.step(frame(2, {PadButton::a}));
+    desk.step(frame(3, {PadButton::a, PadButton::lb, PadButton::x}));
+    const auto stage = scene(desk, false).stage.at(0);
+    const auto faces = items<Faces>(stage).at(0);
+    CHECK(faces.faces[0].isHeard);
+    CHECK_FALSE(faces.faces[0].isOver);
+    CHECK(faces.faces[1].isOver);
+    CHECK_FALSE(faces.faces[1].isHeard);
+    CHECK(faces.numeral == "I");
+    CHECK(faces.over == "V · G maj");
+    CHECK(items<Caption>(stage).at(1) ==
+          Caption{"R3 · LB", "Second voice", "Hold LB for it · double-click LB for both", Tint::melody});
+}
+
 }

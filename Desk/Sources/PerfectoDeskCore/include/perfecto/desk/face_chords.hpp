@@ -7,6 +7,23 @@
 // What sounds is always the latest face button held, read in the layer LT is
 // in now: pulling or letting go of LT while a button is held is a change of
 // chord as a new press is, and with no button held nothing sounds.
+//
+// A second voice can be added (R3), a line of chords of its own over the
+// first: the desk's melody line, in its sound and on its MIDI channel, an
+// octave up. Each press goes to one voice or both, chosen as it is pressed,
+// and each voice sounds the latest button it holds:
+//
+// - with one voice, every press is the first's;
+// - with LB held, a press is the second's alone;
+// - with both voices on (LB double-clicked), a press is both's, but with LB
+//   held, or with LT pulled at the same moment (either first, within
+//   `together`), the second's alone, over what the first is holding.
+//
+// A pull of LT that strikes with a face button so is the second voice's: it
+// plays that button's LT chord there, and the first voice reads LT as let go
+// for as long as the pull is held, so it keeps its chord. Every other pull is
+// both voices' layer, as with one. A press already struck on both before the
+// pull came is taken back from the first, which returns to what it held.
 
 #ifndef PERFECTO_DESK_FACE_CHORDS_HPP
 #define PERFECTO_DESK_FACE_CHORDS_HPP
@@ -47,7 +64,29 @@ public:
     /// Where `button` is in the diamond, as a bearing: A at the bottom.
     static double bearing(PadButton button);
 
-    explicit FaceChords(Map map = Map::standard()) : map_(std::move(map)) {}
+    /// What one voice holds and sounds.
+    struct Voice {
+        /// The face buttons it holds, the most recent last.
+        std::vector<PadButton> held;
+        /// What was last struck, or refused: a chord is struck once for it.
+        std::optional<std::pair<PadButton, theory::Degree>> struck;
+        ChordLine line;
+
+        bool operator==(const Voice &) const = default;
+
+        /// The button and degree it sounds now, if it sounds one.
+        std::optional<std::pair<PadButton, theory::Degree>> heard() const;
+    };
+
+    /// Two presses of LB within this many seconds are a double-click.
+    static constexpr double doubleClick = 0.3;
+    /// A face button and LT within this many seconds of each other are struck
+    /// together.
+    static constexpr double together = 0.08;
+    /// How far over the first voice the second sounds, in octaves.
+    static constexpr int overOctaves = 1;
+
+    explicit FaceChords(Map map = Map::standard());
 
     bool operator==(const FaceChords &) const = default;
 
@@ -57,12 +96,18 @@ public:
 
     /// Whether LT is held: the second layer.
     bool isLayered() const { return isLayered_; }
-    /// The face buttons held, the most recent last.
-    const std::vector<PadButton> &held() const { return held_; }
-    const ChordLine &line() const { return line_; }
+    /// The first voice, and the second (silent until it is added).
+    const std::array<Voice, 2> &voices() const { return voices_; }
+    const ChordLine &line() const { return voices_[0].line; }
+    /// Whether the second voice has been added (R3).
+    bool hasSecond() const { return hasSecond_; }
+    /// Whether a press plays both voices (LB double-clicked).
+    bool isTogether() const { return isTogether_; }
+    /// Whether the pull of LT held is the second voice's alone.
+    bool isOverPull() const { return isOverPull_; }
 
-    /// The button and degree heard now, if one is.
-    std::optional<std::pair<PadButton, theory::Degree>> heard() const;
+    /// The button and degree the first voice sounds now, if it sounds one.
+    std::optional<std::pair<PadButton, theory::Degree>> heard() const { return voices_[0].heard(); }
 
     std::vector<DeskEffect> step(const PadInput &input, DeskSettings &settings);
 
@@ -71,21 +116,39 @@ public:
     Legend legend(const DeskSettings &settings) const;
 
 private:
-    /// What the hands ask for: the latest press with a chord in this layer.
-    struct Wanted {
+    /// A face button pressed, and when: LT pulled soon after, with both
+    /// voices on, makes it the second voice's alone.
+    struct Press {
         PadButton button;
-        theory::Degree degree;
-        bool operator==(const Wanted &) const = default;
+        double time;
+        bool operator==(const Press &) const = default;
     };
 
     Map map_;
     bool isLayered_ = false;
-    std::vector<PadButton> held_;
-    /// What was last struck, or refused: a chord is struck once for it.
-    std::optional<Wanted> struck_;
-    ChordLine line_;
+    std::array<Voice, 2> voices_;
+    bool hasSecond_ = false;
+    bool isTogether_ = false;
+    bool isOverPull_ = false;
+    /// When LT was last pulled past halfway.
+    double layeredAt_ = 0;
+    /// When LB was last pressed, while a second press would be a double-click.
+    std::optional<double> lbPressedAt_;
+    std::vector<Press> latePresses_;
 
-    std::optional<Wanted> wanted() const;
+    /// Whether `voice` reads LT as held.
+    bool isLayered(size_t voice) const { return isLayered_ && !(voice == 0 && isOverPull_); }
+    /// The voices a face button pressed now goes to.
+    std::vector<size_t> route(const PadInput &input) const;
+    /// Whether a face button pressed now is struck together with LT, as the
+    /// second voice's alone.
+    bool strikesWithLT(const PadInput &input) const;
+    /// What the hands ask `voice` for: its latest press with a chord in its
+    /// layer.
+    std::optional<std::pair<PadButton, theory::Degree>> wanted(size_t voice) const;
+    /// Strikes what `voice` is asked for, if it is not what it sounds.
+    std::vector<DeskEffect> settle(size_t voice, const DeskSettings &settings, double time);
+    std::vector<DeskEffect> takeAwaySecond();
 };
 
 } // namespace perfecto::desk

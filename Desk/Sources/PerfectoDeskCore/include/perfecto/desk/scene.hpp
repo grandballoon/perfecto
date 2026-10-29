@@ -243,6 +243,8 @@ struct Faces {
         bool isHeld;
         /// It is the button heard.
         bool isHeard;
+        /// It is the button the second voice sounds.
+        bool isOver = false;
 
         bool operator==(const Face &) const = default;
     };
@@ -253,6 +255,8 @@ struct Faces {
     std::string name;
     /// What the middle says with nothing sounding, or under the chord.
     std::string detail;
+    /// The chord the second voice sounds, "V · G maj"; empty with none.
+    std::string over;
 
     bool operator==(const Faces &) const = default;
 };

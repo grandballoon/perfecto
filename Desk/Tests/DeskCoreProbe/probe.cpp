@@ -102,8 +102,13 @@ std::vector<std::string> screenOf(const Desk &desk) {
             const auto degree = faces.map().degree(button, faces.isLayered());
             lines.push_back("face " + index(button) + " " + (degree ? numeral(*degree, s.key) : "-"));
         }
-        const auto heard = faces.heard();
-        lines.push_back("heard " + (heard ? index(heard->first) + " " + numeral(heard->second, s.key) : "-"));
+        for (size_t voice = 0; voice < faces.voices().size(); ++voice) {
+            const auto heard = faces.voices()[voice].heard();
+            lines.push_back("heard " + std::to_string(voice) + " " +
+                            (heard ? index(heard->first) + " " + numeral(heard->second, s.key) : "-"));
+        }
+        lines.push_back(std::string("voices ") + (faces.hasSecond() ? "second" : "one") +
+                        (faces.isTogether() ? " together" : "") + (faces.isOverPull() ? " over" : ""));
         break;
     }
     case LayoutKind::twinRings: {

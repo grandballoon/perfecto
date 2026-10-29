@@ -124,7 +124,10 @@ std::vector<DeskEffect> Desk::step(const GamepadFrame &frame) {
 
 std::optional<DeskChord> Desk::pinnable() const {
     switch (layout_) {
-    case LayoutKind::faceChords: return faceChords_.line().isSounding() ? faceChords_.line().chord() : std::nullopt;
+    case LayoutKind::faceChords:
+        for (const auto &voice : faceChords_.voices())
+            if (voice.line.isSounding()) return voice.line.chord();
+        return std::nullopt;
     case LayoutKind::twinRings:
         return twinRings_.line().isSounding() ? twinRings_.line().chord() : twinRings_.chord(settings);
     case LayoutKind::petals:

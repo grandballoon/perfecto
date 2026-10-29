@@ -72,6 +72,23 @@ LT is on past halfway, and held a little either side of it, so a trigger resting
 The screen shows each button as a tile where it is on the controller, with its chord's number and name and the other layer's chord in a corner, and the chord heard large in the middle.
 The d-pad rolls the inversion and moves the octave, and the chord held moves with it.
 
+#### A second voice
+
+R3 adds a second voice, and takes it away again.
+It is a line of chords of its own, an octave over the first, played in the line's sound (Menu › Line sound) and over MIDI on the line's channel.
+Each press goes to one voice or both, chosen as it is pressed, and each voice sounds the latest face button it holds, as the first does alone:
+
+- **At first** a press is the first voice's.
+- **With LB held** it is the second's alone, and stays there when LB is let go.
+- **LB double-clicked** puts both voices on: a press plays its chord on both, and another double-click goes back to one.
+- **With both on**, LB and a face button, or a face button and LT pulled at the same moment (either first, within 80 ms), play the second voice alone, over what the first is holding.
+
+LT struck with a face button so is the second voice's pull: the second voice plays that button's chord with LT, and the first voice keeps its chord for as long as the pull is held, as if LT were let go.
+Every other pull is both voices' layer, as with one voice: LT held before a face button plays both in its layer, and LT pulled later on a held button changes both voices' chords.
+A press that comes a moment before LT has been struck on both, so the first voice plays it for that moment and then goes back to what it held.
+
+The middle of the screen names the second voice's chord under the first's, and its button has a blue bar along its foot.
+
 ### Twin rings
 
 The recommended model.

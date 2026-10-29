@@ -172,7 +172,7 @@ struct PetalsView: View {
 
 /// Face Chords: the face buttons as tiles where they are on the controller,
 /// each with the number and the name of its chord, and the chord heard in
-/// the middle.
+/// the middle, with the second voice's under it.
 struct FaceChordsView: View {
     let layout: FaceChords
     let settings: DeskSettings
@@ -205,6 +205,10 @@ struct FaceChordsView: View {
                 Text(layout.line.chord?.name ?? "").font(.system(size: 20, weight: .semibold, design: .rounded))
             } else {
                 Text("Hold a face button").font(.system(size: 13)).foregroundStyle(Theme.secondary)
+            }
+            if let over = layout.voices[1].heard {
+                Text("over " + numeral(over.degree, in: settings.key) + " · " + (layout.voices[1].line.chord?.name ?? ""))
+                    .font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(Theme.melody)
             }
         }
         .foregroundStyle(Theme.chord)

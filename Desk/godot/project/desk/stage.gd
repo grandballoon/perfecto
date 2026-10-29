@@ -387,7 +387,7 @@ static func diamond(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
 
 ## Face Chords: the face buttons as tiles where they are on the controller,
 ## each with the number and the name of its chord, and the chord heard in
-## the middle.
+## the middle, with the second voice's under it.
 static func faces(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
 	var middle := rect.get_center()
 	var side := rect.size.x
@@ -400,17 +400,24 @@ static func faces(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
 		var number := T.new(item["numeral"], int(side * 0.13), 800, true).fitted(room)
 		var name := T.new(item["name"], int(side * 0.05), 600, true).fitted(room)
 		var detail := T.new(item["detail"], 11, 500).fitted(room)
-		var top := middle.y - (number.height() + name.height() + detail.height()) / 2
+		var over := T.new("over " + item["over"], int(side * 0.04), 700, true).fitted(room)
+		var over_height := over.height() if item["over"] else 0.0
+		var top := middle.y - (number.height() + name.height() + detail.height() + over_height) / 2
 		number.draw(canvas, Vector2(middle.x, top), Paint.CHORD, true)
 		name.draw(canvas, Vector2(middle.x, top + number.height()), Paint.color("text"), true)
 		detail.draw(canvas, Vector2(middle.x, top + number.height() + name.height()), Paint.color("secondary"), true)
+		if item["over"]:
+			over.draw(canvas, Vector2(middle.x, top + number.height() + name.height() + detail.height()), Paint.MELODY, true)
+	elif item["over"]:
+		T.new(item["over"], int(side * 0.05), 700, true).fitted(room).draw_centred(canvas, middle, Paint.MELODY)
 	else:
 		T.new(item["detail"], 13, 500).fitted(room).draw_centred(canvas, middle, Paint.color("secondary"))
 
 
 ## A face button's tile: the button, its chord's number large and its name,
 ## and the other layer's chord in a corner. The button heard is filled with
-## its color, one held beneath it edged.
+## its color, one held beneath it edged; the one the second voice sounds has
+## a bar of the line's blue along its foot.
 static func face_tile(canvas: CanvasItem, rect: Rect2, face: Dictionary) -> void:
 	var tint := Paint.color(face["tint"])
 	var heard: bool = face["heard"]
@@ -431,6 +438,9 @@ static func face_tile(canvas: CanvasItem, rect: Rect2, face: Dictionary) -> void
 	var top := rect.get_center().y - (number.height() + name.height()) / 2 + rect.size.y * 0.05
 	number.draw(canvas, Vector2(rect.get_center().x, top), ink if face["numeral"] else Paint.color("faint"), true)
 	name.draw(canvas, Vector2(rect.get_center().x, top + number.height()), Color(ink, 0.85), true)
+	if face["over"]:
+		var bar := Rect2(rect.position.x + radius, rect.end.y - pad * 0.9, rect.size.x - 2 * radius, pad * 0.5)
+		Paint.box(canvas, bar, Paint.MELODY, bar.size.y / 2, Paint.MELODY, 1.0)
 
 
 ## A control's own mark, centred on `at`: a face button round in its color,
