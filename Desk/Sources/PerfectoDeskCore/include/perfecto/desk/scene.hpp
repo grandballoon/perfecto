@@ -11,6 +11,7 @@
 #ifndef PERFECTO_DESK_SCENE_HPP
 #define PERFECTO_DESK_SCENE_HPP
 
+#include "perfecto/desk/band.hpp"
 #include "perfecto/desk/desk.hpp"
 #include "perfecto/desk/layout.hpp"
 #include "perfecto/desk/pad.hpp"
@@ -469,6 +470,10 @@ struct Scene {
 
 /// What `desk` shows, the controls as the keyboard plays them if `keyboard`.
 Scene scene(const Desk &desk, bool keyboard);
+
+/// What `band` shows: its desk, with the drums under Face Chords and the
+/// drums' controls in the hand.
+Scene scene(const Band &band, bool keyboard);
 
 /// Does what a mouse chose, and says what to sound.
 std::vector<DeskEffect> perform(Desk &desk, const Action &action);

@@ -110,7 +110,41 @@ std::vector<Panel> twinRings(const TwinRings &layout, const DeskSettings &settin
     return {left, right};
 }
 
-std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &settings, const GamepadFrame &frame) {
+/// The drums under Face Chords: the beat's bar, its step lit as it sounds,
+/// and the patterns to choose from.
+std::vector<Item> drumItems(const Drums &drums, const DeskSettings &settings, double time) {
+    const auto &machine = drums.machine();
+    const auto &pattern = machine.played();
+    const auto heard = machine.step(time);
+    Chips bar{{}, DrumPattern::steps};
+    for (int step = 0; step < DrumPattern::steps; ++step)
+        bar.chips.push_back({step % 4 == 0 ? std::to_string(step / 4 + 1) : "·", heard == step, !pattern.isStruck(step)});
+    Choices patterns{"RB ◀", {}, machine.pattern(), "▶", std::nullopt};
+    for (const auto &each : drumPatterns()) patterns.names.push_back(each.name);
+    const std::string tempo = std::to_string(static_cast<int>(settings.tempo)) + " bpm";
+    return {
+        Caption{"L3 · RB", "Drums", machine.isPlaying() ? "▶ " + tempo : "L3 starts the beat",
+                machine.isPlaying() ? Tint::chord : Tint::faint},
+        bar,
+        patterns,
+    };
+}
+
+/// The face buttons as the drum layer plays them: a drum on each.
+Faces drumPads(const Drums &drums, const GamepadFrame &frame) {
+    const bool shifted = drums.isShifted();
+    Faces faces;
+    for (const PadButton button : FaceChords::faces) {
+        faces.faces.push_back({button, FaceChords::bearing(button), name(*Drums::pad(button, shifted)), "",
+                               (shifted ? "−LT " : "+LT ") + name(*Drums::pad(button, !shifted)), frame.isDown(button),
+                               false});
+    }
+    faces.detail = "Drum pads";
+    return faces;
+}
+
+std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &settings, const GamepadFrame &frame,
+                              const Drums *drums, double time) {
     const auto &map = layout.map();
     const bool layered = layout.isLayered();
     const auto heard = layout.heard();
@@ -157,6 +191,14 @@ std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &sett
         Triggers{{{"LT", frame.leftTrigger, {0.5}, Tint::borrowed}}},
         voices,
     }};
+    if (drums) {
+        if (drums->isLayered()) {
+            panel.items[0] = Caption{"RB held", "Drum pads", drums->isShifted() ? "LT held: toms, clap" : "LT: toms, clap",
+                                     drums->isShifted() ? Tint::borrowed : Tint::faint};
+            panel.items[1] = drumPads(*drums, frame);
+        }
+        for (auto &item : drumItems(*drums, settings, time)) panel.items.push_back(std::move(item));
+    }
     return {panel};
 }
 
@@ -359,7 +401,7 @@ TopBar topBar(const Desk &desk) {
     return top;
 }
 
-Hand hand(const Desk &desk, const GamepadFrame &frame, bool keyboard) {
+Hand hand(const Legend &legend, const GamepadFrame &frame, bool keyboard) {
     static const std::vector<PadControl> left = {
         PadControl::leftTrigger(),          PadControl::button(PadButton::lb),   PadControl::leftStick(),
         PadControl::button(PadButton::l3),  PadControl::button(PadButton::up),   PadControl::button(PadButton::down),
@@ -370,7 +412,6 @@ Hand hand(const Desk &desk, const GamepadFrame &frame, bool keyboard) {
         PadControl::button(PadButton::r3), PadControl::button(PadButton::y),  PadControl::button(PadButton::x),
         PadControl::button(PadButton::b),  PadControl::button(PadButton::a),  PadControl::button(PadButton::start),
     };
-    const auto legend = desk.legend();
     const auto entries = [&](const std::vector<PadControl> &controls) {
         std::vector<Hand::Entry> out;
         for (const auto &control : controls) {
@@ -451,14 +492,15 @@ MenuView menu(const Desk &desk, const DeskMenu &menu) {
     return view;
 }
 
-} // namespace
-
-Scene scene(const Desk &desk, bool keyboard) {
+/// What `desk` shows, its hand by `legend` and `held`, and the drums
+/// under Face Chords if there are any.
+Scene sceneOf(const Desk &desk, const Legend &legend, const GamepadFrame &held, bool keyboard, const Drums *drums,
+              double time) {
     const auto frame = desk.frame() ? desk.frame()->shown() : GamepadFrame();
     const auto &settings = desk.settings;
-    Scene scene{topBar(desk), {}, hand(desk, frame, keyboard), favorites(desk), std::nullopt};
+    Scene scene{topBar(desk), {}, hand(legend, held, keyboard), favorites(desk), std::nullopt};
     switch (desk.layout()) {
-    case LayoutKind::faceChords: scene.stage = faceChords(desk.faceChords(), settings, frame); break;
+    case LayoutKind::faceChords: scene.stage = faceChords(desk.faceChords(), settings, held, drums, time); break;
     case LayoutKind::twinRings: scene.stage = twinRings(desk.twinRings(), settings, frame); break;
     case LayoutKind::petals: scene.stage = petals(desk.petals(), settings, frame); break;
     case LayoutKind::neighbourhood: scene.stage = neighbourhood(desk.neighbourhood(), settings, frame); break;
@@ -467,6 +509,19 @@ Scene scene(const Desk &desk, bool keyboard) {
     }
     if (desk.menu()) scene.menu = menu(desk, *desk.menu());
     return scene;
+}
+
+} // namespace
+
+Scene scene(const Desk &desk, bool keyboard) {
+    const auto frame = desk.frame() ? desk.frame()->shown() : GamepadFrame();
+    return sceneOf(desk, desk.legend(), frame, keyboard, nullptr, 0);
+}
+
+Scene scene(const Band &band, bool keyboard) {
+    // The hand is shown as it is, before the drums took their buttons.
+    const auto frame = band.frame() ? band.frame()->shown() : GamepadFrame();
+    return sceneOf(band.desk(), band.legend(), frame, keyboard, &band.drums(), band.frame() ? band.frame()->time : 0);
 }
 
 std::vector<DeskEffect> perform(Desk &desk, const Action &action) {

@@ -1,14 +1,14 @@
-// The desk in Godot: it holds the `Desk`, gives it a frame from the
-// controller and the keyboard each time it is stepped, and performs what it
-// returns, its notes on the kernel and MIDI and its rumbles on the
-// controller's motors. Everything it decides is the core's; the scripts
+// The desk in Godot: it holds the `Band` (the desk and the drums), gives it a
+// frame from the controller and the keyboard each time it is stepped, and
+// performs what it returns, its notes and drums on the kernel and MIDI and
+// its rumbles on the controller's motors. Everything it decides is the core's; the scripts
 // draw the scene it shows and hand over what is left to them (a notice, a
 // file to save).
 //
-//     desk.gd ── step() ──→ PerfectoDesk ── frame ──→ perfecto::desk::Desk
+//     desk.gd ── step() ──→ PerfectoDesk ── frame ──→ perfecto::desk::Band
 //        ↑                    │   ↑                          │
 //        └── scene(), the     │   └──────── effects ─────────┘
-//            effects left     ├─→ DeskVoices → PerfectoStream (the kernel)
+//            effects left     ├─→ DeskVoices, DrumVoices → PerfectoStream (the kernel)
 //                             ├─→ DeskMidi ("Perfecto Desk")
 //                             └─→ Input (rumble)
 
@@ -17,9 +17,10 @@
 
 #include "desk_midi.h"
 #include "desk_voices.h"
+#include "drum_voices.h"
 #include "perfecto_stream.h"
 
-#include <perfecto/desk/desk.hpp>
+#include <perfecto/desk/band.hpp>
 #include <perfecto/desk/scene.hpp>
 
 #include <godot_cpp/classes/ref_counted.hpp>
@@ -41,7 +42,9 @@ public:
     ~PerfectoDesk() override;
 
     /// Plays on `stream`, whose sounds are `presets` in order (each with
-    /// its id, name and category, as `presets.json` has them).
+    /// its id, name and category, as `presets.json` has them), and the
+    /// drums on the sounds after them. Before the stream plays: the drums'
+    /// recordings are loaded into the kernel.
     void setup(const godot::Ref<PerfectoStream> &stream, const godot::Array &presets);
 
     /// One frame: the controller and, if `keyboard`, the keyboard, read now.
@@ -75,9 +78,10 @@ protected:
     static void _bind_methods();
 
 private:
-    std::optional<perfecto::desk::Desk> desk_;
+    std::optional<perfecto::desk::Band> band_;
     godot::Ref<PerfectoStream> stream_;
     std::unique_ptr<DeskVoices> voices_;
+    std::unique_ptr<DrumVoices> drums_;
     std::unique_ptr<DeskMidi> midi_;
     std::map<perfecto::desk::Line, std::vector<int>> sounding_;
     std::optional<int> device_;
@@ -88,7 +92,8 @@ private:
 
     double now() const;
     perfecto::desk::GamepadFrame frame(double time, bool keyboard);
-    godot::Array play(const std::vector<perfecto::desk::DeskEffect> &effects, double time);
+    godot::Array play(const perfecto::desk::Band::Played &played, double time);
+    void drum(const perfecto::desk::DrumEffect &effect, double time);
     void settingsChanged(const perfecto::desk::DeskSettings &before);
     void rumble(perfecto::desk::Rumble kind, double time);
     void followRenders();

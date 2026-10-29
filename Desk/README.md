@@ -89,6 +89,23 @@ A press that comes a moment before LT has been struck on both, so the first voic
 
 The middle of the screen names the second voice's chord under the first's, and its button has a blue bar along its foot.
 
+#### Drums
+
+Face Chords has a drum machine under it, and drum pads.
+
+- **L3** starts and stops the beat, on the click, so the beat starts where it is clicked.
+- **RB held** makes the face buttons drum pads: A kick, B snare, X closed hat, Y open hat; with LT held too, A low tom, B clap, X mid tom, Y high tom.
+  A face button or d-pad press made under RB is the drums' until it is let go, so it never reaches the chords, and a chord held when RB is pulled sounds on.
+- **RB with the d-pad**: left and right choose the beat, up and down move the tempo 4 bpm.
+  The tempo is the desk's one tempo, which Menu › Tempo also sets.
+
+A beat is a bar of sixteenth notes; there are six (Backbeat, Floor, Half time, Shuffle, Broken, Toms), and a new one is taken up from the step the bar is at.
+It plays on under the menu, so a tempo chosen there is heard, and stops when the desk goes to another layout.
+The screen shows the bar under the face buttons, its step lit as it sounds, and the beats to choose from; while RB is held the face buttons show their drums.
+Over MIDI the drums are on channel 10, as General MIDI has them (36 the kick, 38 the snare, 42 and 46 the hats).
+
+The kit is made in code (`Sources/PerfectoDrumKit`), not recorded: a kick (played higher, it is the toms), a snare, a hi-hat (shut short, the closed hat; left to ring, the open one) and a clap.
+
 ### Twin rings
 
 The recommended model.

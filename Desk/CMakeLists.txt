@@ -29,6 +29,16 @@ else()
     target_compile_options(PerfectoDeskCore PUBLIC -ffp-contract=off)
 endif()
 
+# The drum kit, made in code (Sources/PerfectoDrumKit): pure, on nothing.
+file(GLOB PERFECTO_DRUM_KIT_SOURCES CONFIGURE_DEPENDS Sources/PerfectoDrumKit/*.cpp)
+add_library(PerfectoDrumKit STATIC ${PERFECTO_DRUM_KIT_SOURCES})
+target_include_directories(PerfectoDrumKit PUBLIC Sources/PerfectoDrumKit/include)
+if(MSVC)
+    target_compile_options(PerfectoDrumKit PRIVATE /W4 /utf-8)
+else()
+    target_compile_options(PerfectoDrumKit PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
 if(PERFECTO_DESK_BUILD_TESTS)
     include(FetchContent)
     # doctest is one header; fetched at a pinned version and checked.
@@ -46,6 +56,12 @@ if(PERFECTO_DESK_BUILD_TESTS)
         target_compile_options(PerfectoDeskCoreTests PRIVATE /utf-8)
     endif()
 
+    file(GLOB PERFECTO_DRUM_KIT_TESTS CONFIGURE_DEPENDS Tests/PerfectoDrumKitTests/*.cpp)
+    add_executable(PerfectoDrumKitTests ${PERFECTO_DRUM_KIT_TESTS})
+    target_include_directories(PerfectoDrumKitTests PRIVATE ${doctest_SOURCE_DIR})
+    target_link_libraries(PerfectoDrumKitTests PRIVATE PerfectoDrumKit)
+
     enable_testing()
     add_test(NAME PerfectoDeskCoreTests COMMAND PerfectoDeskCoreTests)
+    add_test(NAME PerfectoDrumKitTests COMMAND PerfectoDrumKitTests)
 endif()
