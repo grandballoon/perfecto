@@ -1,7 +1,10 @@
 ## The spike's one screen: chords from a controller or the keyboard on the
 ## kernel, and what the mixing thread is doing, measured as it plays.
 ##
-## A B X Y: I IV V vi in C; with LT held, A B X are ii iii vii°.
+## A B X Y: the chords pad.json gives them in C, without LT and with it held
+## (A I, B IV, X V, Y vii°; with LT, A I, B ii, X iii, Y vi). Pulling or
+## letting go of LT while a face button holds a chord switches it to the
+## button's chord in the other layer.
 ## Z X C V B N M: all seven, I to vii°. LB and RB (or Q and E): the sound.
 ## RT: swell the held chord, from 0.6 of its level to all of it.
 ## D-pad up and down (or the arrows): the player's volume, 6 dB a step, to
@@ -17,6 +20,7 @@
 ##   --voices <n>     strike chords of n notes, not four
 ##   --hold           strike one chord and hold it throughout, so exactly
 ##                    n voices sound (to set beside the offline benchmark)
+##   --pad <file>     the face buttons' map, in place of pad.json
 ##   --asap           strike each chord as soon as possible, not a fixed lead
 ##                    from now (a block and a millisecond)
 extends Control
@@ -33,11 +37,10 @@ const CHORDS := [
 	[47, 59, 62, 65],
 ]
 const DEGREE_NAMES := ["I", "ii", "iii", "IV", "V", "vi", "vii°"]
-## The face buttons' degrees, and with LT held.
-const PAD := {JOY_BUTTON_A: 0, JOY_BUTTON_B: 3, JOY_BUTTON_X: 4, JOY_BUTTON_Y: 5}
-const PAD_SHIFTED := {JOY_BUTTON_A: 1, JOY_BUTTON_B: 2, JOY_BUTTON_X: 6}
-## LT counts as held past this far.
-const SHIFT_PULL := 0.5
+## LT counts as held past this far, and let go short of it, apart enough
+## that a trigger resting near one place cannot flicker between the layers.
+const SHIFT_PULL := 0.55
+const SHIFT_LET_GO := 0.45
 const KEYS := {KEY_Z: 0, KEY_X: 1, KEY_C: 2, KEY_V: 3, KEY_B: 4, KEY_N: 5, KEY_M: 6}
 const VELOCITY := 0.7
 const REVERB := 0.16
@@ -51,10 +54,14 @@ var player := AudioStreamPlayer.new()
 var presets: Array
 var sound := 0
 var label := Label.new()
+var face_buttons: FaceButtons
+var lt_held := false
 
 ## The input holding the chord sounding ("pad:<button>" or "key:<keycode>"),
-## whose lifting ends it, and the chord's degree.
+## whose lifting ends it, and the chord's degree; and the face button, if a
+## face button holds it (-1 if not), whose chord LT switches.
 var held_input := ""
+var held_button := -1
 var held_degree := -1
 var held_ids: Array[int] = []
 var next_id := 1
@@ -132,16 +139,22 @@ func leave() -> void:
 
 func read_arguments() -> void:
 	var args := OS.get_cmdline_user_args()
+	var pad_path := FaceButtons.DEFAULT_PATH
 	for i in args.size():
 		match args[i]:
 			"--sound":
 				sound = presets.find_custom(func(p): return p["id"] == args[i + 1])
 			"--voices":
 				voices = int(args[i + 1])
+			"--pad":
+				pad_path = args[i + 1]
 			"--hold":
 				holding = true
 			"--asap":
 				strike_frame = 0
+	face_buttons = FaceButtons.read(pad_path, DEGREE_NAMES)
+	if face_buttons.error:
+		push_error(face_buttons.error)
 	if "--measure" in args:
 		AudioServer.set_bus_volume_db(0, -80)
 		quit_after_measure = true
@@ -177,10 +190,11 @@ func _process(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventJoypadButton:
-		if event.button_index in PAD:
-			var shifted := Input.get_joy_axis(event.device, JOY_AXIS_TRIGGER_LEFT) > SHIFT_PULL
-			var layer := PAD_SHIFTED if shifted else PAD
-			chord_input("pad:%d" % event.button_index, layer.get(event.button_index, -1), event.pressed)
+		if event.button_index in FaceButtons.BUTTONS.values():
+			var degree: int = face_buttons.layer(lt_held).get(event.button_index, -1)
+			chord_input("pad:%d" % event.button_index, degree, event.pressed)
+			if event.pressed and degree >= 0:
+				held_button = event.button_index
 		else:
 			button(event.button_index, event.pressed)
 	elif event is InputEventKey and not event.echo:
@@ -198,6 +212,10 @@ func _input(event: InputEvent) -> void:
 			button(JOY_BUTTON_DPAD_UP, true)
 		elif event.pressed and event.keycode == KEY_DOWN:
 			button(JOY_BUTTON_DPAD_DOWN, true)
+	elif event is InputEventJoypadMotion and event.axis == JOY_AXIS_TRIGGER_LEFT:
+		var pull := (event as InputEventJoypadMotion).axis_value
+		if (pull < SHIFT_LET_GO) if lt_held else (pull > SHIFT_PULL):
+			switch_layer(not lt_held)
 	elif event is InputEventJoypadMotion and event.axis == JOY_AXIS_TRIGGER_RIGHT:
 		var level := 0.6 + 0.4 * (event as InputEventJoypadMotion).axis_value
 		if absf(level - swell) > 0.01:
@@ -206,9 +224,27 @@ func _input(event: InputEvent) -> void:
 				stream.note_change(id, 1.0, swell, REVERB)
 
 
-## A chord's button or key: pressed, it strikes `degree` (-1 is none, as LT
-## with Y); lifted, it ends the chord if it is the one holding it, whatever
-## LT has done meanwhile.
+## LT pulled or let go: a face button holding a chord switches to its chord
+## in the other layer, or ends it if it has none there. A button with the
+## same chord in both (A) goes on sounding.
+func switch_layer(held: bool) -> void:
+	lt_held = held
+	if held_button < 0:
+		label.text = report()
+		return
+	var degree: int = face_buttons.layer(lt_held).get(held_button, -1)
+	if degree < 0:
+		release()
+	elif degree != held_degree:
+		var button := held_button
+		strike(degree, held_input)
+		held_button = button
+	label.text = report()
+
+
+## A chord's button or key: pressed, it strikes `degree` (-1 is none, a
+## button its layer leaves out); lifted, it ends the chord if it is the one
+## holding it, whatever LT has done meanwhile.
 func chord_input(input: String, degree: int, pressed: bool) -> void:
 	if pressed and degree >= 0:
 		strike(degree, input)
@@ -259,6 +295,7 @@ func release() -> void:
 		stream.note_off(id, 0)
 	held_ids.clear()
 	held_input = ""
+	held_button = -1
 	held_degree = -1
 	label.text = report()
 
@@ -289,8 +326,13 @@ func report() -> String:
 	lines.append("Sound: %s  (LB/RB or Q/E)" % presets[sound]["name"])
 	lines.append("Strikes: %s  (Back or S)" % ("a lead ahead, constant" if strike_frame < 0 else "as soon as possible"))
 	lines.append("Volume: %d dB  (d-pad or arrows up and down)" % player.volume_db)
-	lines.append("Chord: %s  (A B X Y: I IV V vi, LT + A B X: ii iii vii°; keys Z to M: I to vii°)" % (
-		DEGREE_NAMES[held_degree] if held_degree >= 0 else "none"))
+	lines.append("Chord: %s  (keys Z to M: I to vii°)" % (DEGREE_NAMES[held_degree] if held_degree >= 0 else "none"))
+	if face_buttons.error:
+		lines.append("The face buttons play nothing: %s" % face_buttons.error)
+	else:
+		lines.append("Face buttons%s: %s.  With LT%s: %s." % [
+			"" if lt_held else " (now)", face_buttons.describe(false, DEGREE_NAMES),
+			" (now)" if lt_held else "", face_buttons.describe(true, DEGREE_NAMES)])
 	lines.append("RT swells.  Start or T measures for %d s." % MEASURE_SECONDS)
 	var chunk: int = ProjectSettings.get_setting("audio/driver/mix_buffer_frames", 512)
 	if totals.block_max and totals.block_max != chunk:

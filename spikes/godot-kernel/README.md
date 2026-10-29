@@ -42,13 +42,18 @@ On the Steam Deck or another Linux machine the second step is `scons -C extensio
 plays it with the patched Godot (see "A smaller mix chunk" below), at the 128-frame chunk and 3 ms output latency the project sets.
 Stock Godot (`Godot --path project`) also runs it, at its own 512 frames, and says so on the screen.
 
-- A, B, X, Y strike I, IV, V and vi in C, and with LT held A, B and X strike ii, iii and vii°; lifting the button ends the chord, even if LT has been let go meanwhile.
+- A, B, X and Y strike the chords in C that `project/pad.json` gives them: to start with, A is I with LT or without it, B, X and Y are IV, V and vii° without it, and with LT held they are ii, iii and vi.
+  Pulling or letting go of LT while a button holds a chord switches it to that button's chord in the other layer (A's I goes on sounding), and lifting the button ends the chord.
 - Z, X, C, V, B, N, M strike all seven, I to vii°, in the scale's order.
 - LB and RB (or Q and E) change the sound.
 - RT swells the held chord.
 - The d-pad's up and down (or the arrows) change the volume 6 dB a step: Godot ramps a change of volume over one chunk, so this is where a short chunk would click.
 - Back (or S) switches between striking a lead ahead, so every strike is equally late (the default), and striking as soon as possible, sooner on average but varying by up to a chunk.
 - Start (or T) strikes chords by itself for twenty seconds and measures how long each waited for a render.
+
+`pad.json` has a layer `"plain"` and a layer `"LT"`, each naming a degree (I, ii, iii, IV, V, vi, vii° or vii) for any of A, B, X and Y; a button a layer leaves out strikes nothing there.
+It is read when the spike starts, and `-- --pad <file>` reads another in its place.
+A file with anything wrong in it leaves the face buttons silent and says why on the screen.
 
 The screen shows the mix rate, Godot's output buffer, each render's cost, and the strike-to-render wait.
 
