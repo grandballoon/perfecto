@@ -11,7 +11,7 @@ import PerfectoKernel
 /// app's sounds is one); its oscillators are the ones dropped.
 extension SynthPatch {
 
-    var kernelPatch: PerfectoPatch {
+    public var kernelPatch: PerfectoPatch {
         var patch = PerfectoPatch()
         if let sample {
             patch.sampled = true

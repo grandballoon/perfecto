@@ -1,0 +1,13 @@
+# Fetched by the README's first step.
+extension/godot-cpp/
+# Built.
+extension/src/*.os
+extension/build/
+extension/.sconsign*.dblite
+project/bin/
+project/.godot/
+tools/dump-presets/.build/
+# Godot's source, cloned and patched by the README's steps; the patch is kept.
+engine/godot/
+engine/build.log
+project/project.godot.orig

@@ -1,0 +1,17 @@
+diff --git a/servers/audio/audio_server.cpp b/servers/audio/audio_server.cpp
+index 98bb2ce..b9e0d9a 100644
+--- a/servers/audio/audio_server.cpp
++++ b/servers/audio/audio_server.cpp
+@@ -1526,9 +1526,9 @@ void AudioServer::init_channels_and_buffers() {
+ void AudioServer::init() {
+ 	channel_disable_threshold_db = GLOBAL_DEF_RST(PropertyInfo(Variant::FLOAT, "audio/buses/channel_disable_threshold_db", PROPERTY_HINT_RANGE, "-80,0,0.1,suffix:dB"), -60.0);
+ 	channel_disable_frames = float(GLOBAL_DEF_RST(PropertyInfo(Variant::FLOAT, "audio/buses/channel_disable_time", PROPERTY_HINT_RANGE, "0,5,0.01,or_greater"), 2.0)) * get_mix_rate();
+-	// TODO: Buffer size is hardcoded for now. This would be really nice to have as a project setting because currently it limits audio latency to an absolute minimum of 11ms with default mix rate, but there's some additional work required to make that happen. See TODOs in `_mix_step_for_channel`.
+-	// When this becomes a project setting, it should be specified in milliseconds rather than raw sample count, because 512 samples at 192khz is shorter than it is at 48khz, for example.
+-	buffer_size = 512;
++	// Perfecto spike: the mix chunk as a project setting, in frames, so a shorter one can be measured.
++	// Volume changes still ramp over one chunk (see TODOs in `_mix_step_for_channel`), so a short chunk ramps quickly.
++	buffer_size = GLOBAL_DEF_RST(PropertyInfo(Variant::INT, "audio/driver/mix_buffer_frames", PROPERTY_HINT_RANGE, "32,4096,1,suffix:frames"), 512);
+ 
+ 	init_channels_and_buffers();
+ 
