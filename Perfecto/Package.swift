@@ -12,6 +12,7 @@ let package = Package(
     products: [
         .library(name: "MusicTheoryCore", targets: ["MusicTheoryCore"]),
         .library(name: "PerfectoSound", targets: ["PerfectoSound"]),
+        .library(name: "PerfectoTheory", targets: ["PerfectoTheory"]),
     ],
     targets: [
         .target(
@@ -22,6 +23,28 @@ let package = Package(
             name: "MusicTheoryCoreTests",
             dependencies: ["MusicTheoryCore"],
             path: "Tests/MusicTheoryCoreTests"
+        ),
+        // The theory core again in portable C++, for the desk on engines and
+        // platforms Swift does not reach (docs/desk-engine-and-audio.md). Its
+        // own tests are built by CMake (CMakeLists.txt); here it is checked
+        // against the Swift core, through a C probe that only the tests use.
+        .target(
+            name: "PerfectoTheory",
+            path: "Sources/PerfectoTheory",
+            // Each step rounded as Swift rounds it, never two fused into
+            // one, so the C++ and the Swift agree to the last bit and every
+            // compiler builds the same numbers (its README).
+            cxxSettings: [.unsafeFlags(["-ffp-contract=off"])]
+        ),
+        .target(
+            name: "PerfectoTheoryProbe",
+            dependencies: ["PerfectoTheory"],
+            path: "Tests/PerfectoTheoryProbe"
+        ),
+        .testTarget(
+            name: "PerfectoTheoryParityTests",
+            dependencies: ["MusicTheoryCore", "PerfectoTheoryProbe"],
+            path: "Tests/PerfectoTheoryParityTests"
         ),
         // The audio kernel: portable C++ behind a C interface. Its tests are
         // built to stop on any allocation made while rendering, as is any
@@ -51,5 +74,5 @@ let package = Package(
             path: "Sources/PerfectoSound"
         ),
     ],
-    cxxLanguageStandard: .cxx17
+    cxxLanguageStandard: .cxx20
 )
