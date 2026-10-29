@@ -16,6 +16,7 @@ A window is laid out as a phone is, upright or on its side by its shape.
 **The desk is a Mac app of its own** (`Desk/`, Perfecto Desk), played from a game controller, the Xbox 360 its design reference (`docs/gamepad-desk-ui.md`; `Desk/README.md` says how it is played and built).
 It is not the Catalyst app: it is built with SwiftPM on the Perfecto package's libraries, the theory core and the sound library (`PerfectoSound`: `SynthPreset`, `SynthPatch`, `KernelAudioUnit` and its Objective-C++ host, which live in the package and which the phone's app compiles from there).
 Its layouts are a pure core (`DeskCore`: controller frames in, effects as data out) and a thin shell that reads the controllers and plays the effects on the kernel and MIDI.
+`DeskCore` is also in C++ (`Desk/Sources/PerfectoDeskCore`, on the C++ theory core), for the desk on game engines and consoles: a port that the Swift stays the reference for, changed with it in the same commit, and played against it frame for frame by `DeskCoreParityTests`.
 
 **v0.1.0 is Play mode alone.**
 The app is being stripped to a solid first release: the play screen with the chord keys, the step compass, the key strip, the effect strip, loops and the piano.
@@ -42,6 +43,8 @@ ChordEventSink protocol (receives ChordEvent)
     │           └── MidiSink     →  CoreMIDI ("Perfecto" note source)
     └── MidiAnnouncerSink  →  ChordLink SysEx ("Perfecto Link"; see chordlink.md)
 ```
+
+**The theory core is also in C++** (`Perfecto/Sources/PerfectoTheory`, for the desk on game engines and consoles; its README has the rules it keeps). It is a port of the Swift core, which stays the reference: a change to one is a change to the other in the same commit, and `PerfectoTheoryParityTests` compares the two over whole spaces of inputs.
 
 **Music Theory Core purity is a hard constraint.** It is pure Swift (Int/Array only), testable in isolation as pure functions of its inputs. Never add UIKit, AudioKit, or Foundation imports to anything under `Perfecto/Sources/MusicTheoryCore/`.
 
@@ -257,7 +260,7 @@ Swift Testing (`@Test`, `#expect`) is the default for all new test files.
 )
 ```
 
-Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/` and the kernel's in `Perfecto/Tests/PerfectoKernelTests/` (both run on the Mac with `swift test` in `Perfecto/`); app tests live in `Tests/` (run with `xcodebuild … test` on a simulator or on the Mac as a Catalyst app; see `Tests/README.md`).
+The C++ core's tests are ported one for one into `Perfecto/Tests/PerfectoTheoryTests/` (doctest, built by `Perfecto/CMakeLists.txt`), and its parity with the Swift core is `swift test`'s `PerfectoTheoryParityTests` (whole spaces with `-c release`). Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/` and the kernel's in `Perfecto/Tests/PerfectoKernelTests/` (both run on the Mac with `swift test` in `Perfecto/`); app tests live in `Tests/` (run with `xcodebuild … test` on a simulator or on the Mac as a Catalyst app; see `Tests/README.md`).
 
 ## Audio session
 

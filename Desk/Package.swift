@@ -26,5 +26,25 @@ let package = Package(
             name: "DeskCoreTests",
             dependencies: ["DeskCore", .product(name: "MusicTheoryCore", package: "Perfecto")]
         ),
-    ]
+        // The core again in portable C++, for the desk on game engines and
+        // consoles (docs/desk-engine-and-audio.md). Its own tests are built by
+        // CMake (CMakeLists.txt); here it is played against the Swift core,
+        // through a C probe that only the tests use.
+        .target(
+            name: "PerfectoDeskCore",
+            dependencies: [.product(name: "PerfectoTheory", package: "Perfecto")],
+            // As the theory core's: every step rounded as Swift rounds it.
+            cxxSettings: [.unsafeFlags(["-ffp-contract=off"])]
+        ),
+        .target(
+            name: "DeskCoreProbe",
+            dependencies: ["PerfectoDeskCore"],
+            path: "Tests/DeskCoreProbe"
+        ),
+        .testTarget(
+            name: "DeskCoreParityTests",
+            dependencies: ["DeskCore", "DeskCoreProbe", .product(name: "MusicTheoryCore", package: "Perfecto")]
+        ),
+    ],
+    cxxLanguageStandard: .cxx20
 )
