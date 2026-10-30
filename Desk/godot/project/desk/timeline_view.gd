@@ -6,13 +6,18 @@
 class_name TimelineView
 
 const PAD := 14.0
-const HEADER := 24.0
+## The header: its buttons, and the keys beneath the transport's.
+const BUTTON := 30.0
+const HEADER := BUTTON + 14
 const RULER := 14.0
 const LANE := 22.0
 const LANE_GAP := 4.0
 ## The lanes' height when there are many, so the stage keeps its room.
 const LANE_TIGHT := 16.0
-const HINT := 16.0
+## What to do next: a sentence, and a row of controls beneath it.
+const MESSAGE := 16.0
+const TIP := 22.0
+const GUIDE := MESSAGE + 6 + TIP
 const LABEL := 46.0
 const T := Paint.Text
 
@@ -24,7 +29,7 @@ static func lane_height(t: Dictionary) -> float:
 ## The bar's height for what it shows.
 static func height(t: Dictionary) -> float:
 	var lanes := maxi(1, t["lanes"].size())
-	return PAD * 2 + HEADER + 8 + RULER + lanes * (lane_height(t) + LANE_GAP) - LANE_GAP + 8 + HINT
+	return PAD * 2 + HEADER + 8 + RULER + lanes * (lane_height(t) + LANE_GAP) - LANE_GAP + 10 + GUIDE
 
 
 static func draw(canvas: CanvasItem, rect: Rect2, t: Dictionary, hits: Array) -> void:
@@ -32,7 +37,7 @@ static func draw(canvas: CanvasItem, rect: Rect2, t: Dictionary, hits: Array) ->
 	var inner := rect.grow(-PAD)
 	header(canvas, Rect2(inner.position, Vector2(inner.size.x, HEADER)), t, hits)
 	var y := inner.position.y + HEADER + 8
-	var track := Rect2(inner.position.x + LABEL, y, inner.size.x - LABEL, inner.end.y - HINT - 8 - y)
+	var track := Rect2(inner.position.x + LABEL, y, inner.size.x - LABEL, inner.end.y - GUIDE - 10 - y)
 	var span: float = t["to"] - t["from"]
 	var x := func(beats: float) -> float: return track.position.x + track.size.x * (beats - t["from"]) / span
 	ruler(canvas, Rect2(track.position, Vector2(track.size.x, RULER)), t, x)
@@ -46,39 +51,121 @@ static func draw(canvas: CanvasItem, rect: Rect2, t: Dictionary, hits: Array) ->
 	if t["playhead"] != null:
 		var px: float = x.call(t["playhead"])
 		var bottom := lanes_top + maxi(1, t["lanes"].size()) * (h + LANE_GAP) - LANE_GAP
-		canvas.draw_rect(Rect2(px - 1, track.position.y, 2, bottom - track.position.y), Paint.color("text"))
-	T.new(t["hint"], 11).fitted(inner.size.x).draw(canvas, Vector2(inner.position.x, inner.end.y - HINT + 2), Paint.color("secondary"))
+		# Bright while it plays; dimmer where it paused.
+		var ink := Paint.color("text") if t["playing"] else Paint.color("secondary", 0.8)
+		canvas.draw_rect(Rect2(px - 1, track.position.y, 2, bottom - track.position.y), ink)
+		var top := track.position.y
+		canvas.draw_colored_polygon(PackedVector2Array([Vector2(px - 5, top), Vector2(px + 5, top), Vector2(px, top + 6)]), ink)
+	guide(canvas, Rect2(inner.position.x, inner.end.y - GUIDE, inner.size.x, GUIDE), t)
 
 
-## What it is doing on the left, and a button for each control on the right,
-## each with the controller's way to it beneath.
+## What to do next: the sentence, then each control as its buttons in a key
+## cap beside what it does, as far as the row has room for.
+static func guide(canvas: CanvasItem, rect: Rect2, t: Dictionary) -> void:
+	T.new(t["message"], 12, 500).fitted(rect.size.x, 0.8).draw(canvas, rect.position, Paint.color("text"))
+	var x := rect.position.x
+	var y := rect.position.y + MESSAGE + 6
+	for tip in t["tips"]:
+		var keys := T.new(tip[0], 10, 700, true)
+		var said := T.new(tip[1], 11, 500)
+		var cap := Vector2(keys.width() + 14, TIP)
+		var width := cap.x + 6 + said.width()
+		if x + width > rect.end.x:
+			break
+		var shape := Rect2(Vector2(x, y), cap)
+		Paint.box(canvas, shape, Paint.color("raised"), 6, Paint.color("rule"))
+		keys.draw_centred(canvas, shape.get_center(), Paint.color("text"))
+		said.draw_centred(canvas, Vector2(shape.end.x + 6 + said.width() / 2, shape.get_center().y), Paint.color("secondary"))
+		x += width + 18
+
+
+## The transport on the left, round buttons with the symbols every player
+## knows (back to start, play or pause, record) and the controller's way to
+## each beneath; then what it is doing; and the other controls on the right.
 static func header(canvas: CanvasItem, rect: Rect2, t: Dictionary, hits: Array) -> void:
 	var right := rect.end.x
+	var x := rect.position.x
 	var controls: Array = t["controls"]
+	for control in controls:
+		if control["icon"] != "none":
+			x += transport(canvas, Vector2(x, rect.position.y), control, hits) + 10
 	for i in range(controls.size() - 1, -1, -1):
 		var control: Dictionary = controls[i]
+		if control["icon"] != "none":
+			continue
 		var label := T.new(control["label"], 11, 600)
 		var keys := T.new(control["keys"], 8, 700, true)
 		var width := maxf(label.width(), keys.width()) + 18
-		var shape := Rect2(right - width, rect.position.y - 2, width, rect.size.y + 4)
+		var shape := Rect2(right - width, rect.position.y, width, BUTTON)
 		var lit: bool = control["lit"]
 		var enabled: bool = control["enabled"]
 		Paint.box(canvas, shape, Paint.CHORD if lit else Paint.color("raised", 1.0 if enabled else 0.45), 7)
 		var ink := Paint.INK if lit else Paint.color("text" if enabled else "faint")
-		label.draw_centred(canvas, Vector2(shape.get_center().x, shape.position.y + 9), ink)
-		keys.draw_centred(canvas, Vector2(shape.get_center().x, shape.end.y - 6), Color(ink, 0.6))
+		label.draw_centred(canvas, Vector2(shape.get_center().x, shape.position.y + 10), ink)
+		keys.draw_centred(canvas, Vector2(shape.get_center().x, shape.end.y - 7), Color(ink, 0.6))
 		if enabled:
 			hits.append([shape, control["action"]])
 		right -= width + 6
-	var mid := rect.get_center().y
-	var mark := T.new("RT", 10, 700, true)
-	mark.draw(canvas, Vector2(rect.position.x, mid - mark.height() / 2), Paint.color("secondary"))
-	var x := rect.position.x + mark.width() + 6
+	var mid := rect.position.y + BUTTON / 2
+	x += 6
 	var title := T.new("Timeline", 12, 600)
 	title.draw(canvas, Vector2(x, mid - title.height() / 2), Paint.color("text"))
 	x += title.width() + 14
 	var status := T.new(t["status"], 12, 600, true).fitted(right - 12 - x)
 	status.draw(canvas, Vector2(x, mid - status.height() / 2), Paint.color(t["status_tint"]))
+
+
+## A transport button: its symbol in a circle, play the largest, and its
+## keys beneath. Returns its width.
+static func transport(canvas: CanvasItem, at: Vector2, control: Dictionary, hits: Array) -> float:
+	var icon: String = control["icon"]
+	var big := icon == "play" or icon == "pause"
+	var diameter := BUTTON if big else BUTTON - 6
+	var keys := T.new(control["keys"], 8, 700, true)
+	var width := maxf(diameter, keys.width())
+	var centre := Vector2(at.x + width / 2, at.y + BUTTON / 2)
+	var enabled: bool = control["enabled"]
+	var lit: bool = control["lit"]
+	var recording := icon == "record" or icon == "stop_recording"
+	var red: Color = Paint.FACE["b"]
+	var fill: Color
+	var ink: Color
+	if big:
+		fill = Paint.NEAR if enabled else Paint.color("raised", 0.45)
+		ink = Paint.INK if enabled else Paint.color("faint")
+	elif lit:
+		fill = red
+		ink = Color.WHITE
+	else:
+		fill = Paint.color("raised", 1.0 if enabled else 0.45)
+		ink = (red if recording else Paint.color("text")) if enabled else Paint.color("faint")
+	canvas.draw_circle(centre, diameter / 2, fill, true, -1, true)
+	symbol(canvas, icon, centre, diameter * 0.36, ink)
+	keys.draw_centred(canvas, Vector2(centre.x, at.y + BUTTON + 7), Paint.color("secondary" if enabled else "faint"))
+	if enabled:
+		hits.append([Rect2(centre - Vector2(diameter, diameter) / 2, Vector2(diameter, diameter)), control["action"]])
+	return width
+
+
+## The transport's symbols, drawn as shapes so every font shows them alike,
+## each fitting a circle of `r` about `c`.
+static func symbol(canvas: CanvasItem, icon: String, c: Vector2, r: float, ink: Color) -> void:
+	match icon:
+		"play":
+			# A triangle sits a little right of the middle, to look centred.
+			var o := c + Vector2(r * 0.15, 0)
+			canvas.draw_colored_polygon(PackedVector2Array([o + Vector2(-r * 0.7, -r), o + Vector2(r, 0), o + Vector2(-r * 0.7, r)]), ink)
+		"pause":
+			var bar := Vector2(r * 0.55, r * 1.9)
+			canvas.draw_rect(Rect2(c + Vector2(-r * 0.8, -bar.y / 2), bar), ink)
+			canvas.draw_rect(Rect2(c + Vector2(r * 0.25, -bar.y / 2), bar), ink)
+		"record":
+			canvas.draw_circle(c, r * 0.8, ink, true, -1, true)
+		"stop_recording":
+			canvas.draw_rect(Rect2(c - Vector2(r, r) * 0.75, Vector2(r, r) * 1.5), ink)
+		"rewind":
+			canvas.draw_rect(Rect2(c + Vector2(-r * 0.85, -r * 0.8), Vector2(r * 0.28, r * 1.6)), ink)
+			canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(r * 0.8, -r * 0.8), c + Vector2(r * 0.8, r * 0.8), c + Vector2(-r * 0.45, 0)]), ink)
 
 
 ## The bars' numbers, and a tick at each beat.

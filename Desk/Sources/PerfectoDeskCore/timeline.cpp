@@ -78,7 +78,7 @@ double Timeline::timeAt(double beat) const {
 double Timeline::startBeat() const {
     const Layer *layer = selection_ ? song_.layer(selection_->layer) : nullptr;
     const auto span = layer ? layer->span(selected()) : std::nullopt;
-    return span ? span->from : 0;
+    return span ? span->from : cue_.value_or(0);
 }
 
 void Timeline::edit(Song next, Edit kind) {
@@ -174,7 +174,7 @@ Timeline::Out Timeline::act(PadButton button, const PadInput &input, const DeskS
     const double time = input.time();
     switch (button) {
     case PadButton::a: return record(time, settings);
-    case PadButton::x: return play(time, settings);
+    case PadButton::x: return stretches(input.frame) ? rewind(time, settings) : play(time, settings);
     case PadButton::y: return loop();
     case PadButton::b: return quantize(settings);
     case PadButton::left: return moveSelection(-1, stretches(input.frame));
@@ -291,8 +291,8 @@ Timeline::Out Timeline::record(double time, const DeskSettings &settings) {
         return out;
     }
     if (static_cast<int>(song_.layers.size()) >= Song::most)
-        return refused("Eight layers is the most: delete one to record another");
-    const double from = startBeat();
+        return refused("Eight tracks is the most: delete one to record another");
+    const double from = song_.isEmpty() ? 0 : startBeat();
     const bool trims = song_.isEmpty() && !rolling_;
     Song next = song_;
     next.layers.push_back({next.next++, {}, std::nullopt, false});
@@ -337,26 +337,54 @@ Timeline::Out Timeline::finishRecording(double time) {
 }
 
 Timeline::Out Timeline::play(double time, const DeskSettings &settings) {
-    if (rolling_) return stop(time);
-    if (song_.isEmpty()) return refused("Nothing recorded yet: RT + A records");
+    if (rolling_) return pause(time);
+    if (song_.isEmpty()) return refused("Nothing recorded yet: hold RT and press A");
+    // Paused at the end, it plays from the start again.
+    if (cue_ && !song_.isEndless() && *cue_ >= song_.end().value_or(0)) cue_.reset();
     Out out = felt(Rumble::bump);
     out.append(roll(time, startBeat(), settings));
     return out;
 }
 
-Timeline::Out Timeline::stop(double time) {
+Timeline::Out Timeline::pause(double time) {
     if (!rolling_) return {};
     Out out;
     if (recording_) out.append(finishRecording(time));
+    cue_ = std::max(beatAt(time), 0.0);
+    out.append(halt());
+    out.append(felt(Rumble::bump));
+    return out;
+}
+
+Timeline::Out Timeline::rewind(double time, const DeskSettings &settings) {
+    if (recording_) return refused("Stop recording first");
+    cue_.reset();
+    Out out = felt(Rumble::tick);
+    if (rolling_) {
+        out.append(halt());
+        out.append(roll(time, 0, settings));
+    }
+    return out;
+}
+
+Timeline::Out Timeline::stop(double time) {
+    cue_.reset();
+    if (!rolling_) return {};
+    Out out;
+    if (recording_) out.append(finishRecording(time));
+    out.append(halt());
+    return out;
+}
+
+Timeline::Out Timeline::halt() {
     rolling_.reset();
     sounding_.clear();
-    out.playback.push_back(TimelineEffect::hush());
-    return out;
+    return {{TimelineEffect::hush()}, {}};
 }
 
 Timeline::Out Timeline::loop() {
     const Layer *chosen = layer();
-    if (!chosen) return refused("Nothing recorded yet: RT + A records");
+    if (!chosen) return refused("Nothing recorded yet: hold RT and press A");
     if (recording_ && recording_->layer == chosen->id) return refused("Stop recording first");
     if (selection_) {
         edit(looped(*chosen, selected()));
@@ -369,12 +397,12 @@ Timeline::Out Timeline::loop() {
         edit(next);
         return felt(Rumble::bump);
     }
-    return refused("Choose the span to loop first: RT + ← →, with LT to stretch");
+    return refused("Select chords to loop first: hold RT and press ← or →");
 }
 
 Timeline::Out Timeline::quantize(const DeskSettings &settings) {
     const Layer *chosen = layer();
-    if (!chosen) return refused("Nothing recorded yet: RT + A records");
+    if (!chosen) return refused("Nothing recorded yet: hold RT and press A");
     if (recording_ && recording_->layer == chosen->id) return refused("Stop recording first");
     std::set<int> ids = selected();
     if (ids.empty())
@@ -387,7 +415,7 @@ Timeline::Out Timeline::quantize(const DeskSettings &settings) {
 
 Timeline::Out Timeline::erase(double time) {
     const Layer *chosen = layer();
-    if (!chosen || !selection_) return refused("Choose what to delete: RT + ← →");
+    if (!chosen || !selection_) return refused("Select chords to delete first: hold RT and press ← or →");
     edit(erased(*chosen, selected()));
     selection_.reset();
     Out out = settle(time);
@@ -460,7 +488,7 @@ Timeline::Out Timeline::deselect() {
 
 Timeline::Out Timeline::nudge(double beats) {
     const Layer *chosen = selection_ ? song_.layer(selection_->layer) : nullptr;
-    if (!chosen) return refused("Choose what to nudge: RT + ← →");
+    if (!chosen) return refused("Select chords to move first: hold RT and press ← or →");
     const Layer next = nudged(*chosen, selected(), beats);
     if (next == *chosen) return felt(Rumble::refuse);
     edit(next, Edit::nudge);
@@ -504,6 +532,7 @@ Timeline::Out Timeline::settle(double time) {
     }
     if (selection_ && selected().empty()) selection_.reset();
     if (!song_.layer(layer_)) layer_ = song_.layers.empty() ? 0 : song_.layers.back().id;
+    if (song_.isEmpty()) cue_.reset();
     return out;
 }
 
@@ -514,26 +543,26 @@ Legend Timeline::legend(Legend legend, bool reachable) const {
     const auto button = [](PadButton b) { return PadControl::button(b); };
     if (!isLayered_) {
         legend[PadControl::rightTrigger()] =
-            selection_ ? "Hold: the timeline · tap: let go of the choice" : "Hold: the timeline";
+            selection_ ? "Hold for the timeline · tap to deselect" : "Hold for the timeline";
         if (selection_)
             for (const PadButton face : {PadButton::a, PadButton::b, PadButton::x, PadButton::y}) {
                 const auto found = legend.find(button(face));
-                if (found != legend.end()) found->second = "Into the choice: " + found->second;
+                if (found != legend.end()) found->second = "Replace selected: " + found->second;
             }
         return legend;
     }
     const Layer *chosen = layer();
-    legend[PadControl::rightTrigger()] = "The timeline: let go to play";
-    legend[button(PadButton::a)] = recording_ ? "Stop recording" : "Record a layer";
-    legend[button(PadButton::x)] = rolling_ ? "Stop" : "Play";
-    legend[button(PadButton::y)] = selection_ ? "Loop the choice" : chosen && chosen->loop ? "End the loop" : "Loop (choose first)";
-    legend[button(PadButton::b)] = selection_ ? "Quantize the choice" : "Quantize the layer";
-    legend[button(PadButton::left)] = "Chord before";
-    legend[button(PadButton::right)] = "Chord after";
-    legend[button(PadButton::up)] = "Layer above";
-    legend[button(PadButton::down)] = "Layer below";
-    legend[PadControl::leftTrigger()] = "Stretch the choice · nudge by the grid";
-    legend[PadControl::rightStick()] = "← → nudge · ↑ mute · ↓ delete";
+    legend[PadControl::rightTrigger()] = "Timeline (let go to play)";
+    legend[button(PadButton::a)] = recording_ ? "Stop recording" : "Record a new track";
+    legend[button(PadButton::x)] = rolling_ ? "Pause" : "Play";
+    legend[button(PadButton::y)] = selection_ ? "Loop selection" : chosen && chosen->loop ? "Stop looping" : "Loop (select first)";
+    legend[button(PadButton::b)] = selection_ ? "Fix timing of selection" : "Fix timing of track";
+    legend[button(PadButton::left)] = "Select previous chord";
+    legend[button(PadButton::right)] = "Select next chord";
+    legend[button(PadButton::up)] = "Track above";
+    legend[button(PadButton::down)] = "Track below";
+    legend[PadControl::leftTrigger()] = "Select more · move a grid step · with X, back to start";
+    legend[PadControl::rightStick()] = "← → move earlier / later · ↑ mute track · ↓ delete";
     legend[PadControl::leftStick()] = "← undo · → redo";
     return legend;
 }
