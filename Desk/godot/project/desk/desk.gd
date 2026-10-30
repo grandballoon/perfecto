@@ -43,6 +43,10 @@ var notice_time := 0.0
 var since_drawn := 0.0
 var renaming := LineEdit.new()
 var renaming_table := -1
+## The frame to quit on, for runs that check the desk starts and quits
+## cleanly (`-- --quit-after-frames N`); -1 plays on. Godot's own
+## `--quit-after` ends the main loop at once, which leaks the playback.
+var quit_frame := -1
 
 
 func _ready() -> void:
@@ -60,7 +64,14 @@ func _ready() -> void:
 	renaming.focus_exited.connect(func(): renaming.visible = false)
 	add_child(renaming)
 	get_tree().auto_accept_quit = false
+	quit_frame = quit_frame_in(OS.get_cmdline_user_args())
 	scene = desk.scene()
+
+
+## The frame `--quit-after-frames N` in `args` asks to quit on, or -1.
+static func quit_frame_in(args: PackedStringArray) -> int:
+	var at := args.find("--quit-after-frames")
+	return int(args[at + 1]) if at >= 0 and at + 1 < args.size() else -1
 
 
 ## Plays Face Chords' buttons as `face_chords.json` says, if it is there;
@@ -105,6 +116,9 @@ func leave() -> void:
 
 
 func _process(delta: float) -> void:
+	if quit_frame >= 0 and Engine.get_process_frames() >= quit_frame:
+		quit_frame = -1
+		leave()
 	for effect in desk.step(not renaming.visible):
 		match effect["kind"]:
 			"rumble":
