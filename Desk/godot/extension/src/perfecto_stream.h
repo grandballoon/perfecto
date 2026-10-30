@@ -9,6 +9,13 @@
 //
 // The stream owns the kernel and the patches it was given. It has one
 // playback at a time: the kernel has one clock.
+//
+// Quitting, a scene stops its player and quits once no playback is left
+// (`has_playback`): Godot unloads this extension before its audio server, so
+// a playback the server still holds then is freed after its class is gone,
+// and the stream leaks with it. The mixing thread drops a stopped playback
+// on its next mix, and the main loop frees it on the frame after: so a quit
+// that ends the main loop at once (`--quit-after`, a signal) leaks it still.
 
 #ifndef PERFECTO_STREAM_H
 #define PERFECTO_STREAM_H
@@ -87,9 +94,13 @@ public:
     // kernel of its own, and says what it cost.
     godot::Dictionary benchmark(int sound, int voices, double seconds, int block) const;
 
+    /// Whether a playback of this stream is left unfreed.
+    bool has_playback() const { return playbacks.load() > 0; }
+
     // For the playback.
     void prepare(double sample_rate);
     void render(godot::AudioFrame *buffer, int32_t frames);
+    void released() { playbacks.fetch_sub(1); }
 
 protected:
     static void _bind_methods();
@@ -101,6 +112,8 @@ private:
     /// Planar scratch for the kernel, set aside before rendering starts.
     std::vector<float> left, right;
     MixRing ring;
+    /// Playbacks made and not yet freed.
+    std::atomic<int> playbacks{0};
     /// When the latest note was sent (steady clock, ns), for the mixing
     /// thread to say how long it waited for a render: 0 once taken.
     std::atomic<int64_t> sent_at{0};
@@ -123,6 +136,10 @@ class PerfectoPlayback : public godot::AudioStreamPlayback {
     GDCLASS(PerfectoPlayback, godot::AudioStreamPlayback)
 
 public:
+    ~PerfectoPlayback() override {
+        if (stream.is_valid()) stream->released();
+    }
+
     void _start(double from_pos) override { playing = true; }
     void _stop() override { playing = false; }
     bool _is_playing() const override { return playing; }

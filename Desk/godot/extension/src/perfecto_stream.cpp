@@ -95,6 +95,7 @@ Ref<AudioStreamPlayback> PerfectoStream::_instantiate_playback() const {
     Ref<PerfectoPlayback> playback;
     playback.instantiate();
     playback->stream = Ref<PerfectoStream>(self);
+    self->playbacks.fetch_add(1);
     return playback;
 }
 
@@ -325,6 +326,7 @@ void PerfectoStream::_bind_methods() {
     ClassDB::bind_method(D_METHOD("sample_rate"), &PerfectoStream::sample_rate);
     ClassDB::bind_method(D_METHOD("take_mix_stats"), &PerfectoStream::take_mix_stats);
     ClassDB::bind_method(D_METHOD("benchmark", "sound", "voices", "seconds", "block"), &PerfectoStream::benchmark);
+    ClassDB::bind_method(D_METHOD("has_playback"), &PerfectoStream::has_playback);
 }
 
 int32_t PerfectoPlayback::_mix(AudioFrame *buffer, float, int32_t frames) {

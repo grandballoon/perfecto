@@ -130,12 +130,13 @@ func _notification(what: int) -> void:
 		leave()
 
 
-## Quits once the mixing thread has let go of the playback: quitting while
-## a player plays leaks it (Godot 4.7.2 does so with its own streams too).
+## Quits once the playback is freed, a second at most: quitting while one
+## is left leaks it (see `PerfectoStream`).
 func leave() -> void:
 	player.stop()
-	await get_tree().process_frame
-	await get_tree().process_frame
+	var until := Time.get_ticks_msec() + 1000
+	while stream.has_playback() and Time.get_ticks_msec() < until:
+		await get_tree().process_frame
 	get_tree().quit()
 
 

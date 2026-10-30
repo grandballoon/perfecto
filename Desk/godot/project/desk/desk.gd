@@ -93,13 +93,14 @@ func _notification(what: int) -> void:
 		leave()
 
 
-## Lets go of every note and quits once the mixing thread has let go of
-## the playback: quitting while a player plays leaks it.
+## Lets go of every note and quits once the playback is freed, a second at
+## most: quitting while one is left leaks it (see `PerfectoStream`).
 func leave() -> void:
 	desk.let_go()
 	player.stop()
-	await get_tree().process_frame
-	await get_tree().process_frame
+	var until := Time.get_ticks_msec() + 1000
+	while stream.has_playback() and Time.get_ticks_msec() < until:
+		await get_tree().process_frame
 	get_tree().quit()
 
 
