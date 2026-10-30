@@ -21,6 +21,22 @@ public enum LBLayer: String, CaseIterable, Codable, Sendable {
     }
 }
 
+/// What the left stick colors Face Chords' chords with: the Orchid's chord
+/// buttons, one to a direction, or the phone's joystick table in one of its
+/// three modes.
+public enum FaceStick: String, CaseIterable, Codable, Sendable {
+    case orchid, perfectoDefault, perfectoExtended, perfectoChromatic
+
+    public var name: String {
+        switch self {
+        case .orchid: "Orchid buttons"
+        case .perfectoDefault: "Perfecto · default"
+        case .perfectoExtended: "Perfecto · extended"
+        case .perfectoChromatic: "Perfecto · chromatic"
+        }
+    }
+}
+
 /// Where notes go: the kernel's own sound, MIDI, or both.
 public enum DeskOutput: String, CaseIterable, Codable, Sendable {
     case synth, midi, both
@@ -65,13 +81,15 @@ public struct DeskSettings: Equatable, Codable, Sendable {
     public var favorites = Favorites()
     /// What LB puts on the sticks in Twin rings.
     public var lbLayer = LBLayer.compass
+    /// What the left stick colors Face Chords' chords with.
+    public var faceStick = FaceStick.orchid
     /// Which chords and notes can be played, and what the guard has heard.
     public var consonance = ConsonanceGuard()
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, ringOrder, ringFilter, grid, favorites, lbLayer, consonance
+        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, ringOrder, ringFilter, grid, favorites, lbLayer, faceStick, consonance
     }
 
     /// Each setting as it was kept, and any kept before it existed as it
@@ -96,6 +114,7 @@ public struct DeskSettings: Equatable, Codable, Sendable {
         read(.grid, &grid)
         read(.favorites, &favorites)
         read(.lbLayer, &lbLayer)
+        read(.faceStick, &faceStick)
         read(.consonance, &consonance)
     }
 

@@ -335,4 +335,19 @@ TEST_CASE("the legend says what R3 and LB do for the voices") {
     CHECK(legend[PadControl::leftTrigger()] == "Hold: ii iii vi · with a face: voice 2");
 }
 
+
+TEST_CASE("a degree's color strikes its chord colored, and a new color is heard tied") {
+    Rig rig(FaceChords{});
+    rig.layout.setColors({{Degree::I, ChordColor::joystick(JoystickMode::default_, JoystickDirection::right)}});
+    CHECK(sounded(rig.at(1, [](GamepadFrame &f) { hold(f, {PadButton::a}); })) == Notes{{60, 64, 67, 71}});
+    rig.layout.setColors({{Degree::I, ChordColor::joystick(JoystickMode::default_, JoystickDirection::upRight)}});
+    const auto out = rig.at(2);
+    REQUIRE(out.size() == 1);
+    CHECK(out[0] == DeskEffect::sound(Line::chord, {60, 64, 67, 70}, "electricPiano", 0.8, 1, true));
+    // Another degree's color leaves this one plain.
+    rig.layout.setColors({{Degree::IV, ChordColor::joystick(JoystickMode::default_, JoystickDirection::right)}});
+    CHECK(sounded(rig.at(3)) == Notes{{60, 64, 67}});
+    CHECK(rig.at(4).empty());
+}
+
 }

@@ -58,6 +58,16 @@ inline constexpr std::array<LBLayer, 2> allLBLayers = {LBLayer::compass, LBLayer
 
 std::string name(LBLayer layer);
 
+/// What the left stick colors Face Chords' chords with: the Orchid's chord
+/// buttons, one to a direction, or the phone's joystick table in one of its
+/// three modes.
+enum class FaceStick { orchid, perfectoDefault, perfectoExtended, perfectoChromatic };
+
+inline constexpr std::array<FaceStick, 4> allFaceSticks = {FaceStick::orchid, FaceStick::perfectoDefault,
+                                                           FaceStick::perfectoExtended, FaceStick::perfectoChromatic};
+
+std::string name(FaceStick stick);
+
 /// Where notes go: the kernel's own sound, MIDI, or both.
 enum class DeskOutput { synth, midi, both };
 
@@ -160,6 +170,8 @@ struct DeskSettings {
     Favorites favorites;
     /// What LB puts on the sticks in Twin rings.
     LBLayer lbLayer = LBLayer::compass;
+    /// What the left stick colors Face Chords' chords with.
+    FaceStick faceStick = FaceStick::orchid;
     /// Which chords and notes can be played, and what the guard has heard.
     ConsonanceGuard consonance;
 

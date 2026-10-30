@@ -12,6 +12,7 @@
 #define PERFECTO_DESK_SCENE_HPP
 
 #include "perfecto/desk/drums.hpp"
+#include "perfecto/desk/face_colors.hpp"
 #include "perfecto/desk/desk.hpp"
 #include "perfecto/desk/layout.hpp"
 #include "perfecto/desk/pad.hpp"
@@ -549,9 +550,10 @@ struct Scene {
 Scene scene(const Desk &desk, bool keyboard);
 
 /// What `desk` shows, its hand by `legend` as the hands hold `held`, and
-/// `drums`, if there are any, under Face Chords at `time` (`scene(Studio)`).
+/// `drums` and `colors`, if there are any, beside Face Chords at `time`
+/// (`scene(Studio)`).
 Scene scene(const Desk &desk, const Legend &legend, const GamepadFrame &held, bool keyboard, const Drums *drums,
-            double time);
+            const FaceColors *colors, double time);
 
 /// Does what a mouse chose, and says what to sound.
 std::vector<DeskEffect> perform(Desk &desk, const Action &action);

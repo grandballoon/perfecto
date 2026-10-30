@@ -54,7 +54,7 @@ public struct SoundCatalog: Equatable, Sendable {
 /// the sound library.
 public struct DeskMenu: Equatable, Sendable {
     public enum Row: CaseIterable, Sendable {
-        case layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, chordSound, lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI
+        case layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, faceStick, chordSound, lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI
 
         public var name: String {
             switch self {
@@ -66,6 +66,7 @@ public struct DeskMenu: Equatable, Sendable {
             case .ringOrder: "Ring order"
             case .ringFilter: "Ring filter"
             case .lbLayer: "LB layer"
+            case .faceStick: "Face Chords stick"
             case .chordSound: "Chord sound"
             case .lineSound: "Line sound"
             case .key: "Key"
@@ -195,6 +196,12 @@ public struct Desk: Equatable, Sendable {
         faceChords.map = map
     }
 
+    /// Colors Face Chords' chords by degree from the next step: a chord held
+    /// takes its new color tied.
+    public mutating func setFaceColors(_ colors: [Degree: ChordColor]) {
+        faceChords.colors = colors
+    }
+
     private mutating func releaseLayout() -> [DeskEffect] {
         let out: [DeskEffect]
         switch layout {
@@ -300,6 +307,9 @@ public struct Desk: Equatable, Sendable {
             settings.moveRingFilter(by: steps)
         case .lbLayer:
             settings.lbLayer = settings.lbLayer == .compass ? .voices : .compass
+        case .faceStick:
+            let all = FaceStick.allCases
+            settings.faceStick = all[((all.firstIndex(of: settings.faceStick)! + steps) % all.count + all.count) % all.count]
         case .chordSound, .lineSound:
             let line: Line = row == .chordSound ? .chord : .melody
             setSound(catalog.sound(steps, from: sound(of: line)), for: line)
@@ -359,6 +369,7 @@ public struct Desk: Equatable, Sendable {
         case .ringOrder: settings.ringOrder.name
         case .ringFilter: settings.ringFilter.name
         case .lbLayer: settings.lbLayer.name
+        case .faceStick: settings.faceStick.name
         case .chordSound: catalog.name(of: settings.chordSound)
         case .lineSound: catalog.name(of: settings.lineSound)
         case .key: settings.key.root.name

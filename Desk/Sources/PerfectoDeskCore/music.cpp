@@ -22,6 +22,16 @@ std::string name(LBLayer layer) {
     return {};
 }
 
+std::string name(FaceStick stick) {
+    switch (stick) {
+    case FaceStick::orchid: return "Orchid buttons";
+    case FaceStick::perfectoDefault: return "Perfecto · default";
+    case FaceStick::perfectoExtended: return "Perfecto · extended";
+    case FaceStick::perfectoChromatic: return "Perfecto · chromatic";
+    }
+    return {};
+}
+
 std::string name(DeskOutput output) {
     switch (output) {
     case DeskOutput::synth: return "Synth";

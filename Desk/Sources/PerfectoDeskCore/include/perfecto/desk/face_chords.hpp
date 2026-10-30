@@ -71,6 +71,8 @@ public:
         /// What was last struck, or refused: a chord is struck once for it.
         std::optional<std::pair<PadButton, theory::Degree>> struck;
         ChordLine line;
+        /// The color it was struck in.
+        theory::ChordColor color = theory::ChordColor::base();
 
         bool operator==(const Voice &) const = default;
 
@@ -93,6 +95,13 @@ public:
     const Map &map() const { return map_; }
     /// Plays `map` from the next frame; a chord held changes with it.
     void setMap(Map map) { map_ = std::move(map); }
+
+    /// The color each degree's chord is struck in, as the left hand colors
+    /// them; a degree not here is plain.
+    const std::map<theory::Degree, theory::ChordColor> &colors() const { return colors_; }
+    /// Colors the chords from the next step: a chord held takes its new
+    /// color tied.
+    void setColors(std::map<theory::Degree, theory::ChordColor> colors) { colors_ = std::move(colors); }
 
     /// Whether LT is held: the second layer.
     bool isLayered() const { return isLayered_; }
@@ -135,6 +144,7 @@ private:
     /// When LB was last pressed, while a second press would be a double-click.
     std::optional<double> lbPressedAt_;
     std::vector<Press> latePresses_;
+    std::map<theory::Degree, theory::ChordColor> colors_;
 
     /// Whether `voice` reads LT as held.
     bool isLayered(size_t voice) const { return isLayered_ && !(voice == 0 && isOverPull_); }
