@@ -171,7 +171,7 @@ struct DeskSettings {
     /// What LB puts on the sticks in Twin rings.
     LBLayer lbLayer = LBLayer::compass;
     /// What the left stick colors Face Chords' chords with.
-    FaceStick faceStick = FaceStick::orchid;
+    FaceStick faceStick = FaceStick::perfectoDefault;
     /// Which chords and notes can be played, and what the guard has heard.
     ConsonanceGuard consonance;
 

@@ -82,7 +82,7 @@ public struct DeskSettings: Equatable, Codable, Sendable {
     /// What LB puts on the sticks in Twin rings.
     public var lbLayer = LBLayer.compass
     /// What the left stick colors Face Chords' chords with.
-    public var faceStick = FaceStick.orchid
+    public var faceStick = FaceStick.perfectoDefault
     /// Which chords and notes can be played, and what the guard has heard.
     public var consonance = ConsonanceGuard()
 

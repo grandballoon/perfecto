@@ -259,8 +259,9 @@ TEST_CASE("the screen shows what each direction plays on the chord held, and wit
 }
 
 TEST_CASE("the menu chooses the stick's scheme") {
+    // The phone's own table, in its default mode, to start with.
     Desk desk(catalog, DeskSettings(), LayoutKind::faceChords);
-    CHECK(desk.value(DeskMenu::Row::faceStick) == "Orchid buttons");
+    CHECK(desk.value(DeskMenu::Row::faceStick) == "Perfecto · default");
     desk.step(frame(1, {PadButton::start}));
     for (int i = 0; i < 8; ++i) {
         desk.step(frame(2 + double(i) * 0.1, {PadButton::down}));
@@ -268,12 +269,12 @@ TEST_CASE("the menu chooses the stick's scheme") {
     }
     REQUIRE(desk.menu()->row == DeskMenu::Row::faceStick);
     desk.step(frame(3, {PadButton::right}));
-    CHECK(desk.settings.faceStick == FaceStick::perfectoDefault);
+    CHECK(desk.settings.faceStick == FaceStick::perfectoExtended);
     desk.step(frame(3.1));
     desk.step(frame(3.2, {PadButton::left}));
     desk.step(frame(3.3));
     desk.step(frame(3.4, {PadButton::left}));
-    CHECK(desk.value(DeskMenu::Row::faceStick) == "Perfecto · chromatic");
+    CHECK(desk.value(DeskMenu::Row::faceStick) == "Orchid buttons");
 }
 
 }

@@ -139,7 +139,7 @@ A color is played while the stick leans and goes when it comes back to the middl
 The stick colors every chord held alike, both voices', each on its own degree, and a stick leaned before a face button colors the chord the button strikes.
 RT held takes the stick for the timeline, so the chords are plain meanwhile.
 
-**Orchid buttons** (to start with) are the eight chord buttons of Telepathic Instruments' Orchid, a direction each:
+**Orchid buttons** are the eight chord buttons of Telepathic Instruments' Orchid, a direction each:
 
 | Direction | Button | What it does |
 | --- | --- | --- |
@@ -160,7 +160,7 @@ The buttons are laid round the stick so each direction's neighbours make a chord
 Pairs further apart are reached by rolling further, through the directions between, which sound on the way.
 The Orchid itself was played from a MIDI controller, its type and extension buttons on two rows of pads (`docs/midi-controller.md`); the Orchid has eight buttons, so the stick has one in each of its eight directions.
 
-**Perfecto · default, extended and chromatic** are the phone's joystick, its table as it was (`JoystickMap`), in one of its three modes: in the default mode ↑ flips the third, ↗ a dominant seventh, → a major seventh, ↘ add9, ↓ sus4, ↙ a sixth (sus2 on a minor chord), ← lowers the third, ↖ augments; the extended and chromatic modes have the jazz colors (9, 11, 7♯9, half-diminished; 13, 6/9, 7alt, maj7♯11 and more).
+**Perfecto · default, extended and chromatic** are the phone's joystick (its default mode to start with, the original coloration), its table as it was (`JoystickMap`), in one of its three modes: in the default mode ↑ flips the third, ↗ a dominant seventh, → a major seventh, ↘ add9, ↓ sus4, ↙ a sixth (sus2 on a minor chord), ← lowers the third, ↖ augments; the extended and chromatic modes have the jazz colors (9, 11, 7♯9, half-diminished; 13, 6/9, 7alt, maj7♯11 and more).
 The panel names each direction's color by the chord it makes on the chord held.
 
 **Pins** keep the colors found for a chord, to play from a layer of their own:
