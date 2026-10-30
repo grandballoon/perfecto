@@ -1,9 +1,12 @@
-// The desk, the drums and the timeline, played together from one controller.
+// The desk, the drums, the timeline and the left hand's colors, played
+// together from one controller.
 //
 // Each frame goes to the drums first, which take the buttons they play
 // (`Drums`), then to the timeline, which takes what RT holds
-// (`Timeline::take`), and the desk is stepped with what is left, so the desk
-// knows nothing of either and plays as the parity test has it. The timeline
+// (`Timeline::take`), then to the colors, which read the left stick and LB
+// and give Face Chords a color for each degree (`FaceColors`), and the desk
+// is stepped with what is left, so the desk knows nothing of them and plays
+// as the parity test has it. The timeline
 // then hears what the desk sounds, to record it or write it into the chords
 // chosen, and gives what plays back. The drums and the timeline are played in
 // Face Chords, with the menu closed, and stop when the desk goes to another
@@ -17,6 +20,7 @@
 
 #include "perfecto/desk/desk.hpp"
 #include "perfecto/desk/drums.hpp"
+#include "perfecto/desk/face_colors.hpp"
 #include "perfecto/desk/pad.hpp"
 #include "perfecto/desk/scene.hpp"
 #include "perfecto/desk/timeline.hpp"
@@ -51,6 +55,7 @@ public:
     const Desk &desk() const { return desk_; }
     const Drums &drums() const { return drums_; }
     const Timeline &timeline() const { return timeline_; }
+    const FaceColors &colors() const { return colors_; }
     /// The last frame as the hands played it, before the drums and the
     /// timeline took their share.
     const std::optional<GamepadFrame> &frame() const { return frame_; }
@@ -75,16 +80,19 @@ public:
     void setFaceMap(FaceChords::Map map) { desk_.setFaceMap(std::move(map)); }
 
     /// What every control does now, the drums' over the timeline's over the
-    /// desk's.
+    /// colors' over the desk's.
     Legend legend() const;
 
 private:
     Desk desk_;
     Drums drums_;
     Timeline timeline_;
+    FaceColors colors_;
     std::optional<GamepadFrame> frame_;
     /// The last frame as the drums left it, for the timeline's edges.
     std::optional<GamepadFrame> drummed_;
+    /// The last frame as the timeline left it, for the colors' edges.
+    std::optional<GamepadFrame> taken_;
 
     /// The beat and the timeline go with Face Chords.
     Played settled(std::vector<DeskEffect> effects);

@@ -65,6 +65,11 @@ Studio::Played Studio::step(const GamepadFrame &frame) {
     Played played;
     auto taken = timeline_.take(PadInput(drummed.frame, drummedBefore), reachable(), desk_.settings);
     played.append(std::move(taken.out));
+    const GamepadFrame takenBefore = taken_ ? *taken_ : GamepadFrame{.time = frame.time};
+    taken_ = taken.frame;
+    auto colored = colors_.step(PadInput(taken.frame, takenBefore), reachable(), desk_.faceChords(), desk_.settings);
+    desk_.setFaceColors(std::move(colored.colors));
+    played.append(std::move(colored.effects));
     played.append(settled(desk_.step(taken.frame)));
     played.append(std::move(drummed.effects));
     played.drums.insert(played.drums.end(), drummed.drums.begin(), drummed.drums.end());
@@ -118,7 +123,8 @@ Studio::Played Studio::perform(const Action &action) {
 }
 
 Legend Studio::legend() const {
-    return drums_.legend(timeline_.legend(desk_.legend(), reachable()), reachable());
+    return drums_.legend(timeline_.legend(colors_.legend(desk_.legend(), reachable(), desk_.settings), reachable()),
+                         reachable());
 }
 
 // MARK: – What it shows
@@ -216,7 +222,8 @@ TimelineBar timelineBar(const Timeline &timeline, double time) {
 Scene scene(const Studio &studio, bool keyboard) {
     // The hand is shown as it is, before the drums and the timeline took their share.
     const auto frame = studio.frame() ? studio.frame()->shown() : GamepadFrame();
-    Scene shown = scene(studio.desk(), studio.legend(), frame, keyboard, &studio.drums(), studio.time());
+    Scene shown =
+        scene(studio.desk(), studio.legend(), frame, keyboard, &studio.drums(), &studio.colors(), studio.time());
     if (studio.desk().layout() == LayoutKind::faceChords) shown.timeline = timelineBar(studio.timeline(), studio.time());
     return shown;
 }

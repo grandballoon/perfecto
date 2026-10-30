@@ -34,7 +34,7 @@ Unlike the phone, a note's velocity is how hard it was struck, and what is playe
 ## The controls every layout shares
 
 - **Back** goes to the next layout; a click on the layouts along the top does too.
-- **Start** opens the menu: the layout, how the color ring is laid out, the chords' and the line's sounds, the key, the scale, the octave, the tempo, voice leading, the step compass's order, the output, and saving the arrangement as a MIDI file.
+- **Start** opens the menu: the layout, how the color ring is laid out, what Face Chords' left stick colors with, the chords' and the line's sounds, the key, the scale, the octave, the tempo, voice leading, the step compass's order, the output, and saving the arrangement as a MIDI file.
   The d-pad moves and changes, A opens, B closes.
   A on a sound opens the library: left and right through its categories, up and down through its sounds, each heard as it is reached.
 - **B** lets go of everything (but in Face Chords and Petals, where it strikes, and the Arranger, where it undoes).
@@ -130,6 +130,51 @@ A song with a loop in it plays until it is stopped; one without stops at its end
 The mouse does the same from the bar: its buttons, a click on a chord to choose it (Shift stretches the choice), on a layer's number to choose the layer, and on its M to mute it.
 The timeline stops when the desk goes to another layout and plays on under the menu.
 Its playback goes to the kernel's sound only, not yet to MIDI, and it records the chords alone, not yet the drums or the second voice.
+
+#### Coloring with the left stick
+
+The left stick colors the chords the face buttons hold, and LB pins the colors it finds.
+Two ways of coloring are built, to be compared: Menu › Face Chords stick chooses one, and the panel left of the face buttons shows what each direction plays on the chord held (with none held, what it does).
+A color is played while the stick leans and goes when it comes back to the middle; a chord already held takes a new color tied, so only the notes that move are struck again.
+The stick colors every chord held alike, both voices', each on its own degree, and a stick leaned before a face button colors the chord the button strikes.
+RT held takes the stick for the timeline, so the chords are plain meanwhile.
+
+**Orchid buttons** are the eight chord buttons of Telepathic Instruments' Orchid, a direction each:
+
+| Direction | Button | What it does |
+| --- | --- | --- |
+| ↑ | Maj | the major triad in place of the degree's own |
+| ↗ | m7 | adds the minor seventh |
+| → | 9 | adds the ninth |
+| ↘ | M7 | adds the major seventh |
+| ↓ | Min | the minor triad |
+| ↙ | 6 | adds the sixth (on a diminished triad, its seventh: a diminished seventh) |
+| ← | Dim | the diminished triad |
+| ↖ | Sus | the fourth in the third's place |
+
+Face Chords plays in the Orchid's key mode: with no type held, the triad is the degree's own, so the extensions add to the chord the key has.
+The Orchid's buttons are pressed two at a time, and so are these: **lean to one, then roll round the rim to another without coming back through the middle**, and both are held.
+The direction first leaned to stays held for as long as the stick is out, and whichever direction it is on now is added to it, as a second finger would be; back at the first, it is held alone again.
+Of two types the later plays, as on the Orchid; the sixth over a seventh is the thirteenth, and the two sevenths together are the major one.
+The buttons are laid round the stick so each direction's neighbours make a chord with it, a short roll away: Maj and m7 a seventh (on ii, II7, its secondary dominant), m7 and 9 a ninth, 9 and M7 a major ninth, M7 and Min a minor-major seventh, Min and 6 a minor sixth, 6 and Dim a diminished seventh.
+Pairs further apart are reached by rolling further, through the directions between, which sound on the way.
+The Orchid itself was played from a MIDI controller, its type and extension buttons on two rows of pads (`docs/midi-controller.md`); the Orchid has eight buttons, so the stick has one in each of its eight directions.
+
+**Perfecto · default, extended and chromatic** are the phone's joystick (its default mode to start with, the original coloration), its table as it was (`JoystickMap`), in one of its three modes: in the default mode ↑ flips the third, ↗ a dominant seventh, → a major seventh, ↘ add9, ↓ sus4, ↙ a sixth (sus2 on a minor chord), ← lowers the third, ↖ augments; the extended and chromatic modes have the jazz colors (9, 11, 7♯9, half-diminished; 13, 6/9, 7alt, maj7♯11 and more).
+The panel names each direction's color by the chord it makes on the chord held.
+
+**Pins** keep the colors found for a chord, to play from a layer of their own:
+
+- **LB pressed while the stick colors a chord** pins that color to it, two buttons held and all; pressed again on a color already pinned, it takes it out.
+  A knock says it was pinned, a tick that it was taken out.
+- **LB held** puts the chord's pins on the left stick: the first pin is at the top and each next one clockwise, up to eight, and a direction with no pin plays the chord plain.
+  Pressed while coloring, the stick keeps the color it pinned until it moves to another direction, so nothing jumps.
+- The pins are the favorites (below, under Twin Rings), in the table played: a chord's pins are its degree's favorites in the key, so what is pinned here is in the Favorites tab and in Twin Rings' Y layer, and the other way round.
+
+LB is the toggle because it is the one control that is free with a face button and the stick both held: the thumbs are on them, the d-pad is under the same thumb as the stick, LT is the face buttons' second layer, RB the drums and RT the timeline, and L3 starts the beat.
+LB's own uses are the second voice's, and they are read from the face buttons' presses, so they still work: with LB held a face button pressed goes to the second voice, and the stick plays that chord's pins.
+Two presses of LB within a third of a second still switch both voices on, with the second voice added, so pin and unpin with a breath between.
+The timeline records a colored chord as it sounds.
 
 ### Twin rings
 

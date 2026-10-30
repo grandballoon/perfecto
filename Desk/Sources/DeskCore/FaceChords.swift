@@ -79,6 +79,8 @@ public struct FaceChords: Layout {
         public fileprivate(set) var held: [PadButton] = []
         /// What was last struck, or refused: a chord is struck once for it.
         fileprivate var struck: Struck?
+        /// The color it was struck in.
+        fileprivate var color = ChordColor.base
         public fileprivate(set) var line: ChordLine
 
         /// The button and degree it sounds now, if it sounds one.
@@ -116,6 +118,9 @@ public struct FaceChords: Layout {
     /// When LB was last pressed, while a second press would be a double-click.
     private var lbPressedAt: Double?
     private var latePresses: [Press] = []
+    /// The color each degree's chord is struck in, as the left hand colors
+    /// them; a degree not here is plain.
+    public var colors: [Degree: ChordColor] = [:]
 
     public init(map: Map = .standard) {
         self.map = map
@@ -158,14 +163,19 @@ public struct FaceChords: Layout {
         // What sounds is what the hands ask for now: a new press, a press let
         // go and LT pulled or let go are each a change of chord, and nothing
         // held is silence.
+        // A new color on the chord sounding is heard tied, as a change.
         let next = wanted(voice)
-        if next == voices[voice].struck { return [] }
+        let color = next.flatMap { colors[$0.degree] } ?? .base
+        if next == voices[voice].struck, next == nil || color == voices[voice].color { return [] }
+        let recolors = next != nil && next == voices[voice].struck && voices[voice].line.isSounding
         voices[voice].struck = next
+        voices[voice].color = color
         guard let next else { return voices[voice].line.release() }
-        let chord = DeskChord(key: settings.key, degree: next.degree)
+        let chord = DeskChord(key: settings.key, degree: next.degree, color: color)
         if let why = settings.consonance.refusal(of: chord, in: settings.key) {
             return [.refuse(why)] + voices[voice].line.release()
         }
+        if recolors { return voices[voice].line.change(to: chord, settings: settings) }
         return voices[voice].line.strike(chord, level: 0.8, settings: settings, at: time)
     }
 

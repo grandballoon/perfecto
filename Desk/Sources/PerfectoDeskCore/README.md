@@ -42,8 +42,8 @@ These are the theory core's (its README), and these besides:
 
 ## What is not a port
 
-Three parts have no Swift original, and the parity test does not play them: what the screen shows (`scene.hpp`), the drums (`drums.hpp`, a beat and pads in Face Chords), and the timeline (`song.hpp`, `timeline.hpp`: recording, loops and layers over Face Chords).
-The drums and the timeline are played beside the desk, not inside it: `Studio` (`studio.hpp`) gives each frame to the drums first, which take the buttons they play, then to the timeline, which takes what RT holds, and steps the desk with what is left, so `Desk` is as the Swift has it.
+Four parts have no Swift original, and the parity test does not play them: what the screen shows (`scene.hpp`), the drums (`drums.hpp`, a beat and pads in Face Chords), the timeline (`song.hpp`, `timeline.hpp`: recording, loops and layers over Face Chords), and the left stick's colors over Face Chords (`face_colors.hpp`: the Orchid's buttons or the phone's joystick table, and the pins LB plays).
+They are played beside the desk, not inside it: `Studio` (`studio.hpp`) gives each frame to the drums first, which take the buttons they play, then to the timeline, which takes what RT holds, then to the colors, which give Face Chords a color for each degree (`FaceChords::setColors`, which the Swift has too), and steps the desk with what is left, so `Desk` is as the Swift has it.
 Their recordings are made in code by `Sources/PerfectoDrumKit`, which has tests of its own (`Tests/PerfectoDrumKitTests`), built and run with these.
 
 ## Its tests

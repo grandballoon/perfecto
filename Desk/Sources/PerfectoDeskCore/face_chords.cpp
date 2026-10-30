@@ -78,17 +78,23 @@ std::vector<DeskEffect> FaceChords::settle(size_t voice, const DeskSettings &set
     // What sounds is what the hands ask for now: a new press, a press let go
     // and LT pulled or let go are each a change of chord, and nothing held
     // is silence.
+    // A new color on the chord sounding is heard tied, as a change.
     Voice &v = voices_[voice];
     const auto next = wanted(voice);
-    if (next == v.struck) return {};
+    const auto found = next ? colors_.find(next->second) : colors_.end();
+    const ChordColor color = found == colors_.end() ? ChordColor::base() : found->second;
+    if (next == v.struck && (!next || color == v.color)) return {};
+    const bool recolors = next && next == v.struck && v.line.isSounding();
     v.struck = next;
+    v.color = color;
     if (!next) return v.line.release();
-    const DeskChord chord(settings.key, next->second);
+    const DeskChord chord(settings.key, next->second, color);
     if (const auto why = settings.consonance.refusal(chord, settings.key)) {
         std::vector<DeskEffect> out = {DeskEffect::refuse(*why)};
         append(out, v.line.release());
         return out;
     }
+    if (recolors) return v.line.change(chord, settings);
     return v.line.strike(chord, 0.8, settings, time);
 }
 

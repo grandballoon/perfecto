@@ -315,4 +315,16 @@ struct FaceChordsTests {
         #expect(legend[.button(.lb)] == "Hold: voice 2 over · double-click: voice 1")
         #expect(legend[.leftTrigger] == "Hold: ii iii vi · with a face: voice 2")
     }
+
+    @Test func aDegreesColorStrikesItsChordColoredAndANewColorIsHeardTied() {
+        var rig = Rig(FaceChords())
+        rig.layout.colors = [.I: .joystick(.default, .right)]
+        #expect(sounded(rig.at(1) { hold(&$0, [.a]) }) == [[60, 64, 67, 71]])
+        rig.layout.colors = [.I: .joystick(.default, .upRight)]
+        #expect(rig.at(2) == [.sound(.chord, notes: [60, 64, 67, 70], sound: "electricPiano", level: 0.8, brightness: 1, tie: true)])
+        // Another degree's color leaves this one plain.
+        rig.layout.colors = [.IV: .joystick(.default, .right)]
+        #expect(sounded(rig.at(3)) == [[60, 64, 67]])
+        #expect(rig.at(4).isEmpty)
+    }
 }

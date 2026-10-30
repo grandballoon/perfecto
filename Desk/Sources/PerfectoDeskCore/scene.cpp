@@ -143,8 +143,35 @@ Faces drumPads(const Drums &drums, const GamepadFrame &frame) {
     return faces;
 }
 
+/// The left stick beside Face Chords: what each direction colors the chord
+/// held with, or with LB, the chord's pins.
+Panel faceColors(const FaceColors &colors, const FaceChords &layout, const DeskSettings &settings,
+                 const GamepadFrame &frame) {
+    const auto heard = layout.heard() ? layout.heard() : layout.voices()[1].heard();
+    const std::optional<theory::Degree> degree = heard ? std::optional(heard->second) : std::nullopt;
+    const auto &line = layout.heard() ? layout.line() : layout.voices()[1].line;
+    const std::string title = heard && line.chord() ? line.chord()->name() : "";
+    if (colors.isOnPins()) {
+        const std::string whose = degree ? numeral(*degree, settings.key) : "the chord held";
+        return Panel{{
+            Caption{"LB + left stick", "The pins of " + whose, "in " + settings.favorites.table().name, Tint::chord},
+            Pie{colors.targets(degree, settings), std::nullopt, frame.left, title.empty() ? "Pins" : title,
+                degree ? "a place with none: plain" : "hold a face button"},
+            Note{"LB pressed while coloring pins the color, or takes it out"},
+        }};
+    }
+    const bool orchid = settings.faceStick == FaceStick::orchid;
+    return Panel{{
+        Caption{"Left stick", orchid ? "The Orchid's chord buttons" : "Perfecto's joystick table",
+                name(settings.faceStick), Tint::faint},
+        Pie{colors.targets(degree, settings), std::nullopt, frame.left, title.empty() ? "Color" : title,
+            orchid ? "roll on to add a second" : "lean to color"},
+        Note{"LB while coloring: pin · hold LB: the pins · Menu: Face Chords stick"},
+    }};
+}
+
 std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &settings, const GamepadFrame &frame,
-                              const Drums *drums, double time) {
+                              const Drums *drums, const FaceColors *colors, double time) {
     const auto &map = layout.map();
     const bool layered = layout.isLayered();
     const auto heard = layout.heard();
@@ -199,6 +226,7 @@ std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &sett
         }
         for (auto &item : drumItems(*drums, settings, time)) panel.items.push_back(std::move(item));
     }
+    if (colors) return {faceColors(*colors, layout, settings, frame), panel};
     return {panel};
 }
 
@@ -470,7 +498,8 @@ FavoritesView favorites(const Desk &desk) {
         view.degrees.push_back(row);
     }
     view.help = "In Twin Rings, hold Y: the right stick plays the chord's favorites (flick keeps, hold plays), "
-                "Y + A pins the chord you're on, Y + X unpins the one aimed at.";
+                "Y + A pins the chord you're on, Y + X unpins the one aimed at. In Face Chords, LB pressed while the "
+                "left stick colors a chord pins it (again, unpins it), and LB held puts the pins on the left stick.";
     return view;
 }
 
@@ -495,12 +524,12 @@ MenuView menu(const Desk &desk, const DeskMenu &menu) {
 } // namespace
 
 Scene scene(const Desk &desk, const Legend &legend, const GamepadFrame &held, bool keyboard, const Drums *drums,
-            double time) {
+            const FaceColors *colors, double time) {
     const auto frame = desk.frame() ? desk.frame()->shown() : GamepadFrame();
     const auto &settings = desk.settings;
     Scene scene{topBar(desk), {}, hand(legend, held, keyboard), favorites(desk), std::nullopt, std::nullopt};
     switch (desk.layout()) {
-    case LayoutKind::faceChords: scene.stage = faceChords(desk.faceChords(), settings, held, drums, time); break;
+    case LayoutKind::faceChords: scene.stage = faceChords(desk.faceChords(), settings, held, drums, colors, time); break;
     case LayoutKind::twinRings: scene.stage = twinRings(desk.twinRings(), settings, frame); break;
     case LayoutKind::petals: scene.stage = petals(desk.petals(), settings, frame); break;
     case LayoutKind::neighbourhood: scene.stage = neighbourhood(desk.neighbourhood(), settings, frame); break;
@@ -513,7 +542,7 @@ Scene scene(const Desk &desk, const Legend &legend, const GamepadFrame &held, bo
 
 Scene scene(const Desk &desk, bool keyboard) {
     const auto frame = desk.frame() ? desk.frame()->shown() : GamepadFrame();
-    return scene(desk, desk.legend(), frame, keyboard, nullptr, 0);
+    return scene(desk, desk.legend(), frame, keyboard, nullptr, nullptr, 0);
 }
 
 std::vector<DeskEffect> perform(Desk &desk, const Action &action) {

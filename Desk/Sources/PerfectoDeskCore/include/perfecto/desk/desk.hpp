@@ -67,13 +67,13 @@ private:
 /// the sound library.
 struct DeskMenu {
     enum class Row {
-        layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, chordSound, lineSound,
-        key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI,
+        layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, faceStick, chordSound,
+        lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI,
     };
 
-    static constexpr std::array<Row, 19> allRows = {
+    static constexpr std::array<Row, 20> allRows = {
         Row::layout,     Row::consonance, Row::guardInKey, Row::forgetRun,    Row::ring,
-        Row::ringOrder,  Row::ringFilter, Row::lbLayer,    Row::chordSound,   Row::lineSound,
+        Row::ringOrder,  Row::ringFilter, Row::lbLayer,    Row::faceStick,    Row::chordSound,   Row::lineSound,
         Row::key,        Row::scale,      Row::octave,     Row::tempo,        Row::grid,
         Row::voiceLeading, Row::ranking,  Row::output,     Row::saveMIDI,
     };
@@ -138,6 +138,12 @@ public:
 
     /// Plays `map` on the face buttons in Face Chords.
     void setFaceMap(FaceChords::Map map) { faceChords_.setMap(std::move(map)); }
+
+    /// Colors Face Chords' chords by degree from the next step: a chord held
+    /// takes its new color tied.
+    void setFaceColors(std::map<theory::Degree, theory::ChordColor> colors) {
+        faceChords_.setColors(std::move(colors));
+    }
 
     /// What every control does now.
     Legend legend() const;

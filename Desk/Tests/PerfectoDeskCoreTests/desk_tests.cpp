@@ -43,7 +43,7 @@ TEST_CASE("the menu changes the chord sound and plays it") {
     Desk desk(catalog);
     desk.step(frame(1, {PadButton::start}));
     CHECK(desk.menu().has_value());
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 9; ++i) {
         desk.step(frame(2 + double(i) * 0.1, {PadButton::down}));
         desk.step(frame(2.05 + double(i) * 0.1));
     }
@@ -57,7 +57,7 @@ TEST_CASE("the menu changes the chord sound and plays it") {
 TEST_CASE("the library browses by category") {
     Desk desk(catalog);
     desk.step(frame(1, {PadButton::start}));
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 9; ++i) {
         desk.step(frame(2 + double(i) * 0.1, {PadButton::down}));
         desk.step(frame(2.05 + double(i) * 0.1));
     }
@@ -77,7 +77,7 @@ TEST_CASE("the menu's key row moves by semitones") {
     desk.step(frame(1, {PadButton::start}));
     const std::vector<PadButton> buttons = {PadButton::down, PadButton::down, PadButton::down, PadButton::down,
                                             PadButton::down, PadButton::down, PadButton::down, PadButton::down,
-                                            PadButton::down, PadButton::down, PadButton::right};
+                                            PadButton::down, PadButton::down, PadButton::down, PadButton::right};
     for (size_t i = 0; i < buttons.size(); ++i) {
         desk.step(frame(double(i) * 2 + 2, {buttons[i]}));
         desk.step(frame(double(i) * 2 + 3));

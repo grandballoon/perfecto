@@ -411,7 +411,8 @@ TEST_CASE("the screen shows the beat under Face Chords, and the pads while RB is
     studio.step(frame(1, {PadButton::l3}));
     studio.step(frame(1.13));
     auto shown = scene(studio, false);
-    const auto &panel = shown.stage.at(0);
+    // The left stick's panel is first, beside the face buttons'.
+    const auto &panel = shown.stage.at(1);
     const auto captions = items<Caption>(panel);
     CHECK(captions.back().title == "Drums");
     CHECK(captions.back().aside == "▶ 96 bpm");
@@ -431,10 +432,10 @@ TEST_CASE("the screen shows the beat under Face Chords, and the pads while RB is
 
     studio.step(frame(1.2, {PadButton::rb, PadButton::x}));
     shown = scene(studio, false);
-    const auto pads = items<Faces>(shown.stage.at(0)).at(0);
+    const auto pads = items<Faces>(shown.stage.at(1)).at(0);
     CHECK(pads.faces[1] == Faces::Face{PadButton::x, 270, "Closed hat", "", "+LT Mid tom", true, false});
     CHECK(pads.detail == "Drum pads");
-    CHECK(items<Caption>(shown.stage.at(0)).at(0).title == "Drum pads");
+    CHECK(items<Caption>(shown.stage.at(1)).at(0).title == "Drum pads");
     // The hand shows X held, as the hands hold it.
     CHECK(std::any_of(shown.hand.right.begin(), shown.hand.right.end(),
                       [](const auto &e) { return e.mark == "X" && e.isHeld && e.text == "Closed hat"; }));
