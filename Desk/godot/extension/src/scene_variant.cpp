@@ -44,7 +44,7 @@ const char *name(desk::ChordFit fit) {
     return "in_key";
 }
 
-constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 22> actionNames = {{
+constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 23> actionNames = {{
     {desk::Action::Kind::chooseLayout, "choose_layout"},
     {desk::Action::Kind::toggleMenu, "toggle_menu"},
     {desk::Action::Kind::arrangeRing, "arrange_ring"},
@@ -57,6 +57,7 @@ constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 22> action
     {desk::Action::Kind::setKeyDefault, "set_key_default"},
     {desk::Action::Kind::record, "timeline_record"},
     {desk::Action::Kind::play, "timeline_play"},
+    {desk::Action::Kind::rewind, "timeline_rewind"},
     {desk::Action::Kind::loop, "timeline_loop"},
     {desk::Action::Kind::quantize, "timeline_quantize"},
     {desk::Action::Kind::erase, "timeline_erase"},
@@ -441,10 +442,23 @@ Variant v(const desk::TimelineBar::Lane &lane) {
     return d;
 }
 
+const char *name(desk::TimelineBar::Icon icon) {
+    switch (icon) {
+    case desk::TimelineBar::Icon::none: return "none";
+    case desk::TimelineBar::Icon::play: return "play";
+    case desk::TimelineBar::Icon::pause: return "pause";
+    case desk::TimelineBar::Icon::record: return "record";
+    case desk::TimelineBar::Icon::stopRecording: return "stop_recording";
+    case desk::TimelineBar::Icon::rewind: return "rewind";
+    }
+    return "none";
+}
+
 Variant v(const desk::TimelineBar::Control &control) {
     Dictionary action;
     action["kind"] = name(control.action.kind);
     Dictionary d;
+    d["icon"] = name(control.icon);
     d["label"] = text(control.label);
     d["keys"] = text(control.keys);
     d["lit"] = control.isLit;
@@ -459,6 +473,7 @@ Variant v(const desk::TimelineBar &bar) {
     d["to"] = bar.to;
     d["beats_per_bar"] = bar.beatsPerBar;
     d["playhead"] = v(bar.playhead);
+    d["playing"] = bar.isPlaying;
     d["lanes"] = v(bar.lanes);
     d["controls"] = v(bar.controls);
     d["status"] = text(bar.status);

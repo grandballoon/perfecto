@@ -144,6 +144,64 @@ TEST_CASE("RT + X plays it back, each chord stamped with when it sounds") {
     CHECK_FALSE(rig.timeline().rolling());
 }
 
+TEST_CASE("RT + X pauses where it is, and plays on from there") {
+    StudioRig rig;
+    recordTwo(rig, 10);
+    rig.hold(20, {PadButton::x}, true);
+    rig.hold(20.1, {}, true);
+    const auto paused = rig.hold(20.5, {PadButton::x}, true);
+    CHECK(hushes(paused.playback));
+    CHECK_FALSE(rig.timeline().rolling());
+    REQUIRE(rig.timeline().cue());
+    CHECK(*rig.timeline().cue() == doctest::Approx(0.5));
+    auto bar = timelineBar(rig.timeline(), 25);
+    CHECK(bar.status == "Paused · bar 1 · beat 1");
+    CHECK(bar.playhead == doctest::Approx(0.5));
+    CHECK_FALSE(bar.isPlaying);
+    CHECK(bar.controls[1].icon == TimelineBar::Icon::play);
+    // Played again, I goes on from half way through it.
+    rig.hold(29.9, {}, true);
+    const auto resumed = rig.hold(30, {PadButton::x}, true);
+    CHECK(cues(resumed.playback) == Cues{{30, I}});
+    CHECK(timelineBar(rig.timeline(), 30).controls[1].icon == TimelineBar::Icon::pause);
+    CHECK(cues(rig.at(30.46).playback) == Cues{{30.5, {}}, {30.5, IV}});
+}
+
+TEST_CASE("RT + LT + X goes back to the start, and plays on from there if it plays") {
+    StudioRig rig;
+    recordTwo(rig, 10);
+    rig.hold(20, {PadButton::x}, true);
+    rig.hold(20.1, {}, true);
+    const auto back = rig.hold(21.5, {PadButton::x}, true, 1);
+    CHECK(hushes(back.playback));
+    CHECK(cues(back.playback) == Cues{{21.5, I}});
+    CHECK(rig.timeline().playhead(21.5) == 0);
+    // Paused and taken back, it is at the start.
+    rig.hold(21.6, {}, true);
+    rig.hold(21.7, {PadButton::x}, true);
+    REQUIRE(rig.timeline().cue());
+    rig.hold(21.8, {}, true, 1);
+    rig.hold(21.9, {PadButton::x}, true, 1);
+    CHECK_FALSE(rig.timeline().cue());
+    CHECK_FALSE(rig.timeline().rolling());
+}
+
+TEST_CASE("paused past the end, it plays from the start again") {
+    StudioRig rig;
+    recordTwo(rig, 10);
+    rig.hold(20, {PadButton::x}, true);
+    rig.hold(20.1, {}, true);
+    rig.hold(21.5, {PadButton::x}, true);  // paused in IV
+    rig.hold(21.6, {}, true);
+    rig.hold(21.7, {PadButton::left}, true);  // IV, the last chord
+    rig.at(21.8, [](GamepadFrame &f) { f.right = lean(180); });  // deleted: the song now ends at 1
+    rig.at(21.9, [](GamepadFrame &f) { f.right = Stick::rest(); });
+    REQUIRE(rig.song().end() == 1);
+    REQUIRE(rig.timeline().cue() == 1.5);
+    const auto played = rig.hold(22, {PadButton::x}, true);
+    CHECK(cues(played.playback) == Cues{{22, I}});
+}
+
 TEST_CASE("a change of tempo is heard from where the song is") {
     StudioRig rig;
     recordTwo(rig, 10);
@@ -307,7 +365,8 @@ TEST_CASE("the bar shows the lanes, the choice and the playhead") {
     CHECK(bar.lanes[0].blocks[0].isHeard);
     CHECK(bar.lanes[0].blocks[0].name == "C maj");
     CHECK(bar.playhead == doctest::Approx(0.5));
-    CHECK(bar.status == "▶ Playing · bar 1 · beat 1");
+    CHECK(bar.status == "Playing · bar 1 · beat 1");
+    CHECK(bar.isPlaying);
     // With a chord selected, the bar says what can be done to it.
     CHECK(bar.message == "1 chord selected. Play a chord to replace it: the timing stays the same.");
     CHECK(bar.tips.front() == TimelineBar::Tip{"RT + LT + ← →", "Select more"});

@@ -78,7 +78,7 @@ double Timeline::timeAt(double beat) const {
 double Timeline::startBeat() const {
     const Layer *layer = selection_ ? song_.layer(selection_->layer) : nullptr;
     const auto span = layer ? layer->span(selected()) : std::nullopt;
-    return span ? span->from : 0;
+    return span ? span->from : cue_.value_or(0);
 }
 
 void Timeline::edit(Song next, Edit kind) {
@@ -174,7 +174,7 @@ Timeline::Out Timeline::act(PadButton button, const PadInput &input, const DeskS
     const double time = input.time();
     switch (button) {
     case PadButton::a: return record(time, settings);
-    case PadButton::x: return play(time, settings);
+    case PadButton::x: return stretches(input.frame) ? rewind(time, settings) : play(time, settings);
     case PadButton::y: return loop();
     case PadButton::b: return quantize(settings);
     case PadButton::left: return moveSelection(-1, stretches(input.frame));
@@ -292,7 +292,7 @@ Timeline::Out Timeline::record(double time, const DeskSettings &settings) {
     }
     if (static_cast<int>(song_.layers.size()) >= Song::most)
         return refused("Eight tracks is the most: delete one to record another");
-    const double from = startBeat();
+    const double from = song_.isEmpty() ? 0 : startBeat();
     const bool trims = song_.isEmpty() && !rolling_;
     Song next = song_;
     next.layers.push_back({next.next++, {}, std::nullopt, false});
@@ -337,21 +337,49 @@ Timeline::Out Timeline::finishRecording(double time) {
 }
 
 Timeline::Out Timeline::play(double time, const DeskSettings &settings) {
-    if (rolling_) return stop(time);
+    if (rolling_) return pause(time);
     if (song_.isEmpty()) return refused("Nothing recorded yet: hold RT and press A");
+    // Paused at the end, it plays from the start again.
+    if (cue_ && !song_.isEndless() && *cue_ >= song_.end().value_or(0)) cue_.reset();
     Out out = felt(Rumble::bump);
     out.append(roll(time, startBeat(), settings));
     return out;
 }
 
-Timeline::Out Timeline::stop(double time) {
+Timeline::Out Timeline::pause(double time) {
     if (!rolling_) return {};
     Out out;
     if (recording_) out.append(finishRecording(time));
+    cue_ = std::max(beatAt(time), 0.0);
+    out.append(halt());
+    out.append(felt(Rumble::bump));
+    return out;
+}
+
+Timeline::Out Timeline::rewind(double time, const DeskSettings &settings) {
+    if (recording_) return refused("Stop recording first");
+    cue_.reset();
+    Out out = felt(Rumble::tick);
+    if (rolling_) {
+        out.append(halt());
+        out.append(roll(time, 0, settings));
+    }
+    return out;
+}
+
+Timeline::Out Timeline::stop(double time) {
+    cue_.reset();
+    if (!rolling_) return {};
+    Out out;
+    if (recording_) out.append(finishRecording(time));
+    out.append(halt());
+    return out;
+}
+
+Timeline::Out Timeline::halt() {
     rolling_.reset();
     sounding_.clear();
-    out.playback.push_back(TimelineEffect::hush());
-    return out;
+    return {{TimelineEffect::hush()}, {}};
 }
 
 Timeline::Out Timeline::loop() {
@@ -504,6 +532,7 @@ Timeline::Out Timeline::settle(double time) {
     }
     if (selection_ && selected().empty()) selection_.reset();
     if (!song_.layer(layer_)) layer_ = song_.layers.empty() ? 0 : song_.layers.back().id;
+    if (song_.isEmpty()) cue_.reset();
     return out;
 }
 
@@ -525,14 +554,14 @@ Legend Timeline::legend(Legend legend, bool reachable) const {
     const Layer *chosen = layer();
     legend[PadControl::rightTrigger()] = "Timeline (let go to play)";
     legend[button(PadButton::a)] = recording_ ? "Stop recording" : "Record a new track";
-    legend[button(PadButton::x)] = rolling_ ? "Stop" : "Play";
+    legend[button(PadButton::x)] = rolling_ ? "Pause" : "Play";
     legend[button(PadButton::y)] = selection_ ? "Loop selection" : chosen && chosen->loop ? "Stop looping" : "Loop (select first)";
     legend[button(PadButton::b)] = selection_ ? "Fix timing of selection" : "Fix timing of track";
     legend[button(PadButton::left)] = "Select previous chord";
     legend[button(PadButton::right)] = "Select next chord";
     legend[button(PadButton::up)] = "Track above";
     legend[button(PadButton::down)] = "Track below";
-    legend[PadControl::leftTrigger()] = "Select more · move a grid step";
+    legend[PadControl::leftTrigger()] = "Select more · move a grid step · with X, back to start";
     legend[PadControl::rightStick()] = "← → move earlier / later · ↑ mute track · ↓ delete";
     legend[PadControl::leftStick()] = "← undo · → redo";
     return legend;

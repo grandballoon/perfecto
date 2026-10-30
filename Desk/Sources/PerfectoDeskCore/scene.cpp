@@ -484,6 +484,7 @@ std::vector<DeskEffect> perform(Desk &desk, const Action &action) {
     case Action::Kind::setKeyDefault: favorites.setDefault(desk.settings.key, action.value != 0); break;
     case Action::Kind::record:
     case Action::Kind::play:
+    case Action::Kind::rewind:
     case Action::Kind::loop:
     case Action::Kind::quantize:
     case Action::Kind::erase:

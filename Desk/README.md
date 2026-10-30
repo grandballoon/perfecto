@@ -84,7 +84,8 @@ To start:
 
 1. **RT + A** starts recording. Play some chords.
 2. **RT + A** again stops. What you played is the first track, starting at your first chord.
-3. **RT + X** plays it back, and stops it.
+3. **RT + X** plays it back, and pauses it; again plays on from where it paused.
+   **RT + LT + X** goes back to the start.
 4. **RT + A** again records a new track while the others play along, so you can build a song up a part at a time.
 
 To change what you recorded, first select chords:
@@ -103,7 +104,7 @@ To change what you recorded, first select chords:
 
 Chords played without letting go stay joined through every change, so a smooth progression stays smooth.
 A song with a loop in it plays until you stop it; one without stops at its end.
-The mouse works the bar too: its buttons, a click on a chord to select it (Shift-click to select more), on a track's number to pick it, and on its M to mute it.
+The mouse works the bar too: the round buttons at its left (back to start, play or pause, record), the others at its right, a click on a chord to select it (Shift-click to select more), on a track's number to pick it, and on its M to mute it.
 The timeline stops when the desk goes to another layout and plays on under the menu.
 Its playback goes to the kernel's sound only, not yet to MIDI.
 

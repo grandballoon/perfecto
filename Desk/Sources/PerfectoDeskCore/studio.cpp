@@ -92,6 +92,7 @@ Studio::Played Studio::perform(const Action &action) {
     switch (action.kind) {
     case Action::Kind::record: played.append(timeline_.record(now, settings)); break;
     case Action::Kind::play: played.append(timeline_.play(now, settings)); break;
+    case Action::Kind::rewind: played.append(timeline_.rewind(now, settings)); break;
     case Action::Kind::loop: played.append(timeline_.loop()); break;
     case Action::Kind::quantize: played.append(timeline_.quantize(settings)); break;
     case Action::Kind::erase: played.append(timeline_.erase(now)); break;
@@ -114,6 +115,8 @@ Legend Studio::legend() const { return timeline_.legend(desk_.legend(), reachabl
 TimelineBar timelineBar(const Timeline &timeline, double time) {
     const Song &song = timeline.song();
     const auto playhead = timeline.playhead(time);
+    // Shown where it plays, or where it paused.
+    const auto head = playhead ? playhead : timeline.cue();
     const auto &recording = timeline.recording();
     const auto chosen = timeline.selected();
     const Layer *chosenLayer = timeline.layer();
@@ -128,12 +131,12 @@ TimelineBar timelineBar(const Timeline &timeline, double time) {
     if (recording && playhead) reach = std::max(reach, *playhead);
     const double bar = Song::beatsPerBar;
     const double length = std::max(shortestShown, std::ceil(reach / bar) * bar);
-    const double from = playhead && !recording ? std::floor(std::max(*playhead, 0.0) / length) * length : 0;
+    const double from = head && !recording ? std::floor(std::max(*head, 0.0) / length) * length : 0;
     const double to = from + length;
     const auto shown = [&](double start, double end) { return start < to && end > from; };
     const auto covers = [&](double start, double end) { return playhead && start <= *playhead && *playhead < end; };
 
-    TimelineBar view{from, to, Song::beatsPerBar, playhead, {}, {}, "", Tint::secondary, "", {}};
+    TimelineBar view{from, to, Song::beatsPerBar, head, playhead.has_value(), {}, {}, "", Tint::secondary, "", {}};
     for (size_t i = 0; i < song.layers.size(); ++i) {
         const Layer &layer = song.layers[i];
         const bool isRecording = recording && recording->layer == layer.id;
@@ -167,27 +170,34 @@ TimelineBar timelineBar(const Timeline &timeline, double time) {
     const bool selection = timeline.selection().has_value();
     using Kind = Action::Kind;
     const bool looping = chosenLayer && chosenLayer->loop;
+    using Icon = TimelineBar::Icon;
     view.controls = {
-        {recording ? "■ Stop recording" : "● Record", "RT + A", recording.has_value(), true, {Kind::record, 0, 0, {}}},
-        {rolling ? "■ Stop" : "▶ Play", "RT + X", rolling, !song.isEmpty() || rolling, {Kind::play, 0, 0, {}}},
-        {selection || !looping ? "⟲ Loop selection" : "⟲ Stop looping", "RT + Y", false, selection || looping,
-         {Kind::loop, 0, 0, {}}},
-        {"⌗ Fix timing", "RT + B", false, chosenLayer != nullptr, {Kind::quantize, 0, 0, {}}},
-        {"✕ Delete", "RT + R-stick ↓", false, selection, {Kind::erase, 0, 0, {}}},
-        {"↶ Undo", "RT + L-stick ←", false, timeline.canUndo(), {Kind::undo, 0, 0, {}}},
-        {"↷ Redo", "RT + L-stick →", false, timeline.canRedo(), {Kind::redo, 0, 0, {}}},
+        {Icon::rewind, "Back to start", "RT + LT + X", false, (head && *head > 0) && !recording,
+         {Kind::rewind, 0, 0, {}}},
+        {rolling ? Icon::pause : Icon::play, rolling ? "Pause" : "Play", "RT + X", false, !song.isEmpty() || rolling,
+         {Kind::play, 0, 0, {}}},
+        {recording ? Icon::stopRecording : Icon::record, recording ? "Stop recording" : "Record", "RT + A",
+         recording.has_value(), true, {Kind::record, 0, 0, {}}},
+        {Icon::none, selection || !looping ? "⟲ Loop selection" : "⟲ Stop looping", "RT + Y", false,
+         selection || looping, {Kind::loop, 0, 0, {}}},
+        {Icon::none, "⌗ Fix timing", "RT + B", false, chosenLayer != nullptr, {Kind::quantize, 0, 0, {}}},
+        {Icon::none, "✕ Delete", "RT + R-stick ↓", false, selection, {Kind::erase, 0, 0, {}}},
+        {Icon::none, "↶ Undo", "RT + L-stick ←", false, timeline.canUndo(), {Kind::undo, 0, 0, {}}},
+        {Icon::none, "↷ Redo", "RT + L-stick →", false, timeline.canRedo(), {Kind::redo, 0, 0, {}}},
     };
 
     if (recording) {
         view.status = "● Recording track " + std::to_string(song.layers.size()) + " · " + position(*playhead);
         view.statusTint = Tint::chord;
         view.message = "Recording: play along, and every chord you play is captured.";
-        view.tips = {{"RT + A", "Stop recording"}, {"RT + X", "Stop everything"}};
+        view.tips = {{"RT + A", "Stop recording"}, {"RT + X", "Pause"}};
         return view;
     }
     if (playhead) {
-        view.status = "▶ Playing · " + position(*playhead);
+        view.status = "Playing · " + position(*playhead);
         view.statusTint = Tint::near;
+    } else if (head && !song.isEmpty()) {
+        view.status = "Paused · " + position(*head);
     } else {
         view.status = song.isEmpty() ? "Nothing recorded yet" : "Stopped · " + count(song.layers.size(), "track", "tracks");
     }
@@ -203,10 +213,11 @@ TimelineBar timelineBar(const Timeline &timeline, double time) {
                      {"RT + R-stick ↓", "Delete"},            {"Tap RT", "Deselect"}};
     } else {
         view.message = "Hold RT to work with what you recorded.";
-        view.tips = {{"RT + X", playhead ? "Stop" : "Play"}, {"RT + A", "Record a new track"},
+        view.tips = {{"RT + X", playhead ? "Pause" : "Play"}, {"RT + A", "Record a new track"},
                      {"RT + ← →", "Select a chord"},         {"RT + ↑ ↓", "Pick a track"},
                      {"RT + B", "Fix timing of the track"}};
         if (looping) view.tips.push_back({"RT + Y", "Stop looping"});
+        if (head && *head > 0) view.tips.push_back({"RT + LT + X", "Back to start"});
     }
     return view;
 }

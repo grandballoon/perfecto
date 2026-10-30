@@ -8,7 +8,8 @@
 //
 // - A records a new layer, from the selection's start or the song's, with
 //   every other layer playing along; again stops recording.
-// - X plays from the same place, and stops.
+// - X plays and pauses: play goes on from where it paused, or from the
+//   selection's start; with LT held too, X goes back to the start.
 // - ← and → choose the chord before or after; with LT held too, they
 //   stretch the choice over several.
 // - ↑ and ↓ choose the layer.
@@ -179,6 +180,8 @@ public:
     const std::optional<Recording> &recording() const { return recording_; }
     /// Where the song is at `time`, while it plays.
     std::optional<double> playhead(double time) const;
+    /// Where it paused, and plays on from; none at the start.
+    const std::optional<double> &cue() const { return cue_; }
     /// Whether RT holds the timeline.
     bool isLayered() const { return isLayered_; }
     bool canUndo() const { return !undo_.empty() && !recording_; }
@@ -203,9 +206,14 @@ public:
 
     /// Starts recording a new layer, or stops.
     Out record(double time, const DeskSettings &settings);
-    /// Plays from the selection's start or the song's, or stops.
+    /// Plays from where it paused, the selection's start or the song's;
+    /// pauses while it plays.
     Out play(double time, const DeskSettings &settings);
-    /// Stops playing and recording.
+    /// Stops playing and recording where it is, to play on from there.
+    Out pause(double time);
+    /// Goes back to the song's start, playing on from there if it plays.
+    Out rewind(double time, const DeskSettings &settings);
+    /// Stops playing and recording, back at the start.
     Out stop(double time);
     Out loop();
     Out quantize(const DeskSettings &settings);
@@ -237,6 +245,7 @@ private:
     std::optional<Selection> selection_;
     std::optional<Rolling> rolling_;
     std::optional<Recording> recording_;
+    std::optional<double> cue_;
     /// What each track is sounding until.
     std::map<Track, double> sounding_;
     /// What the desk sounded at the last frame.
@@ -265,6 +274,8 @@ private:
     Out roll(double time, double beat, const DeskSettings &settings);
     Out schedule(double from, double to, bool entering, const DeskSettings &settings);
     Out finishRecording(double time);
+    /// Lets go of everything playing back.
+    Out halt();
     /// Lets go of what tracks no longer heard sound, and of a choice of
     /// what is gone.
     Out settle(double time);

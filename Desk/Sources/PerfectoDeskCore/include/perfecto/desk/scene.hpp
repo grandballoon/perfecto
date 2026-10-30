@@ -65,6 +65,7 @@ struct Action {
         // an event by its id in `value`.
         record,
         play,
+        rewind,
         loop,
         quantize,
         erase,
@@ -501,8 +502,13 @@ struct TimelineBar {
         bool operator==(const Lane &) const = default;
     };
 
-    /// A button for the mouse, with the controller's way to it.
+    /// The transport's symbols, drawn as the shapes every player knows.
+    enum class Icon { none, play, pause, record, stopRecording, rewind };
+
+    /// A button for the mouse, with the controller's way to it. One with an
+    /// icon is the transport's, drawn as its symbol alone.
     struct Control {
+        Icon icon;
         std::string label;
         std::string keys;
         bool isLit;
@@ -516,7 +522,9 @@ struct TimelineBar {
     double from;
     double to;
     int beatsPerBar;
+    /// Where it plays, or where it paused.
     std::optional<double> playhead;
+    bool isPlaying;
     std::vector<Lane> lanes;
     std::vector<Control> controls;
     /// A control and what it does now, shown as the controller's buttons
