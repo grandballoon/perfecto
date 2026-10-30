@@ -463,7 +463,10 @@ Variant v(const desk::TimelineBar &bar) {
     d["controls"] = v(bar.controls);
     d["status"] = text(bar.status);
     d["status_tint"] = v(bar.statusTint);
-    d["hint"] = text(bar.hint);
+    d["message"] = text(bar.message);
+    Array tips;
+    for (const auto &tip : bar.tips) tips.push_back(v(std::pair(tip.keys, tip.text)));
+    d["tips"] = tips;
     return d;
 }
 

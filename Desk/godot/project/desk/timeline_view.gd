@@ -12,7 +12,10 @@ const LANE := 22.0
 const LANE_GAP := 4.0
 ## The lanes' height when there are many, so the stage keeps its room.
 const LANE_TIGHT := 16.0
-const HINT := 16.0
+## What to do next: a sentence, and a row of controls beneath it.
+const MESSAGE := 16.0
+const TIP := 22.0
+const GUIDE := MESSAGE + 6 + TIP
 const LABEL := 46.0
 const T := Paint.Text
 
@@ -24,7 +27,7 @@ static func lane_height(t: Dictionary) -> float:
 ## The bar's height for what it shows.
 static func height(t: Dictionary) -> float:
 	var lanes := maxi(1, t["lanes"].size())
-	return PAD * 2 + HEADER + 8 + RULER + lanes * (lane_height(t) + LANE_GAP) - LANE_GAP + 8 + HINT
+	return PAD * 2 + HEADER + 8 + RULER + lanes * (lane_height(t) + LANE_GAP) - LANE_GAP + 10 + GUIDE
 
 
 static func draw(canvas: CanvasItem, rect: Rect2, t: Dictionary, hits: Array) -> void:
@@ -32,7 +35,7 @@ static func draw(canvas: CanvasItem, rect: Rect2, t: Dictionary, hits: Array) ->
 	var inner := rect.grow(-PAD)
 	header(canvas, Rect2(inner.position, Vector2(inner.size.x, HEADER)), t, hits)
 	var y := inner.position.y + HEADER + 8
-	var track := Rect2(inner.position.x + LABEL, y, inner.size.x - LABEL, inner.end.y - HINT - 8 - y)
+	var track := Rect2(inner.position.x + LABEL, y, inner.size.x - LABEL, inner.end.y - GUIDE - 10 - y)
 	var span: float = t["to"] - t["from"]
 	var x := func(beats: float) -> float: return track.position.x + track.size.x * (beats - t["from"]) / span
 	ruler(canvas, Rect2(track.position, Vector2(track.size.x, RULER)), t, x)
@@ -47,7 +50,27 @@ static func draw(canvas: CanvasItem, rect: Rect2, t: Dictionary, hits: Array) ->
 		var px: float = x.call(t["playhead"])
 		var bottom := lanes_top + maxi(1, t["lanes"].size()) * (h + LANE_GAP) - LANE_GAP
 		canvas.draw_rect(Rect2(px - 1, track.position.y, 2, bottom - track.position.y), Paint.color("text"))
-	T.new(t["hint"], 11).fitted(inner.size.x).draw(canvas, Vector2(inner.position.x, inner.end.y - HINT + 2), Paint.color("secondary"))
+	guide(canvas, Rect2(inner.position.x, inner.end.y - GUIDE, inner.size.x, GUIDE), t)
+
+
+## What to do next: the sentence, then each control as its buttons in a key
+## cap beside what it does, as far as the row has room for.
+static func guide(canvas: CanvasItem, rect: Rect2, t: Dictionary) -> void:
+	T.new(t["message"], 12, 500).fitted(rect.size.x, 0.8).draw(canvas, rect.position, Paint.color("text"))
+	var x := rect.position.x
+	var y := rect.position.y + MESSAGE + 6
+	for tip in t["tips"]:
+		var keys := T.new(tip[0], 10, 700, true)
+		var said := T.new(tip[1], 11, 500)
+		var cap := Vector2(keys.width() + 14, TIP)
+		var width := cap.x + 6 + said.width()
+		if x + width > rect.end.x:
+			break
+		var shape := Rect2(Vector2(x, y), cap)
+		Paint.box(canvas, shape, Paint.color("raised"), 6, Paint.color("rule"))
+		keys.draw_centred(canvas, shape.get_center(), Paint.color("text"))
+		said.draw_centred(canvas, Vector2(shape.end.x + 6 + said.width() / 2, shape.get_center().y), Paint.color("secondary"))
+		x += width + 18
 
 
 ## What it is doing on the left, and a button for each control on the right,

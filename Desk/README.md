@@ -74,26 +74,36 @@ The d-pad rolls the inversion and moves the octave, and the chord held moves wit
 
 #### The timeline
 
-A bar along the top of Face Chords records what is played, layer over layer, plays it back, and edits it.
-RT held is the timeline's hand, as LT is the chords' second layer: a button pressed while RT is held is the timeline's until it is let go, so it never strikes a chord.
+A bar along the top of Face Chords records what you play, plays it back, and lets you fix it and build it up, track over track, like a looper or a simple DAW.
+**Hold RT to use it**: while RT is held, the face buttons, the d-pad and the sticks work the timeline instead of playing chords.
+Let go of RT to play again.
+The bar always says what to do next, with the buttons for it.
 It leaves R3 and LB to the second voice and L3 and RB to the drums.
 
-- **RT + A** records a new layer, with every other layer playing along; again, it stops recording.
-  The first take starts where its first chord was played, so there is no silence before it.
-- **RT + X** plays, and stops; both start from the chords chosen, or from the top.
-- **RT + ← →** choose the chord before or after; with LT held too, they stretch the choice over several.
-  **RT + ↑ ↓** choose the layer.
-- **With chords chosen, a chord played is written into them**, each at its own time: the progression changes and its rhythm does not.
-- **RT + Y** loops the span chosen, its ends on the nearest beats: the layer repeats it for as long as the song plays, in step with where it was recorded, and its chords can still be chosen and changed.
-  With nothing chosen it ends the loop.
-- **RT + B** quantizes the chords chosen (with none, the whole layer) to the grid (Menu › Arranger grid; a sixteenth with none).
-- **RT + right stick**: left and right nudge the chords chosen a 32nd of a beat earlier or later, again and again while held (by a line of the grid with LT); up mutes the layer; down deletes the chords chosen.
-- **RT + left stick**: left undoes, right redoes.
-- **RT tapped alone** lets go of the choice.
+To start:
 
-A chord changed without letting go stays joined to the next through every edit, so a progression played legato stays legato.
-A song with a loop in it plays until it is stopped; one without stops at its end.
-The mouse does the same from the bar: its buttons, a click on a chord to choose it (Shift stretches the choice), on a layer's number to choose the layer, and on its M to mute it.
+1. **RT + A** starts recording. Play some chords.
+2. **RT + A** again stops. What you played is the first track, starting at your first chord.
+3. **RT + X** plays it back, and stops it.
+4. **RT + A** again records a new track while the others play along, so you can build a song up a part at a time.
+
+To change what you recorded, first select chords:
+
+- **RT + ← →** selects the previous or next chord; add **LT** to select more than one.
+  **RT + ↑ ↓** picks the track.
+- **Play a chord** (with RT let go) to replace the selected ones: their timing stays the same, so you can try other chords in the same rhythm.
+- **RT + Y** loops the selection: the track repeats it for as long as the song plays, and you can still change it.
+  With nothing selected, **RT + Y** stops a track looping.
+- **RT + B** fixes the timing: the selected chords (or the whole track, with none selected) snap to the nearest line of the grid, so they land in time.
+  The grid is sixteenth notes unless Menu › Arranger grid says otherwise.
+- **RT + right stick ← →** moves the selection a little earlier or later, again and again while held (with LT, a whole grid step).
+  **↑** mutes the track and **↓** deletes the selection.
+- **RT + left stick ← →** undoes and redoes.
+- **Tap RT** to deselect.
+
+Chords played without letting go stay joined through every change, so a smooth progression stays smooth.
+A song with a loop in it plays until you stop it; one without stops at its end.
+The mouse works the bar too: its buttons, a click on a chord to select it (Shift-click to select more), on a track's number to pick it, and on its M to mute it.
 The timeline stops when the desk goes to another layout and plays on under the menu.
 Its playback goes to the kernel's sound only, not yet to MIDI.
 

@@ -25,6 +25,10 @@
 // With chords chosen, a chord played is written into them, each at its own
 // time: the progression changes and its rhythm does not.
 //
+// The screen speaks as a player would: a layer is a track, the chosen chords
+// are the selection, a quantize is fixing the timing, and a nudge is moving
+// earlier or later.
+//
 // Times are in beats, at the desk's tempo, so a song recorded at one tempo
 // plays at another. What plays back is worked out a little ahead
 // (`lookahead`) and stamped with the moment it sounds, so the shell places

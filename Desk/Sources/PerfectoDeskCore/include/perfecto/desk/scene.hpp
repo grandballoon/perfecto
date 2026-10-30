@@ -519,10 +519,21 @@ struct TimelineBar {
     std::optional<double> playhead;
     std::vector<Lane> lanes;
     std::vector<Control> controls;
-    /// What it is doing, and what can be done next.
+    /// A control and what it does now, shown as the controller's buttons
+    /// beside a word or two: "RT + A" · "Record".
+    struct Tip {
+        std::string keys;
+        std::string text;
+
+        bool operator==(const Tip &) const = default;
+    };
+
+    /// What it is doing.
     std::string status;
     Tint statusTint;
-    std::string hint;
+    /// What to do next, in a sentence, and the controls for it.
+    std::string message;
+    std::vector<Tip> tips;
 
     bool operator==(const TimelineBar &) const = default;
 };

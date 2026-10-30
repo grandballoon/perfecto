@@ -286,10 +286,10 @@ TEST_CASE("RT is the timeline's only in Face Chords") {
 
 TEST_CASE("the legend says what RT does, and what it holds while held") {
     StudioRig rig;
-    CHECK(rig.studio.legend().at(PadControl::rightTrigger()) == "Hold: the timeline");
+    CHECK(rig.studio.legend().at(PadControl::rightTrigger()) == "Hold for the timeline");
     rig.hold(1, {}, true);
     const auto legend = rig.studio.legend();
-    CHECK(legend.at(PadControl::button(PadButton::a)) == "Record a layer");
+    CHECK(legend.at(PadControl::button(PadButton::a)) == "Record a new track");
     CHECK(legend.at(PadControl::button(PadButton::x)) == "Play");
 }
 
@@ -308,6 +308,26 @@ TEST_CASE("the bar shows the lanes, the choice and the playhead") {
     CHECK(bar.lanes[0].blocks[0].name == "C maj");
     CHECK(bar.playhead == doctest::Approx(0.5));
     CHECK(bar.status == "▶ Playing · bar 1 · beat 1");
+    // With a chord selected, the bar says what can be done to it.
+    CHECK(bar.message == "1 chord selected. Play a chord to replace it: the timing stays the same.");
+    CHECK(bar.tips.front() == TimelineBar::Tip{"RT + LT + ← →", "Select more"});
+}
+
+TEST_CASE("the bar says how to begin, and what to do while recording and after") {
+    StudioRig rig;
+    auto bar = timelineBar(rig.timeline(), 0);
+    CHECK(bar.status == "Nothing recorded yet");
+    CHECK(bar.tips == std::vector<TimelineBar::Tip>{{"RT + A", "Record"}});
+    rig.hold(10, {PadButton::a}, true);
+    bar = timelineBar(rig.timeline(), 10);
+    CHECK(bar.status == "● Recording track 1 · bar 1 · beat 1");
+    CHECK(bar.tips.front() == TimelineBar::Tip{"RT + A", "Stop recording"});
+    playTwo(rig, 10);
+    bar = timelineBar(rig.timeline(), 20);
+    CHECK(bar.status == "Stopped · 1 track");
+    CHECK(bar.tips.front() == TimelineBar::Tip{"RT + X", "Play"});
+    // No word the average player has to look up.
+    for (const auto &tip : bar.tips) CHECK(tip.text.find("uantiz") == std::string::npos);
 }
 
 }
