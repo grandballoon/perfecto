@@ -98,13 +98,27 @@ Face Chords has a drum machine under it, and drum pads.
   A face button or d-pad press made under RB is the drums' until it is let go, so it never reaches the chords, and a chord held when RB is pulled sounds on.
 - **RB with the d-pad**: left and right choose the beat, up and down move the tempo 4 bpm.
   The tempo is the desk's one tempo, which Menu › Tempo also sets.
+- **RB with Back and Start** chooses the kit, the one before and the next.
+  With the beat stopped, the new kit's kick sounds, so it is heard at once; with it playing, the next step is in the new kit.
 
 A beat is a bar of sixteenth notes; there are six (Backbeat, Floor, Half time, Shuffle, Broken, Toms), and a new one is taken up from the step the bar is at.
 It plays on under the menu, so a tempo chosen there is heard, and stops when the desk goes to another layout.
-The screen shows the bar under the face buttons, its step lit as it sounds, and the beats to choose from; while RB is held the face buttons show their drums.
+The screen shows the bar under the face buttons, its step lit as it sounds, and the beats and kits to choose from, each of which a click chooses too; while RB is held the face buttons show their drums.
 Over MIDI the drums are on channel 10, as General MIDI has them (36 the kick, 38 the snare, 42 and 46 the hats).
 
-The kit is made in code (`Sources/PerfectoDrumKit`), not recorded: a kick (played higher, it is the toms), a snare, a hi-hat (shut short, the closed hat; left to ring, the open one) and a clap.
+The kits are made in code (`Sources/PerfectoDrumKit`), not recorded.
+Each has a kick, a snare, a closed and an open hat, a clap and three toms, every one its own recording.
+A kit is its voices (how deep the kick is and how far its pitch falls, how much of the snare is wires, what metal the hats are) and its character, what the recordings are put through after: saturation, wavefolding, compression, a low sample rate and few bits, a low-pass and a small room.
+There are eight:
+
+- **Analog**: round and long, a booming kick and soft hats.
+- **Punch**: short, hard and forward, a kick that hits and a snare of noise.
+- **Glue**: Punch's drums squashed together, saturated, their tails brought up under the strikes.
+- **Harsh**: distorted and folded until it buzzes, bright and dense.
+- **Lo-fi**: an old sampler's, at 14 kHz and 10 bits, dulled and squashed.
+- **FM**: clean and glassy, bell-like hats and toms of frequency modulation.
+- **Room**: drums in a room, the walls answering them.
+- **Tight**: dry and short, every drum a click and gone.
 
 #### The timeline
 

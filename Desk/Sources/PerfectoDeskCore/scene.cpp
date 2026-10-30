@@ -111,7 +111,7 @@ std::vector<Panel> twinRings(const TwinRings &layout, const DeskSettings &settin
 }
 
 /// The drums under Face Chords: the beat's bar, its step lit as it sounds,
-/// and the patterns to choose from.
+/// and the patterns and kits to choose from.
 std::vector<Item> drumItems(const Drums &drums, const DeskSettings &settings, double time) {
     const auto &machine = drums.machine();
     const auto &pattern = machine.played();
@@ -119,14 +119,16 @@ std::vector<Item> drumItems(const Drums &drums, const DeskSettings &settings, do
     Chips bar{{}, DrumPattern::steps};
     for (int step = 0; step < DrumPattern::steps; ++step)
         bar.chips.push_back({step % 4 == 0 ? std::to_string(step / 4 + 1) : "·", heard == step, !pattern.isStruck(step)});
-    Choices patterns{"RB ◀", {}, machine.pattern(), "▶", std::nullopt};
+    Choices patterns{"RB ◀", {}, machine.pattern(), "▶", Action::Kind::choosePattern};
     for (const auto &each : drumPatterns()) patterns.names.push_back(each.name);
+    const Choices kits{"RB Back", drums.kits(), drums.kit(), "Start", Action::Kind::chooseKit};
     const std::string tempo = std::to_string(static_cast<int>(settings.tempo)) + " bpm";
     return {
         Caption{"L3 · RB", "Drums", machine.isPlaying() ? "▶ " + tempo : "L3 starts the beat",
                 machine.isPlaying() ? Tint::chord : Tint::faint},
         bar,
         patterns,
+        kits,
     };
 }
 
@@ -582,7 +584,9 @@ std::vector<DeskEffect> perform(Desk &desk, const Action &action) {
     case Action::Kind::muteLane:
     case Action::Kind::selectEvent:
     case Action::Kind::stretchChoice:
-    case Action::Kind::deselect: break; // The studio's.
+    case Action::Kind::deselect:
+    case Action::Kind::choosePattern:
+    case Action::Kind::chooseKit: break; // The studio's.
     }
     return {};
 }

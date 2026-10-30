@@ -44,7 +44,7 @@ const char *name(desk::ChordFit fit) {
     return "in_key";
 }
 
-constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 22> actionNames = {{
+constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 24> actionNames = {{
     {desk::Action::Kind::chooseLayout, "choose_layout"},
     {desk::Action::Kind::toggleMenu, "toggle_menu"},
     {desk::Action::Kind::arrangeRing, "arrange_ring"},
@@ -67,6 +67,8 @@ constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 22> action
     {desk::Action::Kind::selectEvent, "timeline_select"},
     {desk::Action::Kind::stretchChoice, "timeline_stretch"},
     {desk::Action::Kind::deselect, "timeline_deselect"},
+    {desk::Action::Kind::choosePattern, "choose_pattern"},
+    {desk::Action::Kind::chooseKit, "choose_kit"},
 }};
 
 const char *name(desk::Action::Kind kind) {

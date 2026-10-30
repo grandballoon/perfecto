@@ -1,9 +1,11 @@
-// The drums on the kernel: the kit rendered into its four captures, a
-// sampled patch for each way a recording is played, and each hit struck on
-// the kernel's frame for the moment the desk's core gave it.
+// The drums on the kernel: every kit rendered into the kernel's loaded
+// samples, a sampled patch for each drum of each, and each hit struck on the
+// kernel's frame for the moment the desk's core gave it, in the kit it says.
 //
-// What each drum is made of (which recording, how high, where it sits and
-// how much of the room it has) is a table here; when it sounds is the
+// Every kit is loaded at once, before the stream plays, so choosing one is
+// instant and never touches the kernel while it renders. What each drum is
+// made of (which recording, how loud, where it sits and how much of the
+// room it has) is a table here; when it sounds, and in which kit, is the
 // core's.
 
 #ifndef DRUM_VOICES_H
@@ -16,23 +18,25 @@
 #include <godot_cpp/classes/ref.hpp>
 
 #include <map>
+#include <string>
 #include <vector>
 
 namespace perfecto_godot {
 
 class DrumVoices {
 public:
-    /// Renders the kit into `stream`'s captures and gives its patches the
-    /// sounds from `firstSound` on. While nothing renders: before the
-    /// stream plays.
+    /// Renders every kit into `stream`'s loaded samples and gives their
+    /// patches the sounds from `firstSound` on. While nothing renders:
+    /// before the stream plays.
     DrumVoices(godot::Ref<PerfectoStream> stream, int firstSound);
 
-    /// How many sounds the kit's patches take.
-    static int soundCount();
+    /// The kits' names, in the order the core numbers them.
+    static std::vector<std::string> kits();
 
-    /// Strikes `drum`, `level` hard, `ahead` seconds from now.
-    void hit(perfecto::desk::Drum drum, double level, double ahead);
-    /// Stops what `drum` sounds, `ahead` seconds from now.
+    /// Strikes `drum` of the kit numbered `kit`, `level` hard, `ahead`
+    /// seconds from now.
+    void hit(perfecto::desk::Drum drum, int kit, double level, double ahead);
+    /// Stops what `drum` sounds, in any kit, `ahead` seconds from now.
     void choke(perfecto::desk::Drum drum, double ahead);
 
 private:

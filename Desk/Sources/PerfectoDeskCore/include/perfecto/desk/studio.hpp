@@ -48,7 +48,8 @@ public:
         void append(Played more);
     };
 
-    explicit Studio(Desk desk) : desk_(std::move(desk)) {}
+    /// The desk, and the drums with the kits the shell has.
+    explicit Studio(Desk desk, Drums drums = Drums()) : desk_(std::move(desk)), drums_(std::move(drums)) {}
 
     bool operator==(const Studio &) const = default;
 
@@ -74,7 +75,8 @@ public:
     /// Lets go of everything, and stops the beat and the timeline: the app
     /// is quitting.
     Played letGo();
-    /// Does what a mouse chose.
+    /// Does what a mouse chose: the drums' pattern or kit, the timeline's
+    /// controls, and the rest by the desk (`perform` in scene.hpp).
     Played perform(const Action &action);
 
     void setFaceMap(FaceChords::Map map) { desk_.setFaceMap(std::move(map)); }

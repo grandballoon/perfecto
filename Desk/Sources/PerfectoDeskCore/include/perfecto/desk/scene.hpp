@@ -77,6 +77,9 @@ struct Action {
         selectEvent,
         stretchChoice,
         deselect,
+        /// The drums' (`Studio::perform`): a beat, a kit.
+        choosePattern,
+        chooseKit,
     };
 
     Kind kind;

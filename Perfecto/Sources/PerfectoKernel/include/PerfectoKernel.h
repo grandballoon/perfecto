@@ -163,6 +163,9 @@ typedef struct {
     bool sampled;
     int32_t capture;
     float root;
+    /// With `sampled`, the recording is the loaded sample numbered
+    /// `capture` (`perfecto_kernel_sample_load`), not a capture.
+    bool loaded;
     /// The sound is `PerfectoPartialCount` sines at whole multiples of the
     /// note's pitch, and not the operators: partial n is n times the note's
     /// frequency, as strong as the first operator's `partials` says when the
@@ -275,7 +278,7 @@ PerfectoKernel *perfecto_kernel_create(void);
 void perfecto_kernel_destroy(PerfectoKernel *kernel);
 
 /// Makes the kernel ready to render at `sample_rate`: silent, nothing
-/// waiting, time 0. Its sounds and captures are kept; a recording under
+/// waiting, time 0. Its sounds, captures and loaded samples are kept; a recording under
 /// way is ended.
 void perfecto_kernel_prepare(PerfectoKernel *kernel, double sample_rate);
 
@@ -321,6 +324,23 @@ int32_t perfecto_kernel_capture_read(const PerfectoKernel *kernel, int32_t captu
 /// before, while nothing is rendering.
 void perfecto_kernel_capture_load(PerfectoKernel *kernel, int32_t capture,
                                   const float *samples, int32_t frames, double sample_rate);
+
+// MARK: Loaded samples
+
+/// How many samples the kernel can be given to play, numbered from 0: sounds
+/// made beforehand (a drum kit), which a patch plays as it plays a capture
+/// (`PerfectoPatch.loaded`). Unlike a capture, a sample takes only the
+/// memory it needs, and is never recorded over.
+int32_t perfecto_kernel_sample_count(void);
+
+/// Makes `frames` frames of `samples`, made at `sample_rate`, the sample
+/// numbered `sample`, played as they are; notes playing what it held end.
+/// It allocates: while nothing is rendering.
+void perfecto_kernel_sample_load(PerfectoKernel *kernel, int32_t sample,
+                                 const float *samples, int32_t frames, double sample_rate);
+
+/// Frames of `sample` that notes play: 0 while none is loaded.
+int32_t perfecto_kernel_sample_length(const PerfectoKernel *kernel, int32_t sample);
 
 // MARK: The mix
 

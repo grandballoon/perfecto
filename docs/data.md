@@ -355,6 +355,7 @@ typedef struct {
 | Events | `_send(event) -> bool`, `_event_capacity`, `_time`, `_latency` |
 | Render | `_render(in, in_channels, out, out_channels, frames)` |
 | Captures | `_capture_count`, `_capture_capacity`, `_capturing`, `_captures_ended`, `_capture_length`, `_capture_rate`, `_capture_read`, `_capture_load` |
+| Loaded samples | `_sample_count`, `_sample_load`, `_sample_length` |
 | Mix | `_set_chorus_rate`, `_set_reverb_tail`, `_set_reverb_predelay`, `_set_reverb_damping`, `_set_vocoder` |
 
 ## 7. The clock

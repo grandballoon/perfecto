@@ -117,6 +117,11 @@ Studio::Played Studio::perform(const Action &action) {
     case Action::Kind::selectEvent: played.append(timeline_.select(action.index, action.value, false)); break;
     case Action::Kind::stretchChoice: played.append(timeline_.select(action.index, action.value, true)); break;
     case Action::Kind::deselect: played.append(timeline_.deselect()); break;
+    case Action::Kind::choosePattern:
+        if (action.index >= 0 && action.index < static_cast<int>(drumPatterns().size()))
+            drums_.choosePattern(action.index - drums_.machine().pattern());
+        break;
+    case Action::Kind::chooseKit: played.drums = drums_.setKit(action.index, now); break;
     default: return settled(desk::perform(desk_, action));
     }
     return played;

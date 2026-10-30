@@ -130,6 +130,13 @@ final class KernelRig {
         perfecto_kernel_capture_load(kernel, Int32(capture), samples, Int32(samples.count), rate)
     }
 
+    /// Makes `samples` the loaded sample numbered `sample`.
+    func loadSample(_ samples: [Float], into sample: Int = 0, rate: Double = KernelRig.sampleRate) {
+        perfecto_kernel_sample_load(kernel, Int32(sample), samples, Int32(samples.count), rate)
+    }
+
+    func sampleLength(_ sample: Int = 0) -> Int { Int(perfecto_kernel_sample_length(kernel, Int32(sample))) }
+
     /// Readies the kernel again, as an engine does when it restarts.
     func prepareAgain() {
         perfecto_kernel_prepare(kernel, Self.sampleRate)
@@ -291,6 +298,13 @@ extension PerfectoPatch {
         patch.sustain = 1
         patch.release = release
         patch.level = level
+        return patch
+    }
+
+    /// The loaded sample numbered `sample`, played as made by the note `root`.
+    static func loaded(_ sample: Int = 0, root: Float = 69, level: Float = 0.5) -> PerfectoPatch {
+        var patch = sampled(sample, root: root, level: level)
+        patch.loaded = true
         return patch
     }
 
