@@ -25,7 +25,16 @@ Band::Played Band::letGo() {
     return {desk_.letGo(), {}};
 }
 
-Band::Played Band::perform(const Action &action) { return settled(desk::perform(desk_, action)); }
+Band::Played Band::perform(const Action &action, double time) {
+    switch (action.kind) {
+    case Action::Kind::choosePattern:
+        if (action.index >= 0 && action.index < static_cast<int>(drumPatterns().size()))
+            drums_.choosePattern(action.index - drums_.machine().pattern());
+        return {};
+    case Action::Kind::chooseKit: return {{}, drums_.setKit(action.index, time)};
+    default: return settled(desk::perform(desk_, action));
+    }
+}
 
 Legend Band::legend() const { return drums_.legend(desk_.legend(), reachable()); }
 

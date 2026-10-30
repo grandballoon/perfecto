@@ -41,9 +41,10 @@ public:
     int sound_count() const;
     /// The same, for C++ callers, with the patch as the kernel has it.
     void set_patch(int sound, const PerfectoPatch &patch);
-    /// Makes `samples`, made at `sample_rate`, what `capture` holds, for a
-    /// sampled patch to play. Before the stream plays.
-    void load_capture(int capture, const std::vector<float> &samples, double sample_rate);
+    /// Makes `samples`, made at `sample_rate`, the loaded sample numbered
+    /// `sample`, for a sampled patch to play. Before the stream plays.
+    void load_sample(int sample, const std::vector<float> &samples, double sample_rate);
+    int sample_count() const;
 
     // The mix every note shares.
     void set_mix(float chorus_rate, float reverb_tail, float reverb_predelay, float reverb_damping,

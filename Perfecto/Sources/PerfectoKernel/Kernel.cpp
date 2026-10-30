@@ -12,13 +12,15 @@
 #include <atomic>
 #include <cmath>
 #include <cstddef>
+#include <vector>
 
 namespace {
 
 constexpr std::size_t voiceCount = 64;
 constexpr std::size_t eventCapacity = 1024;
-constexpr std::size_t soundCount = 64;
+constexpr std::size_t soundCount = 128;
 constexpr std::size_t captureCount = 4;
+constexpr std::size_t sampleCount = 128;
 /// Seconds over which a capture is faded out at its end, so a recording
 /// stopped mid-sound does not end in a click.
 constexpr double captureFade = 0.005;
@@ -111,6 +113,12 @@ struct PerfectoKernel {
     /// recorded into now (-1: none).
     std::array<perfecto::Capture, captureCount> captures{};
     std::atomic<int32_t> capturing{-1};
+    /// Sounds made beforehand, each with the rate it was made at.
+    struct Loaded {
+        std::vector<float> samples;
+        double rate = 48000;
+    };
+    std::array<Loaded, sampleCount> loaded{};
     std::atomic<uint32_t> capturesEnded{0};
     PerfectoCaptureSource captureSource = PerfectoCaptureInput;
 
@@ -204,7 +212,20 @@ struct PerfectoKernel {
         }
         voice.recording = nullptr;
         voice.capture = -1;
-        if (patch.sampled && patch.capture >= 0 && static_cast<std::size_t>(patch.capture) < captureCount) {
+        voice.loaded = -1;
+        if (patch.sampled && patch.loaded) {
+            if (patch.capture >= 0 && static_cast<std::size_t>(patch.capture) < sampleCount) {
+                const Loaded &sample = loaded[patch.capture];
+                voice.loaded = patch.capture;
+                voice.recording = sample.samples.data();
+                voice.recordingStart = 0;
+                voice.recordingEnd = static_cast<int32_t>(sample.samples.size());
+                voice.recordingGain = 1;
+                voice.position = 0;
+                voice.positionStep = std::pow(2.0, (note.note + voice.pitchBend - patch.root) / 12.0)
+                    * sample.rate / sampleRate;
+            }
+        } else if (patch.sampled && patch.capture >= 0 && static_cast<std::size_t>(patch.capture) < captureCount) {
             const Capture &capture = captures[patch.capture];
             voice.capture = patch.capture;
             voice.recording = capture.data();
@@ -923,6 +944,29 @@ int32_t perfecto_kernel_capture_read(const PerfectoKernel *kernel, int32_t captu
 void perfecto_kernel_capture_load(PerfectoKernel *kernel, int32_t capture,
                                   const float *samples, int32_t frames, double sampleRate) {
     if (captureNumbered(kernel, capture)) kernel->captures[capture].load(samples, frames, sampleRate);
+}
+
+int32_t perfecto_kernel_sample_count(void) { return static_cast<int32_t>(sampleCount); }
+
+void perfecto_kernel_sample_load(PerfectoKernel *kernel, int32_t sample,
+                                 const float *samples, int32_t frames, double sampleRate) {
+    if (sample < 0 || static_cast<std::size_t>(sample) >= sampleCount) return;
+    auto &loaded = kernel->loaded[sample];
+    loaded.samples.assign(samples, samples + std::max(frames, 0));
+    loaded.rate = sampleRate;
+    // What the voices playing it were reading is gone; a voice being taken
+    // for a note starts that note now, on what is there.
+    using Stage = perfecto::Voice::Stage;
+    for (auto &voice : kernel->voices) {
+        if (voice.stage == Stage::free || voice.loaded != sample) continue;
+        if (voice.stage == Stage::stolen) kernel->start(voice, voice.waiting);
+        else voice.stage = Stage::free;
+    }
+}
+
+int32_t perfecto_kernel_sample_length(const PerfectoKernel *kernel, int32_t sample) {
+    if (sample < 0 || static_cast<std::size_t>(sample) >= sampleCount) return 0;
+    return static_cast<int32_t>(kernel->loaded[sample].samples.size());
 }
 
 void perfecto_kernel_set_chorus_rate(PerfectoKernel *kernel, float hz) {

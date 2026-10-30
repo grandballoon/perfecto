@@ -352,6 +352,73 @@ TEST_CASE("the legend says what the drums' controls do") {
     CHECK(layered.at(PadControl::leftTrigger()) == "Hold: toms, clap");
 }
 
+
+TEST_CASE("the drums have at least one kit, the first chosen") {
+    CHECK(Drums().kits() == std::vector<std::string>{"Kit"});
+    CHECK(Drums({}).kits() == std::vector<std::string>{"Kit"});
+    const Drums drums({"Analog", "Glue", "Harsh"});
+    CHECK(drums.kits().size() == 3);
+    CHECK(drums.kit() == 0);
+}
+
+TEST_CASE("under RB, Back and Start choose the kit, round and round, and the new kit's kick is heard") {
+    Drums drums({"Analog", "Glue", "Harsh"});
+    DeskSettings settings;
+    drums.step(PadInput(frame(1, {PadButton::rb}), frame(0.9)), true, settings);
+    auto next = drums.step(PadInput(frame(1.1, {PadButton::rb, PadButton::start}), frame(1, {PadButton::rb})), true,
+                           settings);
+    CHECK(drums.kit() == 1);
+    CHECK(next.drums == std::vector<DrumEffect>{DrumEffect::hit(Drum::kick, 0.9, 1.1, 1)});
+    CHECK(next.effects == std::vector<DeskEffect>{DeskEffect::rumble(Rumble::tick)});
+    // Start is the drums' until let go: the desk never sees it, so no menu opens.
+    CHECK_FALSE(next.frame.buttons.contains(PadButton::start));
+    drums.step(PadInput(frame(1.2, {PadButton::rb}), frame(1.1, {PadButton::rb, PadButton::start})), true, settings);
+    drums.step(PadInput(frame(1.3, {PadButton::rb, PadButton::back}), frame(1.2, {PadButton::rb})), true, settings);
+    CHECK(drums.kit() == 0);
+    drums.step(PadInput(frame(1.4, {PadButton::rb}), frame(1.3, {PadButton::rb, PadButton::back})), true, settings);
+    drums.step(PadInput(frame(1.5, {PadButton::rb, PadButton::back}), frame(1.4, {PadButton::rb})), true, settings);
+    CHECK(drums.kit() == 2);
+}
+
+TEST_CASE("a pad and the beat strike in the kit chosen") {
+    Drums drums({"Analog", "Glue"});
+    DeskSettings settings;
+    settings.tempo = tempo120;
+    drums.chooseKit(1, 0);
+    const auto started = drums.step(PadInput(frame(1, {PadButton::l3}), frame(0.9)), true, settings);
+    CHECK(hits(started.drums).at(0) == DrumEffect::Hit{Drum::kick, 1.0, 1, 1});
+    drums.step(PadInput(frame(1.01, {PadButton::rb}), frame(1, {PadButton::l3})), true, settings);
+    const auto pad = drums.step(PadInput(frame(1.02, {PadButton::rb, PadButton::b}), frame(1.01, {PadButton::rb})),
+                                true, settings);
+    for (const auto &hit : hits(pad.drums)) CHECK(hit.kit == 1);
+    CHECK(times(pad.drums, Drum::snare) == std::vector<double>{1.02});
+    // While the beat plays, a kit chosen is heard on its next step, with no
+    // kick of its own over the beat. The next hit is the closed hat at 1.25.
+    CHECK(drums.chooseKit(-1, 1.03).empty());
+    const auto later = drums.step(PadInput(frame(1.22, {PadButton::rb}), frame(1.02, {PadButton::rb, PadButton::b})),
+                                  true, settings);
+    CHECK_FALSE(hits(later.drums).empty());
+    for (const auto &hit : hits(later.drums)) CHECK(hit.kit == 0);
+}
+
+TEST_CASE("a kit set by its number must be one, and choosing the one chosen does nothing") {
+    Drums drums({"Analog", "Glue"});
+    CHECK(drums.setKit(2, 1).empty());
+    CHECK(drums.setKit(-1, 1).empty());
+    CHECK(drums.setKit(0, 1).empty());
+    CHECK(drums.kit() == 0);
+    CHECK(drums.setKit(1, 1) == std::vector<DrumEffect>{DrumEffect::hit(Drum::kick, 0.9, 1, 1)});
+}
+
+TEST_CASE("the legend says Back and Start choose the kit only while RB is held") {
+    Drums drums({"Analog", "Glue"});
+    DeskSettings settings;
+    CHECK_FALSE(drums.legend({}, true).contains(PadControl::button(PadButton::start)));
+    drums.step(PadInput(frame(1, {PadButton::rb}), frame(0.9)), true, settings);
+    const auto legend = drums.legend({}, true);
+    CHECK(legend.at(PadControl::button(PadButton::back)) == "Kit before");
+    CHECK(legend.at(PadControl::button(PadButton::start)) == "Next kit");
+}
 } // TEST_SUITE
 
 TEST_SUITE("Band") {
@@ -445,6 +512,40 @@ TEST_CASE("in another layout the screen has no drums") {
     CHECK_FALSE(band.reachable());
     for (const auto &panel : scene(band, false).stage)
         for (const auto &caption : items<Caption>(panel)) CHECK(caption.title != "Drums");
+}
+
+TEST_CASE("under RB, Back chooses the kit and leaves the layout alone") {
+    Band band(Desk(catalog, DeskSettings(), LayoutKind::faceChords), Drums({"Analog", "Glue"}));
+    band.step(frame(1, {PadButton::rb}));
+    const auto chosen = band.step(frame(1.1, {PadButton::rb, PadButton::back}));
+    CHECK(band.drums().kit() == 1);
+    CHECK(band.desk().layout() == LayoutKind::faceChords);
+    CHECK(hits(chosen.drums) == Hits{{Drum::kick, 0.9, 1.1, 1}});
+}
+
+TEST_CASE("the mouse chooses the beat and the kit, and nothing past them") {
+    Band band(Desk(catalog, DeskSettings(), LayoutKind::faceChords), Drums({"Analog", "Glue", "Harsh"}));
+    band.perform({Action::Kind::choosePattern, 3}, 1);
+    CHECK(band.drums().machine().pattern() == 3);
+    band.perform({Action::Kind::choosePattern, 99}, 1);
+    CHECK(band.drums().machine().pattern() == 3);
+    CHECK(band.perform({Action::Kind::chooseKit, 2}, 1.5).drums ==
+          std::vector<DrumEffect>{DrumEffect::hit(Drum::kick, 0.9, 1.5, 2)});
+    CHECK(band.drums().kit() == 2);
+    CHECK(band.perform({Action::Kind::chooseKit, 3}, 1.5).drums.empty());
+    CHECK(band.drums().kit() == 2);
+    // The desk's own actions are still the desk's.
+    band.perform({Action::Kind::chooseLayout, 2}, 2);
+    CHECK(band.desk().layout() == allLayoutKinds[2]);
+}
+
+TEST_CASE("the screen shows the kits under the patterns, each one a mouse can choose") {
+    Band band(Desk(catalog, DeskSettings(), LayoutKind::faceChords), Drums({"Analog", "Glue"}));
+    band.perform({Action::Kind::chooseKit, 1}, 1);
+    const auto choices = items<Choices>(scene(band, false).stage.at(0));
+    const auto &patterns = choices.at(choices.size() - 2), &kits = choices.back();
+    CHECK(patterns.action == Action::Kind::choosePattern);
+    CHECK(kits == Choices{"RB Back", {"Analog", "Glue"}, 1, "Start", Action::Kind::chooseKit});
 }
 
 } // TEST_SUITE

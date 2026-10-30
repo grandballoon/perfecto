@@ -84,7 +84,8 @@ void PerfectoDesk::setup(const Ref<PerfectoStream> &stream, const Array &presets
     voices_ = std::make_unique<DeskVoices>(stream, numbers);
     drums_ = std::make_unique<DrumVoices>(stream, int(presets.size()));
     midi_ = std::make_unique<DeskMidi>();
-    band_.emplace(desk::Desk(desk::SoundCatalog(categories), desk::DeskSettings(), desk::LayoutKind::faceChords));
+    band_.emplace(desk::Desk(desk::SoundCatalog(categories), desk::DeskSettings(), desk::LayoutKind::faceChords),
+                  desk::Drums(DrumVoices::kits()));
     voices_->setTempo(band_->desk().settings.tempo);
     shown_.reset();
 }
@@ -155,7 +156,8 @@ Array PerfectoDesk::perform(const Dictionary &dictionary) {
     const auto action = actionOf(dictionary);
     if (!band_ || !action) return {};
     const auto before = band_->desk().settings;
-    const Array out = play(band_->perform(*action), now());
+    const double time = now();
+    const Array out = play(band_->perform(*action, time), time);
     settingsChanged(before);
     return out;
 }
@@ -218,7 +220,7 @@ void PerfectoDesk::drum(const desk::DrumEffect &effect, double time) {
             using T = std::decay_t<decltype(e)>;
             const double ahead = e.time - time;
             if constexpr (std::is_same_v<T, desk::DrumEffect::Hit>) {
-                if (desk::sounds(output)) drums_->hit(e.drum, e.level, ahead);
+                if (desk::sounds(output)) drums_->hit(e.drum, e.kit, e.level, ahead);
                 if (desk::sendsMIDI(output)) midi_->hit(desk::generalMidi(e.drum), e.level, ahead);
             } else {
                 drums_->choke(e.drum, ahead);

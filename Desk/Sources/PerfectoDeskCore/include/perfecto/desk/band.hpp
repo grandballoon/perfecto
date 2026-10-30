@@ -30,7 +30,8 @@ public:
         bool operator==(const Played &) const = default;
     };
 
-    explicit Band(Desk desk) : desk_(std::move(desk)) {}
+    /// The desk, and the drums with the kits the shell has.
+    explicit Band(Desk desk, Drums drums = Drums()) : desk_(std::move(desk)), drums_(std::move(drums)) {}
 
     const Desk &desk() const { return desk_; }
     const Drums &drums() const { return drums_; }
@@ -47,8 +48,9 @@ public:
     Played toggleMenu();
     /// Lets go of everything, and stops the beat: the app is quitting.
     Played letGo();
-    /// Does what a mouse chose (`perform` in scene.hpp).
-    Played perform(const Action &action);
+    /// Does what a mouse chose at `time`: the drums' pattern or kit here,
+    /// the rest by the desk (`perform` in scene.hpp).
+    Played perform(const Action &action, double time);
 
     void setFaceMap(FaceChords::Map map) { desk_.setFaceMap(std::move(map)); }
 

@@ -113,9 +113,11 @@ void PerfectoStream::set_patch(int sound, const PerfectoPatch &p) {
     perfecto_kernel_set_sound(kernel, sound, &p);
 }
 
-void PerfectoStream::load_capture(int capture, const std::vector<float> &samples, double sample_rate) {
-    perfecto_kernel_capture_load(kernel, capture, samples.data(), int32_t(samples.size()), sample_rate);
+void PerfectoStream::load_sample(int sample, const std::vector<float> &samples, double sample_rate) {
+    perfecto_kernel_sample_load(kernel, sample, samples.data(), int32_t(samples.size()), sample_rate);
 }
+
+int PerfectoStream::sample_count() const { return perfecto_kernel_sample_count(); }
 
 void PerfectoStream::set_mix(float chorus_rate, float reverb_tail, float reverb_predelay, float reverb_damping,
                              float delay_time, float delay_feedback) {

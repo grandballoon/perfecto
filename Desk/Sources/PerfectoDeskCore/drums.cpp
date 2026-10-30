@@ -25,6 +25,16 @@ void append(std::vector<DrumEffect> &out, const std::vector<DrumEffect> &more) {
     out.insert(out.end(), more.begin(), more.end());
 }
 
+/// `effects` with every hit struck in the kit numbered `kit`.
+std::vector<DrumEffect> inKit(std::vector<DrumEffect> effects, int kit) {
+    for (DrumEffect &effect : effects)
+        if (const auto *hit = std::get_if<DrumEffect::Hit>(&effect.value()))
+            effect = DrumEffect::hit(hit->drum, hit->level, hit->time, kit);
+    return effects;
+}
+
+bool isMiddle(PadButton button) { return button == PadButton::back || button == PadButton::start; }
+
 bool isFace(PadButton button) {
     return button == PadButton::a || button == PadButton::b || button == PadButton::x || button == PadButton::y;
 }
@@ -69,10 +79,10 @@ std::vector<Drum> chokes(Drum drum) {
     return {};
 }
 
-std::vector<DrumEffect> strike(Drum drum, double level, double time) {
+std::vector<DrumEffect> strike(Drum drum, double level, double time, int kit) {
     std::vector<DrumEffect> out;
     for (const Drum choked : chokes(drum)) out.push_back(DrumEffect::choke(choked, time));
-    out.push_back(DrumEffect::hit(drum, level, time));
+    out.push_back(DrumEffect::hit(drum, level, time, kit));
     return out;
 }
 
@@ -188,6 +198,20 @@ std::optional<int> DrumMachine::step(double time) const {
 
 // MARK: – The hands
 
+Drums::Drums(std::vector<std::string> kits) : kits_(kits.empty() ? std::vector<std::string>{"Kit"} : std::move(kits)) {}
+
+std::vector<DrumEffect> Drums::chooseKit(int steps, double time) {
+    const int count = static_cast<int>(kits_.size());
+    return setKit(((kit_ + steps) % count + count) % count, time);
+}
+
+std::vector<DrumEffect> Drums::setKit(int kit, double time) {
+    if (kit < 0 || kit >= static_cast<int>(kits_.size()) || kit == kit_) return {};
+    kit_ = kit;
+    if (machine_.isPlaying()) return {};
+    return strike(Drum::kick, padLevel, time, kit_);
+}
+
 std::optional<Drum> Drums::pad(PadButton button, bool shifted) {
     switch (button) {
     case PadButton::a: return shifted ? Drum::lowTom : Drum::kick;
@@ -210,21 +234,25 @@ Drums::Step Drums::step(const PadInput &input, bool reachable, DeskSettings &set
             if (input.pressed(button)) claimed_.insert(button);
         if (isLayered())
             for (const PadButton button : input.edges.pressed)
-                if (isFace(button) || isDpad(button)) claimed_.insert(button);
+                if (isFace(button) || isDpad(button) || isMiddle(button)) claimed_.insert(button);
     }
     const auto taken = [&](PadButton button) { return reachable && input.pressed(button) && claimed_.contains(button); };
 
     if (taken(PadButton::l3)) {
         if (machine_.isPlaying()) machine_.stop();
-        else append(out.drums, machine_.start(time, settings.tempo));
+        else append(out.drums, inKit(machine_.start(time, settings.tempo), kit_));
         out.effects.push_back(DeskEffect::rumble(Rumble::bump));
     }
     if (isLayered() && reachable) {
         for (const PadButton button : input.edges.pressed)
             if (const auto drum = pad(button, isShifted_); drum && taken(button))
-                append(out.drums, strike(*drum, padLevel, time));
+                append(out.drums, strike(*drum, padLevel, time, kit_));
         if (taken(PadButton::left) || taken(PadButton::right)) {
             machine_.choose(taken(PadButton::left) ? -1 : 1);
+            out.effects.push_back(DeskEffect::rumble(Rumble::tick));
+        }
+        if (taken(PadButton::back) || taken(PadButton::start)) {
+            append(out.drums, chooseKit(taken(PadButton::back) ? -1 : 1, time));
             out.effects.push_back(DeskEffect::rumble(Rumble::tick));
         }
         if (taken(PadButton::up) || taken(PadButton::down)) {
@@ -236,7 +264,7 @@ Drums::Step Drums::step(const PadInput &input, bool reachable, DeskSettings &set
             }
         }
     }
-    append(out.drums, machine_.advance(time, settings.tempo));
+    append(out.drums, inKit(machine_.advance(time, settings.tempo), kit_));
 
     for (const PadButton button : claimed_) out.frame.buttons.erase(button);
     for (const PadButton button : input.edges.released) claimed_.erase(button);
@@ -260,6 +288,8 @@ Legend Drums::legend(Legend legend, bool reachable) const {
     legend[PadControl::button(PadButton::right)] = "Next pattern";
     legend[PadControl::button(PadButton::up)] = "Faster";
     legend[PadControl::button(PadButton::down)] = "Slower";
+    legend[PadControl::button(PadButton::back)] = "Kit before";
+    legend[PadControl::button(PadButton::start)] = "Next kit";
     return legend;
 }
 

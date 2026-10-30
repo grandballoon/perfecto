@@ -49,11 +49,13 @@ std::vector<Drum> chokes(Drum drum);
 /// may be a little ahead of the frame that asked.
 class DrumEffect {
 public:
-    /// Strike `drum` at `time`, `level` hard (0 to 1).
+    /// Strike `drum` of the kit numbered `kit` at `time`, `level` hard
+    /// (0 to 1).
     struct Hit {
         Drum drum;
         double level;
         double time;
+        int kit = 0;
         bool operator==(const Hit &) const = default;
     };
     /// Stop what `drum` is sounding, at `time`.
@@ -69,7 +71,7 @@ public:
         requires std::is_constructible_v<Value, Alternative>
     DrumEffect(Alternative alternative) : value_(std::move(alternative)) {}
 
-    static DrumEffect hit(Drum drum, double level, double time) { return Hit{drum, level, time}; }
+    static DrumEffect hit(Drum drum, double level, double time, int kit = 0) { return Hit{drum, level, time, kit}; }
     static DrumEffect choke(Drum drum, double time) { return Choke{drum, time}; }
 
     const Value &value() const { return value_; }
@@ -80,8 +82,9 @@ private:
     Value value_;
 };
 
-/// `drum` struck at `time`, after what it cuts short.
-std::vector<DrumEffect> strike(Drum drum, double level, double time);
+/// `drum` struck at `time`, after what it cuts short: of the kit numbered
+/// `kit`, or with none given, of the first.
+std::vector<DrumEffect> strike(Drum drum, double level, double time, int kit = 0);
 
 /// A bar of sixteen steps: for each drum a line of them, one character a
 /// step, '.' a rest, 'o' a ghost note, 'x' a hit and 'X' an accent.
@@ -163,8 +166,12 @@ private:
 /// The drums as the hands play them, in Face Chords: L3 starts and stops the
 /// beat, and RB held is the drum layer, where the face buttons are pads (A
 /// kick, B snare, X closed hat, Y open hat; with LT held too, A low tom, B
-/// clap, X mid tom, Y high tom), and the d-pad chooses the pattern (left and
-/// right) and the tempo (up and down).
+/// clap, X mid tom, Y high tom), the d-pad chooses the pattern (left and
+/// right) and the tempo (up and down), and Back and Start the kit (before
+/// and next).
+///
+/// The kits are the shell's (it knows how they sound); the drums know them
+/// by name and by number, and every hit says which it is struck in.
 ///
 /// A button the drums take, they keep until it is let go: the desk is
 /// handed the frame without it, so a pad never reaches the chords. While RB
@@ -183,9 +190,15 @@ public:
     /// The tempo's step on the d-pad, in beats a minute.
     static constexpr double tempoStep = 4;
 
+    /// The kits to choose from, by name, the first chosen; at least one.
+    explicit Drums(std::vector<std::string> kits = {"Kit"});
+
     bool operator==(const Drums &) const = default;
 
     const DrumMachine &machine() const { return machine_; }
+    const std::vector<std::string> &kits() const { return kits_; }
+    /// The kit played, by its place in `kits()`.
+    int kit() const { return kit_; }
     /// Whether RB holds the drum layer.
     bool isLayered() const { return claimed_.contains(PadButton::rb); }
     /// Whether LT is held in the drum layer: the toms and the clap.
@@ -198,6 +211,14 @@ public:
     /// (Face Chords, the menu closed); a tempo chosen changes `settings`.
     Step step(const PadInput &input, bool reachable, DeskSettings &settings);
 
+    /// The pattern `steps` along, as the d-pad chooses it.
+    void choosePattern(int steps) { machine_.choose(steps); }
+    /// The kit `steps` along (`steps` < 0, back), round and round. With the
+    /// beat stopped, the new kit's kick is struck at `time`, so it is heard.
+    std::vector<DrumEffect> chooseKit(int steps, double time);
+    /// The kit numbered `kit`, if there is one, as `chooseKit` chooses it.
+    std::vector<DrumEffect> setKit(int kit, double time);
+
     /// Stops the beat and lets go of what the drums hold.
     void stop();
 
@@ -206,6 +227,8 @@ public:
 
 private:
     DrumMachine machine_;
+    std::vector<std::string> kits_;
+    int kit_ = 0;
     /// The buttons the drums have taken, until each is let go.
     std::set<PadButton> claimed_;
     bool isShifted_ = false;

@@ -182,8 +182,10 @@ struct Voice {
     int32_t recordingStart = 0;
     int32_t recordingEnd = 0;
     float recordingGain = 1;
-    /// Which capture, so the voice can be ended when it is recorded over.
+    /// Which capture, so the voice can be ended when it is recorded over,
+    /// or which loaded sample, so it can be ended when another is loaded.
     int32_t capture = -1;
+    int32_t loaded = -1;
 
     Envelope envelope = Envelope::attack;
     /// The envelope's level now, 0...1, and the share of the way to its

@@ -62,6 +62,9 @@ struct Action {
         renameTable,
         playTable,
         setKeyDefault,
+        /// The drums' (`Band::perform`): a beat, a kit.
+        choosePattern,
+        chooseKit,
     };
 
     Kind kind;
