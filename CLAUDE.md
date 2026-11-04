@@ -183,6 +183,16 @@ The strip reaches under a phone's notch on its side.
 A note is lit when it is sent, so the timeline's are seen their lead before they are heard, and notes outside the 88 are not shown.
 A new line of notes is seen on it by a `PianoSource` case and a sink where its `NotePlayer` is made (`PerfectoApp`).
 
+**Score practice is the piano with the whole screen.**
+`docs/score-practice.md` has the design.
+There the piano is in the middle of the screen (`ScorePracticeView`), with a piece's runs above it and its recording below.
+A piece is a MusicXML score (`.mxl` or `.musicxml`, which says each note's staff and so its hand) and a recording of it, kept in the app's iCloud container so the phone and the Mac share them, or the device's support folder without iCloud (`ScoreLibrary`, every file coordinated; `ScoreLibraryWatcher` takes up the other device's changes).
+Each hand's part is a run, cut into runs, which are cut again where the fingering needs it: a tree (`Practice`).
+The recording is matched to runs by anchors, moments of the score and where the recording has them, shared by both hands (`Alignment`): the score's time is bent to the recording's, never the recording to the score.
+The runs chosen, or the run in focus, are watched: played from the recording, once or over again (`Playback.segments`, `RecordingPlayer`, an engine of its own), with their keys lit one after another as the recording has them, each flashing as it is struck and the hand's next keys marked (`Playback.lights`).
+It never shows notes falling toward the keys.
+The core is pure and in the package (`Perfecto/Sources/ScorePractice`, tested by `swift test`), and `ScorePracticeState` is its shell: it keeps what is open and chosen, saves each change, plays the recording, and brings the piano to the runs watched (`PianoSpan.fitting`).
+
 **Loops are layers of one timeline** (`docs/sequencer-spec.md` has the design of the sequencer that edited it, which is parked). A `Timeline` is notes in layers, in ticks (480 to a quarter note), so anything played loosely is kept as played; a note is a chord at a time, with its own key, octave, sound and effects or the live ones, setting by setting. Edits are changes to that value (`TimelineEdits`), and `compile` turns a layer into the chords to play, for playback and the MIDI export alike. `TimelinePlayer` runs the timeline against the clock under whatever mode is on (it is not a mode), each layer through a `LayerVoice` of its own: an arpeggiator and a `NotePlayer`, so layers overlap one another and the keys. `SequencerState` owns the timeline (undo, saving, playing); it still has the step editing the sequencer's screen used, which the loop work is to trim. `SequencerStep` is only the old saved format now. A loop is notes played again, not recorded audio, so its effects and its notes can be changed after.
 Play mode's LOOP button (`QuickLoopState`, drawn by `LoopBar`) offers the lengths a loop can be, 1, 2, 4 or 8 bars at the tempo set (`QuickLoopState.lengths`).
 Choosing one counts in for three seconds and then records what the keys play for that many bars as a `LoopTake`, all of it timed by the clock (`after(seconds:)`, `after(beats:)`); a chord sounding as recording begins is the take's first.
@@ -264,7 +274,7 @@ Swift Testing (`@Test`, `#expect`) is the default for all new test files.
 )
 ```
 
-The C++ core's tests are ported one for one into `Perfecto/Tests/PerfectoTheoryTests/` (doctest, built by `Perfecto/CMakeLists.txt`), and its parity with the Swift core is `swift test`'s `PerfectoTheoryParityTests` (whole spaces with `-c release`). Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/` and the kernel's in `Perfecto/Tests/PerfectoKernelTests/` (both run on the Mac with `swift test` in `Perfecto/`); app tests live in `Tests/` (run with `xcodebuild … test` on a simulator or on the Mac as a Catalyst app; see `Tests/README.md`).
+The C++ core's tests are ported one for one into `Perfecto/Tests/PerfectoTheoryTests/` (doctest, built by `Perfecto/CMakeLists.txt`), and its parity with the Swift core is `swift test`'s `PerfectoTheoryParityTests` (whole spaces with `-c release`). Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/`, score practice's in `Perfecto/Tests/ScorePracticeTests/` and the kernel's in `Perfecto/Tests/PerfectoKernelTests/` (all run on the Mac with `swift test` in `Perfecto/`); app tests live in `Tests/` (run with `xcodebuild … test` on a simulator or on the Mac as a Catalyst app; see `Tests/README.md`).
 
 ## Audio session
 
@@ -284,6 +294,7 @@ App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100
 - The sound field: the keys' sound beside the note display, changed by a swipe
 - The step compass: the one color surface, the colors one step from the chord held (a tone added, raised, lowered or taken away), its places the same before a chord is struck as after, and a finger sliding between them
 - The piano: 88 keys along the bottom of the screen, lit with the notes the keys and the loops are sounding
+- Score practice: the piano with the whole screen, a MusicXML score and its recording, each hand cut into runs matched to the recording, and the runs watched on the keys as the recording plays, once or on repeat
 - The computer keyboard and a game controller: each plays the chord keys, the compass and the screen's buttons by a map that Setup changes
 - Effects: two arpeggios (up and down), chorus, reverb, delay, vocoder; each is switched from the effect strip on the play screen or from a zone of the chord keys, and the arpeggio's cycle and the vocoder's amount can be played by sliding on a key, as can a chord's inversion
 - The effect strip: a field for each effect that is on, on the play screen, each changed by a swipe

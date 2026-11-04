@@ -183,7 +183,7 @@ struct SetupPanel: View {
             }
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
-            Text("A piano's 88 keys along the bottom of the screen, lit with the notes being sounded: each part of the app in its own color, and a key several are sounding in all of theirs. It is only looked at: pinch it to see fewer keys or more, drag it along, and double-tap it or use its corner button to give it the whole screen.")
+            Text("A piano's 88 keys along the bottom of the screen, lit with the notes being sounded: each part of the app in its own color, and a key several are sounding in all of theirs. It is only looked at: pinch it to see fewer keys or more, drag it along, and double-tap it or use its corner button to give it the whole screen, where a score and a recording of it can be practised run by run.")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(Color(white: 0.3))
                 .fixedSize(horizontal: false, vertical: true)

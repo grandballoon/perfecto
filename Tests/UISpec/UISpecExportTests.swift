@@ -61,6 +61,9 @@ struct UISpecExportTests {
                       named name: String, into pdfs: URL) throws -> Drawn {
         let state = PerformanceState(sink: RecordingSink(),
                                      sequencer: SequencerState(defaults: isolatedDefaults()),
+                                     // No pieces of the machine's own in the drawings.
+                                     scoreLibrary: ScoreLibrary(folder: URL.temporaryDirectory
+                                         .appendingPathComponent(UUID().uuidString)),
                                      clock: ManualClock())
         screen.arrange(state)
         let menu = SidePanelState()

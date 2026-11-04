@@ -223,6 +223,8 @@ final class PerformanceState {
     let gamepad: GamepadState
     /// The piano along the bottom of the screen, lit with what is sounding.
     let piano: PianoState
+    /// Score practice, on the piano when it has the whole screen.
+    let practice: ScorePracticeState
     let micSample: MicSampleState
     /// Whether the app may use the mic, for the sample and the vocoder.
     let micAccess: MicAccess
@@ -279,6 +281,7 @@ final class PerformanceState {
          keyboard: KeyboardState? = nil,
          gamepad: GamepadState? = nil,
          piano: PianoState? = nil,
+         scoreLibrary: ScoreLibrary? = nil,
          liveSound: (any SoundControl & EffectsControl)? = nil,
          output: AudioOutput? = nil,
          micGate: any PermissionGate = NoopPermissionGate(),
@@ -301,6 +304,7 @@ final class PerformanceState {
         self.keyboard     = keyboard ?? KeyboardState(logger: logger)
         self.gamepad      = gamepad ?? GamepadState(logger: logger)
         self.piano        = piano ?? PianoState(logger: logger)
+        self.practice     = ScorePracticeState(piano: self.piano, library: scoreLibrary, logger: logger)
         self.sequencerState = sequencer ?? SequencerState(logger: logger)
         self.quickLoopState = QuickLoopState(logger: logger)
         self.micAccess = MicAccess(gate: micGate)
@@ -483,6 +487,7 @@ final class PerformanceState {
         if let heldPlace { compassLifted(heldPlace) }
         releaseVoicing()
         quickLoopState.stop()
+        practice.stop()
         output?.isInBackground = true
         logger?.log(.app_left_screen)
     }

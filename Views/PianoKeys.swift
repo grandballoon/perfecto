@@ -43,13 +43,11 @@ struct PianoKeys {
         (notes.lowerBound..<note).filter { !isBlack($0) }.count
     }
 
-    /// Where the keys are on a screen of `size` that is all the piano's: at
-    /// a piano's proportions, as wide as the screen and standing on its
-    /// bottom, above `bottomInset`. Keys longer than the screen is high
-    /// reach past its top.
-    static func standing(in size: CGSize, above bottomInset: CGFloat, span: PianoSpan) -> CGRect {
-        let length = size.width / CGFloat(span.count) * whiteLength
-        return CGRect(x: 0, y: size.height - bottomInset - length, width: size.width, height: length)
+    /// How long the keys are on a screen `width` wide that is all the
+    /// piano's: a piano's proportions, but no longer than `longest`, so the
+    /// whole of each key is seen and there is room above and below.
+    static func length(forWidth width: CGFloat, span: PianoSpan, longest: CGFloat) -> CGFloat {
+        min(width / CGFloat(span.count) * whiteLength, longest)
     }
 
     var whiteWidth: CGFloat { size.width / CGFloat(span.count) }

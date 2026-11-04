@@ -94,17 +94,14 @@ struct PianoKeysTests {
         #expect(octave.moved(from: 0, to: -10).start == PianoSpan.whites - 7)
     }
 
-    /// With the whole screen, the keys keep a piano's proportions, however
-    /// high the screen is, and stand on its bottom.
-    @Test func theWholeScreensKeysAreAPianosShape() {
-        let upright = PianoKeys.standing(in: CGSize(width: 390, height: 844), above: 34, span: .whole)
-        #expect(abs(upright.height - 390 / 52 * PianoKeys.whiteLength) < 0.001)
-        #expect(upright.maxY == 810 && upright.width == 390)
+    /// With the whole screen, the keys keep a piano's proportions until
+    /// they would be longer than the room they are given.
+    @Test func theWholeScreensKeysAreAPianosShapeUpToTheirRoom() {
+        let upright = PianoKeys.length(forWidth: 390, span: .whole, longest: 300)
+        #expect(abs(upright - 390 / 52 * PianoKeys.whiteLength) < 0.001)
 
-        // An octave on a phone on its side is longer than the screen is
-        // high, and reaches past its top.
-        let close = PianoKeys.standing(in: CGSize(width: 844, height: 390), above: 21, span: octave)
-        #expect(abs(close.height - 844 / 7 * PianoKeys.whiteLength) < 0.001)
-        #expect(close.maxY == 369 && close.minY < 0)
+        // An octave on a phone on its side would be longer than the
+        // screen is high.
+        #expect(PianoKeys.length(forWidth: 844, span: octave, longest: 160) == 160)
     }
 }

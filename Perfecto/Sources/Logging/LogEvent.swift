@@ -101,6 +101,20 @@ enum LogEvent {
     /// The piano was given the whole screen, or put back along its bottom.
     case piano_expanded(isExpanded: Bool)
 
+    // Score practice
+    /// A score was read, newly imported or opened again.
+    case practice_piece_opened(title: String, notes: Int)
+    /// A score or a recording could not be taken in.
+    case practice_import_failed(reason: String)
+    case practice_recording_added(duration: Double)
+    /// A run was cut before `step`, or the cut there taken away.
+    case practice_run_cut(step: Int, isCut: Bool)
+    /// A run's `edge` ("start" or "end") was matched to `at` seconds of
+    /// the recording.
+    case practice_run_matched(edge: String, at: Double)
+    case practice_playback_started(segments: Int, repeats: Bool)
+    case practice_playback_stopped
+
     // Computer keyboard
     /// `key` nil: the action was left with no key.
     case keyboard_key_chosen(action: String, key: String?)
@@ -304,6 +318,30 @@ extension LogEvent: Encodable {
         case let .piano_expanded(isExpanded):
             try c.encode("piano_expanded", forKey: Key("type"))
             try c.encode(isExpanded, forKey: Key("isExpanded"))
+        case let .practice_piece_opened(title, notes):
+            try c.encode("practice_piece_opened", forKey: Key("type"))
+            try c.encode(title, forKey: Key("title"))
+            try c.encode(notes, forKey: Key("notes"))
+        case let .practice_import_failed(reason):
+            try c.encode("practice_import_failed", forKey: Key("type"))
+            try c.encode(reason, forKey: Key("reason"))
+        case let .practice_recording_added(duration):
+            try c.encode("practice_recording_added", forKey: Key("type"))
+            try c.encode(duration, forKey: Key("duration"))
+        case let .practice_run_cut(step, isCut):
+            try c.encode("practice_run_cut", forKey: Key("type"))
+            try c.encode(step, forKey: Key("step"))
+            try c.encode(isCut, forKey: Key("isCut"))
+        case let .practice_run_matched(edge, at):
+            try c.encode("practice_run_matched", forKey: Key("type"))
+            try c.encode(edge, forKey: Key("edge"))
+            try c.encode(at, forKey: Key("at"))
+        case let .practice_playback_started(segments, repeats):
+            try c.encode("practice_playback_started", forKey: Key("type"))
+            try c.encode(segments, forKey: Key("segments"))
+            try c.encode(repeats, forKey: Key("repeats"))
+        case .practice_playback_stopped:
+            try c.encode("practice_playback_stopped", forKey: Key("type"))
         case let .keyboard_key_chosen(action, key):
             try c.encode("keyboard_key_chosen", forKey: Key("type"))
             try c.encode(action, forKey: Key("action"))

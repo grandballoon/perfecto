@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "MusicTheoryCore", targets: ["MusicTheoryCore"]),
         .library(name: "PerfectoSound", targets: ["PerfectoSound"]),
         .library(name: "PerfectoTheory", targets: ["PerfectoTheory"]),
+        .library(name: "ScorePractice", targets: ["ScorePractice"]),
     ],
     targets: [
         .target(
@@ -23,6 +24,19 @@ let package = Package(
             name: "MusicTheoryCoreTests",
             dependencies: ["MusicTheoryCore"],
             path: "Tests/MusicTheoryCoreTests"
+        ),
+        // Score practice: a score and a recording of it, the score diced
+        // into runs of each hand and matched to the recording, and what is
+        // played and lit as runs are watched. Pure values, and the readers
+        // of MusicXML, so it is tested here (docs/score-practice.md).
+        .target(
+            name: "ScorePractice",
+            path: "Sources/ScorePractice"
+        ),
+        .testTarget(
+            name: "ScorePracticeTests",
+            dependencies: ["ScorePractice"],
+            path: "Tests/ScorePracticeTests"
         ),
         // The theory core again in portable C++, for the desk on engines and
         // platforms Swift does not reach (docs/desk-engine-and-audio.md). Its
