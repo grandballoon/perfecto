@@ -19,12 +19,16 @@ enum KeyboardButton: String, CaseIterable, Hashable, Codable, Sendable {
     case midi
     /// Starts the loops from the top, or stops them.
     case playStop
+    /// Tags a nudge point where score practice's recording is, or takes
+    /// the one there away. Only score practice has it.
+    case tag
 
     var displayName: String {
         switch self {
         case .loop:      return "Loop"
         case .midi:      return "MIDI"
         case .playStop:  return "Play/stop"
+        case .tag:       return "Nudge point"
         }
     }
 }
@@ -109,8 +113,8 @@ extension KeyboardMap {
     /// The chords along the home row from A to J, the compass's first
     /// choices on the arrows (up adds a tone, right raises one, left lowers
     /// one, down takes one away; the second choices have no key to start
-    /// with), and the buttons on Return (loop), Space (play and stop) and
-    /// M (MIDI).
+    /// with), and the buttons on Return (loop), Space (play and stop), M
+    /// (MIDI) and N (a nudge point, in score practice).
     static let standard: KeyboardMap = {
         var keys: [KeyboardAction: KeyboardKey] = [:]
         let homeRow = [(4, "A"), (22, "S"), (7, "D"), (9, "F"), (10, "G"), (11, "H"), (13, "J")]
@@ -124,6 +128,7 @@ extension KeyboardMap {
         keys[.button(.loop)] = KeyboardKey(code: 40, characters: "")
         keys[.button(.playStop)] = KeyboardKey(code: 44, characters: "")
         keys[.button(.midi)] = KeyboardKey(code: 16, name: "M")
+        keys[.button(.tag)] = KeyboardKey(code: 17, name: "N")
         return KeyboardMap(keys: keys)
     }()
 }

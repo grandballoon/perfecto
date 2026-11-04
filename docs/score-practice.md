@@ -82,10 +82,32 @@ It is heard as it was recorded: nothing is synthesized, and the recording is nev
     The play/stop key (Space to start with) plays the runs watched or stops what plays, and the chord keys and the compass play nothing, from the keyboard or a controller (`PerformanceState.isPractising`).
     The play screen is still there under the piano, so a key that reached it would play chords or start the loops unseen.
 
+11. **The recording is matched by ear, and the learner only nudges.**
+    When a recording is added, the app hears it once (`RecordingFeatures`): how strong each of the twelve pitch classes is a hundred times a second, through a long window that tells the notes apart and a short one that catches the moment each is struck.
+    The score is turned into the same twelve classes (`ScoreChroma`, each note dying away as a piano's does), and the two are lined up by dynamic time warping (`AutoMatch`), so the score bends to the recording's rubato.
+    Each step's moment is then found from the strike of its notes near where the path put it.
+    A run of repeated chords sounds alike chord to chord, so a pass after the warp checks each step against the pace of the steps around it (a robust line through them) and moves one that has slipped a chord.
+    The result is kept (`Practice.matched`), apart from the learner's anchors.
+
+12. **What the learner sets is a pin.**
+    A step dragged to where it is heard on the recording strip, or a run's Start or End, is an anchor the match must pass through (`Practice.anchors`).
+    Changing the pins matches the rest again around them, in the background; the alignment played is the pins and the matched anchors that agree with them (`Alignment.merged`).
+    "Match again" and "Clear pins and match again" in the menu start over.
+
+13. **Nudge points are where to look.**
+    Where the music heard does not fit the score for a while (a stretch the score does not have, a wrong recording), the match marks it as doubtful (`Practice.unsure`, dashed yellow on the strip).
+    While listening, the learner tags a moment that sounds off with the flag button, N on the keyboard or L1 on a controller (`Practice.nudges`, orange flags).
+    The chevrons beside the flag go to the previous or next nudge point, zoom the strip to it, and keep listening if it was.
+    Untagging a moment also clears a doubt there, once it is seen to.
+
+14. **What the match gets wrong.**
+    A sudden pause inside a run of identical chords can put the chords after it one out, since nothing but the pace tells them apart; that is a nudge.
+    A recording in a different key or tuning from the score, or with repeats the score does not have, is matched poorly and mostly doubted.
+
 ## Where things are
 
 - `Perfecto/Sources/ScorePractice/`: the pure core, tested with `swift test` in `Perfecto/` (`ScorePracticeTests`).
-  `Score`, `MusicXML`, `Mxl` and `MidiScore` read a score; `Practice` is the runs and anchors, and every change to it is a function from one value to the next; `Alignment` maps score time to recording time; `Playback` says what plays and what lights.
+  `Score`, `MusicXML`, `Mxl` and `MidiScore` read a score; `Practice` is the runs and anchors, and every change to it is a function from one value to the next; `Alignment` maps score time to recording time; `Playback` says what plays and what lights; `Chroma` hears a recording and `AutoMatch` matches it to the score.
 - `ViewModels/ScoreLibrary.swift`: the pieces on disk, each a folder in iCloud (or Application Support) with the score and recording as given and `piece.json` beside them, and the watcher of the iCloud folder.
 - `ViewModels/ScorePracticeState.swift`: the shell the screen talks to.
   It keeps the piece open, the hand shown, the run in focus and the runs chosen, saves the piece on each change, plays the recording and brings the piano to the runs.

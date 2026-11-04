@@ -48,6 +48,9 @@ final class ScorePracticeState {
     private(set) var listening: Listening?
     /// Whether the recording is being dragged (`scrub`).
     private(set) var isScrubbing = false
+    /// The stretch of the recording the strip shows when it is brought to
+    /// a nudge point, in place of the run in focus; nil for the run.
+    var zoom: ClosedRange<Double>?
     private var resumesAfterScrub = false
     /// What could not be done last, said once.
     var failure: String?
@@ -62,16 +65,26 @@ final class ScorePracticeState {
     private var watcher: ScoreLibraryWatcher?
     private let makePlayer: () -> any RecordingPlaying
     private var player: (any RecordingPlaying)?
+    private let analyze: @Sendable (URL) -> RecordingFeatures?
+    /// What the open recording sounds like, once it has been listened to;
+    /// kept to match it again whenever the pins change.
+    private var features: RecordingFeatures?
+    private var matching: Task<Void, Never>?
+    /// Whether the recording is being listened to or matched.
+    private(set) var isMatching = false
     private let logger: (any Logger)?
 
     /// `library` nil: the library is found when the screen first appears.
+    /// `analyze` hears a recording, for matching it to its score.
     init(piano: PianoState,
          library: ScoreLibrary? = nil,
          makePlayer: @escaping () -> any RecordingPlaying = { RecordingPlayer() },
+         analyze: @escaping @Sendable (URL) -> RecordingFeatures? = RecordingPlayer.features(of:),
          logger: (any Logger)? = nil) {
         self.piano = piano
         self.library = library
         self.makePlayer = makePlayer
+        self.analyze = analyze
         self.logger = logger
     }
 
@@ -138,7 +151,10 @@ final class ScorePracticeState {
     func importRecording(from url: URL) {
         guard let piece else { return }
         do {
-            let next = try currentLibrary.importRecording(from: url, into: piece)
+            var next = try currentLibrary.importRecording(from: url, into: piece)
+            // What was matched and tagged was of the recording it replaces.
+            next.practice = next.practice.clearingRecording()
+            next = (try? currentLibrary.save(next)) ?? next
             self.piece = next
             keep(next)
             loadRecording(at: currentLibrary.recordingURL(of: next))
@@ -181,6 +197,8 @@ final class ScorePracticeState {
         score = nil
         recordingLength = nil
         peaks = []
+        features = nil
+        zoom = nil
         focus = nil
         selection = []
         litNotes = []
@@ -194,6 +212,7 @@ final class ScorePracticeState {
         focus = piece.practice.root(hand)?.id
         selection = []
         previewStep = nil
+        zoom = nil
         playhead = 0
         loadRecording(at: nil)
         refresh()
@@ -215,6 +234,9 @@ final class ScorePracticeState {
         stop()
         recordingLength = nil
         peaks = []
+        features = nil
+        matching?.cancel()
+        isMatching = false
         guard let piece, let url else { return }
         do {
             let player = player ?? makePlayer()
@@ -233,6 +255,64 @@ final class ScorePracticeState {
                 if self?.piece?.id == id { self?.peaks = peaks }
             }
         }
+        listen(to: url, of: id)
+    }
+
+    // MARK: – Matching by ear
+
+    /// The recording at `url` heard, and matched to the score if it has
+    /// not been yet.
+    private func listen(to url: URL, of id: UUID) {
+        let analyze = analyze
+        isMatching = true
+        matching = Task { [weak self] in
+            let heard = await Task.detached(priority: .userInitiated) { analyze(url) }.value
+            guard let self, !Task.isCancelled, self.piece?.id == id else { return }
+            self.features = heard
+            if heard != nil, self.practice?.matched.isEmpty == true {
+                await self.runMatch()
+            } else {
+                self.isMatching = false
+            }
+        }
+    }
+
+    /// The recording matched again around the pins as they are now, after
+    /// a pin is set or taken away. Nothing if it has not been heard yet:
+    /// it is matched as soon as it has.
+    func matchAgain() {
+        guard features != nil else { return }
+        matching?.cancel()
+        isMatching = true
+        matching = Task { [weak self] in await self?.runMatch() }
+    }
+
+    /// The pins cleared and the recording matched again by ear alone.
+    func clearPinsAndMatch() {
+        guard let practice else { return }
+        commit(practice.clearingAnchors())
+        matchAgain()
+    }
+
+    /// Waits for the match being made, if one is (for tests).
+    func matchMade() async {
+        await matching?.value
+    }
+
+    private func runMatch() async {
+        guard let piece, let score, let features else { isMatching = false; return }
+        let pins = piece.practice.anchors
+        let started = Date.now
+        let result = await Task.detached(priority: .userInitiated) {
+            AutoMatch.match(score, features, pins: pins)
+        }.value
+        guard !Task.isCancelled else { return }
+        isMatching = false
+        // A pin set meanwhile is matched around next.
+        guard let practice = self.piece?.practice, self.piece?.id == piece.id, practice.anchors == pins else { return }
+        commit(practice.matching(result), rematching: false)
+        logger?.log(.practice_matched(anchors: result.anchors.count, unsure: result.unsure.count,
+                                      seconds: Date.now.timeIntervalSince(started)))
     }
 
     private func fail(_ message: String, _ error: any Error) {
@@ -256,6 +336,7 @@ final class ScorePracticeState {
         focus = root.id
         selection = []
         previewStep = nil
+        zoom = nil
         refresh()
         fitPiano()
     }
@@ -267,6 +348,7 @@ final class ScorePracticeState {
         focus = id
         selection = selection.filter { id != $0 && isInFocus($0) }
         previewStep = nil
+        zoom = nil
         refresh()
         fitPiano()
     }
@@ -386,6 +468,65 @@ final class ScorePracticeState {
         logger?.log(.practice_run_matched(edge: "end", at: at))
     }
 
+    // MARK: – Nudging
+
+    /// A step's mark on the recording strip: the moment of the score it is
+    /// struck at, where the recording has it, and whether it is pinned
+    /// there by hand.
+    struct StepMark: Equatable {
+        let score: Double
+        let recording: Double
+        let isPinned: Bool
+    }
+
+    /// Every step of the hand shown, where it is heard, to drag a step
+    /// that is heard in the wrong place to where it is.
+    var stepMarks: [StepMark] {
+        guard let practice, let score else { return [] }
+        let alignment = practice.alignment
+        return score.steps(hand).map { step in
+            StepMark(score: step.onset, recording: Alignment.recordingTime(step.onset, alignment),
+                     isPinned: practice.anchors.contains { abs($0.score - step.onset) < Score.sameTime })
+        }
+    }
+
+    /// How far either side of a nudge point the strip shows, in seconds.
+    static let zoomReach = 3.0
+
+    /// The nudge points: those tagged, and where the match doubts itself.
+    var nudgePoints: [Double] { practice?.nudgePoints ?? [] }
+
+    /// Whether the recording stands at a nudge point that was tagged.
+    var isAtTag: Bool {
+        practice?.nudge(near: currentTime) != nil
+    }
+
+    /// A nudge point tagged where the recording is, or the one there taken
+    /// away: what the tag button and its key do.
+    func toggleTag() {
+        guard let practice, hasRecording else { return }
+        let at = currentTime
+        let isTagged = practice.nudge(near: at) == nil
+        commit(isTagged ? practice.tagging(at) : practice.untagging(at), rematching: false)
+        logger?.log(.practice_nudge_tagged(at: at, isTagged: isTagged))
+    }
+
+    /// The recording brought to the next nudge point, or the one before,
+    /// and the strip to the seconds around it; listened to on from there if
+    /// it was being listened to.
+    func goToNudge(forward: Bool) {
+        let points = nudgePoints
+        let now = currentTime
+        let reach = Practice.nudgeReach
+        guard let target = forward ? points.first(where: { $0 > now + reach })
+                                   : points.last(where: { $0 < now - reach }) else { return }
+        let resumes = listening == .free
+        seek(to: target)
+        let length = recordingLength ?? target
+        zoom = max(0, target - Self.zoomReach)...min(length, target + Self.zoomReach)
+        if resumes { listen() }
+    }
+
     /// The moment `scoreTime` of the score heard at `recording` seconds: an
     /// edge between runs dragged along the recording. Saved only when
     /// `isDone`, so a drag is one change on disk.
@@ -419,8 +560,12 @@ final class ScorePracticeState {
         Alignment.recordingTime(t, practice?.anchors ?? [])
     }
 
-    private func commit(_ next: Practice, saving: Bool = true) {
+    /// `next` made the practice, and saved unless `saving` is false (an
+    /// edge still being dragged). Pins set or taken away are matched
+    /// around (`matchAgain`) once saved.
+    private func commit(_ next: Practice, saving: Bool = true, rematching: Bool = true) {
         guard var piece, next != piece.practice else { return }
+        let pinsChanged = next.anchors != piece.practice.anchors
         piece.practice = next
         self.piece = piece
         if saving, let saved = try? currentLibrary.save(piece) {
@@ -431,6 +576,7 @@ final class ScorePracticeState {
         if let focus, next.find(focus) == nil { self.focus = next.root(hand)?.id }
         refresh()
         if listening == .runs { play() }
+        if saving, rematching, pinsChanged { matchAgain() }
     }
 
     // MARK: – Playing

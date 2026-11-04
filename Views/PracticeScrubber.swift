@@ -2,7 +2,8 @@ import SwiftUI
 
 /// The whole recording as one bar, to go anywhere in it: the time it
 /// stands at and its length either side, the run in focus shaded where it
-/// is heard, and a knob where it is playing or stands.
+/// is heard, the nudge points marked (tagged, orange; doubted by the
+/// match, yellow), and a knob where it is playing or stands.
 ///
 /// A finger anywhere on the bar drags the recording (`scrub`), the keys
 /// lit as they are at each moment passed, and it plays on from where it is
@@ -35,6 +36,14 @@ struct PracticeScrubber: View {
                                 .offset(x: x(span.lowerBound))
                         }
                         Capsule().fill(Color(white: 0.75)).frame(width: x(now), height: Self.track)
+                        ForEach(practice.practice?.unsure ?? [], id: \.self) { t in
+                            Capsule().fill(PracticeRecordingStrip.doubtColor)
+                                .frame(width: 2, height: 10).offset(x: x(t) - 1)
+                        }
+                        ForEach(practice.practice?.nudges ?? [], id: \.self) { t in
+                            Capsule().fill(PracticeRecordingStrip.tagColor)
+                                .frame(width: 2, height: 12).offset(x: x(t) - 1)
+                        }
                         Circle().fill(Color.white)
                             .frame(width: Self.knob, height: Self.knob)
                             .scaleEffect(practice.isScrubbing ? 1.3 : 1)

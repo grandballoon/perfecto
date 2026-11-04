@@ -114,6 +114,11 @@ enum LogEvent {
     case practice_run_matched(edge: String, at: Double)
     case practice_playback_started(segments: Int, repeats: Bool)
     case practice_playback_stopped
+    /// The recording matched to the score by ear: an anchor at each of
+    /// `anchors` moments, `unsure` stretches doubted, in `seconds`.
+    case practice_matched(anchors: Int, unsure: Int, seconds: Double)
+    /// A nudge point tagged at `at` seconds of the recording, or taken away.
+    case practice_nudge_tagged(at: Double, isTagged: Bool)
 
     // Computer keyboard
     /// `key` nil: the action was left with no key.
@@ -342,6 +347,15 @@ extension LogEvent: Encodable {
             try c.encode(repeats, forKey: Key("repeats"))
         case .practice_playback_stopped:
             try c.encode("practice_playback_stopped", forKey: Key("type"))
+        case let .practice_matched(anchors, unsure, seconds):
+            try c.encode("practice_matched", forKey: Key("type"))
+            try c.encode(anchors, forKey: Key("anchors"))
+            try c.encode(unsure, forKey: Key("unsure"))
+            try c.encode(seconds, forKey: Key("seconds"))
+        case let .practice_nudge_tagged(at, isTagged):
+            try c.encode("practice_nudge_tagged", forKey: Key("type"))
+            try c.encode(at, forKey: Key("at"))
+            try c.encode(isTagged, forKey: Key("isTagged"))
         case let .keyboard_key_chosen(action, key):
             try c.encode("keyboard_key_chosen", forKey: Key("type"))
             try c.encode(action, forKey: Key("action"))

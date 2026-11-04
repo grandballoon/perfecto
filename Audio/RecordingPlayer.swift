@@ -147,6 +147,38 @@ final class RecordingPlayer: RecordingPlaying {
     /// The loudness of the recording at `url`, `perSecond` peaks to each
     /// of its seconds. It reads the whole file, so it is called off the
     /// main thread.
+    /// What the recording at `url` sounds like, for matching it to its
+    /// score (`AutoMatch`): read a second at a time, its channels mixed
+    /// into one and brought down to about 22 kHz, which keeps a long
+    /// recording small and loses nothing the match listens to. Slow (a
+    /// second or so for a few minutes of music), so never on the main
+    /// thread.
+    nonisolated static func features(of url: URL) -> RecordingFeatures? {
+        guard let reader = try? AVAudioFile(forReading: url) else { return nil }
+        let format = reader.processingFormat
+        let channels = Int(format.channelCount)
+        let factor = max(1, Int(format.sampleRate / 22_050))
+        let chunk = AVAudioFrameCount(Int(format.sampleRate) / factor * factor)
+        guard channels > 0, let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunk) else { return nil }
+        var samples: [Float] = []
+        samples.reserveCapacity(Int(reader.length) / factor)
+        while (try? reader.read(into: buffer, frameCount: chunk)) != nil, buffer.frameLength > 0 {
+            guard let data = buffer.floatChannelData else { break }
+            let count = Int(buffer.frameLength)
+            var i = 0
+            while i + factor <= count {
+                var sum: Float = 0
+                for k in i..<(i + factor) {
+                    for c in 0..<channels { sum += data[c][k] }
+                }
+                samples.append(sum / Float(factor * channels))
+                i += factor
+            }
+        }
+        guard !samples.isEmpty else { return nil }
+        return RecordingFeatures.analyze(samples, sampleRate: format.sampleRate / Double(factor))
+    }
+
     nonisolated static func peaks(of url: URL, perSecond: Int) -> [Float] {
         guard perSecond > 0, let reader = try? AVAudioFile(forReading: url) else { return [] }
         let format = reader.processingFormat

@@ -34,6 +34,27 @@ enum Alignment {
         return (kept + [anchor]).sorted { $0.score < $1.score }
     }
 
+    /// The pins with the matched anchors between them: a matched anchor is
+    /// kept where it agrees with the pins, so it is heard after the pin
+    /// before it and before the pin after it and is not at a pin's moment
+    /// of the score. The pins are the learner's and always win.
+    static func merged(pins: [AlignmentAnchor], matched: [AlignmentAnchor]) -> [AlignmentAnchor] {
+        guard !pins.isEmpty else { return matched }
+        let pins = pins.sorted { $0.score < $1.score }
+        var k = 0
+        var kept: [AlignmentAnchor] = []
+        for anchor in matched {
+            while k < pins.count, pins[k].score < anchor.score - Score.sameTime { k += 1 }
+            if k < pins.count, abs(pins[k].score - anchor.score) < Score.sameTime { continue }
+            let before = k > 0 ? pins[k - 1] : nil
+            let after = k < pins.count ? pins[k] : nil
+            if let before, anchor.recording <= before.recording { continue }
+            if let after, anchor.recording >= after.recording { continue }
+            kept.append(anchor)
+        }
+        return (kept + pins).sorted { $0.score < $1.score }
+    }
+
     /// Where the recording has `score` seconds of the score.
     static func recordingTime(_ score: Double, _ anchors: [AlignmentAnchor]) -> Double {
         map(score, anchors, from: \.score, to: \.recording)
@@ -49,7 +70,14 @@ enum Alignment {
         guard let first = anchors.first else { return t }
         guard anchors.count > 1 else { return t - first[keyPath: from] + first[keyPath: to] }
         // The stretch that holds `t`, or the nearest one at either end.
-        let after = anchors.firstIndex { $0[keyPath: from] > t } ?? anchors.count
+        // The first anchor past `t`, by halves: a match has one at every
+        // note.
+        var low = 0, high = anchors.count
+        while low < high {
+            let mid = (low + high) / 2
+            if anchors[mid][keyPath: from] > t { high = mid } else { low = mid + 1 }
+        }
+        let after = low
         let k = min(max(after - 1, 0), anchors.count - 2)
         let a = anchors[k], b = anchors[k + 1]
         let pace = (b[keyPath: to] - a[keyPath: to]) / (b[keyPath: from] - a[keyPath: from])

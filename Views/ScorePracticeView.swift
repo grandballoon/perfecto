@@ -155,6 +155,14 @@ struct ScorePracticeView: View {
             if practice.piece != nil {
                 Button(practice.hasRecording ? "Replace the recording…" : "Add a recording…",
                        systemImage: "waveform") { pick(.recording) }
+                if practice.hasRecording {
+                    Button("Match again", systemImage: "wand.and.stars") { practice.matchAgain() }
+                    if !(practice.practice?.anchors.isEmpty ?? true) {
+                        Button("Clear pins and match again", systemImage: "pin.slash") {
+                            practice.clearPinsAndMatch()
+                        }
+                    }
+                }
                 Divider()
                 if let piece = practice.piece {
                     Button("Delete “\(piece.title)”", systemImage: "trash", role: .destructive) {
@@ -166,6 +174,12 @@ struct ScorePracticeView: View {
             HStack(spacing: 6) {
                 Text(practice.piece?.title ?? "Score practice")
                     .lineLimit(1)
+                if practice.isMatching {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .tint(Color(white: 0.6))
+                        .accessibilityLabel("Matching the recording")
+                }
                 if practice.isInCloud {
                     // The pieces are shared with the other device.
                     Image(systemName: "icloud")
@@ -368,7 +382,8 @@ struct PracticeStepsStrip: View {
 
 /// What plays the recording, and what matches it to a run: play the runs
 /// watched, once or over again, listen on from where the recording stands,
-/// and set where the matched run begins and ends to the moment heard.
+/// tag a nudge point where it stands and go from one to the next, and set
+/// where the matched run begins and ends to the moment heard.
 struct PracticeTransport: View {
     @Environment(PerformanceState.self) private var state
 
@@ -382,6 +397,7 @@ struct PracticeTransport: View {
                     .practiceChit(fill: practice.listening == .runs ? Color.orange : nil, width: 44)
             }
             .buttonStyle(.plain)
+            .hotkeyTip(.playStop)
             .accessibilityLabel(practice.listening == .runs ? "Stop" : "Play the runs")
 
             Button { practice.repeats.toggle() } label: {
@@ -403,17 +419,31 @@ struct PracticeTransport: View {
 
             Spacer(minLength: 4)
 
+            Button { practice.goToNudge(forward: false) } label: {
+                Image(systemName: "chevron.left").practiceChit()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Previous nudge point")
+            Button { practice.toggleTag() } label: {
+                Image(systemName: practice.isAtTag ? "flag.slash.fill" : "flag.fill")
+                    .practiceChit(fill: practice.isAtTag ? PracticeRecordingStrip.tagColor : nil)
+            }
+            .buttonStyle(.plain)
+            .hotkeyTip(.tag)
+            .accessibilityLabel(practice.isAtTag ? "Remove the nudge point" : "Tag a nudge point")
+            Button { practice.goToNudge(forward: true) } label: {
+                Image(systemName: "chevron.right").practiceChit()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Next nudge point")
+
             Button { practice.markStart() } label: {
-                Label("Start", systemImage: "arrow.right.to.line")
-                    .font(.system(size: 12, weight: .semibold))
-                    .practiceChit()
+                Image(systemName: "arrow.right.to.line").practiceChit()
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Run starts here")
             Button { practice.markEnd() } label: {
-                Label("End", systemImage: "arrow.left.to.line")
-                    .font(.system(size: 12, weight: .semibold))
-                    .practiceChit()
+                Image(systemName: "arrow.left.to.line").practiceChit()
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Run ends here")

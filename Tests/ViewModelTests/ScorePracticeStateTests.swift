@@ -31,9 +31,32 @@ struct ScorePracticeStateTests {
     private let piano = PianoState()
     private var library: ScoreLibrary { ScoreLibrary(folder: folder) }
 
-    private func makeState() -> ScorePracticeState {
-        ScorePracticeState(piano: piano, library: library, makePlayer: { [player] in player })
+    private func makeState(analyze: @escaping @Sendable (URL) -> RecordingFeatures? = { _ in nil })
+        -> ScorePracticeState {
+        ScorePracticeState(piano: piano, library: library, makePlayer: { [player] in player }, analyze: analyze)
     }
+
+    /// The scale played two seconds in, at two thirds of its pace: each
+    /// second of the score heard over a second and a half.
+    nonisolated static func heard(_ t: Double) -> Double { 2 + 1.5 * t }
+
+    /// What a recording of the scale, played that way, sounds like.
+    nonisolated static let performance: RecordingFeatures = {
+        let rate = 22_050.0
+        var samples = [Float](repeating: 0, count: Int(16 * rate))
+        let notes = (0..<8).map { (pitch: [72, 74, 76, 77, 79, 81, 83, 84][$0], onset: Double($0), end: Double($0 + 1)) }
+            + [(pitch: 48, onset: 0.0, end: 4.0)]
+        for note in notes {
+            let f = 440 * pow(2, Double(note.pitch - 69) / 12)
+            let first = Int(heard(note.onset) * rate), last = min(samples.count, Int((heard(note.end) + 0.3) * rate))
+            for s in first..<last {
+                let t = Double(s - first) / rate
+                let v = (1...4).reduce(0.0) { $0 + sin(2 * .pi * f * Double($1) * t) / Double($1) }
+                samples[s] += Float(0.2 * min(1, t / 0.005) * exp(-t / 0.9) * v)
+            }
+        }
+        return RecordingFeatures.analyze(samples, sampleRate: rate)
+    }()
 
     /// Eight right-hand quarters a second apart, C5 up, over a held C3.
     private func scoreFile() throws -> URL {
@@ -151,6 +174,94 @@ struct ScorePracticeStateTests {
         await mac.libraryChanged()
         #expect(mac.piece == nil)
         #expect(mac.pieces.isEmpty)
+    }
+
+    // MARK: – Matching by ear
+
+    /// A state with the scale imported and its performance added, matched.
+    private func matched() async throws -> ScorePracticeState {
+        player.length = 16
+        let state = makeState(analyze: { _ in Self.performance })
+        state.importScore(from: try scoreFile())
+        state.importRecording(from: try recordingFile())
+        await state.matchMade()
+        return state
+    }
+
+    @Test func anAddedRecordingIsMatchedByEar() async throws {
+        let state = try await matched()
+        #expect(state.isMatching == false)
+        #expect(state.practice?.matched.isEmpty == false)
+        let span = try #require(state.span(of: state.focus!))
+        #expect(abs(span.lowerBound - Self.heard(0)) < 0.05)
+        // Every step of the right hand where it is heard.
+        for mark in state.stepMarks {
+            #expect(abs(mark.recording - Self.heard(mark.score)) < 0.05)
+            #expect(!mark.isPinned)
+        }
+    }
+
+    @Test func aStepDraggedIsPinnedAndTheRestMatchedAround() async throws {
+        let state = try await matched()
+        state.move(edgeAt: 4, to: Self.heard(4) + 0.2, isDone: true)
+        await state.matchMade()
+        let marks = state.stepMarks
+        #expect(marks[4].isPinned)
+        #expect(marks[4].recording == Self.heard(4) + 0.2)
+        #expect(abs(marks[6].recording - Self.heard(6)) < 0.05)
+        #expect(zip(marks, marks.dropFirst()).allSatisfy { $0.recording < $1.recording })
+
+        state.clearPinsAndMatch()
+        await state.matchMade()
+        #expect(state.stepMarks.allSatisfy { !$0.isPinned })
+        #expect(abs(state.stepMarks[4].recording - Self.heard(4)) < 0.05)
+    }
+
+    // MARK: – Nudge points
+
+    @Test func aNudgePointIsTaggedWhereTheRecordingStandsAndGoneTo() throws {
+        let state = try practising()
+        state.seek(to: 3)
+        state.toggleTag()
+        state.seek(to: 9)
+        state.toggleTag()
+        #expect(state.practice?.nudges == [3, 9])
+        #expect(state.isAtTag)
+
+        state.seek(to: 0)
+        state.goToNudge(forward: true)
+        #expect(state.currentTime == 3)
+        #expect(state.zoom == 0...6)
+        state.goToNudge(forward: true)
+        #expect(state.currentTime == 9)
+        state.goToNudge(forward: false)
+        #expect(state.currentTime == 3)
+
+        state.toggleTag()
+        #expect(state.practice?.nudges == [9])
+        state.focus(on: state.focus!)
+        #expect(state.zoom == nil)
+    }
+
+    @Test func goingToANudgePointWhileListeningListensOnFromIt() throws {
+        let state = try practising()
+        state.seek(to: 5)
+        state.toggleTag()
+        state.seek(to: 0)
+        state.listen()
+        state.goToNudge(forward: true)
+        #expect(state.listening == .free)
+        #expect(player.played.last?.segments == [Segment(start: 5, end: 20)])
+    }
+
+    @Test func aNewRecordingForgetsWhatWasMadeOfTheOldOne() throws {
+        let state = try practising()
+        state.seek(to: 3)
+        state.toggleTag()
+        state.markStart()
+        state.importRecording(from: try recordingFile())
+        #expect(state.practice?.nudges.isEmpty == true)
+        #expect(state.practice?.anchors.isEmpty == true)
     }
 
     @Test func aRunIsOpenedAndCutIntoRunsOfItsOwn() throws {

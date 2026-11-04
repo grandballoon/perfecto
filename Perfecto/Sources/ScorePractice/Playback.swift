@@ -30,6 +30,7 @@ enum Playback {
     /// repeated does not leave its last notes lit into its start.
     static func notes(of runs: [RunID], _ practice: Practice, _ score: Score) -> [TimedNote] {
         var byNote: [NoteKey: TimedNote] = [:]
+        let alignment = practice.alignment
         for id in runs {
             guard let found = practice.find(id) else { continue }
             let (run, hand) = (found.run, found.hand)
@@ -39,8 +40,8 @@ enum Playback {
                 for note in steps[index].notes {
                     let timed = TimedNote(
                         pitch: note.pitch, hand: hand, step: index,
-                        on: Alignment.recordingTime(note.onset, practice.anchors),
-                        off: Alignment.recordingTime(min(note.end, runEnd), practice.anchors))
+                        on: Alignment.recordingTime(note.onset, alignment),
+                        off: Alignment.recordingTime(min(note.end, runEnd), alignment))
                     let key = NoteKey(hand: hand, step: index, pitch: note.pitch)
                     if let held = byNote[key], held.off >= timed.off { continue }
                     byNote[key] = timed

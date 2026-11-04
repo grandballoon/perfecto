@@ -7,9 +7,11 @@ import SwiftUI
 /// An edge between runs is dragged to where it is heard, which moves the
 /// runs on either side of it (`ScorePracticeState.move`). While an edge is
 /// dragged the strip keeps the stretch of the recording it showed, so the
-/// edge stays under the finger. A finger anywhere else drags the recording
-/// to the moment under it (`ScorePracticeState.scrub`), and a tap stands it
-/// there.
+/// edge stays under the finger. Each step of the hand shown is a tick at
+/// its foot, which is dragged the same way, to nudge one step to where it
+/// is heard; the nudge points are flags. A finger anywhere else drags the
+/// recording to the moment under it (`ScorePracticeState.scrub`), and a
+/// tap stands it there.
 struct PracticeRecordingStrip: View {
     @Environment(PerformanceState.self) private var state
 
@@ -26,7 +28,7 @@ struct PracticeRecordingStrip: View {
 
     var body: some View {
         let practice = state.practice
-        let window = heldWindow ?? shownWindow
+        let window = heldWindow ?? practice.zoom ?? shownWindow
         GeometryReader { geo in
             let width = geo.size.width
             let x = { (t: Double) -> CGFloat in CGFloat((t - window.lowerBound) / window.length) * width }
@@ -46,7 +48,10 @@ struct PracticeRecordingStrip: View {
                             practice.scrub(to: window.lowerBound + Double(drag.location.x / width) * window.length,
                                            isDone: true)
                         })
+                nudgeMarks(window: window, height: geo.size.height, x: x)
+                stepMarks(window: window, width: width, x: x)
                 edges(window: window, width: width, x: x)
+                if practice.zoom != nil { backToRun }
                 TimelineView(.animation(paused: practice.listening == nil)) { _ in
                     let at = x(practice.currentTime)
                     if at >= 0 && at <= width {
@@ -65,6 +70,114 @@ struct PracticeRecordingStrip: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Recording")
         .accessibilityValue(PracticeTime.text(practice.currentTime))
+    }
+
+    /// Takes the strip from the nudge point it was brought to back to the
+    /// run in focus.
+    private var backToRun: some View {
+        Button { state.practice.zoom = nil } label: {
+            Label("Run", systemImage: "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Color(white: 0.85))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(Color(white: 0.18)))
+        }
+        .buttonStyle(.plain)
+        .padding(4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        .accessibilityLabel("Show the run in focus")
+    }
+
+    /// The nudge points in view: those tagged as a flag, those the match
+    /// doubts as a dashed line.
+    private func nudgeMarks(window: ClosedRange<Double>, height: CGFloat,
+                            x: @escaping (Double) -> CGFloat) -> some View {
+        let practice = state.practice
+        let tagged = practice.practice?.nudges ?? []
+        let doubted = practice.practice?.unsure ?? []
+        return ZStack(alignment: .topLeading) {
+            ForEach(doubted.filter(window.contains), id: \.self) { t in
+                Path { p in
+                    p.move(to: CGPoint(x: x(t), y: 0))
+                    p.addLine(to: CGPoint(x: x(t), y: height))
+                }
+                .stroke(Self.doubtColor, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            }
+            ForEach(tagged.filter(window.contains), id: \.self) { t in
+                ZStack(alignment: .topLeading) {
+                    Rectangle().fill(Self.tagColor).frame(width: 1.5, height: height)
+                    Image(systemName: "flag.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(Self.tagColor)
+                        .offset(x: 2, y: 2)
+                }
+                .offset(x: x(t) - 0.75)
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    static let tagColor = Color.orange
+    static let doubtColor = Color.yellow.opacity(0.7)
+
+    /// Every step of the hand shown, where it is heard: a short tick at
+    /// the strip's foot, white where it is pinned. A tick is dragged to
+    /// where its step is heard, when there is room to take hold of it.
+    private func stepMarks(window: ClosedRange<Double>, width: CGFloat,
+                           x: @escaping (Double) -> CGFloat) -> some View {
+        let practice = state.practice
+        let marks = practice.stepMarks
+        let color = practice.hand.color
+        let shown = marks.indices.filter { window.contains(marks[$0].recording) }
+        return ForEach(shown, id: \.self) { i in
+            let mark = marks[i]
+            let at = x(mark.recording)
+            let room = min(i > 0 ? at - x(marks[i - 1].recording) : .infinity,
+                           i < marks.count - 1 ? x(marks[i + 1].recording) - at : .infinity)
+            let canHold = room >= Self.tickRoom
+            ZStack(alignment: .bottom) {
+                Color.clear
+                VStack(spacing: 0) {
+                    if mark.isPinned {
+                        Rectangle().fill(Color.white).frame(width: 6, height: 6).rotationEffect(.degrees(45))
+                    }
+                    Rectangle().fill(mark.isPinned ? Color.white : color.opacity(0.8))
+                        .frame(width: 1.5, height: Self.tickHeight)
+                }
+            }
+            .frame(width: canHold ? min(room, Self.handleWidth) : 2, height: Self.height)
+            .contentShape(Rectangle())
+            .offset(x: at - (canHold ? min(room, Self.handleWidth) : 2) / 2)
+            .allowsHitTesting(canHold)
+            .gesture(DragGesture(minimumDistance: 2, coordinateSpace: .named(Self.space))
+                .onChanged { drag in
+                    if heldWindow == nil { heldWindow = window }
+                    practice.move(edgeAt: mark.score, to: tickTime(at: drag.location.x, i, marks, window, width),
+                                  isDone: false)
+                }
+                .onEnded { drag in
+                    practice.move(edgeAt: mark.score, to: tickTime(at: drag.location.x, i, marks, window, width),
+                                  isDone: true)
+                    heldWindow = nil
+                })
+            .accessibilityLabel("Step \(i + 1)")
+        }
+    }
+
+    private static let tickHeight: CGFloat = 14
+    /// The least room either side of a tick for it to be taken hold of.
+    private static let tickRoom: CGFloat = 10
+
+    /// The moment under `x`, kept between the steps either side of step
+    /// `i`, so a drag never passes another step.
+    private func tickTime(at x: CGFloat, _ i: Int, _ marks: [ScorePracticeState.StepMark],
+                          _ window: ClosedRange<Double>, _ width: CGFloat) -> Double {
+        let t = window.lowerBound + Double(x / width) * window.length
+        let low = i > 0 ? marks[i - 1].recording + Self.closest : 0
+        let high = i < marks.count - 1 ? marks[i + 1].recording - Self.closest
+                                        : (state.practice.recordingLength ?? t)
+        return low < high ? t.clamped(to: low...high) : t
     }
 
     /// The run in focus and a little either side, within the recording.
