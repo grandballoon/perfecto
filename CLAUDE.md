@@ -186,7 +186,7 @@ A new line of notes is seen on it by a `PianoSource` case and a sink where its `
 **Score practice is the piano with the whole screen.**
 `docs/score-practice.md` has the design.
 There the piano is in the middle of the screen (`ScorePracticeView`), with a piece's runs above it and its recording below.
-A piece is a MusicXML score (`.mxl` or `.musicxml`, which says each note's staff and so its hand) and a recording of it, kept in the app's iCloud container so the phone and the Mac share them, or the device's support folder without iCloud (`ScoreLibrary`, every file coordinated; `ScoreLibraryWatcher` takes up the other device's changes).
+A piece is a MusicXML score (`.mxl` or `.musicxml`, which says each note's staff and so its hand), or a MIDI file (`.mid`, its hands by its tracks: `MidiScore`), and a recording of it, kept in the app's iCloud container so the phone and the Mac share them, or the device's support folder without iCloud (`ScoreLibrary`, every file coordinated; `ScoreLibraryWatcher` takes up the other device's changes).
 Each hand's part is a run, cut into runs, which are cut again where the fingering needs it: a tree (`Practice`).
 The recording is matched to runs by anchors, moments of the score and where the recording has them, shared by both hands (`Alignment`): the score's time is bent to the recording's, never the recording to the score.
 The runs chosen, or the run in focus, are watched: played from the recording, once or over again (`Playback.segments`, `RecordingPlayer`, an engine of its own), with their keys lit one after another as the recording has them, each flashing as it is struck and the hand's next keys marked (`Playback.lights`).

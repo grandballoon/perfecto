@@ -18,13 +18,18 @@ The piano is pinched and dragged as it always is, and it is brought to the runs 
 
 ## The format
 
-The score is MusicXML, either compressed (`.mxl`) or not (`.musicxml`, `.xml`).
+The score is MusicXML, either compressed (`.mxl`) or not (`.musicxml`, `.xml`), or failing that a Standard MIDI File (`.mid`).
 
 - It is what every notation program exports (MuseScore, Dorico, Finale, Sibelius), and `.mxl` is their default: one small file that the Files app, AirDrop and Mail pass along as it is.
 - It states which staff every note is on, and the staff is what says the hand.
   A MIDI file only has tracks, which a piano's export may or may not divide by hand, so a run of one hand would be a guess.
 - Harmonicland reads the same format, by the same rules (`src/inputs/musicxml.ts`, `mxl.ts`), so a score prepared for one is ready for the other.
-  Harmonicland also reads MIDI and LilyPond; the app does not, since LilyPond needs LilyPond itself to read and MIDI cannot say the hand.
+  Harmonicland also reads LilyPond; the app does not, since LilyPond needs LilyPond itself to read.
+
+A MIDI file is read too (`MidiScore`), for a piece that is to be had only as MIDI.
+It says the hand only by how its tracks are divided, so the hand is decided by rule:
+a track named for a hand plays it ("rh", "right", "treble", "upper"; "lh", "left", "bass", "lower"), and otherwise the first track with notes is the right hand and the rest the left, a channel of a track that uses several counting as a track.
+A file of one track is split at middle C, which is a guess.
 
 The recording is any audio file the system plays (`.m4a`, `.mp3`, `.wav`, `.aiff`, `.caf`).
 It is heard as it was recorded: nothing is synthesized, and the recording is never stretched.
@@ -71,7 +76,7 @@ It is heard as it was recorded: nothing is synthesized, and the recording is nev
 ## Where things are
 
 - `Perfecto/Sources/ScorePractice/`: the pure core, tested with `swift test` in `Perfecto/` (`ScorePracticeTests`).
-  `Score`, `MusicXML` and `Mxl` read a score; `Practice` is the runs and anchors, and every change to it is a function from one value to the next; `Alignment` maps score time to recording time; `Playback` says what plays and what lights.
+  `Score`, `MusicXML`, `Mxl` and `MidiScore` read a score; `Practice` is the runs and anchors, and every change to it is a function from one value to the next; `Alignment` maps score time to recording time; `Playback` says what plays and what lights.
 - `ViewModels/ScoreLibrary.swift`: the pieces on disk, each a folder in iCloud (or Application Support) with the score and recording as given and `piece.json` beside them, and the watcher of the iCloud folder.
 - `ViewModels/ScorePracticeState.swift`: the shell the screen talks to.
   It keeps the piece open, the hand shown, the run in focus and the runs chosen, saves the piece on each change, plays the recording and brings the piano to the runs.

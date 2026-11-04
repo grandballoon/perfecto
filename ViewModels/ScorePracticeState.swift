@@ -128,7 +128,7 @@ final class ScorePracticeState {
             keep(piece)
             show(piece, score)
         } catch {
-            fail("That file is not a MusicXML score (.mxl or .musicxml).", error)
+            fail("That file is not a MusicXML score (.mxl or .musicxml) or a MIDI file (.mid).", error)
         }
     }
 

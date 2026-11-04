@@ -32,6 +32,7 @@ struct ScorePracticeView: View {
         UTType(importedAs: "com.recordare.musicxml.compressed", conformingTo: .zip),
         UTType(importedAs: "com.recordare.musicxml.uncompressed", conformingTo: .xml),
         .xml,
+        .midi,
     ]
 
     var body: some View {
@@ -177,7 +178,7 @@ struct ScorePracticeView: View {
 
     private var emptyMessage: some View {
         VStack(spacing: 12) {
-            Text("Open a score in MusicXML (.mxl or .musicxml) and add a recording of it, then dice each hand into runs and watch them on the keys as the recording plays.")
+            Text("Open a score in MusicXML (.mxl or .musicxml) or MIDI (.mid) and add a recording of it, then dice each hand into runs and watch them on the keys as the recording plays.")
                 .font(.system(size: 13))
                 .foregroundStyle(Color(white: 0.6))
                 .multilineTextAlignment(.center)

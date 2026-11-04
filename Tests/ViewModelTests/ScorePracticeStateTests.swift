@@ -77,6 +77,25 @@ struct ScorePracticeStateTests {
         #expect(state.failure == nil)
     }
 
+    @Test func aMidiFileIsAScoreWithItsHandsByTrack() throws {
+        // Two tracks, "lh" and "rh", a quarter note each at 120.
+        func track(_ name: String, _ pitch: UInt8) -> [UInt8] {
+            let body: [UInt8] = [0x00, 0xFF, 0x03, UInt8(name.utf8.count)] + Array(name.utf8)
+                + [0x00, 0x90, pitch, 100, 0x83, 0x60, 0x80, pitch, 0, 0x00, 0xFF, 0x2F, 0x00]
+            return Array("MTrk".utf8) + [0, 0, 0, UInt8(body.count)] + body
+        }
+        let bytes = Array("MThd".utf8) + [0, 0, 0, 6, 0, 1, 0, 2, 0x01, 0xE0] + track("lh", 48) + track("rh", 72)
+        let url = folder.deletingLastPathComponent().appendingPathComponent("\(UUID().uuidString).mid")
+        try Data(bytes).write(to: url)
+        let state = makeState()
+        state.importScore(from: url)
+        #expect(state.failure == nil)
+        #expect(state.piece?.scoreFile == "score.mid")
+        #expect(state.focusSteps.map { $0.step.notes.map(\.pitch) } == [[72]])
+        state.show(.left)
+        #expect(state.focusSteps.map { $0.step.notes.map(\.pitch) } == [[48]])
+    }
+
     @Test func whatIsNotAScoreIsRefusedAndSaid() throws {
         let state = makeState()
         let url = folder.deletingLastPathComponent().appendingPathComponent("\(UUID().uuidString).xml")

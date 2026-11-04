@@ -83,7 +83,8 @@ struct ScoreLibrary: Sendable {
         let name = url.deletingPathExtension().lastPathComponent
         let score = try Self.score(from: data, title: name)
         let id = UUID()
-        let scoreFile = "score." + (Mxl.isArchive(data) ? "mxl" : "musicxml")
+        let bytes = [UInt8](data.prefix(4))
+        let scoreFile = "score." + (MidiScore.isMidi(bytes) ? "mid" : Mxl.isArchive(data) ? "mxl" : "musicxml")
         try write(data, to: folder(of: id).appendingPathComponent(scoreFile))
         let piece = Piece(id: id, title: score.title, scoreFile: scoreFile, recordingFile: nil,
                           practice: Practice(score: score), added: .now)
@@ -148,9 +149,10 @@ struct ScoreLibrary: Sendable {
         folder.appendingPathComponent(id.uuidString, isDirectory: true)
     }
 
-    /// MusicXML, compressed or not.
+    /// MusicXML, compressed or not, or a Standard MIDI File.
     static func score(from data: Data, title: String) throws -> Score {
-        try MusicXML.score(from: Mxl.isArchive(data) ? Mxl.document(in: data) : data, title: title)
+        if MidiScore.isMidi([UInt8](data.prefix(4))) { return try MidiScore.score(from: [UInt8](data), title: title) }
+        return try MusicXML.score(from: Mxl.isArchive(data) ? Mxl.document(in: data) : data, title: title)
     }
 
     // MARK: – Coordinated files
