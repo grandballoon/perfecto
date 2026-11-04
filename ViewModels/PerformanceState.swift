@@ -394,6 +394,7 @@ final class PerformanceState {
     // lifting it hands the chord back to the press beneath it.
 
     func press(_ key: ChordKey) {
+        guard !isPractising else { return }
         heldKeys.append(key)
         followSlide()
         mode.onButtonDown(key: key, state: self)
@@ -505,6 +506,7 @@ final class PerformanceState {
     /// from the plain chord until it lifts (`compassLifted`), the latest
     /// place if several are down; kept, it is one more step of the walk.
     func compassPressed(_ place: CompassPlace) {
+        guard !isPractising else { return }
         if keepsCompassColor {
             compassWalk.append(place)
         } else {
@@ -709,7 +711,16 @@ extension PerformanceState: LoopHost {
 }
 
 extension PerformanceState: KeyboardHost {
+    /// Whether score practice has the screen: the piano is expanded over
+    /// the play screen, so the keys and the compass play nothing, and the
+    /// play/stop key plays the recording, not the loops.
+    var isPractising: Bool { piano.isOn && piano.isExpanded }
+
     func tap(_ button: KeyboardButton) {
+        if isPractising {
+            if button == .playStop { practice.playOrStop() }
+            return
+        }
         switch button {
         case .loop:     quickLoopState.hotkeyTapped()
         case .midi:     isExternalSynth.toggle()

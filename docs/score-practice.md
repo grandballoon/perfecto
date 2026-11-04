@@ -73,6 +73,15 @@ It is heard as it was recorded: nothing is synthesized, and the recording is nev
    `RecordingPlayer` plays the recording through an engine of its own, beside the instrument's, and says the moment being heard from the player's own count of frames, so the lights follow the sound and not a timer.
    Segments are handed to the player ahead of time, so a run repeats with no gap.
 
+9. **The recording is dragged to go anywhere in it.**
+   Under the recording strip is the whole recording as one bar (`PracticeScrubber`), and a finger on the bar or on the strip's waveform drags the recording (`ScorePracticeState.scrub`).
+   While it is dragged it stops, and the keys are lit as the shown hand has them at each moment passed; while nothing plays, the whole hand is lit at the moment the recording stands at, not only the runs watched.
+   If it was being listened to, it plays on from where it is let go.
+
+10. **The practice screen has the keys while it is open.**
+    The play/stop key (Space to start with) plays the runs watched or stops what plays, and the chord keys and the compass play nothing, from the keyboard or a controller (`PerformanceState.isPractising`).
+    The play screen is still there under the piano, so a key that reached it would play chords or start the loops unseen.
+
 ## Where things are
 
 - `Perfecto/Sources/ScorePractice/`: the pure core, tested with `swift test` in `Perfecto/` (`ScorePracticeTests`).
@@ -81,7 +90,7 @@ It is heard as it was recorded: nothing is synthesized, and the recording is nev
 - `ViewModels/ScorePracticeState.swift`: the shell the screen talks to.
   It keeps the piece open, the hand shown, the run in focus and the runs chosen, saves the piece on each change, plays the recording and brings the piano to the runs.
 - `Audio/RecordingPlayer.swift`: the recording's player, behind `RecordingPlaying` so the state is tested without audio.
-- `Views/ScorePracticeView.swift`, `PracticeRecordingStrip.swift`: the screen.
+- `Views/ScorePracticeView.swift`, `PracticeRecordingStrip.swift`, `PracticeScrubber.swift`: the screen.
 
 ## Open questions
 

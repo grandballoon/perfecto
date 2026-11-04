@@ -176,6 +176,41 @@ struct KeyboardStateTests {
         #expect(loops.isRunning)
     }
 
+    @Test func whileScorePracticeHasTheScreenTheKeysAreItsAndNotThePlayScreens() {
+        let clock = ManualClock()
+        let (state, keys) = makeState(clock: clock)
+        let loops = state.quickLoopState
+        state.keyboard.keyDown(enter)
+        state.keyboard.keyUp(code: enter.code)
+        clock.advance(seconds: Double(QuickLoopState.countIn))
+        state.keyboard.keyDown(a)
+        clock.advance(beats: 8)
+        state.keyboard.keyUp(code: a.code)
+        state.keyboard.keyDown(space)
+        state.keyboard.keyUp(code: space.code)
+        #expect(!loops.isRunning)
+        let chords = keys.playCalls.count
+
+        state.piano.isOn = true
+        state.piano.isExpanded = true
+        #expect(state.isPractising)
+        // Space is the recording's (there is none here), not the loops'.
+        state.keyboard.keyDown(space)
+        state.keyboard.keyUp(code: space.code)
+        #expect(!loops.isRunning)
+        // The chord keys and the compass play nothing.
+        state.keyboard.keyDown(a)
+        state.keyboard.keyDown(up)
+        #expect(keys.playCalls.count == chords)
+        #expect(state.heldKeys.isEmpty)
+        state.keyboard.keyUp(code: a.code)
+        state.keyboard.keyUp(code: up.code)
+
+        state.piano.isExpanded = false
+        state.keyboard.keyDown(space)
+        #expect(loops.isRunning)
+    }
+
     // MARK: – The map
 
     @Test func theNextKeyPressedBecomesTheChosenActionsKey() {

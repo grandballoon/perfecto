@@ -197,6 +197,40 @@ struct ScorePracticeStateTests {
         #expect(state.listening == nil)
     }
 
+    @Test func spacePlaysTheRunsWatchedOrStopsWhatPlays() throws {
+        let state = try practising()
+        state.playOrStop()
+        #expect(state.listening == .runs)
+        state.playOrStop()
+        #expect(state.listening == nil)
+        state.listen()
+        state.playOrStop()
+        #expect(state.listening == nil)
+    }
+
+    @Test func theRecordingDraggedStopsAndPlaysOnFromWhereItIsLetGo() throws {
+        let state = try practising()
+        state.listen()
+        state.scrub(to: 3.5, isDone: false)
+        #expect(state.listening == nil)
+        #expect(state.isScrubbing)
+        // The keys of the hand shown are lit as they are at the moment dragged to.
+        let sounding = state.lights(at: state.currentTime).filter { $0.value.contains { $0.kind != .next } }
+        #expect(Set(sounding.keys) == [77])
+        state.scrub(to: 6.5, isDone: true)
+        #expect(!state.isScrubbing)
+        #expect(state.listening == .free)
+        #expect(player.played.last?.segments == [Segment(start: 6.5, end: 20)])
+    }
+
+    @Test func theRecordingDraggedWhileStoppedStaysStopped() throws {
+        let state = try practising()
+        state.scrub(to: 30, isDone: true)
+        #expect(state.listening == nil)
+        #expect(state.currentTime == 20)
+        #expect(player.played.isEmpty)
+    }
+
     @Test func theKeysOfTheRunsWatchedLightAsTheRecordingPlays() throws {
         let state = try practising()
         state.play()

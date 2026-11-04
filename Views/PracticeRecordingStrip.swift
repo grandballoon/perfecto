@@ -5,10 +5,11 @@ import SwiftUI
 /// stands.
 ///
 /// An edge between runs is dragged to where it is heard, which moves the
-/// runs on either side of it (`ScorePracticeState.move`), and a tap stands
-/// the recording at that moment. While an edge is dragged the strip keeps
-/// the stretch of the recording it showed, so the edge stays under the
-/// finger.
+/// runs on either side of it (`ScorePracticeState.move`). While an edge is
+/// dragged the strip keeps the stretch of the recording it showed, so the
+/// edge stays under the finger. A finger anywhere else drags the recording
+/// to the moment under it (`ScorePracticeState.scrub`), and a tap stands it
+/// there.
 struct PracticeRecordingStrip: View {
     @Environment(PerformanceState.self) private var state
 
@@ -36,9 +37,15 @@ struct PracticeRecordingStrip: View {
                     .allowsHitTesting(false)
                 Color.clear
                     .contentShape(Rectangle())
-                    .gesture(SpatialTapGesture().onEnded { tap in
-                        practice.seek(to: window.lowerBound + Double(tap.location.x / width) * window.length)
-                    })
+                    .gesture(DragGesture(minimumDistance: 0)
+                        .onChanged { drag in
+                            practice.scrub(to: window.lowerBound + Double(drag.location.x / width) * window.length,
+                                           isDone: false)
+                        }
+                        .onEnded { drag in
+                            practice.scrub(to: window.lowerBound + Double(drag.location.x / width) * window.length,
+                                           isDone: true)
+                        })
                 edges(window: window, width: width, x: x)
                 TimelineView(.animation(paused: practice.listening == nil)) { _ in
                     let at = x(practice.currentTime)

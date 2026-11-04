@@ -64,6 +64,7 @@ struct ScorePracticeView: View {
                         emptyMessage
                     } else if practice.hasRecording {
                         PracticeRecordingStrip()
+                        PracticeScrubber()
                         PracticeTransport()
                     } else {
                         importButton("Add a recording of it", systemImage: "waveform") { importing = .recording }
@@ -405,13 +406,6 @@ struct PracticeTransport: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Run ends here")
-
-            TimelineView(.animation(paused: practice.listening == nil)) { _ in
-                Text(PracticeTime.text(practice.currentTime))
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(Color(white: 0.7))
-                    .frame(width: 58, alignment: .trailing)
-            }
         }
     }
 }

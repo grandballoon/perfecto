@@ -46,6 +46,9 @@ final class ScorePracticeState {
     /// Where the recording is, while it is not playing.
     private(set) var playhead = 0.0
     private(set) var listening: Listening?
+    /// Whether the recording is being dragged (`scrub`).
+    private(set) var isScrubbing = false
+    private var resumesAfterScrub = false
     /// What could not be done last, said once.
     var failure: String?
 
@@ -465,6 +468,12 @@ final class ScorePracticeState {
         logger?.log(.practice_playback_started(segments: 1, repeats: false))
     }
 
+    /// What the space bar does: the runs watched played, or whatever is
+    /// playing stopped.
+    func playOrStop() {
+        if listening != nil { stop() } else { play() }
+    }
+
     func stop() {
         guard listening != nil else { return }
         playhead = currentTime
@@ -479,6 +488,21 @@ final class ScorePracticeState {
         stop()
         previewStep = nil
         playhead = time.clamped(to: 0...(recordingLength ?? 0))
+    }
+
+    /// The recording dragged to `time` seconds: it stops while it is
+    /// dragged, its keys lit as they are at each moment passed, and when
+    /// the drag ends (`isDone`) it plays on from there if it was being
+    /// listened to.
+    func scrub(to time: Double, isDone: Bool) {
+        if !isScrubbing {
+            isScrubbing = true
+            resumesAfterScrub = listening == .free
+        }
+        seek(to: time)
+        guard isDone else { return }
+        isScrubbing = false
+        if resumesAfterScrub { listen() }
     }
 
     private func finished() {
@@ -498,10 +522,11 @@ final class ScorePracticeState {
         return Playback.lights(at: time, litNotes)
     }
 
-    /// The notes to light while nothing plays: the runs watched.
+    /// The notes to light while nothing plays: all of the hand shown, so
+    /// the keys are right at any moment the recording is stood at.
     private func refresh() {
-        guard listening == nil, let practice, let score else { return }
-        litNotes = Playback.notes(of: watched, practice, score)
+        guard listening == nil, let practice, let score, let root = practice.root(hand) else { return }
+        litNotes = Playback.notes(of: [root.id], practice, score)
     }
 
     /// The piano brought to the notes of the runs watched.
