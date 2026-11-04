@@ -22,7 +22,11 @@ struct ScorePracticeView: View {
         case recording
     }
 
-    @State private var importing: Importing?
+    /// What the file picker is choosing. It is kept after the picker
+    /// closes, because the picker closes before it hands over the file
+    /// chosen, and the file is taken as what was asked for.
+    @State private var importing = Importing.score
+    @State private var isImporting = false
 
     /// The keys are never longer than this share of the screen's height.
     private static let pianoShare: CGFloat = 0.42
@@ -67,7 +71,7 @@ struct ScorePracticeView: View {
                         PracticeScrubber()
                         PracticeTransport()
                     } else {
-                        importButton("Add a recording of it", systemImage: "waveform") { importing = .recording }
+                        importButton("Add a recording of it", systemImage: "waveform") { pick(.recording) }
                     }
                 }
                 .padding(.horizontal, Self.margin)
@@ -79,11 +83,13 @@ struct ScorePracticeView: View {
         .task { await practice.appear() }
         // Shrunk by a double tap on the keys, too: nothing plays unseen.
         .onDisappear { practice.stop() }
-        .fileImporter(isPresented: Binding(get: { importing != nil }, set: { if !$0 { importing = nil } }),
+        .fileImporter(isPresented: $isImporting,
                       allowedContentTypes: importing == .recording ? [.audio] : Self.scoreTypes) { result in
             guard case let .success(url) = result else { return }
-            if importing == .recording { practice.importRecording(from: url) } else { practice.importScore(from: url) }
-            importing = nil
+            switch importing {
+            case .score:     practice.importScore(from: url)
+            case .recording: practice.importRecording(from: url)
+            }
         }
         .alert(practice.failure ?? "", isPresented: Binding(
             get: { practice.failure != nil }, set: { if !$0 { practice.failure = nil } })) {
@@ -145,10 +151,10 @@ struct ScorePracticeView: View {
                 }
             }
             Divider()
-            Button("Open a score…", systemImage: "doc.badge.plus") { importing = .score }
+            Button("Open a score…", systemImage: "doc.badge.plus") { pick(.score) }
             if practice.piece != nil {
                 Button(practice.hasRecording ? "Replace the recording…" : "Add a recording…",
-                       systemImage: "waveform") { importing = .recording }
+                       systemImage: "waveform") { pick(.recording) }
                 Divider()
                 if let piece = practice.piece {
                     Button("Delete “\(piece.title)”", systemImage: "trash", role: .destructive) {
@@ -184,8 +190,13 @@ struct ScorePracticeView: View {
                 .foregroundStyle(Color(white: 0.6))
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 420)
-            importButton("Open a score", systemImage: "doc.badge.plus") { importing = .score }
+            importButton("Open a score", systemImage: "doc.badge.plus") { pick(.score) }
         }
+    }
+
+    private func pick(_ kind: Importing) {
+        importing = kind
+        isImporting = true
     }
 
     private func importButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
