@@ -15,6 +15,10 @@ protocol PracticePlaying: AnyObject {
     var currentTime: Double { get }
     /// Called when the segments have all played, if they do not repeat.
     var onFinish: (() -> Void)? { get set }
+    /// `pitch` sounded at once, as a key tapped on the piano is, until it
+    /// is let go (`release`); a key pressed again while held is struck again.
+    func press(_ pitch: Int)
+    func release(_ pitch: Int)
 }
 
 /// The score played on the app's own sound, as notes: each pass
@@ -48,6 +52,8 @@ final class ScorePlayer: PracticePlaying {
     /// what is to come stays short.
     private var live: [(id: NoteID, on: TimeInterval, end: TimeInterval, isEndSent: Bool)] = []
     private var pump: ClockCall?
+    /// The keys tapped on the piano and held, each with its note.
+    private var pressed: [Int: NoteID] = [:]
 
     /// How far ahead of their moments notes are sent, and how often.
     private static let lookahead: TimeInterval = 0.25
@@ -86,6 +92,20 @@ final class ScorePlayer: PracticePlaying {
         // An end already sent for later is overtaken by this one.
         for note in live { sinks.forEach { $0.noteOff(note.id, at: max(now, note.on)) } }
         live = []
+    }
+
+    func press(_ pitch: Int) {
+        release(pitch)
+        let id = NoteID.next()
+        pressed[pitch] = id
+        let now = clock.time
+        sinks.forEach { $0.noteOn(id, note: pitch, sound: sound, at: now) }
+    }
+
+    func release(_ pitch: Int) {
+        guard let id = pressed.removeValue(forKey: pitch) else { return }
+        let now = clock.time
+        sinks.forEach { $0.noteOff(id, at: now) }
     }
 
     var currentTime: Double {

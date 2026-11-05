@@ -63,6 +63,18 @@ struct PianoKeys {
                       width: width, height: size.height * Self.blackLength)
     }
 
+    /// The note whose key is at `point`, as a finger finds it: a black key
+    /// where one lies over the white keys, and otherwise the white key
+    /// under it. Nil off the strip.
+    func note(at point: CGPoint) -> Int? {
+        guard point.y >= 0, point.y <= size.height, point.x >= 0, point.x < size.width else { return nil }
+        if let black = Self.blacks.first(where: { frame(of: $0).contains(point) }) { return black }
+        return Self.whites.first {
+            let frame = frame(of: $0)
+            return point.x >= frame.minX && point.x < frame.maxX
+        }
+    }
+
     /// Whether any of `note`'s key is in the strip.
     func shows(_ note: Int) -> Bool {
         let frame = frame(of: note)

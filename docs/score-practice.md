@@ -2,6 +2,7 @@
 
 Score practice is a way to memorize a piece by watching it on the piano.
 A learner gives the app a score of the piece, keeps runs of it, each a stretch of one hand or of both, and then watches the runs light up on the keys as the score plays, once or over and over.
+Then they tap the runs on the keys themselves, note by note, with the next note marked or from memory, and are told at each tap whether it was right.
 
 It lives on the piano when the piano has the whole screen (`ScorePracticeView`), with the piano in the middle of the screen, where the eye rests.
 
@@ -107,10 +108,23 @@ The screen opens the latest piece the first time it appears, and after that leav
 14. **Every control says what it does.**
     A pointer resting on any button of the screen shows what it does (`help`), beside the key that does it where there is one (`hotkeyTip`).
 
+15. **A run can be tapped on the keys, note by note.**
+    The Tap button turns the piano's keys into keys to press (`ScorePracticeState.startTapping`): the learner taps the runs watched, step by step, in the order of the score, and each tap sounds at once on the same sound the score plays in (`PracticePlaying.press`).
+    It is a small amount of embodied practice, to help a run that has been watched to be taken in by the hand; it is not about timing, and nothing waits or hurries.
+    Each tap is told: a right one is marked on its key with a tick and said ("Right, E5"), a wrong one is marked red with a cross, said ("Wrong note, F5: try again") and felt, and the place stays where it was until the right note comes (`TapDrill.tapping`).
+    A step of several notes, a chord or both hands together, is done when each of its notes has been tapped, in any order and together or one by one.
+    The last note of the runs finishes a pass, said with its wrong notes, and the next tap begins another from the first step.
+    The next note is marked on its key as a hand's next keys are, or not, by the Next note switch (`ScorePracticeState.showsNextNote`): it can be switched at any moment without losing the place, and is kept while the app runs, not with the piece.
+    The notes of a chord already tapped stay lit either way, so it is seen how much of it is left.
+    Tapping begins at the step at the playhead if that is inside the runs, the playhead follows the place so the score's bar shows how far the learner has got, and moving the playhead moves the place.
+    Choosing other runs or other hands while tapping taps those from their start; playing the score ends tapping.
+    While tapping, a finger on the piano is a key the moment it touches, so the pinch, the one-finger drag and the double tap are off (a trackpad's or a mouse wheel's scroll still moves it), and the fit button brings the keys to the runs.
+    The core is `TapDrill`: the steps to tap and how far the learner has got, every tap a function from one drill to the next.
+
 ## Where things are
 
 - `Perfecto/Sources/ScorePractice/`: the pure core, tested with `swift test` in `Perfecto/` (`ScorePracticeTests`).
-  `Score`, `MusicXML`, `Mxl` and `MidiScore` read a score; `Practice` is the runs, every change to it a function from one value to the next, and `History` the changes, to undo; `Playback` says what plays, as passes of timed notes, and what lights.
+  `Score`, `MusicXML`, `Mxl` and `MidiScore` read a score; `Practice` is the runs, every change to it a function from one value to the next, and `History` the changes, to undo; `Playback` says what plays, as passes of timed notes, and what lights; `TapDrill` is a run being tapped.
 - `ViewModels/ScoreLibrary.swift`: the pieces on disk, each a folder in iCloud (or Application Support) with the score as given and `piece.json` beside it, and the watcher of the iCloud folder.
 - `ViewModels/ScorePracticeState.swift`: the shell the screen talks to.
   It keeps the piece open, the hands shown, the runs chosen, the run being made, the changes to undo and the playhead, saves the piece on each change, plays the score and brings the piano to the runs.

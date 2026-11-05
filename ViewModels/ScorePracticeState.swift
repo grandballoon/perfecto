@@ -39,8 +39,29 @@ final class ScorePracticeState {
     /// What could not be done last, said once.
     var failure: String?
 
+    /// Whether the learner is tapping the runs watched on the keys, note
+    /// by note, rather than watching them play.
+    private(set) var isTapping = false
+    /// Whether, while tapping, the notes to tap next are marked on the
+    /// keys. It can be switched at any moment without losing the place, and
+    /// is kept while the app runs, not saved.
+    var showsNextNote = true {
+        didSet {
+            guard showsNextNote != oldValue else { return }
+            logger?.log(.practice_tap_hint_switched(isOn: showsNextNote))
+        }
+    }
+    /// The steps being tapped and how far the learner has got; nil while
+    /// not tapping.
+    private(set) var drill: TapDrill?
+    /// The last key tapped and what it was, for the screen to say; nil
+    /// until a key is tapped.
+    private(set) var lastTap: PracticeTap?
+
     /// The notes lit as the score plays.
     private var litNotes: [TimedNote] = []
+    /// The keys pressed while tapping and not yet let go.
+    private var held: Set<Int> = []
 
     private let piano: PianoState
     /// Where the pieces are kept: given, or found when the screen first
@@ -163,6 +184,7 @@ final class ScorePracticeState {
 
     private func close() {
         stop()
+        endTapping()
         piece = nil
         score = nil
         selection = []
@@ -444,6 +466,8 @@ final class ScorePracticeState {
     /// (`Playback.start`), with both hands sounding and the runs' keys lit.
     func play() {
         guard let score else { return }
+        // Listening is not tapping: the place is let go.
+        if isTapping { stopTapping() }
         let segments = Playback.segments(watched, score)
         guard !segments.isEmpty else { return }
         let from = currentTime
@@ -482,6 +506,11 @@ final class ScorePracticeState {
         let was = isPlaying
         stopPlayer()
         playhead = time.clamped(to: 0...(length ?? 0))
+        if let drill, isTapping {
+            self.drill = drill.moved(to: playhead)
+            lastTap = nil
+            followDrill()
+        }
         if was { play() } else { refresh() }
     }
 
@@ -503,15 +532,113 @@ final class ScorePracticeState {
 
     /// The keys lit at `time` seconds of the score, by the notes of what is
     /// watched as it plays, or of the hands shown while nothing does.
+    /// While tapping, the keys lit are the drill's instead
+    /// (`TapDrill.lights`).
     func lights(at time: Double) -> [Int: [KeyLight]] {
-        Playback.lights(at: time, litNotes)
+        if isTapping { return drill?.lights(showingNext: showsNextNote) ?? [:] }
+        return Playback.lights(at: time, litNotes)
     }
 
     /// The notes to light while nothing plays: all of the hands shown, so
-    /// the keys are right at any moment the playhead stands at.
+    /// the keys are right at any moment the playhead stands at. While
+    /// tapping, the drill is made again if what is watched has changed.
     private func refresh() {
+        syncDrill()
         guard !isPlaying, let score, let whole = Passage.whole(hands, in: score) else { return }
         litNotes = Playback.notes(of: [whole], score)
+    }
+
+    // MARK: – Tapping
+
+    /// Tapping the runs watched begun, or ended: what the tap button does.
+    func toggleTapping() {
+        if isTapping { stopTapping() } else { startTapping() }
+    }
+
+    /// The runs watched to be tapped on the keys, from the step at the
+    /// playhead if it is inside them, and otherwise from their first. The
+    /// score stops playing.
+    func startTapping() {
+        guard !isTapping, let score else { return }
+        stop()
+        let drill = TapDrill(watched, in: score)
+        guard !drill.isEmpty else { return }
+        isTapping = true
+        let isInside = Playback.segments(watched, score).contains {
+            playhead >= $0.start && playhead < $0.end - Playback.nearEnd
+        }
+        self.drill = isInside ? drill.moved(to: playhead) : drill
+        lastTap = nil
+        followDrill()
+        logger?.log(.practice_tapping_switched(isOn: true))
+    }
+
+    func stopTapping() {
+        guard isTapping else { return }
+        endTapping()
+        logger?.log(.practice_tapping_switched(isOn: false))
+    }
+
+    /// The drill begun again from its first step.
+    func restartTapping() {
+        guard let drill, isTapping else { return }
+        self.drill = drill.restarted()
+        lastTap = nil
+        followDrill()
+    }
+
+    /// A key of the piano pressed while tapping: it sounds, and is told
+    /// right or wrong against the step to tap.
+    func press(_ pitch: Int) {
+        guard isTapping, let drill else { return }
+        let player = player ?? makePlayer()
+        self.player = player
+        player.press(pitch)
+        held.insert(pitch)
+        let (next, outcome) = drill.tapping(pitch)
+        self.drill = next
+        lastTap = PracticeTap(pitch: pitch, outcome: outcome, number: (lastTap?.number ?? 0) + 1)
+        followDrill()
+        logger?.log(.practice_tapped(pitch: pitch, isRight: outcome.isRight))
+        if case let .passed(mistakes) = outcome {
+            logger?.log(.practice_tap_pass_finished(steps: drill.steps.count, mistakes: mistakes))
+        }
+    }
+
+    /// A key pressed while tapping let go: it stops sounding.
+    func release(_ pitch: Int) {
+        guard held.remove(pitch) != nil else { return }
+        player?.release(pitch)
+    }
+
+    /// Tapping ended with nothing logged: the piece closed.
+    private func endTapping() {
+        held.forEach { player?.release($0) }
+        held = []
+        isTapping = false
+        drill = nil
+        lastTap = nil
+    }
+
+    /// The drill made again from what is watched, if that has changed:
+    /// another run chosen, the hands shown changed, or the run edited.
+    private func syncDrill() {
+        guard isTapping, let score else { return }
+        let next = TapDrill(watched, in: score)
+        guard next.steps != drill?.steps else { return }
+        guard !next.isEmpty else {
+            stopTapping()
+            return
+        }
+        drill = next
+        lastTap = nil
+        followDrill()
+    }
+
+    /// The playhead brought to the step to tap, so the score's bar shows
+    /// how far the learner has got.
+    private func followDrill() {
+        if let onset = drill?.current?.onset { playhead = onset }
     }
 
     /// The piano brought to the notes of what is watched.
@@ -519,6 +646,14 @@ final class ScorePracticeState {
         guard let score, let pitches = Playback.pitches(of: watched, score) else { return }
         piano.span = PianoSpan.fitting(pitches)
     }
+}
+
+/// A key tapped while practising by touch, and what it was: the
+/// `number`th tap, so a key tapped twice the same way is told twice.
+struct PracticeTap: Equatable {
+    let pitch: Int
+    let outcome: TapOutcome
+    let number: Int
 }
 
 extension Hands {

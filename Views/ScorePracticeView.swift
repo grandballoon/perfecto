@@ -14,6 +14,10 @@ import UniformTypeIdentifiers
 /// The keys light in turn as the score plays, each as it is struck,
 /// with the hand's next keys marked: a run is seen as the hand plays it,
 /// key by key, not as notes falling toward the keys.
+///
+/// Or the learner taps the run on the keys themselves, note by note
+/// (`PracticeTapBar`): each tap is told right or wrong, and the next note
+/// is marked or left to memory, switched at any moment.
 struct ScorePracticeView: View {
     @Environment(PerformanceState.self) private var state
 
@@ -39,6 +43,7 @@ struct ScorePracticeView: View {
                     if practice.piece != nil {
                         PracticeRunsBar()
                         if practice.isEditing { PracticeRunEditor() }
+                        if practice.isTapping { PracticeTapBar() }
                     }
                 }
                 .padding(.horizontal, Self.margin)
@@ -46,7 +51,11 @@ struct ScorePracticeView: View {
                 .frame(maxHeight: .infinity, alignment: .top)
 
                 TimelineView(.animation(paused: !practice.isPlaying)) { _ in
-                    PianoView(isExpanded: true, practice: practice.lights(at: practice.currentTime))
+                    PianoView(isExpanded: true, practice: practice.lights(at: practice.currentTime),
+                              onKeyDown: practice.isTapping ? { practice.press($0) } : nil,
+                              onKeyUp: { practice.release($0) },
+                              tap: practice.isTapping ? practice.lastTap : nil)
+                        .animation(.easeOut(duration: 0.12), value: practice.lastTap)
                 }
                 .frame(height: PianoKeys.length(
                     forWidth: geo.size.width + geo.safeAreaInsets.leading + geo.safeAreaInsets.trailing,
@@ -606,8 +615,118 @@ struct PracticeTransport: View {
             .help(practice.repeats ? "Repeat is on: the runs play over and over" : "Repeat is off: the runs play once")
             .accessibilityAddTraits(practice.repeats ? .isSelected : [])
 
+            Button { practice.toggleTapping() } label: {
+                Label("Tap", systemImage: "hand.tap")
+                    .practiceChit(fill: practice.isTapping ? Color(white: 0.85) : nil)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Tap the run")
+            .accessibilityAddTraits(practice.isTapping ? .isSelected : [])
+            .help(practice.isTapping ? "Stop tapping and go back to watching"
+                                     : "Tap the runs watched on the keys yourself, note by note, told right or wrong")
+
             Spacer(minLength: 0)
         }
+    }
+}
+
+// MARK: – Tapping
+
+/// Tapping a run on the keys: what the last tap was, how far the learner
+/// has got, whether the next note is marked, and beginning again.
+///
+/// Every tap is said here in words as well as marked on its key, and a
+/// wrong one is felt as well, so it is noticed without looking away from
+/// the keys.
+struct PracticeTapBar: View {
+    @Environment(PerformanceState.self) private var state
+
+    var body: some View {
+        @Bindable var practice = state.practice
+        let color = message.isWrong ? PianoView.wrongColor
+                  : practice.lastTap == nil ? Color(white: 0.9) : PianoView.rightColor
+        HStack(spacing: 8) {
+            Image(systemName: message.symbol)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(color)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(message.text)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(color)
+                    .lineLimit(2)
+                Text(progress)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.55))
+                    .lineLimit(1)
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 4)
+
+            Button { practice.showsNextNote.toggle() } label: {
+                Label("Next note", systemImage: practice.showsNextNote ? "eye" : "eye.slash")
+                    .practiceChit(fill: practice.showsNextNote ? Color(white: 0.85) : nil)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Show the next note")
+            .accessibilityAddTraits(practice.showsNextNote ? .isSelected : [])
+            .help(practice.showsNextNote ? "The next note is marked on its key: tap to play from memory instead"
+                                         : "Playing from memory: tap to mark the next note on its key")
+
+            Button { practice.restartTapping() } label: {
+                Image(systemName: "arrow.counterclockwise").practiceChit()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Begin again")
+            .help("Begin the run again from its first note")
+
+            Button { practice.stopTapping() } label: {
+                Text("Done").practiceChit()
+            }
+            .buttonStyle(.plain)
+            .help("Stop tapping and go back to watching")
+        }
+        .sensoryFeedback(trigger: practice.lastTap) { _, tap in
+            guard let tap else { return nil }
+            switch tap.outcome {
+            case .wrong:   return .error
+            case .passed:  return .success
+            default:       return .impact(weight: .light)
+            }
+        }
+        .onChange(of: practice.lastTap) { _, tap in
+            guard tap != nil else { return }
+            AccessibilityNotification.Announcement(message.text).post()
+        }
+    }
+
+    private var message: (text: String, symbol: String, isWrong: Bool) {
+        let practice = state.practice
+        guard let tap = practice.lastTap else {
+            return (practice.showsNextNote ? "Tap the marked key" : "Tap the run from memory",
+                    "hand.tap", false)
+        }
+        let name = pitchName(tap.pitch)
+        switch tap.outcome {
+        case .right:
+            let more = practice.drill?.remaining.count ?? 0
+            return ("Right, \(name): \(more) more of this chord", "checkmark.circle.fill", false)
+        case .stepDone:
+            return ("Right, \(name)", "checkmark.circle.fill", false)
+        case let .passed(mistakes):
+            let how = mistakes == 0 ? "with no wrong notes" : "with \(mistakes) wrong note\(mistakes == 1 ? "" : "s")"
+            return ("Run done \(how). Again from the start", "star.circle.fill", false)
+        case .wrong:
+            return ("Wrong note, \(name): try again", "xmark.circle.fill", true)
+        }
+    }
+
+    private var progress: String {
+        guard let drill = state.practice.drill else { return "" }
+        var text = "Step \(drill.index + 1) of \(drill.steps.count)"
+        if drill.mistakes > 0 { text += " · \(drill.mistakes) wrong" }
+        if drill.passes > 0 { text += " · \(drill.passes) run\(drill.passes == 1 ? "" : "s") done" }
+        return text
     }
 }
 

@@ -42,9 +42,11 @@ extension Hands {
 /// the hand's color, flashing white as it is struck so a key struck again
 /// is seen to be, and the hand's next keys with a dot of its color.
 ///
-/// No touch plays it: a pinch and a drag change what is in view
-/// (`PianoTouches`), and its corner button or a double tap gives it the
-/// whole screen or puts it back.
+/// No touch plays it, except while a run is being tapped (`onKeyDown`):
+/// a pinch and a drag change what is in view (`PianoTouches`), and its
+/// corner button or a double tap gives it the whole screen or puts it
+/// back. While a run is tapped, a finger presses the key it is on, and the
+/// last key tapped is marked right or wrong (`tap`).
 struct PianoView: View {
     @Environment(PerformanceState.self) private var state
 
@@ -53,6 +55,12 @@ struct PianoView: View {
     var isExpanded = false
     /// The keys lit by score practice.
     var practice: [Int: [KeyLight]] = [:]
+    /// While a run is tapped: a key pressed, and let go. Nil: no touch
+    /// plays a key.
+    var onKeyDown: ((Int) -> Void)? = nil
+    var onKeyUp: (Int) -> Void = { _ in }
+    /// The last key tapped, marked right or wrong.
+    var tap: PracticeTap? = nil
 
     /// The narrowest white key that has room for its octave's name.
     private static let namedKeyWidth: CGFloat = 14
@@ -85,7 +93,15 @@ struct PianoView: View {
                     onDrag: { dx in
                         piano.span = piano.span.moved(from: 0, to: Double(dx / geo.size.width))
                     },
-                    onDoubleTap: toggleExpanded)
+                    onDoubleTap: toggleExpanded,
+                    onPress: onKeyDown.map { down in
+                        { (point: CGPoint) -> Int? in
+                            guard let note = keys.note(at: point) else { return nil }
+                            down(note)
+                            return note
+                        }
+                    },
+                    onRelease: onKeyUp)
                 if !isExpanded { expandButton(insets: geo.safeAreaInsets) }
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
@@ -125,6 +141,7 @@ struct PianoView: View {
         // A lit black key is a shade darker than the white keys lit beside it.
         .overlay(Color.black.opacity(isBlack && !colors.isEmpty ? 0.25 : 0))
         .overlay(Color.white.opacity(0.55 * flash))
+        .overlay { tapMark(on: note, width: frame.width) }
         .overlay(alignment: .bottom) {
             VStack(spacing: 3) {
                 ForEach(next, id: \.self) { hand in
@@ -148,6 +165,31 @@ struct PianoView: View {
         .frame(width: frame.width, height: frame.height)
         .offset(x: frame.minX, y: frame.minY)
     }
+
+    /// The last key tapped, if it is `note`: a red key with a cross if it
+    /// was wrong, and a ring with a tick if it was right.
+    @ViewBuilder
+    private func tapMark(on note: Int, width: CGFloat) -> some View {
+        if let tap, tap.pitch == note {
+            let isRight = tap.outcome.isRight
+            let color = isRight ? Self.rightColor : Self.wrongColor
+            ZStack(alignment: .top) {
+                Rectangle()
+                    .fill(color.opacity(isRight ? 0.18 : 0.55))
+                    .overlay(Rectangle().strokeBorder(color, lineWidth: max(2, width * 0.08)))
+                Image(systemName: isRight ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: (width * 0.6).clamped(to: 10...28), weight: .bold))
+                    .foregroundStyle(.white, color)
+                    .padding(.top, 6)
+            }
+            .allowsHitTesting(false)
+            .transition(.opacity)
+            .id(tap.number)
+        }
+    }
+
+    static let rightColor = Color(red: 0.2, green: 0.8, blue: 1)
+    static let wrongColor = Color(red: 1, green: 0.27, blue: 0.23)
 
     /// A mark at each end for the lit keys beyond it, in their sources'
     /// colors, so a zoomed piano still says that something is sounding.

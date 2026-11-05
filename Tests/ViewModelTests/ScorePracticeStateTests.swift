@@ -17,6 +17,11 @@ private final class FakeScorePlayer: PracticePlaying {
     }
 
     func stop() { isPlaying = false }
+
+    /// The keys tapped and held, in the order they were pressed.
+    var held: [Int] = []
+    func press(_ pitch: Int) { held.append(pitch) }
+    func release(_ pitch: Int) { held.removeAll { $0 == pitch } }
 }
 
 @Suite("ScorePracticeState")
@@ -504,6 +509,107 @@ struct ScorePracticeStateTests {
         state.show(.left)
         #expect(piano.span == PianoSpan.fitting(48...48))
     }
+
+    // MARK: – Tapping
+
+    /// The keys marked to tap next.
+    private func nextKeys(_ state: ScorePracticeState) -> [Int] {
+        state.lights(at: state.currentTime).filter { $0.value.contains { $0.kind == .next } }.keys.sorted()
+    }
+
+    @Test func aRunIsTappedNoteByNoteEachTapToldRightOrWrong() throws {
+        let state = try practising()
+        addRun(state, 0, 2)
+        state.startTapping()
+        #expect(state.isTapping)
+        #expect(nextKeys(state) == [72])
+
+        state.press(72)
+        #expect(state.lastTap?.outcome == .stepDone)
+        #expect(state.drill?.index == 1)
+        #expect(state.currentTime == 1)          // the playhead follows the place
+        state.press(77)
+        #expect(state.lastTap == PracticeTap(pitch: 77, outcome: .wrong, number: 2))
+        #expect(state.drill?.index == 1)
+        state.press(74)
+        state.press(76)
+        #expect(state.lastTap?.outcome == .passed(mistakes: 1))
+        #expect(state.drill?.index == 0)
+    }
+
+    @Test func aTappedKeySoundsUntilItIsLetGo() throws {
+        let state = try practising()
+        state.startTapping()
+        state.press(72)
+        state.press(60)                          // wrong notes sound too
+        #expect(player.held == [72, 60])
+        state.release(72)
+        #expect(player.held == [60])
+        state.stopTapping()
+        #expect(player.held.isEmpty)
+        #expect(state.drill == nil)
+        // Not tapping, a key pressed sounds nothing and is told nothing.
+        state.press(72)
+        #expect(player.held.isEmpty)
+        #expect(state.lastTap == nil)
+    }
+
+    @Test func theNextNoteIsShownOrHiddenAtAnyMomentWithoutLosingThePlace() throws {
+        let logger = RecordingLogger()
+        let state = ScorePracticeState(piano: piano, library: library, makePlayer: { [player] in player },
+                                       logger: logger)
+        state.importScore(from: try scoreFile())
+        state.startTapping()
+        state.press(72)
+        state.showsNextNote = false
+        #expect(nextKeys(state).isEmpty)
+        #expect(state.drill?.index == 1)
+        state.press(74)
+        #expect(state.lastTap?.outcome == .stepDone)
+        state.showsNextNote = true
+        #expect(nextKeys(state) == [76])
+        #expect(logger.events.contains { if case .practice_tap_hint_switched(isOn: false) = $0 { true } else { false } })
+        #expect(logger.events.contains { if case .practice_tapped(pitch: 74, isRight: true) = $0 { true } else { false } })
+    }
+
+    @Test func tappingBeginsAtThePlayheadInsideTheRunsAndMovesWithIt() throws {
+        let state = try practising()
+        state.seek(to: 3.5)
+        state.startTapping()
+        #expect(state.drill?.current?.pitches == [77])
+        state.seek(to: 6)
+        #expect(state.drill?.current?.pitches == [83])
+        state.restartTapping()
+        #expect(state.drill?.current?.pitches == [72])
+        #expect(state.currentTime == 0)
+    }
+
+    @Test func choosingOtherRunsWhileTappingTapsThoseFromTheirStart() throws {
+        let state = try practising()
+        let first = addRun(state, 0, 1)!
+        let second = addRun(state, 4, 5)!
+        state.goTo(first)
+        state.startTapping()
+        state.press(72)
+        state.goTo(second)
+        #expect(state.isTapping)
+        #expect(state.drill?.steps.map(\.pitches) == [[79], [81]])
+        #expect(state.drill?.index == 0)
+        #expect(state.lastTap == nil)
+        state.show(.left)
+        #expect(state.drill?.steps.map(\.pitches) == [[48]])
+    }
+
+    @Test func playingTheScoreEndsTapping() throws {
+        let state = try practising()
+        state.startTapping()
+        state.play()
+        #expect(!state.isTapping)
+        #expect(state.isPlaying)
+        state.startTapping()
+        #expect(state.isTapping)
+        #expect(!state.isPlaying)
+    }
 }
 
 @Suite("ScorePlayer")
@@ -560,6 +666,19 @@ struct ScorePlayerTests {
         #expect(near(sink.startTimes, [0.05, 1.05]))
         #expect(player.isPlaying)
         #expect(abs(player.currentTime - 0.45) < 1e-9)
+    }
+
+    @Test func aKeyPressedSoundsAtOnceUntilLetGoAndAgainWhenPressedAgain() {
+        let player = player
+        player.press(60)
+        #expect(sink.started == [60])
+        player.press(60)
+        #expect(sink.started == [60, 60])
+        #expect(sink.endTimes.count == 1)
+        player.release(60)
+        #expect(sink.sounding.isEmpty)
+        player.release(60)
+        #expect(sink.endTimes.count == 2)
     }
 
     @Test func stoppingLetsGoOfEveryNoteSentEvenOneNotYetHeard() {

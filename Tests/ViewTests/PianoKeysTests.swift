@@ -45,6 +45,20 @@ struct PianoKeysTests {
         #expect(PianoKeys.octaveName(of: 62) == nil)
     }
 
+    @Test func aFingerFindsTheBlackKeyOverTheWhiteOnesAndTheWhiteKeyBelow() {
+        let keys = PianoKeys(size: CGSize(width: 700, height: 90), span: octave)
+        // Between C4 and D4, near the top: C♯4; near the bottom: whichever
+        // white key it is on.
+        #expect(keys.note(at: CGPoint(x: 100, y: 10)) == 61)
+        #expect(keys.note(at: CGPoint(x: 95, y: 80)) == 60)
+        #expect(keys.note(at: CGPoint(x: 105, y: 80)) == 62)
+        // Between E4 and F4 there is no black key.
+        #expect(keys.note(at: CGPoint(x: 300, y: 10)) == 65)
+        #expect(keys.note(at: CGPoint(x: 699, y: 50)) == 71)
+        #expect(keys.note(at: CGPoint(x: 350, y: 95)) == nil)
+        #expect(keys.note(at: CGPoint(x: -1, y: 50)) == nil)
+    }
+
     @Test func theStripIsTallerInAWiderScreenWithinLimits() {
         #expect(PianoKeys.height(forWidth: 393) == 44)
         #expect(PianoKeys.height(forWidth: 1500) == 104)

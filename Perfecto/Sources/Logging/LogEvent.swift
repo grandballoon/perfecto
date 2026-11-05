@@ -119,6 +119,14 @@ enum LogEvent {
     case practice_playback_stopped
     /// A run given a name, or its name taken away.
     case practice_run_named(isNamed: Bool)
+    /// Tapping the runs watched on the keys was begun, or ended.
+    case practice_tapping_switched(isOn: Bool)
+    /// Whether the next notes to tap are marked on the keys was switched.
+    case practice_tap_hint_switched(isOn: Bool)
+    /// A key tapped while tapping a run, right or wrong.
+    case practice_tapped(pitch: Int, isRight: Bool)
+    /// A pass of tapping was finished: `steps` long, with `mistakes` wrong taps.
+    case practice_tap_pass_finished(steps: Int, mistakes: Int)
 
     // Computer keyboard
     /// `key` nil: the action was left with no key.
@@ -353,6 +361,20 @@ extension LogEvent: Encodable {
         case let .practice_run_named(isNamed):
             try c.encode("practice_run_named", forKey: Key("type"))
             try c.encode(isNamed, forKey: Key("isNamed"))
+        case let .practice_tapping_switched(isOn):
+            try c.encode("practice_tapping_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .practice_tap_hint_switched(isOn):
+            try c.encode("practice_tap_hint_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .practice_tapped(pitch, isRight):
+            try c.encode("practice_tapped", forKey: Key("type"))
+            try c.encode(pitch, forKey: Key("pitch"))
+            try c.encode(isRight, forKey: Key("isRight"))
+        case let .practice_tap_pass_finished(steps, mistakes):
+            try c.encode("practice_tap_pass_finished", forKey: Key("type"))
+            try c.encode(steps, forKey: Key("steps"))
+            try c.encode(mistakes, forKey: Key("mistakes"))
         case let .keyboard_key_chosen(action, key):
             try c.encode("keyboard_key_chosen", forKey: Key("type"))
             try c.encode(action, forKey: Key("action"))
