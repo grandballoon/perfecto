@@ -352,18 +352,15 @@ struct PracticeRunEditor: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
-            Button { practice.extendDraftStart() } label: {
-                Text("‹ +1").practiceChit()
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("One more note before")
-            .help("Take in one more note before the run")
-            Button { practice.extendDraftEnd() } label: {
-                Text("+1 ›").practiceChit()
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("One more note after")
-            .help("Take in one more note after the run")
+            let draft = practice.draft
+            let count = practice.score.map { $0.steps(practice.hands).count } ?? 0
+            let canShrink = draft.map { $0.first < $0.last } ?? false
+            edge("Start",
+                 fewer: (practice.shrinkDraftStart, canShrink, "One note fewer at the start"),
+                 more: (practice.extendDraftStart, (draft?.first ?? 0) > 0, "One more note before the run"))
+            edge("End",
+                 fewer: (practice.shrinkDraftEnd, canShrink, "One note fewer at the end"),
+                 more: (practice.extendDraftEnd, (draft?.last ?? count) < count - 1, "One more note after the run"))
             Button("Cancel") { practice.cancelDraft() }
                 .font(.system(size: 13))
                 .foregroundStyle(Color(white: 0.7))
@@ -378,6 +375,27 @@ struct PracticeRunEditor: View {
             .help(practice.editing == nil ? "Keep this run and watch it" : "Keep the run as it is now")
         }
         .font(.system(size: 13, weight: .semibold, design: .monospaced))
+    }
+
+    /// One end of the run: a note fewer there, or a note more.
+    private func edge(_ name: String,
+                      fewer: (action: () -> Void, isAble: Bool, help: String),
+                      more: (action: () -> Void, isAble: Bool, help: String)) -> some View {
+        HStack(spacing: 4) {
+            Text(name)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color(white: 0.55))
+            ForEach([(fewer, "minus"), (more, "plus")], id: \.1) { button, symbol in
+                Button(action: button.action) {
+                    Image(systemName: symbol).practiceChit()
+                }
+                .buttonStyle(.plain)
+                .disabled(!button.isAble)
+                .opacity(button.isAble ? 1 : 0.4)
+                .accessibilityLabel(button.help)
+                .help(button.help)
+            }
+        }
     }
 
     private var title: String {

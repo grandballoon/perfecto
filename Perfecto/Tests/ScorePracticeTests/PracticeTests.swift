@@ -94,6 +94,15 @@ struct PracticeTests {
         #expect(Passage(.right, from: 0, to: 7).extendingEnd(in: scale) == Passage(.right, from: 0, to: 7))
     }
 
+    @Test func aRunGivesUpOneNoteAtATimeAtEitherEndButNeverItsLast() {
+        let run = Passage(.right, from: 2, to: 4)
+        #expect(run.shrinkingStart() == Passage(.right, from: 3, to: 4))
+        #expect(run.shrinkingEnd() == Passage(.right, from: 2, to: 3))
+        let one = Passage(.right, from: 5, to: 5)
+        #expect(one.shrinkingStart() == one)
+        #expect(one.shrinkingEnd() == one)
+    }
+
     @Test func aNewRunIsTheNoteAtThePlayhead() {
         #expect(Passage.step(.right, at: 2.5, in: scale) == Passage(.right, from: 2, to: 2))
         #expect(Passage.step(.left, at: 3.9, in: scale) == Passage(.left, from: 0, to: 0))

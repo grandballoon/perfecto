@@ -59,7 +59,7 @@ The screen opens the latest piece the first time it appears, and after that leav
 
 5. **A run is made and changed only in editing, and kept only when saved.**
    A new run begins as the note of the hands shown at the playhead (`Passage.step`); an existing one is put into editing from its menu, or by the edit button while it is the one run chosen.
-   In editing, the run is dragged along the score's bar, a step at a time and keeping its length (`Passage.moved`), and two buttons take in one more note before it or after it (`extendingStart`, `extendingEnd`).
+   In editing, the run is dragged along the score's bar, a step at a time and keeping its length (`Passage.moved`), and at each end, Start and End, a button takes in one more note and another gives one up (`extendingStart`, `extendingEnd`, `shrinkingStart`, `shrinkingEnd`), never below one note.
    Nothing is changed until Save, which adds the run or puts the edited one in place of its old self (`Practice.replacing`) as one change that can be undone; Cancel leaves everything as it was.
    On a touch screen this keeps a finger meant to watch or seek from moving a run: while one run is edited, the other runs, the hands chips and undo wait.
    The keys show the run's first note as it moves, the piano follows it, and Play plays it.
@@ -122,4 +122,3 @@ The screen opens the latest piece the first time it appears, and after that leav
 - Playing slower than written would help with fast runs, and is now only a matter of stretching each pass's times.
 - A score whose hands cross staves (a right-hand note written in the bass staff) is read by staff, so such a note counts for the left hand.
 - Nothing is drawn of the notation itself.
-- A run in editing only grows; one too long is made again from Cancel, or deleted and made again.

@@ -234,6 +234,20 @@ struct ScorePracticeStateTests {
         #expect(state.span(of: state.shownRuns[0]) == 4...7)
     }
 
+    @Test func aRunBeingEditedGivesUpNotesAtEitherEnd() throws {
+        let state = try practising()
+        let id = try #require(addRun(state, 1, 6))
+        state.edit(id)
+        state.shrinkDraftStart()
+        state.shrinkDraftEnd()
+        state.shrinkDraftEnd()
+        #expect(state.draft == Passage(.right, from: 2, to: 4))
+        // The playhead and the keys follow its start.
+        #expect(state.currentTime == 2)
+        state.saveDraft()
+        #expect(state.practice?.run(id)?.passage == Passage(.right, from: 2, to: 4))
+    }
+
     @Test func aNewRunCalledOffIsNotMade() throws {
         let state = try practising()
         state.startNewRun()

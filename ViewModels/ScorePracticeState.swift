@@ -352,6 +352,18 @@ final class ScorePracticeState {
         show(draft: draft.extendingEnd(in: score))
     }
 
+    /// One note fewer at the start of the run being edited, down to one.
+    func shrinkDraftStart() {
+        guard let draft else { return }
+        show(draft: draft.shrinkingStart())
+    }
+
+    /// One note fewer at the end of the run being edited, down to one.
+    func shrinkDraftEnd() {
+        guard let draft else { return }
+        show(draft: draft.shrinkingEnd())
+    }
+
     /// The run being edited kept: a new run added, or the run edited
     /// changed, as one change that can be undone; it is chosen to watch.
     func saveDraft() {

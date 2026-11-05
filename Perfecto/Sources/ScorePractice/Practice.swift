@@ -142,6 +142,16 @@ struct Passage: Hashable, Codable, Sendable {
         Passage(hands, from: first, to: min(last + 1, score.steps(hands).count - 1))
     }
 
+    /// One step fewer at its start; never fewer than one.
+    func shrinkingStart() -> Passage {
+        Passage(hands, from: min(first + 1, last), to: last)
+    }
+
+    /// One step fewer at its end; never fewer than one.
+    func shrinkingEnd() -> Passage {
+        Passage(hands, from: first, to: max(last - 1, first))
+    }
+
     /// Its steps that the score has.
     func steps(in score: Score) -> [Step] {
         let steps = score.steps(hands)
