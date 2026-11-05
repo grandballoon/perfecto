@@ -127,6 +127,7 @@
 		E7F500000000000000000004 /* MusicXML.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000003 /* MusicXML.swift */; };
 		E7F500000000000000000006 /* Mxl.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000005 /* Mxl.swift */; };
 		E7F500000000000000000008 /* Alignment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000007 /* Alignment.swift */; };
+		E7F5000000000000000000D2 /* RecordingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F5000000000000000000D1 /* RecordingWindow.swift */; };
 		E7F50000000000000000000A /* Practice.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000009 /* Practice.swift */; };
 		E7F50000000000000000000C /* Playback.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F50000000000000000000B /* Playback.swift */; };
 		E7F5000000000000000000C2 /* Chroma.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F5000000000000000000C1 /* Chroma.swift */; };
@@ -136,8 +137,8 @@
 		E7F500000000000000000010 /* ScoreLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F50000000000000000000F /* ScoreLibrary.swift */; };
 		E7F500000000000000000012 /* ScorePracticeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000011 /* ScorePracticeState.swift */; };
 		E7F500000000000000000014 /* ScorePracticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000013 /* ScorePracticeView.swift */; };
-		E7F5000000000000000000B2 /* PracticeScrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F5000000000000000000B1 /* PracticeScrubber.swift */; };
-		E7F500000000000000000016 /* PracticeRecordingStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000015 /* PracticeRecordingStrip.swift */; };
+		E7F5000000000000000000B2 /* PracticeOverview.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F5000000000000000000B1 /* PracticeOverview.swift */; };
+		E7F500000000000000000016 /* PracticeTimelines.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000015 /* PracticeTimelines.swift */; };
 		E7F500000000000000000018 /* ScorePracticeStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000017 /* ScorePracticeStateTests.swift */; };
 		E80000000000000000000B02 /* ChordKeyLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000000000000000000F02 /* ChordKeyLayoutTests.swift */; };
 		E81000000000000000000B01 /* LayerDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81000000000000000000F01 /* LayerDrawing.swift */; };
@@ -334,6 +335,7 @@
 		E7F500000000000000000003 /* MusicXML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicXML.swift; path = ../Perfecto/Sources/ScorePractice/MusicXML.swift; sourceTree = "<group>"; };
 		E7F500000000000000000005 /* Mxl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Mxl.swift; path = ../Perfecto/Sources/ScorePractice/Mxl.swift; sourceTree = "<group>"; };
 		E7F500000000000000000007 /* Alignment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Alignment.swift; path = ../Perfecto/Sources/ScorePractice/Alignment.swift; sourceTree = "<group>"; };
+		E7F5000000000000000000D1 /* RecordingWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RecordingWindow.swift; path = ../Perfecto/Sources/ScorePractice/RecordingWindow.swift; sourceTree = "<group>"; };
 		E7F500000000000000000009 /* Practice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Practice.swift; path = ../Perfecto/Sources/ScorePractice/Practice.swift; sourceTree = "<group>"; };
 		E7F50000000000000000000B /* Playback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Playback.swift; path = ../Perfecto/Sources/ScorePractice/Playback.swift; sourceTree = "<group>"; };
 		E7F5000000000000000000C1 /* Chroma.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Chroma.swift; path = ../Perfecto/Sources/ScorePractice/Chroma.swift; sourceTree = "<group>"; };
@@ -343,8 +345,8 @@
 		E7F50000000000000000000F /* ScoreLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreLibrary.swift; sourceTree = "<group>"; };
 		E7F500000000000000000011 /* ScorePracticeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScorePracticeState.swift; sourceTree = "<group>"; };
 		E7F500000000000000000013 /* ScorePracticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScorePracticeView.swift; sourceTree = "<group>"; };
-		E7F5000000000000000000B1 /* PracticeScrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeScrubber.swift; sourceTree = "<group>"; };
-		E7F500000000000000000015 /* PracticeRecordingStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeRecordingStrip.swift; sourceTree = "<group>"; };
+		E7F5000000000000000000B1 /* PracticeOverview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeOverview.swift; sourceTree = "<group>"; };
+		E7F500000000000000000015 /* PracticeTimelines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeTimelines.swift; sourceTree = "<group>"; };
 		E7F500000000000000000017 /* ScorePracticeStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScorePracticeStateTests.swift; sourceTree = "<group>"; };
 		E80000000000000000000F02 /* ChordKeyLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordKeyLayoutTests.swift; sourceTree = "<group>"; };
 		E81000000000000000000F01 /* LayerDrawing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerDrawing.swift; sourceTree = "<group>"; };
@@ -453,6 +455,7 @@
 				E7F5000000000000000000C1 /* Chroma.swift */,
 				E7F500000000000000000009 /* Practice.swift */,
 				E7F500000000000000000007 /* Alignment.swift */,
+				E7F5000000000000000000D1 /* RecordingWindow.swift */,
 				E7F500000000000000000005 /* Mxl.swift */,
 				E7F500000000000000000003 /* MusicXML.swift */,
 				E7F500000000000000000001 /* Score.swift */,
@@ -616,8 +619,8 @@
 				6B997445A9C3FF55AD7DB863 /* Sheets */,
 				E7E000000000000000000011 /* SidePanel */,
 				E7E100000000000000000005 /* PianoView.swift */,
-				E7F500000000000000000015 /* PracticeRecordingStrip.swift */,
-				E7F5000000000000000000B1 /* PracticeScrubber.swift */,
+				E7F500000000000000000015 /* PracticeTimelines.swift */,
+				E7F5000000000000000000B1 /* PracticeOverview.swift */,
 				E7F500000000000000000013 /* ScorePracticeView.swift */,
 				E7E10000000000000000000B /* PianoTouches.swift */,
 				E7D100000000000000000021 /* HotkeyTip.swift */,
@@ -1050,8 +1053,8 @@
 				EE2200000000000000001100 /* PermissionGate.swift in Sources */,
 				EE2200000000000000001102 /* MicrophonePermissionGate.swift in Sources */,
 				E7E100000000000000000006 /* PianoView.swift in Sources */,
-				E7F500000000000000000016 /* PracticeRecordingStrip.swift in Sources */,
-				E7F5000000000000000000B2 /* PracticeScrubber.swift in Sources */,
+				E7F500000000000000000016 /* PracticeTimelines.swift in Sources */,
+				E7F5000000000000000000B2 /* PracticeOverview.swift in Sources */,
 				E7F500000000000000000014 /* ScorePracticeView.swift in Sources */,
 				E7E10000000000000000000C /* PianoTouches.swift in Sources */,
 				E7D100000000000000000022 /* HotkeyTip.swift in Sources */,
@@ -1119,6 +1122,7 @@
 				E7F5000000000000000000C2 /* Chroma.swift in Sources */,
 				E7F50000000000000000000A /* Practice.swift in Sources */,
 				E7F500000000000000000008 /* Alignment.swift in Sources */,
+				E7F5000000000000000000D2 /* RecordingWindow.swift in Sources */,
 				E7F500000000000000000006 /* Mxl.swift in Sources */,
 				E7F500000000000000000004 /* MusicXML.swift in Sources */,
 				E7F500000000000000000002 /* Score.swift in Sources */,

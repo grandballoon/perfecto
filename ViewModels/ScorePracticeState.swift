@@ -13,21 +13,28 @@ import Observation
 @MainActor
 final class ScorePracticeState {
 
-    /// What the recording is playing: the runs being watched, or all of the
-    /// hand from a moment of it on, to listen for where a run begins.
+    /// What the recording is playing: the runs being watched, all of the
+    /// hand from a moment of it on, to listen for where a run begins, or the
+    /// moments either side of the step chosen, to hear where it is.
     enum Listening: Equatable {
         case runs
         case free
+        case step
     }
 
     private(set) var pieces: [Piece] = []
-    private(set) var piece: Piece?
-    private(set) var score: Score?
+    private(set) var piece: Piece? {
+        didSet { updateTimeline() }
+    }
+    private(set) var score: Score? {
+        didSet { updateTimeline() }
+    }
     /// The recording's length in seconds, and its loudness, `peaksPerSecond`
-    /// peaks to a second (empty until it has been read).
+    /// peaks to a second (empty until it has been read): enough to see a
+    /// note's attack when the timelines are brought close.
     private(set) var recordingLength: Double?
     private(set) var peaks: [Float] = []
-    static let peaksPerSecond = 50
+    static let peaksPerSecond = 200
 
     /// The hand whose runs are shown.
     private(set) var hand = Hand.right
@@ -38,21 +45,26 @@ final class ScorePracticeState {
     /// Whether the runs watched play over and over.
     var repeats = true
     /// Whether the steps of the run in focus are shown, to cut it by.
-    var isCutting = false {
-        didSet { if !isCutting { previewStep = nil } }
-    }
-    /// The step of the run in focus being looked at, lit on the piano.
-    private(set) var previewStep: Int?
+    var isCutting = false
+    /// The step of the hand shown that is chosen, to set where it is heard:
+    /// tapped on the notes' timeline or among the steps while cutting, or
+    /// gone to from the one before or after. It is lit on the piano while
+    /// the recording stands at it.
+    private(set) var selectedStep: Int?
     /// Where the recording is, while it is not playing.
     private(set) var playhead = 0.0
     private(set) var listening: Listening?
-    /// Whether the recording is being dragged (`scrub`).
-    private(set) var isScrubbing = false
-    /// The stretch of the recording the strip shows when it is brought to
-    /// a nudge point, in place of the run in focus; nil for the run.
-    var zoom: ClosedRange<Double>?
-    /// What was playing when the drag began, played on when it ends.
-    private var resumesAfterScrub: Listening?
+    /// The stretch of the recording the timelines show; nil with no
+    /// recording.
+    private(set) var window: RecordingWindow?
+    /// Whether the timelines turn over with the playhead while the
+    /// recording plays: until they are dragged or pinched.
+    private(set) var follows = true
+    /// Every note of both hands where the recording has it, for the notes'
+    /// timeline.
+    private(set) var timelineNotes: [TimedNote] = []
+    /// The lowest and highest notes of the score.
+    private(set) var pitchRange: ClosedRange<Int>?
     /// What could not be done last, said once.
     var failure: String?
 
@@ -74,6 +86,10 @@ final class ScorePracticeState {
     /// Whether the recording is being listened to or matched.
     private(set) var isMatching = false
     private let logger: (any Logger)?
+    /// Whether a piece has been opened or closed by the learner: until
+    /// then, the screen appearing opens the latest piece, and after, it
+    /// leaves the piano as it was left, with no piece if one was closed.
+    private var hasChosen = false
 
     /// `library` nil: the library is found when the screen first appears.
     /// `analyze` hears a recording, for matching it to its score.
@@ -107,7 +123,7 @@ final class ScorePracticeState {
             }
         }
         await readPieces()
-        if piece == nil, let latest = pieces.first { await open(latest) }
+        if piece == nil, !hasChosen, let latest = pieces.first { await open(latest) }
     }
 
     /// The pieces read again, off the main thread: reading one that came
@@ -178,6 +194,15 @@ final class ScorePracticeState {
         }
     }
 
+    /// The piece open taken off the piano, leaving the keys alone; it is
+    /// kept among the pieces, to be opened again.
+    func closePiece() {
+        guard piece != nil else { return }
+        hasChosen = true
+        close()
+        logger?.log(.practice_piece_closed)
+    }
+
     func delete(_ piece: Piece) {
         if piece.id == self.piece?.id { close() }
         currentLibrary.delete(piece)
@@ -199,21 +224,22 @@ final class ScorePracticeState {
         recordingLength = nil
         peaks = []
         features = nil
-        zoom = nil
+        window = nil
         focus = nil
         selection = []
+        selectedStep = nil
         litNotes = []
     }
 
     private func show(_ piece: Piece, _ score: Score) {
         stop()
+        hasChosen = true
         self.piece = piece
         self.score = score
         hand = piece.practice.root(.right) == nil ? .left : .right
         focus = piece.practice.root(hand)?.id
         selection = []
-        previewStep = nil
-        zoom = nil
+        selectedStep = nil
         playhead = 0
         loadRecording(at: nil)
         refresh()
@@ -236,6 +262,7 @@ final class ScorePracticeState {
         recordingLength = nil
         peaks = []
         features = nil
+        window = nil
         matching?.cancel()
         isMatching = false
         guard let piece, let url else { return }
@@ -248,6 +275,7 @@ final class ScorePracticeState {
             fail("The recording could not be played.", error)
             return
         }
+        showFocus()
         let id = piece.id
         let perSecond = Self.peaksPerSecond
         Task.detached(priority: .userInitiated) {
@@ -281,12 +309,22 @@ final class ScorePracticeState {
     /// The recording matched again around the pins as they are now, after
     /// a pin is set or taken away. Nothing if it has not been heard yet:
     /// it is matched as soon as it has.
-    func matchAgain() {
+    /// `delay` later, so a note nudged a step at a time is matched around
+    /// once it is left alone, not at every step.
+    func matchAgain(after delay: Duration = .zero) {
         guard features != nil else { return }
         matching?.cancel()
         isMatching = true
-        matching = Task { [weak self] in await self?.runMatch() }
+        matching = Task { [weak self] in
+            if delay > .zero { try? await Task.sleep(for: delay) }
+            guard !Task.isCancelled else { return }
+            await self?.runMatch()
+        }
     }
+
+    /// How long a nudged note is left alone before the rest is matched
+    /// around it.
+    static let rematchDelay = Duration.milliseconds(800)
 
     /// The pins cleared and the recording matched again by ear alone.
     func clearPinsAndMatch() {
@@ -336,9 +374,9 @@ final class ScorePracticeState {
         self.hand = hand
         focus = root.id
         selection = []
-        previewStep = nil
-        zoom = nil
+        selectedStep = nil
         refresh()
+        showFocus()
         fitPiano()
     }
 
@@ -348,9 +386,8 @@ final class ScorePracticeState {
         stop()
         focus = id
         selection = selection.filter { id != $0 && isInFocus($0) }
-        previewStep = nil
-        zoom = nil
         refresh()
+        showFocus()
         fitPiano()
     }
 
@@ -358,7 +395,6 @@ final class ScorePracticeState {
     func toggle(_ id: RunID) {
         if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
         if listening == .runs { stop() }
-        previewStep = nil
         refresh()
         fitPiano()
     }
@@ -472,63 +508,9 @@ final class ScorePracticeState {
         logger?.log(.practice_run_cut(step: step, isCut: !isCut))
     }
 
-    /// The step `step` of the run in focus lit on the piano, and the
-    /// recording at its moment.
-    func preview(_ step: Int) {
-        guard let score, let practice else { return }
-        stop()
-        previewStep = step
-        let onset = score.boundary(hand, step)
-        playhead = max(0, Alignment.recordingTime(onset, practice.alignment))
-    }
-
-    // MARK: – Matching the recording
-
-    /// The run whose ends "start" and "end" set: the one run chosen, or the
-    /// run in focus.
-    var matchedRun: RunID? {
-        selection.count == 1 ? selection.first : focus
-    }
-
-    /// The matched run heard from the moment the recording is at.
-    func markStart() {
-        guard let id = matchedRun, let practice, let score else { return }
-        let at = currentTime
-        commit(kept(practice, around: id).settingStart(of: id, to: at, in: score))
-        logger?.log(.practice_run_matched(edge: "start", at: at))
-    }
-
-    /// The matched run heard until the moment the recording is at.
-    func markEnd() {
-        guard let id = matchedRun, let practice, let score else { return }
-        let at = currentTime
-        commit(kept(practice, around: id).settingEnd(of: id, to: at, in: score))
-        logger?.log(.practice_run_matched(edge: "end", at: at))
-    }
-
     // MARK: – Nudging
 
-    /// A step's mark on the recording strip: the moment of the score it is
-    /// struck at, where the recording has it, and whether it is pinned
-    /// there by hand.
-    struct StepMark: Equatable {
-        let score: Double
-        let recording: Double
-        let isPinned: Bool
-    }
-
-    /// Every step of the hand shown, where it is heard, to drag a step
-    /// that is heard in the wrong place to where it is.
-    var stepMarks: [StepMark] {
-        guard let practice, let score else { return [] }
-        let alignment = practice.alignment
-        return score.steps(hand).map { step in
-            StepMark(score: step.onset, recording: Alignment.recordingTime(step.onset, alignment),
-                     isPinned: practice.anchors.contains { abs($0.score - step.onset) < Score.sameTime })
-        }
-    }
-
-    /// How far either side of a nudge point the strip shows, in seconds.
+    /// How far either side of a nudge point the timelines show, in seconds.
     static let zoomReach = 3.0
 
     /// The nudge points: those tagged, and where the match doubts itself.
@@ -550,8 +532,8 @@ final class ScorePracticeState {
     }
 
     /// The recording brought to the next nudge point, or the one before,
-    /// and the strip to the seconds around it; listened to on from there if
-    /// it was being listened to.
+    /// and the timelines to the seconds around it; listened to on from there
+    /// if it was being listened to.
     func goToNudge(forward: Bool) {
         let points = nudgePoints
         let now = currentTime
@@ -559,45 +541,205 @@ final class ScorePracticeState {
         guard let target = forward ? points.first(where: { $0 > now + reach })
                                    : points.last(where: { $0 < now - reach }) else { return }
         seek(to: target)
-        let length = recordingLength ?? target
-        zoom = max(0, target - Self.zoomReach)...min(length, target + Self.zoomReach)
-    }
-
-    /// The moment `scoreTime` of the score heard at `recording` seconds: an
-    /// edge between runs dragged along the recording. Saved only when
-    /// `isDone`, so a drag is one change on disk.
-    func move(edgeAt scoreTime: Double, to recording: Double, isDone: Bool) {
-        guard let practice, let score, let focus else { return }
-        let edges = shownEdges
-        let isInside = edges.dropFirst().dropLast().contains { abs($0 - scoreTime) < Score.sameTime }
-        let base = isInside ? practice.keeping(focus, in: score) : practice
-        commit(base.anchoring(scoreTime, to: recording), saving: isDone)
-        if isDone { logger?.log(.practice_run_matched(edge: "edge", at: recording)) }
-    }
-
-    /// `practice` with the run in focus kept where it is heard, if the run
-    /// with `id` is inside it, so matching a run of it leaves the runs
-    /// around it where they were.
-    private func kept(_ practice: Practice, around id: RunID) -> Practice {
-        guard let focus, id != focus, let score else { return practice }
-        return practice.keeping(focus, in: score)
-    }
-
-    /// The edges of the runs shown, at the moments of the score they are:
-    /// where the run in focus begins, where each of its runs after the
-    /// first begins, and where it ends.
-    var shownEdges: [Double] {
-        guard let score, let run = focusPath.last else { return [] }
-        let starts = [run.first] + (run.isLeaf ? [] : run.children.dropFirst().map(\.first))
-        return starts.map { score.boundary(hand, $0) } + [score.boundary(hand, run.last + 1)]
+        if let recordingLength {
+            window = RecordingWindow(around: target, reach: Self.zoomReach, in: recordingLength)
+        }
     }
 
     func recordingTime(ofScore t: Double) -> Double {
         Alignment.recordingTime(t, practice?.alignment ?? [])
     }
 
-    /// `next` made the practice, and saved unless `saving` is false (an
-    /// edge still being dragged). Pins set or taken away are matched
+    // MARK: – The timelines
+
+    /// The stretch the timelines show while `time` is heard: the window,
+    /// turned to the page that holds `time` while the recording plays and
+    /// the timelines follow it.
+    func shownWindow(at time: Double) -> RecordingWindow? {
+        guard let window, let recordingLength else { return nil }
+        return listening != nil && follows ? window.paging(to: time, in: recordingLength) : window
+    }
+
+    /// The timelines shown at `window`: dragged along, pinched, or moved on
+    /// the overview. They no longer follow the playhead until it is next
+    /// played or moved.
+    func showWindow(_ window: RecordingWindow) {
+        guard let recordingLength else { return }
+        self.window = window.clamped(to: recordingLength)
+        follows = false
+    }
+
+    /// The timelines brought `factor` times closer (farther for less than
+    /// 1) about the playhead, or the middle if it is out of view: the zoom
+    /// buttons.
+    func zoom(by factor: Double) {
+        let now = currentTime
+        guard let window = shownWindow(at: now), let recordingLength else { return }
+        let about = window.contains(now) ? now : window.time(at: 0.5)
+        showWindow(window.zoomed(by: factor, around: about, in: recordingLength))
+    }
+
+    /// The timelines brought to the run in focus.
+    private func showFocus() {
+        guard let recordingLength else { window = nil; return }
+        let span = focus.flatMap(span(of:)) ?? 0...recordingLength
+        window = RecordingWindow(showing: span, in: recordingLength)
+        follows = true
+    }
+
+    /// The timelines brought to `time` if it is out of view, and following
+    /// the playhead again.
+    private func reveal(_ time: Double) {
+        follows = true
+        guard let window, let recordingLength else { return }
+        self.window = window.revealing(time, in: recordingLength)
+    }
+
+    /// The window turned to the page the playhead stopped on, so the
+    /// timelines stay where they were seen when it stops.
+    private func keepPage(at time: Double) {
+        guard follows, let window, let recordingLength else { return }
+        self.window = window.paging(to: time, in: recordingLength)
+    }
+
+    /// Every note of both hands where it is heard, worked out again
+    /// whenever the score or its match changes.
+    private func updateTimeline() {
+        guard let piece, let score else {
+            timelineNotes = []
+            pitchRange = nil
+            return
+        }
+        let practice = piece.practice
+        let roots = Hand.allCases.compactMap { practice.root($0)?.id }
+        timelineNotes = Playback.notes(of: roots, practice, score)
+        let pitches = score.notes.map(\.pitch)
+        pitchRange = pitches.min().flatMap { low in pitches.max().map { low...$0 } }
+    }
+
+    // MARK: – Setting a note where it is heard
+
+    /// How far a nudge moves the chosen step, in seconds: a fine one, and a
+    /// coarse one.
+    static let fineNudge = 0.01
+    static let coarseNudge = 0.1
+
+    /// The moment of the score the chosen step is struck at.
+    var selectedMoment: Double? {
+        selectedStep.flatMap { score?.steps(hand)[safe: $0]?.onset }
+    }
+
+    /// Where the recording has the chosen step.
+    var selectedTime: Double? {
+        selectedMoment.map(recordingTime(ofScore:))
+    }
+
+    /// Whether the chosen step is pinned where it is heard by hand.
+    var isSelectedPinned: Bool {
+        selectedMoment.map { practice?.isPinned($0) ?? false } ?? false
+    }
+
+    /// Where each pin is heard, in recording seconds.
+    var pinTimes: [Double] {
+        practice?.anchors.map(\.recording) ?? []
+    }
+
+    /// Step `step` of the hand shown chosen: the recording stopped and
+    /// standing at it, its keys lit, and the timelines brought to it.
+    func select(_ step: Int) {
+        guard let score, score.steps(hand).indices.contains(step) else { return }
+        stop()
+        selectedStep = step
+        standAtSelected()
+    }
+
+    /// The step of the hand shown heard nearest `time` chosen, if one is
+    /// heard within `reach` seconds of it; otherwise the recording stands at
+    /// `time`. A tap on the notes' timeline.
+    func tapNotes(at time: Double, within reach: Double) {
+        guard let practice, let score,
+              let step = practice.step(hand, nearest: time, within: reach, in: score) else {
+            seek(to: time)
+            return
+        }
+        select(step)
+    }
+
+    /// The next step of the hand shown chosen (`forward`), or the one
+    /// before: from the step chosen, or with none, from where the recording
+    /// stands.
+    func selectNext(forward: Bool) {
+        guard let practice, let score else { return }
+        let count = score.steps(hand).count
+        let next = selectedStep.map { forward ? $0 + 1 : $0 - 1 }
+            ?? practice.step(hand, from: currentTime, forward: forward, in: score)
+        guard let next, next >= 0, next < count else { return }
+        select(next)
+    }
+
+    /// The chosen step heard `seconds` later (earlier for less than 0) and
+    /// pinned there; the rest is matched around it once it is left alone.
+    func nudge(by seconds: Double) {
+        guard let moment = selectedMoment, let practice, let score else { return }
+        stop()
+        commit(practice.nudging(moment, by: seconds, in: score), rematching: false)
+        standAtSelected()
+        matchAgain(after: Self.rematchDelay)
+        logger?.log(.practice_note_nudged(by: seconds, at: playhead))
+    }
+
+    /// The chosen step dragged to be heard at `time` seconds, and pinned
+    /// there; saved and matched around only when the drag ends (`isDone`).
+    func moveSelected(to time: Double, isDone: Bool) {
+        guard let moment = selectedMoment, let practice, let score else { return }
+        stop()
+        let before = selectedTime ?? time
+        commit(practice.moving(moment, to: time, in: score), saving: isDone, rematching: false)
+        playhead = selectedTime ?? playhead
+        guard isDone else { return }
+        matchAgain(after: Self.rematchDelay)
+        logger?.log(.practice_note_nudged(by: playhead - before, at: playhead))
+    }
+
+    /// The chosen step's pin taken away, leaving it to the match.
+    func unpinSelected() {
+        guard let moment = selectedMoment, let practice, practice.isPinned(moment) else { return }
+        stop()
+        commit(practice.unpinning(moment))
+        standAtSelected()
+        logger?.log(.practice_note_unpinned(at: playhead))
+    }
+
+    /// How much of the recording is heard before and after the chosen
+    /// step, in seconds.
+    static let heardBefore = 1.5
+    static let heardAfter = 1.0
+
+    /// The seconds either side of the chosen step played once, with all of
+    /// the hand lit, to hear whether it is where it is heard; the recording
+    /// stands at it again after.
+    func hearSelected() {
+        guard let at = selectedTime, let practice, let score, let player, let recordingLength,
+              let root = practice.root(hand) else { return }
+        stop()
+        let from = max(0, at - Self.heardBefore)
+        litNotes = Playback.notes(of: [root.id], practice, score)
+        player.play([Segment(start: from, end: min(recordingLength, at + Self.heardAfter))], from: from, repeats: false)
+        listening = .step
+        follows = true
+        logger?.log(.practice_playback_started(segments: 1, repeats: false))
+    }
+
+    /// The recording standing at the chosen step, and the timelines brought
+    /// to it.
+    private func standAtSelected() {
+        guard let at = selectedTime else { return }
+        playhead = at.clamped(to: 0...(recordingLength ?? max(at, 0)))
+        reveal(playhead)
+    }
+
+    /// `next` made the practice, and saved unless `saving` is false (a
+    /// note still being dragged). Pins set or taken away are matched
     /// around (`matchAgain`) once saved.
     private func commit(_ next: Practice, saving: Bool = true, rematching: Bool = true) {
         guard var piece, next != piece.practice else { return }
@@ -633,10 +775,10 @@ final class ScorePracticeState {
         let segments = Playback.segments(watched, practice, score)
         guard !segments.isEmpty else { return }
         let from = currentTime
-        previewStep = nil
         litNotes = Playback.notes(of: watched, practice, score)
         player.play(segments, from: from, repeats: repeats)
         listening = .runs
+        follows = true
         logger?.log(.practice_playback_started(segments: segments.count, repeats: repeats))
     }
 
@@ -647,10 +789,10 @@ final class ScorePracticeState {
               let root = practice.root(hand) else { return }
         let now = currentTime
         let from = now < recordingLength - Playback.nearEnd ? now : 0
-        previewStep = nil
         litNotes = Playback.notes(of: [root.id], practice, score)
         player.play([Segment(start: from, end: recordingLength)], from: from, repeats: false)
         listening = .free
+        follows = true
         logger?.log(.practice_playback_started(segments: 1, repeats: false))
     }
 
@@ -663,17 +805,21 @@ final class ScorePracticeState {
     func stop() {
         guard listening != nil else { return }
         playhead = currentTime
+        keepPage(at: playhead)
         player?.stop()
         listening = nil
         refresh()
         logger?.log(.practice_playback_stopped)
     }
 
-    /// The recording brought to `time` seconds, and played on from there
-    /// as it was being played (the runs, or listened to), if it was.
+    /// The recording brought to `time` seconds, the timelines to it if it
+    /// is out of view, and played on from there as it was being played (the
+    /// runs, or listened to), if it was: a tap on the recording's timeline,
+    /// or a skip.
     func seek(to time: Double) {
         let was = listening
         stand(at: time)
+        reveal(playhead)
         resume(was)
     }
 
@@ -685,26 +831,10 @@ final class ScorePracticeState {
     /// How far the skip buttons go.
     static let skipSeconds = 5.0
 
-    /// The recording dragged to `time` seconds: it stops while it is
-    /// dragged, its keys lit as they are at each moment passed, and when
-    /// the drag ends (`isDone`) it plays on from there as it was being
-    /// played, if it was.
-    func scrub(to time: Double, isDone: Bool) {
-        if !isScrubbing {
-            isScrubbing = true
-            resumesAfterScrub = listening
-        }
-        stand(at: time)
-        guard isDone else { return }
-        isScrubbing = false
-        resume(resumesAfterScrub)
-        resumesAfterScrub = nil
-    }
-
     /// The recording stopped and standing at `time` seconds.
     private func stand(at time: Double) {
         stop()
-        previewStep = nil
+        selectedStep = nil
         playhead = time.clamped(to: 0...(recordingLength ?? 0))
     }
 
@@ -712,26 +842,35 @@ final class ScorePracticeState {
         switch was {
         case .runs: play()
         case .free: listen()
+        case .step: hearSelected()
         case nil: break
         }
     }
 
     private func finished() {
-        guard listening != nil else { return }
+        guard let was = listening else { return }
         playhead = player?.currentTime ?? playhead
+        keepPage(at: playhead)
+        if was == .step, let at = selectedTime { playhead = at }
         listening = nil
         refresh()
         logger?.log(.practice_playback_stopped)
     }
 
-    /// The keys lit at `time` seconds of the recording: the step looked at
-    /// while cutting, or else the notes of the runs watched.
+    /// The keys lit at `time` seconds of the recording: the step chosen
+    /// while the recording stands at it, or else the notes of the runs
+    /// watched.
     func lights(at time: Double) -> [Int: [KeyLight]] {
-        if listening == nil, let previewStep, let step = score?.steps(hand)[safe: previewStep] {
+        if listening == nil, let selectedStep, let at = selectedTime, abs(time - at) < Self.atStep,
+           let step = score?.steps(hand)[safe: selectedStep] {
             return Playback.lights(of: step, hand)
         }
         return Playback.lights(at: time, litNotes)
     }
+
+    /// How near the chosen step the recording stands for its keys to be
+    /// lit alone, in seconds.
+    private static let atStep = 0.001
 
     /// The notes to light while nothing plays: all of the hand shown, so
     /// the keys are right at any moment the recording is stood at.

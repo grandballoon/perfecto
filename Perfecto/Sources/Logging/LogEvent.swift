@@ -104,14 +104,18 @@ enum LogEvent {
     // Score practice
     /// A score was read, newly imported or opened again.
     case practice_piece_opened(title: String, notes: Int)
+    /// The piece open was taken off the piano, kept among the pieces.
+    case practice_piece_closed
     /// A score or a recording could not be taken in.
     case practice_import_failed(reason: String)
     case practice_recording_added(duration: Double)
     /// A run was cut before `step`, or the cut there taken away.
     case practice_run_cut(step: Int, isCut: Bool)
-    /// A run's `edge` ("start" or "end") was matched to `at` seconds of
-    /// the recording.
-    case practice_run_matched(edge: String, at: Double)
+    /// A note's moment of the score moved `by` seconds along the recording
+    /// and pinned where it is now heard, at `at` seconds.
+    case practice_note_nudged(by: Double, at: Double)
+    /// A note's pin taken away, leaving it to the match; heard at `at`.
+    case practice_note_unpinned(at: Double)
     case practice_playback_started(segments: Int, repeats: Bool)
     case practice_playback_stopped
     /// The recording matched to the score by ear: an anchor at each of
@@ -329,6 +333,8 @@ extension LogEvent: Encodable {
             try c.encode("practice_piece_opened", forKey: Key("type"))
             try c.encode(title, forKey: Key("title"))
             try c.encode(notes, forKey: Key("notes"))
+        case .practice_piece_closed:
+            try c.encode("practice_piece_closed", forKey: Key("type"))
         case let .practice_import_failed(reason):
             try c.encode("practice_import_failed", forKey: Key("type"))
             try c.encode(reason, forKey: Key("reason"))
@@ -339,9 +345,12 @@ extension LogEvent: Encodable {
             try c.encode("practice_run_cut", forKey: Key("type"))
             try c.encode(step, forKey: Key("step"))
             try c.encode(isCut, forKey: Key("isCut"))
-        case let .practice_run_matched(edge, at):
-            try c.encode("practice_run_matched", forKey: Key("type"))
-            try c.encode(edge, forKey: Key("edge"))
+        case let .practice_note_nudged(by, at):
+            try c.encode("practice_note_nudged", forKey: Key("type"))
+            try c.encode(by, forKey: Key("by"))
+            try c.encode(at, forKey: Key("at"))
+        case let .practice_note_unpinned(at):
+            try c.encode("practice_note_unpinned", forKey: Key("type"))
             try c.encode(at, forKey: Key("at"))
         case let .practice_playback_started(segments, repeats):
             try c.encode("practice_playback_started", forKey: Key("type"))

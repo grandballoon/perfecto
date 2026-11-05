@@ -713,8 +713,8 @@ extension PerformanceState: LoopHost {
 extension PerformanceState: KeyboardHost {
     /// Whether score practice has the screen: the piano is expanded over
     /// the play screen, so the keys and the compass play nothing, the
-    /// play/stop key plays the recording, not the loops, and the nudge key
-    /// tags a nudge point.
+    /// play/stop key plays the recording, not the loops, the nudge key
+    /// tags a nudge point, and the note keys choose and nudge notes.
     var isPractising: Bool { piano.isOn && piano.isExpanded }
 
     func tap(_ button: KeyboardButton) {
@@ -722,6 +722,10 @@ extension PerformanceState: KeyboardHost {
             switch button {
             case .playStop:     practice.playOrStop()
             case .tag:          practice.toggleTag()
+            case .previousNote: practice.selectNext(forward: false)
+            case .nextNote:     practice.selectNext(forward: true)
+            case .nudgeEarlier: practice.nudge(by: -ScorePracticeState.fineNudge)
+            case .nudgeLater:   practice.nudge(by: ScorePracticeState.fineNudge)
             case .loop, .midi:  break
             }
             return
@@ -730,7 +734,7 @@ extension PerformanceState: KeyboardHost {
         case .loop:     quickLoopState.hotkeyTapped()
         case .midi:     isExternalSynth.toggle()
         case .playStop: quickLoopState.toggleRunning()
-        case .tag:      break
+        case .tag, .previousNote, .nextNote, .nudgeEarlier, .nudgeLater: break
         }
     }
 }

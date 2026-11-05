@@ -275,6 +275,6 @@ struct KeyboardStateTests {
         #expect(map.key(for: .compass(CompassPlace(.add, 1)))?.name == "↑")
         #expect(map.key(for: .compass(CompassPlace(.raise, 1)))?.name == "→")
         #expect(map.key(for: .compass(CompassPlace(.add, 2))) == nil)
-        #expect(KeyboardButton.allCases.map { map.key(for: .button($0))?.name } == ["Return", "M", "Space", "N"])
+        #expect(KeyboardButton.allCases.map { map.key(for: .button($0))?.name } == ["Return", "M", "Space", "N", "[", "]", ",", "."])
     }
 }

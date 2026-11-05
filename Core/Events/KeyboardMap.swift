@@ -22,13 +22,25 @@ enum KeyboardButton: String, CaseIterable, Hashable, Codable, Sendable {
     /// Tags a nudge point where score practice's recording is, or takes
     /// the one there away. Only score practice has it.
     case tag
+    /// Chooses the note before, or after, the one chosen on score
+    /// practice's notes timeline. Only score practice has them.
+    case previousNote
+    case nextNote
+    /// Nudges the note chosen in score practice a little earlier, or later,
+    /// along the recording. Only score practice has them.
+    case nudgeEarlier
+    case nudgeLater
 
     var displayName: String {
         switch self {
         case .loop:      return "Loop"
         case .midi:      return "MIDI"
         case .playStop:  return "Play/stop"
-        case .tag:       return "Nudge point"
+        case .tag:          return "Nudge point"
+        case .previousNote: return "Previous note"
+        case .nextNote:     return "Next note"
+        case .nudgeEarlier: return "Nudge earlier"
+        case .nudgeLater:   return "Nudge later"
         }
     }
 }
@@ -114,7 +126,8 @@ extension KeyboardMap {
     /// choices on the arrows (up adds a tone, right raises one, left lowers
     /// one, down takes one away; the second choices have no key to start
     /// with), and the buttons on Return (loop), Space (play and stop), M
-    /// (MIDI) and N (a nudge point, in score practice).
+    /// (MIDI), and in score practice N (a nudge point), [ and ] (the note
+    /// before and after) and , and . (a note nudged earlier and later).
     static let standard: KeyboardMap = {
         var keys: [KeyboardAction: KeyboardKey] = [:]
         let homeRow = [(4, "A"), (22, "S"), (7, "D"), (9, "F"), (10, "G"), (11, "H"), (13, "J")]
@@ -129,6 +142,10 @@ extension KeyboardMap {
         keys[.button(.playStop)] = KeyboardKey(code: 44, characters: "")
         keys[.button(.midi)] = KeyboardKey(code: 16, name: "M")
         keys[.button(.tag)] = KeyboardKey(code: 17, name: "N")
+        keys[.button(.previousNote)] = KeyboardKey(code: 47, name: "[")
+        keys[.button(.nextNote)] = KeyboardKey(code: 48, name: "]")
+        keys[.button(.nudgeEarlier)] = KeyboardKey(code: 54, name: ",")
+        keys[.button(.nudgeLater)] = KeyboardKey(code: 55, name: ".")
         return KeyboardMap(keys: keys)
     }()
 }

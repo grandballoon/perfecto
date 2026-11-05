@@ -200,26 +200,70 @@ struct Practice: Equatable, Codable, Sendable {
         return anchoring(score.boundary(hand, run.last + 1), to: recording)
     }
 
-    /// The run with `id` kept where it is heard now: its ends anchored
-    /// there, if they are not already. Done before matching a run inside
-    /// it, so the runs around it stay where they were. A recording matched
-    /// by ear is anchored at every step already, so nothing is added.
-    func keeping(_ id: RunID, in score: Score) -> Practice {
-        guard matched.isEmpty, let found = find(id) else { return self }
-        var next = self
-        for boundary in [found.run.first, found.run.last + 1] {
-            let t = score.boundary(found.hand, boundary)
-            guard !anchors.contains(where: { abs($0.score - t) < Score.sameTime }) else { continue }
-            next = next.anchoring(t, to: Alignment.recordingTime(t, next.anchors))
-        }
-        return next
-    }
-
     /// The moment `score` of the score heard at `recording` seconds.
     func anchoring(_ score: Double, to recording: Double) -> Practice {
         var next = self
         next.anchors = Alignment.set(AlignmentAnchor(score: score, recording: max(0, recording)), in: anchors)
         return next
+    }
+
+    // MARK: – Nudging a note
+
+    /// The closest a moment of the score is moved to the next one held in
+    /// place, in recording seconds.
+    static let closest = 0.01
+
+    /// Whether the moment `moment` of the score is pinned by hand.
+    func isPinned(_ moment: Double) -> Bool {
+        anchors.contains { abs($0.score - moment) < Score.sameTime }
+    }
+
+    /// The moment `moment` of the score (the notes struck then, in both
+    /// hands) pinned where the recording has it at `recording` seconds: a
+    /// note dragged or nudged along the recording.
+    ///
+    /// It stays between the moments held in place either side of it (a
+    /// pin, or a moment the match placed), so it never passes a note
+    /// before or after it and the notes around it stay where they are
+    /// heard. With nothing held either side, the whole score moves with it.
+    func moving(_ moment: Double, to recording: Double, in score: Score) -> Practice {
+        let others = alignment.filter { abs($0.score - moment) >= Score.sameTime }
+        let low = others.last { $0.score < moment }.map { $0.recording + Self.closest } ?? 0
+        let high = others.first { $0.score > moment }.map { $0.recording - Self.closest } ?? .infinity
+        guard low <= high else { return self }
+        return anchoring(moment, to: min(max(recording, low), high))
+    }
+
+    /// The moment `moment` of the score heard `seconds` later (earlier for
+    /// less than 0) than it is now, and pinned there.
+    func nudging(_ moment: Double, by seconds: Double, in score: Score) -> Practice {
+        moving(moment, to: Alignment.recordingTime(moment, alignment) + seconds, in: score)
+    }
+
+    /// The pin at the moment `moment` of the score taken away, leaving it
+    /// to the match.
+    func unpinning(_ moment: Double) -> Practice {
+        var next = self
+        next.anchors.removeAll { abs($0.score - moment) < Score.sameTime }
+        return next
+    }
+
+    /// The step of `hand`'s heard nearest `recording` seconds, if one is
+    /// heard within `reach` seconds of it: the note tapped on the screen.
+    func step(_ hand: Hand, nearest recording: Double, within reach: Double, in score: Score) -> Int? {
+        let alignment = alignment
+        let heard = score.steps(hand).enumerated().map { (index: $0.offset, distance: abs(Alignment.recordingTime($0.element.onset, alignment) - recording)) }
+        guard let nearest = heard.min(by: { $0.distance < $1.distance }), nearest.distance <= reach else { return nil }
+        return nearest.index
+    }
+
+    /// The first step of `hand`'s heard at or after `recording` seconds
+    /// (`forward`), or the last heard before it; nil past either end.
+    func step(_ hand: Hand, from recording: Double, forward: Bool, in score: Score) -> Int? {
+        let alignment = alignment
+        let heard = score.steps(hand).map { Alignment.recordingTime($0.onset, alignment) }
+        return forward ? heard.firstIndex { $0 >= recording - Score.sameTime }
+                       : heard.lastIndex { $0 < recording - Score.sameTime }
     }
 
     /// The pins cleared: the match alone, or with none, the score heard at

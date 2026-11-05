@@ -34,6 +34,9 @@ A file of one track is split at middle C, which is a guess.
 The recording is any audio file the system plays (`.m4a`, `.mp3`, `.wav`, `.aiff`, `.caf`).
 It is heard as it was recorded: nothing is synthesized, and the recording is never stretched.
 
+The piece menu opens a piece kept, or closes the one open (`ScorePracticeState.closePiece`), which takes it off the piano and keeps it among the pieces; deleting a piece erases it and its recording.
+The screen opens the latest piece the first time it appears, and after that leaves the piano as it was left, with no piece if one was closed.
+
 ## Decisions
 
 1. **A step is what lights at once.**
@@ -54,10 +57,13 @@ It is heard as it was recorded: nothing is synthesized, and the recording is nev
 4. **The anchors are the piece's, not a hand's.**
    Both hands are in one recording, so matching a right-hand run also places the left hand's notes at that moment.
 
-5. **Matching a run is anchoring its ends.**
-   "Start" and "End" set where the matched run (the one run chosen, or the run in focus) begins and ends to the moment heard.
-   Dragging the edge between two runs on the recording moves both.
-   Matching a run inside the run in focus first keeps the run in focus where it is heard (`Practice.keeping`), so its other runs stay put.
+5. **A note is set where it is heard, one step at a time.**
+   A step is chosen by a tap on its note in the notes lane, from the steps strip, or as the note before or after the one chosen (`ScorePracticeState.select`, `selectNext`; `[` and `]`).
+   Choosing a step stops the recording, stands it at the step, lights its keys and brings it into view.
+   The chosen step is nudged a tenth or a hundredth of a second earlier or later (`nudge`; `,` and `.` for the hundredths), or dragged in the notes lane to where it is heard (`moveSelected`), and is pinned there.
+   It stays between the moments held on either side of it, so it never passes a neighbour (`Practice.moving`, `nudging`).
+   A run's start is set by choosing its first note and nudging or dragging it; there are no run edges to drag.
+   "Hear it" plays from a second and a half before the chosen note to a second after it, then stands at the note again (`hearSelected`).
 
 6. **What plays is worked out, not kept.**
    The runs watched (those chosen, or the run in focus) become stretches of the recording, in order, joined where they touch (`Playback.segments`), and their notes become timed lights (`Playback.notes`, `lights`).
@@ -73,10 +79,13 @@ It is heard as it was recorded: nothing is synthesized, and the recording is nev
    `RecordingPlayer` plays the recording through an engine of its own, beside the instrument's, and says the moment being heard from the player's own count of frames, so the lights follow the sound and not a timer.
    Segments are handed to the player ahead of time, so a run repeats with no gap.
 
-9. **The recording is dragged to go anywhere in it.**
-   Under the recording strip is the whole recording as one bar (`PracticeScrubber`), and a finger on the bar or on the strip's waveform drags the recording (`ScorePracticeState.scrub`).
-   While it is dragged it stops, and the keys are lit as the shown hand has them at each moment passed; while nothing plays, the whole hand is lit at the moment the recording stands at, not only the runs watched.
-   Whatever was playing (the runs, or the recording listened to) plays on from where it is let go, and the skip buttons go five seconds back or on in the same way.
+9. **Two timelines on one stretch of the recording, and the whole recording under them.**
+   Under the piano are the recording's outline and the score's notes as a piano roll, one above the other on the same seconds (`PracticeTimelines`): the hand shown in its color and the other dim, the runs shown as faint bands, the nudge points, the pins, the playhead and a guide at the chosen note.
+   The stretch they show is a value (`RecordingWindow`): a drag on either lane pans it, unless it starts on the chosen note, which moves that note instead (decided once, as the drag starts); a pinch zooms about the fingers.
+   Under them is the whole recording as one bar with that stretch boxed (`PracticeOverview`), where a tap or drag moves the box but not the playhead, and the zoom buttons beside it.
+   While the recording plays the timelines turn over a page at a time as the playhead reaches their edge (`ScorePracticeState.shownWindow`), until they are panned or zoomed, and follow again at the next play or seek.
+   A tap on the outline, or on the notes lane away from any note, stands the recording there; while nothing plays, the whole hand is lit at the moment the recording stands at, not only the runs watched.
+   Whatever was playing (the runs, or the recording listened to) plays on from there, and the skip buttons go five seconds back or on in the same way.
    Play begins where the recording stands, if that is inside the runs watched, and otherwise at the next of them (`Playback.start`); a repeat goes back to the first.
 
 10. **The practice screen has the keys while it is open.**
@@ -91,14 +100,15 @@ It is heard as it was recorded: nothing is synthesized, and the recording is nev
     The result is kept (`Practice.matched`), apart from the learner's anchors.
 
 12. **What the learner sets is a pin.**
-    A step dragged to where it is heard on the recording strip, or a run's Start or End, is an anchor the match must pass through (`Practice.anchors`).
-    Changing the pins matches the rest again around them, in the background; the alignment played is the pins and the matched anchors that agree with them (`Alignment.merged`).
+    A step nudged or dragged to where it is heard is an anchor the match must pass through (`Practice.anchors`), and the chosen step's pin can be taken away (`unpinSelected`).
+    With nothing matched, a single pin moves the whole score.
+    Changing the pins matches the rest again around them, in the background, 0.8 s after the last nudge rather than at every press (`matchAgain(after:)`); the alignment played is the pins and the matched anchors that agree with them (`Alignment.merged`).
     "Match again" and "Clear pins and match again" in the menu start over.
 
 13. **Nudge points are where to look.**
-    Where the music heard does not fit the score for a while (a stretch the score does not have, a wrong recording), the match marks it as doubtful (`Practice.unsure`, dashed yellow on the strip).
+    Where the music heard does not fit the score for a while (a stretch the score does not have, a wrong recording), the match marks it as doubtful (`Practice.unsure`, dashed yellow on the outline).
     While listening, the learner tags a moment that sounds off with the flag button, N on the keyboard or L1 on a controller (`Practice.nudges`, orange flags).
-    The chevrons beside the flag go to the previous or next nudge point, zoom the strip to it, and keep listening if it was.
+    The chevrons beside the flag go to the previous or next nudge point, bring the timelines to the seconds around it, and keep listening if it was.
     Untagging a moment also clears a doubt there, once it is seen to.
 
 14. **What the match gets wrong.**
@@ -116,12 +126,12 @@ It is heard as it was recorded: nothing is synthesized, and the recording is nev
 ## Where things are
 
 - `Perfecto/Sources/ScorePractice/`: the pure core, tested with `swift test` in `Perfecto/` (`ScorePracticeTests`).
-  `Score`, `MusicXML`, `Mxl` and `MidiScore` read a score; `Practice` is the runs and anchors, and every change to it is a function from one value to the next; `Alignment` maps score time to recording time; `Playback` says what plays and what lights; `Chroma` hears a recording and `AutoMatch` matches it to the score.
+  `Score`, `MusicXML`, `Mxl` and `MidiScore` read a score; `Practice` is the runs and anchors, and every change to it is a function from one value to the next; `Alignment` maps score time to recording time; `RecordingWindow` is the stretch of the recording the timelines show; `Playback` says what plays and what lights; `Chroma` hears a recording and `AutoMatch` matches it to the score.
 - `ViewModels/ScoreLibrary.swift`: the pieces on disk, each a folder in iCloud (or Application Support) with the score and recording as given and `piece.json` beside them, and the watcher of the iCloud folder.
 - `ViewModels/ScorePracticeState.swift`: the shell the screen talks to.
-  It keeps the piece open, the hand shown, the run in focus and the runs chosen, saves the piece on each change, plays the recording and brings the piano to the runs.
+  It keeps the piece open, the hand shown, the run in focus, the runs chosen, the step chosen and the timelines' window, saves the piece on each change, plays the recording and brings the piano to the runs.
 - `Audio/RecordingPlayer.swift`: the recording's player, behind `RecordingPlaying` so the state is tested without audio.
-- `Views/ScorePracticeView.swift`, `PracticeRecordingStrip.swift`, `PracticeScrubber.swift`: the screen.
+- `Views/ScorePracticeView.swift` (with the notes row, `PracticeNotesRow`), `PracticeTimelines.swift`, `PracticeOverview.swift`: the screen.
 
 ## Open questions
 

@@ -115,18 +115,6 @@ struct PracticeTests {
         #expect(matched.span(of: right.id, in: scale) == 0...8)
     }
 
-    @Test func aRunKeptStaysWhereItIsWhileARunInsideItIsMatched() {
-        let halves = practice.cutting(right.id, before: 4)
-        let first = halves.root(.right)!.children[0]
-        let shifted = halves.settingStart(of: right.id, to: 2, in: scale)
-        let kept = shifted.keeping(right.id, in: scale)
-        #expect(kept.span(of: right.id, in: scale) == 2...10)
-        #expect(kept.settingEnd(of: first.id, to: 4, in: scale).span(of: right.id, in: scale) == 2...10)
-        // Without it, one anchor only moves the whole part.
-        #expect(halves.settingEnd(of: first.id, to: 6, in: scale).span(of: right.id, in: scale) == 2...10)
-        #expect(kept.keeping(right.id, in: scale) == kept)
-    }
-
     @Test func practiceIsSavedAndReadAsItIs() throws {
         let diced = practice.cutting(right.id, before: 4).settingStart(of: right.id, to: 2, in: scale)
         let data = try JSONEncoder().encode(diced)
