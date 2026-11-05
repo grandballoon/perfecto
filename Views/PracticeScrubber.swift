@@ -66,6 +66,7 @@ struct PracticeScrubber: View {
         .frame(height: Self.height)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Recording position")
+        .help("The whole recording: drag to go anywhere in it")
         .accessibilityValue("\(PracticeTime.text(practice.currentTime)) of \(PracticeTime.text(length))")
         .accessibilityAdjustableAction { direction in
             let by = direction == .increment ? Self.step : -Self.step

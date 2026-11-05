@@ -386,7 +386,44 @@ final class ScorePracticeState {
         return run.isLeaf ? [run] : run.children
     }
 
-    /// A run's name: its place among its run's runs at each depth, "2.3",
+    /// What a run is called: the name the learner gave it, or else its
+    /// place (`label`).
+    func title(of id: RunID) -> String {
+        practice?.find(id)?.run.name ?? label(of: id)
+    }
+
+    /// The run with `id` given the name `name`; nothing but spaces takes
+    /// its name away.
+    func rename(_ id: RunID, to name: String) {
+        guard let practice else { return }
+        commit(practice.naming(id, name), rematching: false)
+        logger?.log(.practice_run_named(isNamed: !name.trimmingCharacters(in: .whitespaces).isEmpty))
+    }
+
+    /// Every run of every hand, the outline the list of all runs shows.
+    var allRuns: [(hand: Hand, runs: [(run: Run, depth: Int)])] {
+        guard let practice else { return [] }
+        return hands.map { ($0, practice.outline($0)) }
+    }
+
+    /// The run with `id` gone to from the list of all runs: its hand shown,
+    /// the run it is one of in focus, and it chosen to watch; a hand's whole
+    /// part is brought into focus itself.
+    func goTo(_ id: RunID) {
+        guard let practice, let found = practice.find(id) else { return }
+        if found.hand != hand { show(found.hand) }
+        let path = practice.path(to: id)
+        if path.count > 1 {
+            focus(on: path[path.count - 2].id)
+            selection = [id]
+            refresh()
+            fitPiano()
+        } else {
+            focus(on: id)
+        }
+    }
+
+    /// A run's place: its place among its run's runs at each depth, "2.3",
     /// or the hand's for its whole part.
     func label(of id: RunID) -> String {
         guard let practice else { return "" }

@@ -111,6 +111,7 @@ struct ScorePracticeView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Shrink the piano")
+            .help("Shrink the piano back to a strip along the bottom of the play screen")
 
             pieceMenu
 
@@ -125,6 +126,7 @@ struct ScorePracticeView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(hand.name)
+                        .help("Show the \(hand.name.lowercased())'s runs and light its keys")
                     }
                 }
             }
@@ -134,6 +136,7 @@ struct ScorePracticeView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Fit the piano to the runs")
+                .help("Bring the piano to the keys of the runs being watched")
             }
         }
     }
@@ -179,6 +182,7 @@ struct ScorePracticeView: View {
                         .controlSize(.mini)
                         .tint(Color(white: 0.6))
                         .accessibilityLabel("Matching the recording")
+                        .help("Matching the recording to the score…")
                 }
                 if practice.isInCloud {
                     // The pieces are shared with the other device.
@@ -186,6 +190,7 @@ struct ScorePracticeView: View {
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Color(white: 0.5))
                         .accessibilityLabel("Kept in iCloud")
+                        .help("Kept in iCloud, shared with your other devices")
                 }
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .bold))
@@ -193,6 +198,7 @@ struct ScorePracticeView: View {
             .font(.system(size: 14, weight: .semibold))
             .foregroundStyle(Color(white: 0.9))
         }
+        .help("Pieces: open another, open a score, add or replace the recording, match it again, or delete the piece")
     }
 
     // MARK: – No piece yet
@@ -233,6 +239,8 @@ struct ScorePracticeView: View {
 /// opened to show its own runs and cut it further.
 struct PracticeRunsBar: View {
     @Environment(PerformanceState.self) private var state
+    @State private var isShowingAll = false
+    @State private var renaming: RunID?
 
     var body: some View {
         let practice = state.practice
@@ -245,11 +253,13 @@ struct PracticeRunsBar: View {
                             .foregroundStyle(Color(white: 0.4))
                     }
                     Button { practice.focus(on: run.id) } label: {
-                        Text(practice.label(of: run.id))
+                        Text(practice.title(of: run.id))
                             .font(.system(size: 12, weight: depth == practice.focusPath.count - 1 ? .semibold : .regular))
                             .foregroundStyle(depth == practice.focusPath.count - 1 ? Color(white: 0.9) : Color(white: 0.55))
                     }
                     .buttonStyle(.plain)
+                    .help("Go back to run \(practice.label(of: run.id)) and its runs")
+                    .contextMenu { renameButton(run.id) }
                 }
                 Spacer(minLength: 0)
                 if !practice.selection.isEmpty {
@@ -257,6 +267,18 @@ struct PracticeRunsBar: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Color(white: 0.6))
                         .buttonStyle(.plain)
+                        .help("Unchoose every run, so the whole run in focus is watched")
+                }
+                Button { isShowingAll = true } label: {
+                    Label("All runs", systemImage: "list.bullet.indent")
+                        .font(.system(size: 12, weight: .semibold))
+                        .practiceChit()
+                }
+                .buttonStyle(.plain)
+                .help("See every run of both hands, name them, and go to one")
+                .popover(isPresented: $isShowingAll) {
+                    PracticeAllRuns(isShown: $isShowingAll)
+                        .environment(state)
                 }
                 Button { practice.isCutting.toggle() } label: {
                     Label("Cut", systemImage: "scissors")
@@ -264,6 +286,7 @@ struct PracticeRunsBar: View {
                         .practiceChit(fill: practice.isCutting ? Color.orange : nil)
                 }
                 .buttonStyle(.plain)
+                .help(practice.isCutting ? "Hide the steps" : "Show the steps of the run in focus, to cut it into runs")
             }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
@@ -273,6 +296,7 @@ struct PracticeRunsBar: View {
                 }
             }
         }
+        .renamingRun($renaming, in: practice)
     }
 
     private func chit(_ run: Run) -> some View {
@@ -283,10 +307,13 @@ struct PracticeRunsBar: View {
         return HStack(spacing: 0) {
             Button { practice.toggle(run.id) } label: {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(isFocus ? "Whole run" : practice.label(of: run.id))
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    if let span = practice.span(of: run.id), practice.hasRecording {
-                        Text(PracticeTime.text(span.lowerBound))
+                    Text(isFocus ? (run.name ?? "Whole run") : practice.title(of: run.id))
+                        .font(.system(size: 13, weight: .semibold, design: run.name == nil ? .monospaced : .default))
+                        .lineLimit(1)
+                    let place = run.name != nil && !isFocus ? practice.label(of: run.id) : nil
+                    let time = practice.hasRecording ? practice.span(of: run.id).map { PracticeTime.text($0.lowerBound) } : nil
+                    if place != nil || time != nil {
+                        Text([place, time].compactMap { $0 }.joined(separator: " · "))
                             .font(.system(size: 10, design: .monospaced))
                             .opacity(0.7)
                     }
@@ -296,6 +323,7 @@ struct PracticeRunsBar: View {
                 .padding(.vertical, 6)
             }
             .buttonStyle(.plain)
+            .help(isChosen ? "Stop watching this run" : "Watch this run (choose several to watch them in turn)")
             if !isFocus {
                 Button { practice.focus(on: run.id) } label: {
                     Image(systemName: "chevron.right.circle")
@@ -305,11 +333,124 @@ struct PracticeRunsBar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Open run \(practice.label(of: run.id))")
+                .help("Open run \(practice.label(of: run.id)) to see and cut its own runs")
             }
         }
         .foregroundStyle(isChosen ? Color.black : Color(white: 0.85))
         .background(RoundedRectangle(cornerRadius: 8).fill(isChosen ? color : Color(white: 0.13)))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(isChosen ? color : Color(white: 0.25), lineWidth: 1))
+        .contextMenu { renameButton(run.id) }
+    }
+
+    private func renameButton(_ id: RunID) -> some View {
+        Button("Name…", systemImage: "pencil") { renaming = id }
+    }
+}
+
+extension View {
+    /// An alert that names the run `renaming` holds, while it holds one.
+    func renamingRun(_ renaming: Binding<RunID?>, in practice: ScorePracticeState) -> some View {
+        modifier(RenameRunAlert(renaming: renaming, practice: practice))
+    }
+}
+
+private struct RenameRunAlert: ViewModifier {
+    @Binding var renaming: RunID?
+    let practice: ScorePracticeState
+    @State private var draft = ""
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Name run \(renaming.map(practice.label(of:)) ?? "")",
+                   isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+                TextField("Name", text: $draft)
+                Button("Save") {
+                    if let renaming { practice.rename(renaming, to: draft) }
+                }
+                .keyboardShortcut(.defaultAction)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Leave it empty to go by its number.")
+            }
+            .onChange(of: renaming) { _, id in
+                draft = id.flatMap { practice.practice?.find($0)?.run.name } ?? ""
+            }
+    }
+}
+
+/// Every run of both hands as an outline, each under the run it is cut
+/// from: its place, its name, how many steps it has and where it is heard.
+/// A row goes to its run (`goTo`); its pencil names it.
+struct PracticeAllRuns: View {
+    @Environment(PerformanceState.self) private var state
+    @Binding var isShown: Bool
+    @State private var renaming: RunID?
+
+    var body: some View {
+        let practice = state.practice
+        NavigationStack {
+            List {
+                ForEach(practice.allRuns, id: \.hand) { hand, runs in
+                    Section(hand.name) {
+                        ForEach(runs, id: \.run.id) { run, depth in
+                            row(run, depth: depth, hand: hand)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("All runs")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { isShown = false }
+                }
+            }
+        }
+        .frame(minWidth: 340, idealWidth: 380, minHeight: 420, idealHeight: 560)
+        .presentationDetents([.medium, .large])
+        .renamingRun($renaming, in: practice)
+    }
+
+    private func row(_ run: Run, depth: Int, hand: Hand) -> some View {
+        let practice = state.practice
+        let isWatched = practice.watched.contains(run.id)
+        return HStack(spacing: 8) {
+            Button {
+                practice.goTo(run.id)
+                isShown = false
+            } label: {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(isWatched ? hand.color : Color.clear)
+                        .frame(width: 6, height: 6)
+                    Text(depth == 0 ? "Whole" : practice.label(of: run.id))
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    if let name = run.name {
+                        Text(name).lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("\(run.steps.count) step\(run.steps.count == 1 ? "" : "s")")
+                        if practice.hasRecording, let span = practice.span(of: run.id) {
+                            Text("\(PracticeTime.text(span.lowerBound))–\(PracticeTime.text(span.upperBound))")
+                        }
+                    }
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                }
+                .padding(.leading, CGFloat(depth) * 16)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Go to \(practice.title(of: run.id)) and watch it")
+            Button { renaming = run.id } label: {
+                Image(systemName: "pencil")
+            }
+            .buttonStyle(.borderless)
+            .help("Name this run")
+            .accessibilityLabel("Name \(practice.title(of: run.id))")
+        }
     }
 }
 
@@ -348,6 +489,7 @@ struct PracticeStepsStrip: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(cuts.contains(item.index) ? "Join here" : "Cut here")
+                        .help(cuts.contains(item.index) ? "Join the runs either side here" : "Cut the run here")
                     }
                     Button { practice.preview(item.index) } label: {
                         VStack(spacing: 1) {
@@ -366,6 +508,7 @@ struct PracticeStepsStrip: View {
                                 : Color(white: (pieceOf[item.index] ?? 0).isMultiple(of: 2) ? 0.13 : 0.2)))
                     }
                     .buttonStyle(.plain)
+                    .help("Light this step on the piano and stand the recording at it")
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -396,6 +539,7 @@ struct PracticeTransport: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Back 5 seconds")
+            .help("Back 5 seconds, playing on if it was playing")
 
             Button {
                 if practice.listening == .runs { practice.stop() } else { practice.play() }
@@ -406,12 +550,14 @@ struct PracticeTransport: View {
             .buttonStyle(.plain)
             .hotkeyTip(.playStop)
             .accessibilityLabel(practice.listening == .runs ? "Stop" : "Play the runs")
+            .help(practice.listening == .runs ? "Stop" : "Play the runs watched from the playhead (or from the next of them)")
 
             Button { practice.skip(by: ScorePracticeState.skipSeconds) } label: {
                 Image(systemName: "goforward.5").practiceChit()
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Forward 5 seconds")
+            .help("Forward 5 seconds, playing on if it was playing")
 
             Button { practice.repeats.toggle() } label: {
                 Image(systemName: "repeat")
@@ -419,6 +565,7 @@ struct PracticeTransport: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Repeat")
+            .help(practice.repeats ? "Repeat is on: the runs play over and over" : "Repeat is off: the runs play once")
             .accessibilityAddTraits(practice.repeats ? .isSelected : [])
 
             Button {
@@ -429,6 +576,7 @@ struct PracticeTransport: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(practice.listening == .free ? "Stop" : "Listen from here")
+            .help(practice.listening == .free ? "Stop listening" : "Listen to the whole recording from the playhead, with all of the hand lit")
 
             Spacer(minLength: 4)
 
@@ -437,6 +585,7 @@ struct PracticeTransport: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Previous nudge point")
+            .help("Go to the previous nudge point (a flag you tagged or a doubt of the match)")
             Button { practice.toggleTag() } label: {
                 Image(systemName: practice.isAtTag ? "flag.slash.fill" : "flag.fill")
                     .practiceChit(fill: practice.isAtTag ? PracticeRecordingStrip.tagColor : nil)
@@ -444,22 +593,26 @@ struct PracticeTransport: View {
             .buttonStyle(.plain)
             .hotkeyTip(.tag)
             .accessibilityLabel(practice.isAtTag ? "Remove the nudge point" : "Tag a nudge point")
+            .help(practice.isAtTag ? "Remove the nudge point here" : "Tag a nudge point here, to come back to and fix")
             Button { practice.goToNudge(forward: true) } label: {
                 Image(systemName: "chevron.right").practiceChit()
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Next nudge point")
+            .help("Go to the next nudge point (a flag you tagged or a doubt of the match)")
 
             Button { practice.markStart() } label: {
                 Image(systemName: "arrow.right.to.line").practiceChit()
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Run starts here")
+            .help("Pin the start of the run being matched to the playhead")
             Button { practice.markEnd() } label: {
                 Image(systemName: "arrow.left.to.line").practiceChit()
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Run ends here")
+            .help("Pin the end of the run being matched to the playhead")
         }
     }
 }

@@ -135,3 +135,47 @@ struct PracticeTests {
 }
 
 import Foundation
+
+@Suite("Run names")
+struct RunNameTests {
+    let score = Score(title: "", notes: (0..<8).map {
+        ScoreNote(pitch: 60 + $0, onset: Double($0), duration: 1, hand: .right)
+    })
+
+    @Test func aRunIsNamedAndTheNameKeptThroughCutsAndJoins() throws {
+        var practice = Practice(score: score)
+        let root = try #require(practice.root(.right))
+        practice = practice.cutting(root.id, before: 4)
+        let first = practice.root(.right)!.children[0].id
+        practice = practice.naming(first, "  the climb ")
+        #expect(practice.find(first)?.run.name == "the climb")
+        // Cut again inside it: the first part keeps the name.
+        practice = practice.cutting(root.id, before: 2)
+        #expect(practice.root(.right)!.children.map(\.name) == ["the climb", nil, nil])
+        // Joined again: the name stays.
+        practice = practice.joining(root.id, before: 2)
+        #expect(practice.root(.right)!.children.map(\.name) == ["the climb", nil])
+        // Spaces alone take it away.
+        #expect(practice.naming(first, "   ").find(first)?.run.name == nil)
+    }
+
+    @Test func theOutlineIsEveryRunInOrderWithItsDepth() {
+        var practice = Practice(score: score)
+        let root = practice.root(.right)!
+        practice = practice.cutting(root.id, before: 4)
+        let second = practice.root(.right)!.children[1].id
+        practice = practice.cutting(second, before: 6)
+        let outline = practice.outline(.right)
+        #expect(outline.map(\.depth) == [0, 1, 1, 2, 2])
+        #expect(outline.map(\.run.steps) == [0...7, 0...3, 4...7, 4...5, 6...7])
+        #expect(practice.outline(.left).isEmpty)
+    }
+
+    @Test func aPracticeSavedBeforeNamesIsReadWithNone() throws {
+        let practice = Practice(score: score).naming(Practice(score: score).root(.right)!.id, "all")
+        let again = try JSONDecoder().decode(Practice.self, from: JSONEncoder().encode(practice))
+        #expect(again.root(.right)?.name == "all")
+        let old = #"{"right":{"id":1,"first":0,"last":3,"children":[]},"anchors":[],"nextID":2}"#
+        #expect(try JSONDecoder().decode(Practice.self, from: Data(old.utf8)).root(.right)?.name == nil)
+    }
+}

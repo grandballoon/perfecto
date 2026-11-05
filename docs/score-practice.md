@@ -105,6 +105,14 @@ It is heard as it was recorded: nothing is synthesized, and the recording is nev
     A sudden pause inside a run of identical chords can put the chords after it one out, since nothing but the pace tells them apart; that is a nudge.
     A recording in a different key or tuning from the score, or with repeats the score does not have, is matched poorly and mostly doubted.
 
+15. **A run can be named, and every run is seen at once.**
+    A run goes by its place ("2.3"), or by a name the learner gives it ("the leap"), by pressing and holding its chit, or right-clicking it, and choosing Name (`Practice.naming`).
+    Cutting a named run leaves the name on its first part, and joining two keeps the first's name, or else the second's.
+    "All runs" lists every run of both hands as an outline, each under the run it was cut from, with its steps and where it is heard (`Practice.outline`); a row goes to its run, which is chosen to watch among the runs it is one of (`ScorePracticeState.goTo`).
+
+16. **Every control says what it does.**
+    A pointer resting on any button or handle of the screen shows what it does (`help`), beside the key that does it where there is one (`hotkeyTip`).
+
 ## Where things are
 
 - `Perfecto/Sources/ScorePractice/`: the pure core, tested with `swift test` in `Perfecto/` (`ScorePracticeTests`).

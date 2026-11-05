@@ -1,3 +1,5 @@
+import Foundation
+
 /// What a learner has made of a score and its recording: each hand diced
 /// into runs, and the recording matched to them.
 ///
@@ -128,11 +130,30 @@ struct Practice: Equatable, Codable, Sendable {
             let inner = (low.children.isEmpty && high.children.isEmpty)
                 ? [] : low.pieces + high.pieces
             run.children.replaceSubrange((i - 1)...i, with: [
-                Run(id: low.id, first: low.first, last: high.last, children: inner),
+                Run(id: low.id, first: low.first, last: high.last, children: inner, name: low.name ?? high.name),
             ])
             run.normalize()
         }
         return next
+    }
+
+    /// The run with `id` given the name `name`, trimmed; a name of
+    /// nothing but spaces takes its name away.
+    func naming(_ id: RunID, _ name: String) -> Practice {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        var next = self
+        next.update(id) { $0.name = trimmed.isEmpty ? nil : trimmed }
+        return next
+    }
+
+    /// Every run of `hand`, the root first and each run before its own
+    /// runs, with how deep it is (the root 0): the outline of all the runs.
+    func outline(_ hand: Hand) -> [(run: Run, depth: Int)] {
+        guard let root = root(hand) else { return [] }
+        func walk(_ run: Run, _ depth: Int) -> [(run: Run, depth: Int)] {
+            [(run, depth)] + run.children.flatMap { walk($0, depth + 1) }
+        }
+        return walk(root, 0)
     }
 
     /// Where the run with `id` is cut into its runs: the step each of its
@@ -284,6 +305,10 @@ struct Run: Equatable, Codable, Sendable, Identifiable {
     let first: Int
     let last: Int
     fileprivate(set) var children: [Run] = []
+    /// What the learner calls it ("the leap", "bars 5–8"); nil for none,
+    /// when it goes by its place. Cutting a run leaves its name on the
+    /// first part, and joining two keeps the first's, or the second's.
+    fileprivate(set) var name: String?
 
     var steps: ClosedRange<Int> { first...last }
     var isLeaf: Bool { children.isEmpty }
@@ -327,7 +352,7 @@ struct Run: Equatable, Codable, Sendable, Identifiable {
     /// out between them and a run of its that holds the step split too.
     /// The low one keeps this run's id.
     fileprivate func split(before step: Int, ids: inout Int) -> (Run, Run) {
-        var low = Run(id: id, first: first, last: step - 1)
+        var low = Run(id: id, first: first, last: step - 1, name: name)
         var high = Run(id: Run.take(&ids), first: step, last: last)
         for child in children {
             if child.last < step {

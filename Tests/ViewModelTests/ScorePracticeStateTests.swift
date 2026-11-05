@@ -264,7 +264,34 @@ struct ScorePracticeStateTests {
         #expect(state.practice?.anchors.isEmpty == true)
     }
 
-    @Test func aRunIsOpenedAndCutIntoRunsOfItsOwn() throws {
+    @Test func aRunIsNamedAndFoundInTheListOfAllRuns() async throws {
+        let state = try practising()
+        state.toggleCut(before: 4)
+        let second = state.shownRuns[1].id
+        state.focus(on: second)
+        state.toggleCut(before: 6)
+        let inner = state.shownRuns[1].id
+        state.rename(inner, to: "the turn")
+        #expect(state.title(of: inner) == "the turn")
+        #expect(state.label(of: inner) == "2.2")
+
+        let right = try #require(state.allRuns.first { $0.hand == .right })
+        #expect(right.runs.map(\.depth) == [0, 1, 1, 2, 2])
+        #expect(right.runs.last?.run.name == "the turn")
+
+        // Gone to from the list: the run it is one of in focus, and it watched.
+        state.focus(on: state.focusPath[0].id)
+        state.goTo(inner)
+        #expect(state.focus == second)
+        #expect(state.watched == [inner])
+
+        // Kept with the piece.
+        let again = makeState()
+        await again.appear()
+        #expect(again.practice?.find(inner)?.run.name == "the turn")
+    }
+
+        @Test func aRunIsOpenedAndCutIntoRunsOfItsOwn() throws {
         let state = try practising()
         state.toggleCut(before: 4)
         let second = state.shownRuns[1]

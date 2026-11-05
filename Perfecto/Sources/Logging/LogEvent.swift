@@ -119,6 +119,8 @@ enum LogEvent {
     case practice_matched(anchors: Int, unsure: Int, seconds: Double)
     /// A nudge point tagged at `at` seconds of the recording, or taken away.
     case practice_nudge_tagged(at: Double, isTagged: Bool)
+    /// A run given a name, or its name taken away.
+    case practice_run_named(isNamed: Bool)
 
     // Computer keyboard
     /// `key` nil: the action was left with no key.
@@ -356,6 +358,9 @@ extension LogEvent: Encodable {
             try c.encode("practice_nudge_tagged", forKey: Key("type"))
             try c.encode(at, forKey: Key("at"))
             try c.encode(isTagged, forKey: Key("isTagged"))
+        case let .practice_run_named(isNamed):
+            try c.encode("practice_run_named", forKey: Key("type"))
+            try c.encode(isNamed, forKey: Key("isNamed"))
         case let .keyboard_key_chosen(action, key):
             try c.encode("keyboard_key_chosen", forKey: Key("type"))
             try c.encode(action, forKey: Key("action"))

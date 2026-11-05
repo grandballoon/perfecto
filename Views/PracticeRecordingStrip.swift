@@ -69,6 +69,7 @@ struct PracticeRecordingStrip: View {
         .frame(height: Self.height)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Recording")
+        .help("The recording: drag to go through it, or drag a step's tick to pin it where it is heard")
         .accessibilityValue(PracticeTime.text(practice.currentTime))
     }
 
@@ -87,6 +88,7 @@ struct PracticeRecordingStrip: View {
         .padding(4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         .accessibilityLabel("Show the run in focus")
+        .help("Show the run in focus again")
     }
 
     /// The nudge points in view: those tagged as a flag, those the match
@@ -162,6 +164,7 @@ struct PracticeRecordingStrip: View {
                     heldWindow = nil
                 })
             .accessibilityLabel("Step \(i + 1)")
+            .help(mark.isPinned ? "Step \(i + 1), pinned: drag to where it is heard" : "Step \(i + 1), matched: drag to where it is heard to pin it")
         }
     }
 
@@ -265,6 +268,7 @@ struct PracticeRecordingStrip: View {
                         heldWindow = nil
                     })
                 .accessibilityLabel("Edge \(i + 1)")
+                .help("Drag to where this edge between runs is heard")
             }
         }
     }
