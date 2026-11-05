@@ -8,24 +8,15 @@ import UniformTypeIdentifiers
 /// Above the piano are the piece and the runs of the hand shown: the runs
 /// of the run in focus, to choose and watch or to open and cut further,
 /// and while cutting, that run's steps, each lit on the piano as it is
-/// tapped. Below it is the recording, the runs laid along it with their
-/// edges to drag, and what plays it.
+/// tapped. Below it is the whole score as a bar, the runs laid along it,
+/// and what plays it.
 ///
-/// The keys light in turn as the recording plays, each as it is struck,
+/// The keys light in turn as the score plays, each as it is struck,
 /// with the hand's next keys marked: a run is seen as the hand plays it,
 /// key by key, not as notes falling toward the keys.
 struct ScorePracticeView: View {
     @Environment(PerformanceState.self) private var state
 
-    private enum Importing {
-        case score
-        case recording
-    }
-
-    /// What the file picker is choosing. It is kept after the picker
-    /// closes, because the picker closes before it hands over the file
-    /// chosen, and the file is taken as what was asked for.
-    @State private var importing = Importing.score
     @State private var isImporting = false
 
     /// The keys are never longer than this share of the screen's height.
@@ -33,10 +24,10 @@ struct ScorePracticeView: View {
     private static let margin: CGFloat = 16
 
     static let scoreTypes: [UTType] = [
+        .midi,
         UTType(importedAs: "com.recordare.musicxml.compressed", conformingTo: .zip),
         UTType(importedAs: "com.recordare.musicxml.uncompressed", conformingTo: .xml),
         .xml,
-        .midi,
     ]
 
     var body: some View {
@@ -54,7 +45,7 @@ struct ScorePracticeView: View {
                 .padding(.top, 8)
                 .frame(maxHeight: .infinity, alignment: .top)
 
-                TimelineView(.animation(paused: practice.listening == nil)) { _ in
+                TimelineView(.animation(paused: !practice.isPlaying)) { _ in
                     PianoView(isExpanded: true, practice: practice.lights(at: practice.currentTime))
                 }
                 .frame(height: PianoKeys.length(
@@ -66,13 +57,9 @@ struct ScorePracticeView: View {
                 VStack(spacing: 10) {
                     if practice.piece == nil {
                         emptyMessage
-                    } else if practice.hasRecording {
-                        PracticeTimelines()
-                        PracticeOverview()
-                        PracticeNotesRow()
-                        PracticeTransport()
                     } else {
-                        importButton("Add a recording of it", systemImage: "waveform") { pick(.recording) }
+                        PracticeOverview()
+                        PracticeTransport()
                     }
                 }
                 .padding(.horizontal, Self.margin)
@@ -84,13 +71,9 @@ struct ScorePracticeView: View {
         .task { await practice.appear() }
         // Shrunk by a double tap on the keys, too: nothing plays unseen.
         .onDisappear { practice.stop() }
-        .fileImporter(isPresented: $isImporting,
-                      allowedContentTypes: importing == .recording ? [.audio] : Self.scoreTypes) { result in
+        .fileImporter(isPresented: $isImporting, allowedContentTypes: Self.scoreTypes) { result in
             guard case let .success(url) = result else { return }
-            switch importing {
-            case .score:     practice.importScore(from: url)
-            case .recording: practice.importRecording(from: url)
-            }
+            practice.importScore(from: url)
         }
         .alert(practice.failure ?? "", isPresented: Binding(
             get: { practice.failure != nil }, set: { if !$0 { practice.failure = nil } })) {
@@ -155,18 +138,8 @@ struct ScorePracticeView: View {
                 }
             }
             Divider()
-            Button("Open a score…", systemImage: "doc.badge.plus") { pick(.score) }
+            Button("Open a score…", systemImage: "doc.badge.plus") { isImporting = true }
             if practice.piece != nil {
-                Button(practice.hasRecording ? "Replace the recording…" : "Add a recording…",
-                       systemImage: "waveform") { pick(.recording) }
-                if practice.hasRecording {
-                    Button("Match again", systemImage: "wand.and.stars") { practice.matchAgain() }
-                    if !(practice.practice?.anchors.isEmpty ?? true) {
-                        Button("Clear pins and match again", systemImage: "pin.slash") {
-                            practice.clearPinsAndMatch()
-                        }
-                    }
-                }
                 Divider()
                 Button("Close", systemImage: "xmark") { practice.closePiece() }
                 if let piece = practice.piece {
@@ -179,13 +152,6 @@ struct ScorePracticeView: View {
             HStack(spacing: 6) {
                 Text(practice.piece?.title ?? "Score practice")
                     .lineLimit(1)
-                if practice.isMatching {
-                    ProgressView()
-                        .controlSize(.mini)
-                        .tint(Color(white: 0.6))
-                        .accessibilityLabel("Matching the recording")
-                        .help("Matching the recording to the score…")
-                }
                 if practice.isInCloud {
                     // The pieces are shared with the other device.
                     Image(systemName: "icloud")
@@ -200,7 +166,7 @@ struct ScorePracticeView: View {
             .font(.system(size: 14, weight: .semibold))
             .foregroundStyle(Color(white: 0.9))
         }
-        .help("Pieces: open another, open a score, add or replace the recording, match it again, close the piece, or delete it")
+        .help("Pieces: open another, open a score, close the piece, or delete it")
     }
 
     // MARK: – No piece yet
@@ -208,19 +174,14 @@ struct ScorePracticeView: View {
     private var emptyMessage: some View {
         VStack(spacing: 12) {
             Text(state.practice.pieces.isEmpty
-                 ? "Open a score in MusicXML (.mxl or .musicxml) or MIDI (.mid) and add a recording of it, then dice each hand into runs and watch them on the keys as the recording plays."
+                 ? "Open a MIDI file (.mid) or a MusicXML score (.mxl or .musicxml), then dice each hand into runs and watch them on the keys as the score plays."
                  : "Choose a piece from the menu above, or open another score.")
                 .font(.system(size: 13))
                 .foregroundStyle(Color(white: 0.6))
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 420)
-            importButton("Open a score", systemImage: "doc.badge.plus") { pick(.score) }
+            importButton("Open a score", systemImage: "doc.badge.plus") { isImporting = true }
         }
-    }
-
-    private func pick(_ kind: Importing) {
-        importing = kind
-        isImporting = true
     }
 
     private func importButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
@@ -315,7 +276,7 @@ struct PracticeRunsBar: View {
                         .font(.system(size: 13, weight: .semibold, design: run.name == nil ? .monospaced : .default))
                         .lineLimit(1)
                     let place = run.name != nil && !isFocus ? practice.label(of: run.id) : nil
-                    let time = practice.hasRecording ? practice.span(of: run.id).map { PracticeTime.text($0.lowerBound) } : nil
+                    let time = practice.span(of: run.id).map { PracticeTime.text($0.lowerBound) }
                     if place != nil || time != nil {
                         Text([place, time].compactMap { $0 }.joined(separator: " · "))
                             .font(.system(size: 10, design: .monospaced))
@@ -436,7 +397,7 @@ struct PracticeAllRuns: View {
                     Spacer(minLength: 4)
                     VStack(alignment: .trailing, spacing: 1) {
                         Text("\(run.steps.count) step\(run.steps.count == 1 ? "" : "s")")
-                        if practice.hasRecording, let span = practice.span(of: run.id) {
+                        if let span = practice.span(of: run.id) {
                             Text("\(PracticeTime.text(span.lowerBound))–\(PracticeTime.text(span.upperBound))")
                         }
                     }
@@ -460,7 +421,7 @@ struct PracticeAllRuns: View {
 
 /// The steps of the run in focus, in order, to cut it by: a tap between
 /// two steps cuts the run there or joins it again, and a tap on a step
-/// lights it on the piano and stands the recording at it.
+/// lights it on the piano and stands the playhead at it.
 struct PracticeStepsStrip: View {
     @Environment(PerformanceState.self) private var state
 
@@ -512,7 +473,7 @@ struct PracticeStepsStrip: View {
                                 : Color(white: (pieceOf[item.index] ?? 0).isMultiple(of: 2) ? 0.13 : 0.2)))
                     }
                     .buttonStyle(.plain)
-                    .help("Light this step on the piano and stand the recording at it")
+                    .help("Light this step on the piano and stand the playhead at it")
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -527,10 +488,8 @@ struct PracticeStepsStrip: View {
 
 // MARK: – Playing
 
-/// What plays the recording: skip back or on, play the runs watched from
-/// where the recording stands, once or over again, listen on from where
-/// the recording stands, and tag a nudge point where it stands and go from
-/// one to the next.
+/// What plays the score: skip back or on, and play the runs watched from
+/// where the playhead stands, once or over again.
 struct PracticeTransport: View {
     @Environment(PerformanceState.self) private var state
 
@@ -544,16 +503,14 @@ struct PracticeTransport: View {
             .accessibilityLabel("Back 5 seconds")
             .help("Back 5 seconds, playing on if it was playing")
 
-            Button {
-                if practice.listening == .runs { practice.stop() } else { practice.play() }
-            } label: {
-                Image(systemName: practice.listening == .runs ? "stop.fill" : "play.fill")
-                    .practiceChit(fill: practice.listening == .runs ? Color.orange : nil, width: 44)
+            Button { practice.playOrStop() } label: {
+                Image(systemName: practice.isPlaying ? "stop.fill" : "play.fill")
+                    .practiceChit(fill: practice.isPlaying ? Color.orange : nil, width: 44)
             }
             .buttonStyle(.plain)
             .hotkeyTip(.playStop)
-            .accessibilityLabel(practice.listening == .runs ? "Stop" : "Play the runs")
-            .help(practice.listening == .runs ? "Stop" : "Play the runs watched from the playhead (or from the next of them)")
+            .accessibilityLabel(practice.isPlaying ? "Stop" : "Play the runs")
+            .help(practice.isPlaying ? "Stop" : "Play the runs watched from the playhead (or from the next of them)")
 
             Button { practice.skip(by: ScorePracticeState.skipSeconds) } label: {
                 Image(systemName: "goforward.5").practiceChit()
@@ -571,109 +528,8 @@ struct PracticeTransport: View {
             .help(practice.repeats ? "Repeat is on: the runs play over and over" : "Repeat is off: the runs play once")
             .accessibilityAddTraits(practice.repeats ? .isSelected : [])
 
-            Button {
-                if practice.listening == .free { practice.stop() } else { practice.listen() }
-            } label: {
-                Image(systemName: practice.listening == .free ? "stop.fill" : "ear")
-                    .practiceChit(fill: practice.listening == .free ? Color.orange : nil)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(practice.listening == .free ? "Stop" : "Listen from here")
-            .help(practice.listening == .free ? "Stop listening" : "Listen to the whole recording from the playhead, with all of the hand lit")
-
-            Spacer(minLength: 4)
-
-            Button { practice.goToNudge(forward: false) } label: {
-                Image(systemName: "chevron.left").practiceChit()
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Previous nudge point")
-            .help("Go to the previous nudge point (a flag you tagged or a doubt of the match)")
-            Button { practice.toggleTag() } label: {
-                Image(systemName: practice.isAtTag ? "flag.slash.fill" : "flag.fill")
-                    .practiceChit(fill: practice.isAtTag ? PracticeTimelines.tagColor : nil)
-            }
-            .buttonStyle(.plain)
-            .hotkeyTip(.tag)
-            .accessibilityLabel(practice.isAtTag ? "Remove the nudge point" : "Tag a nudge point")
-            .help(practice.isAtTag ? "Remove the nudge point here" : "Tag a nudge point here, to come back to and fix")
-            Button { practice.goToNudge(forward: true) } label: {
-                Image(systemName: "chevron.right").practiceChit()
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Next nudge point")
-            .help("Go to the next nudge point (a flag you tagged or a doubt of the match)")
+            Spacer(minLength: 0)
         }
-    }
-}
-
-/// The chosen note, set where it is heard: the note before and after,
-/// nudged earlier or later by a tenth or a hundredth of a second, where it
-/// is heard to the millisecond, heard in the seconds around it, and its
-/// pin taken away.
-struct PracticeNotesRow: View {
-    @Environment(PerformanceState.self) private var state
-
-    var body: some View {
-        let practice = state.practice
-        let chosen = practice.selectedTime
-        HStack(spacing: 6) {
-            button("backward.end", "Previous note", "Choose the note before", key: .previousNote) {
-                practice.selectNext(forward: false)
-            }
-            nudge(-ScorePracticeState.coarseNudge, "-100", key: nil)
-            nudge(-ScorePracticeState.fineNudge, "-10", key: .nudgeEarlier)
-            Text(chosen.map(PracticeTime.precise) ?? "–:––.–––")
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundStyle(chosen == nil ? Color(white: 0.4) : Color(white: 0.9))
-                .frame(minWidth: 76)
-                .accessibilityLabel("Chosen note")
-                .accessibilityValue(chosen.map(PracticeTime.precise) ?? "none")
-                .help("Where the chosen note is heard in the recording")
-            nudge(ScorePracticeState.fineNudge, "+10", key: .nudgeLater)
-            nudge(ScorePracticeState.coarseNudge, "+100", key: nil)
-            button("forward.end", "Next note", "Choose the note after", key: .nextNote) {
-                practice.selectNext(forward: true)
-            }
-            Spacer(minLength: 4)
-            button("ear", "Hear the note", "Hear the seconds around the chosen note, then stand at it again", key: nil) {
-                practice.hearSelected()
-            }
-            .disabled(chosen == nil)
-            .opacity(chosen == nil ? 0.4 : 1)
-            button("pin.slash", "Unpin the note", "Take the chosen note's pin away, leaving it to the match", key: nil) {
-                practice.unpinSelected()
-            }
-            .disabled(!practice.isSelectedPinned)
-            .opacity(practice.isSelectedPinned ? 1 : 0.4)
-        }
-    }
-
-    private func nudge(_ seconds: Double, _ title: String, key: KeyboardButton?) -> some View {
-        let isChosen = state.practice.selectedTime != nil
-        let ms = Int((abs(seconds) * 1000).rounded())
-        return Button { state.practice.nudge(by: seconds) } label: {
-            Text(title)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .practiceChit()
-        }
-        .buttonStyle(.plain)
-        .hotkeyTip(key)
-        .disabled(!isChosen)
-        .opacity(isChosen ? 1 : 0.4)
-        .accessibilityLabel("\(seconds < 0 ? "Earlier" : "Later") by \(ms) milliseconds")
-        .help("Pin the chosen note \(ms) ms \(seconds < 0 ? "earlier" : "later")")
-    }
-
-    private func button(_ symbol: String, _ label: String, _ help: String, key: KeyboardButton?,
-                        action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol).practiceChit()
-        }
-        .buttonStyle(.plain)
-        .hotkeyTip(key)
-        .accessibilityLabel(label)
-        .help(help)
     }
 }
 
@@ -682,12 +538,6 @@ enum PracticeTime {
     static func text(_ seconds: Double) -> String {
         let tenths = Int((max(0, seconds) * 10).rounded())
         return String(format: "%d:%02d.%d", tenths / 600, tenths / 10 % 60, tenths % 10)
-    }
-
-    /// "1:23.456".
-    static func precise(_ seconds: Double) -> String {
-        let ms = Int((max(0, seconds) * 1000).rounded())
-        return String(format: "%d:%02d.%03d", ms / 60_000, ms / 1000 % 60, ms % 1000)
     }
 }
 

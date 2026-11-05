@@ -1,9 +1,9 @@
-/// What is played of the recording, and what lights on the piano as it
+/// What is played of the score, and what lights on the piano as it
 /// plays: both worked out from the runs being watched, as values, so the
 /// player and the piano only carry them out.
 enum Playback {
 
-    /// The stretches of the recording that play `runs`: each run's span,
+    /// The stretches of the score that play `runs`: each run's span,
     /// in order, joined where two overlap or touch, so runs one after
     /// another play straight through and a run inside another is not
     /// played twice.
@@ -25,11 +25,11 @@ enum Playback {
     /// Two stretches this close are one: no gap anyone would hear.
     static let touching = 0.001
 
-    /// Where playing `segments` begins with the recording standing at
+    /// Where playing `segments` begins with the playhead standing at
     /// `time`: at `time` itself if it is inside one, so play goes on from
-    /// where the recording was left or dragged to; otherwise at the start of
+    /// where it was left or moved to; otherwise at the start of
     /// the next one after it, or of the first when none is after it. A
-    /// recording standing at a segment's very end (`nearEnd`), as one that
+    /// playhead standing at a segment's very end (`nearEnd`), as one that
     /// has just played through it does, begins at the next. Nil for none.
     static func start(at time: Double, in segments: [Segment]) -> PlayStart? {
         guard let first = segments.first else { return nil }
@@ -42,15 +42,44 @@ enum Playback {
         return PlayStart(segment: 0, time: first.start)
     }
 
-    /// How near a segment's end the recording is taken to have played it.
+    /// How near a segment's end the playhead is taken to have played it.
     static let nearEnd = 0.05
 
-    /// Every note of `runs`, each once, at the moments the recording has
-    /// it, in order. A note is lit until it ends or its run does, so a run
+    /// One pass through `segments` from `start`, sounding `notes`: the
+    /// stretches of the score one after another, and each note struck in
+    /// them, cut off where its stretch ends. A pass that begins inside a
+    /// stretch also sounds the notes held over that moment, from the start.
+    /// A repeat is the pass from the first segment's start.
+    static func pass(_ notes: [ScoreNote], _ segments: [Segment], from start: PlayStart) -> PlayPass {
+        guard segments.indices.contains(start.segment) else { return PlayPass(stretches: [], notes: []) }
+        var stretches: [PlayPass.Stretch] = []
+        var at = 0.0
+        for (i, segment) in segments.enumerated() where i >= start.segment {
+            let from = i == start.segment ? max(start.time, segment.start) : segment.start
+            guard segment.end > from else { continue }
+            stretches.append(PlayPass.Stretch(from: from, to: segment.end, at: at))
+            at += segment.end - from
+        }
+        var sounded: [PassNote] = []
+        for (i, stretch) in stretches.enumerated() {
+            for note in notes {
+                let struck = note.onset >= stretch.from - Score.sameTime && note.onset < stretch.to - Score.sameTime
+                let held = i == 0 && note.onset < stretch.from && note.end > stretch.from + Score.sameTime
+                guard struck || held else { continue }
+                let begin = stretch.at + max(0, note.onset - stretch.from)
+                let end = stretch.at + min(note.end, stretch.to) - stretch.from
+                if end > begin { sounded.append(PassNote(pitch: note.pitch, start: begin, end: end)) }
+            }
+        }
+        return PlayPass(stretches: stretches,
+                        notes: sounded.sorted { ($0.start, $0.pitch) < ($1.start, $1.pitch) })
+    }
+
+    /// Every note of `runs`, each once, at its moments in the score, in
+    /// order. A note is lit until it ends or its run does, so a run
     /// repeated does not leave its last notes lit into its start.
     static func notes(of runs: [RunID], _ practice: Practice, _ score: Score) -> [TimedNote] {
         var byNote: [NoteKey: TimedNote] = [:]
-        let alignment = practice.alignment
         for id in runs {
             guard let found = practice.find(id) else { continue }
             let (run, hand) = (found.run, found.hand)
@@ -60,8 +89,7 @@ enum Playback {
                 for note in steps[index].notes {
                     let timed = TimedNote(
                         pitch: note.pitch, hand: hand, step: index,
-                        on: Alignment.recordingTime(note.onset, alignment),
-                        off: Alignment.recordingTime(min(note.end, runEnd), alignment))
+                        on: note.onset, off: min(note.end, runEnd))
                     let key = NoteKey(hand: hand, step: index, pitch: note.pitch)
                     if let held = byNote[key], held.off >= timed.off { continue }
                     byNote[key] = timed
@@ -71,7 +99,7 @@ enum Playback {
         return byNote.values.sorted { ($0.on, $0.pitch) < ($1.on, $1.pitch) }
     }
 
-    /// The keys lit at `time` seconds into the recording, by `notes`: each
+    /// The keys lit at `time` seconds into the score, by `notes`: each
     /// note sounding then, and each hand's next step, which lights to say
     /// where the hand goes.
     static func lights(at time: Double, _ notes: [TimedNote]) -> [Int: [KeyLight]] {
@@ -114,13 +142,13 @@ enum Playback {
 }
 
 /// Where playing a list of segments begins: in which of them, and at what
-/// moment of the recording; repeats go back to the first segment's start.
+/// moment of the score; repeats go back to the first segment's start.
 struct PlayStart: Equatable, Sendable {
     let segment: Int
     let time: Double
 }
 
-/// A stretch of the recording, in its seconds.
+/// A stretch of the score, in its seconds.
 struct Segment: Equatable, Sendable {
     let start: Double
     let end: Double
@@ -128,7 +156,8 @@ struct Segment: Equatable, Sendable {
     var duration: Double { end - start }
 }
 
-/// A note of the score at the moments the recording has it.
+/// A note of the score lit on the piano, from when it is struck to when it
+/// or its run ends, in score seconds.
 struct TimedNote: Equatable, Sendable {
     let pitch: Int
     let hand: Hand
@@ -154,13 +183,40 @@ struct KeyLight: Equatable, Sendable {
     }
 }
 
-/// A recording's loudness, drawn as its outline: the largest sample of
-/// each stretch of `frames` frames.
-enum Waveform {
-    static func peaks(_ samples: [Float], frames: Int) -> [Float] {
-        guard frames > 0 else { return [] }
-        return stride(from: 0, to: samples.count, by: frames).map { start in
-            samples[start..<min(start + frames, samples.count)].reduce(0) { max($0, abs($1)) }
-        }
+/// One pass of playing: the stretches of the score heard one after
+/// another, each from `from` to `to` score seconds and begun `at` seconds
+/// into the pass, and the notes struck in them.
+struct PlayPass: Equatable, Sendable {
+    struct Stretch: Equatable, Sendable {
+        let from: Double
+        let to: Double
+        let at: Double
     }
+
+    let stretches: [Stretch]
+    /// In order of when they are struck.
+    let notes: [PassNote]
+
+    /// How long the pass plays, in seconds.
+    var length: Double {
+        stretches.last.map { $0.at + $0.to - $0.from } ?? 0
+    }
+
+    /// The moment of the score heard `elapsed` seconds into the pass: its
+    /// first moment before it starts, and its last once it has ended.
+    func scoreTime(at elapsed: Double) -> Double {
+        guard let first = stretches.first, let last = stretches.last else { return 0 }
+        if elapsed <= 0 { return first.from }
+        guard let stretch = stretches.last(where: { $0.at <= elapsed }) else { return first.from }
+        let t = stretch.from + (elapsed - stretch.at)
+        return stretch == last ? min(t, last.to) : min(t, stretch.to)
+    }
+}
+
+/// A note of the score sounded in a pass: struck `start` seconds into it,
+/// let go at `end`.
+struct PassNote: Equatable, Sendable {
+    let pitch: Int
+    let start: Double
+    let end: Double
 }

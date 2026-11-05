@@ -1,13 +1,13 @@
 import Foundation
 
-/// A score taken in for practice, with its recording and what has been
-/// made of the two (`Practice`), as it is kept.
+/// A score taken in for practice, and what has been made of it
+/// (`Practice`), as it is kept. A piece saved when pieces had recordings is
+/// read the same, its recording passed over.
 struct Piece: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
     var title: String
     /// The score as it was imported, in the piece's folder.
     let scoreFile: String
-    var recordingFile: String?
     var practice: Practice
     let added: Date
     /// When it was last saved, by whichever device saved it: of two copies
@@ -16,8 +16,8 @@ struct Piece: Codable, Equatable, Identifiable, Sendable {
     var modified: Date?
 }
 
-/// The pieces, each in a folder of its own: the score and the recording
-/// copied in as they were given, and the piece itself as JSON beside them,
+/// The pieces, each in a folder of its own: the score copied in as it was
+/// given, and the piece itself as JSON beside them,
 /// so a piece is read again as it was left.
 ///
 /// The folder is in the app's iCloud container when the device is signed
@@ -86,48 +86,14 @@ struct ScoreLibrary: Sendable {
         let bytes = [UInt8](data.prefix(4))
         let scoreFile = "score." + (MidiScore.isMidi(bytes) ? "mid" : Mxl.isArchive(data) ? "mxl" : "musicxml")
         try write(data, to: folder(of: id).appendingPathComponent(scoreFile))
-        let piece = Piece(id: id, title: score.title, scoreFile: scoreFile, recordingFile: nil,
+        let piece = Piece(id: id, title: score.title, scoreFile: scoreFile,
                           practice: Practice(score: score), added: .now)
         return (try save(piece), score)
-    }
-
-    /// The recording at `url` copied in as `piece`'s, in place of any it
-    /// had.
-    func importRecording(from url: URL, into piece: Piece) throws -> Piece {
-        let ext = url.pathExtension.isEmpty ? "m4a" : url.pathExtension.lowercased()
-        let file = "recording." + ext
-        if let old = piece.recordingFile { remove(folder(of: piece.id).appendingPathComponent(old)) }
-        let destination = folder(of: piece.id).appendingPathComponent(file)
-        let lent = url.startAccessingSecurityScopedResource()
-        defer { if lent { url.stopAccessingSecurityScopedResource() } }
-        try coordinate(writing: destination, options: .forReplacing) { target in
-            try FileManager.default.createDirectory(at: target.deletingLastPathComponent(),
-                                                    withIntermediateDirectories: true)
-            if FileManager.default.fileExists(atPath: target.path) {
-                try FileManager.default.removeItem(at: target)
-            }
-            try FileManager.default.copyItem(at: url, to: target)
-        }
-        var next = piece
-        next.recordingFile = file
-        return try save(next)
     }
 
     func score(of piece: Piece) throws -> Score {
         let data = try read(folder(of: piece.id).appendingPathComponent(piece.scoreFile))
         return try Self.score(from: data, title: piece.title)
-    }
-
-    func recordingURL(of piece: Piece) -> URL? {
-        piece.recordingFile.map { folder(of: piece.id).appendingPathComponent($0) }
-    }
-
-    /// `piece`'s recording, downloaded if it is not on the device yet,
-    /// which waits for it.
-    func downloadedRecording(of piece: Piece) -> URL? {
-        guard let url = recordingURL(of: piece) else { return nil }
-        if isInCloud { try? coordinate(reading: url) { _ in } }
-        return url
     }
 
     /// `piece` saved as it is now; it is given back marked with the moment.

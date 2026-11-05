@@ -17,30 +17,15 @@ enum KeyboardButton: String, CaseIterable, Hashable, Codable, Sendable {
     case loop
     /// Silences the app's own sound, or brings it back.
     case midi
-    /// Starts the loops from the top, or stops them.
+    /// Starts the loops from the top, or stops them; in score practice,
+    /// plays the runs watched or stops them.
     case playStop
-    /// Tags a nudge point where score practice's recording is, or takes
-    /// the one there away. Only score practice has it.
-    case tag
-    /// Chooses the note before, or after, the one chosen on score
-    /// practice's notes timeline. Only score practice has them.
-    case previousNote
-    case nextNote
-    /// Nudges the note chosen in score practice a little earlier, or later,
-    /// along the recording. Only score practice has them.
-    case nudgeEarlier
-    case nudgeLater
 
     var displayName: String {
         switch self {
         case .loop:      return "Loop"
         case .midi:      return "MIDI"
         case .playStop:  return "Play/stop"
-        case .tag:          return "Nudge point"
-        case .previousNote: return "Previous note"
-        case .nextNote:     return "Next note"
-        case .nudgeEarlier: return "Nudge earlier"
-        case .nudgeLater:   return "Nudge later"
         }
     }
 }
@@ -102,10 +87,39 @@ struct KeyboardMap: Equatable, Codable, Sendable {
 }
 
 extension KeyboardMap {
+    /// An action a saved map has that the app no longer has (score
+    /// practice's nudge points, say) is passed over, with its key, so the
+    /// rest of the map is kept.
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        keys = try container.decode([KeyboardAction: KeyboardKey].self, forKey: .keys)
-        cleared = try container.decodeIfPresent(Set<KeyboardAction>.self, forKey: .cleared) ?? []
+        // A dictionary keyed by something other than strings is saved as
+        // a list of keys and values, one after the other.
+        var pairs = try container.nestedUnkeyedContainer(forKey: .keys)
+        var keys: [KeyboardAction: KeyboardKey] = [:]
+        while !pairs.isAtEnd {
+            let action = try? pairs.decode(KeyboardAction.self)
+            if action == nil { _ = try pairs.decode(Unknown.self) }
+            let key = try pairs.decode(KeyboardKey.self)
+            if let action { keys[action] = key }
+        }
+        self.keys = keys
+        var cleared: Set<KeyboardAction> = []
+        if container.contains(.cleared) {
+            var list = try container.nestedUnkeyedContainer(forKey: .cleared)
+            while !list.isAtEnd {
+                if let action = try? list.decode(KeyboardAction.self) {
+                    cleared.insert(action)
+                } else {
+                    _ = try list.decode(Unknown.self)
+                }
+            }
+        }
+        self.cleared = cleared
+    }
+
+    /// Whatever was saved in a place, read only to pass over it.
+    private struct Unknown: Decodable {
+        init(from decoder: any Decoder) throws {}
     }
 
     /// A map saved before an action existed has no key for it. It is given
@@ -125,9 +139,8 @@ extension KeyboardMap {
     /// The chords along the home row from A to J, the compass's first
     /// choices on the arrows (up adds a tone, right raises one, left lowers
     /// one, down takes one away; the second choices have no key to start
-    /// with), and the buttons on Return (loop), Space (play and stop), M
-    /// (MIDI), and in score practice N (a nudge point), [ and ] (the note
-    /// before and after) and , and . (a note nudged earlier and later).
+    /// with), and the buttons on Return (loop), Space (play and stop) and M
+    /// (MIDI).
     static let standard: KeyboardMap = {
         var keys: [KeyboardAction: KeyboardKey] = [:]
         let homeRow = [(4, "A"), (22, "S"), (7, "D"), (9, "F"), (10, "G"), (11, "H"), (13, "J")]
@@ -141,11 +154,6 @@ extension KeyboardMap {
         keys[.button(.loop)] = KeyboardKey(code: 40, characters: "")
         keys[.button(.playStop)] = KeyboardKey(code: 44, characters: "")
         keys[.button(.midi)] = KeyboardKey(code: 16, name: "M")
-        keys[.button(.tag)] = KeyboardKey(code: 17, name: "N")
-        keys[.button(.previousNote)] = KeyboardKey(code: 47, name: "[")
-        keys[.button(.nextNote)] = KeyboardKey(code: 48, name: "]")
-        keys[.button(.nudgeEarlier)] = KeyboardKey(code: 54, name: ",")
-        keys[.button(.nudgeLater)] = KeyboardKey(code: 55, name: ".")
         return KeyboardMap(keys: keys)
     }()
 }

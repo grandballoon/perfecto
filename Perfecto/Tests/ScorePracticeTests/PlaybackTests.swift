@@ -1,39 +1,6 @@
 import Testing
 @testable import ScorePractice
 
-@Suite("Alignment")
-struct AlignmentTests {
-
-    @Test func withNoAnchorsTheScoreIsTheRecording() {
-        #expect(Alignment.recordingTime(3, []) == 3)
-    }
-
-    @Test func oneAnchorSaysOnlyWhereTheScoreIs() {
-        let anchors = [AlignmentAnchor(score: 2, recording: 7)]
-        #expect(Alignment.recordingTime(4, anchors) == 9)
-        #expect(Alignment.scoreTime(9, anchors) == 4)
-    }
-
-    @Test func betweenAnchorsTimeIsSharedEvenlyAndBeyondThemTheNearestPaceKeeps() {
-        let anchors = [AlignmentAnchor(score: 0, recording: 1), AlignmentAnchor(score: 4, recording: 9), AlignmentAnchor(score: 8, recording: 11)]
-        #expect(Alignment.recordingTime(2, anchors) == 5)
-        #expect(Alignment.recordingTime(6, anchors) == 10)
-        #expect(Alignment.recordingTime(-1, anchors) == -1)
-        #expect(Alignment.recordingTime(10, anchors) == 12)
-        #expect(Alignment.scoreTime(10, anchors) == 6)
-    }
-
-    @Test func anAnchorReplacesTheOnesItContradicts() {
-        let anchors = [AlignmentAnchor(score: 0, recording: 1), AlignmentAnchor(score: 4, recording: 9), AlignmentAnchor(score: 8, recording: 11)]
-        // Heard before the anchor of the score's start: that one goes.
-        #expect(Alignment.set(AlignmentAnchor(score: 2, recording: 0.5), in: anchors)
-                == [AlignmentAnchor(score: 2, recording: 0.5), AlignmentAnchor(score: 4, recording: 9), AlignmentAnchor(score: 8, recording: 11)])
-        // At a moment anchored already: the new one wins.
-        #expect(Alignment.set(AlignmentAnchor(score: 4, recording: 8), in: anchors)
-                == [AlignmentAnchor(score: 0, recording: 1), AlignmentAnchor(score: 4, recording: 8), AlignmentAnchor(score: 8, recording: 11)])
-    }
-}
-
 @Suite("Playback")
 struct PlaybackTests {
 
@@ -60,12 +27,11 @@ struct PlaybackTests {
         #expect(Playback.segments([right.id, runs[2].id], quarters, scale) == [Segment(start: 0, end: 8)])
     }
 
-    @Test func aRunsNotesAreLitAsTheRecordingHasThem() {
+    @Test func aRunsNotesAreLitWhereTheScoreHasThem() {
         let run = quarters.root(.right)!.children[1]
-        let matched = quarters.settingStart(of: right.id, to: 0, in: scale).settingEnd(of: right.id, to: 16, in: scale)
-        let notes = Playback.notes(of: [run.id], matched, scale)
-        #expect(notes == [TimedNote(pitch: 76, hand: .right, step: 2, on: 4, off: 6),
-                          TimedNote(pitch: 77, hand: .right, step: 3, on: 6, off: 8)])
+        #expect(Playback.notes(of: [run.id], quarters, scale)
+                == [TimedNote(pitch: 76, hand: .right, step: 2, on: 2, off: 3),
+                    TimedNote(pitch: 77, hand: .right, step: 3, on: 3, off: 4)])
     }
 
     @Test func aNoteIsLitUntilItsRunEnds() {
@@ -102,8 +68,46 @@ struct PlaybackTests {
         #expect(Playback.pitches(of: [runs[0].id, practice.root(.left)!.id], quarters, scale) == 48...74)
     }
 
-    @Test func aWaveformIsEachStretchsLoudest() {
-        #expect(Waveform.peaks([0.1, -0.5, 0.2, 0.3, -0.1], frames: 2) == [0.5, 0.3, 0.1])
+}
+
+@Suite("A pass of playing")
+struct PlayPassTests {
+
+    @Test func aPassSoundsBothHandsInItsStretchesOneAfterAnother() {
+        let segments = [Segment(start: 0, end: 2), Segment(start: 6, end: 8)]
+        let pass = Playback.pass(scale.notes, segments, from: PlayStart(segment: 0, time: 0))
+        #expect(pass.length == 4)
+        #expect(pass.notes == [
+            PassNote(pitch: 48, start: 0, end: 2), PassNote(pitch: 55, start: 0, end: 2),
+            PassNote(pitch: 72, start: 0, end: 1), PassNote(pitch: 74, start: 1, end: 2),
+            PassNote(pitch: 83, start: 2, end: 3), PassNote(pitch: 84, start: 3, end: 4),
+        ])
+    }
+
+    @Test func aPassBegunInsideAStretchSoundsWhatIsHeldThere() {
+        let pass = Playback.pass(scale.notes, [Segment(start: 0, end: 8)], from: PlayStart(segment: 0, time: 2.5))
+        #expect(pass.length == 5.5)
+        // The left hand's chord, struck at 0, is held over 2.5; E5 is struck at 2.
+        #expect(pass.notes.prefix(3) == [PassNote(pitch: 48, start: 0, end: 1.5),
+                                         PassNote(pitch: 55, start: 0, end: 1.5),
+                                         PassNote(pitch: 76, start: 0, end: 0.5)])
+        #expect(pass.notes.last == PassNote(pitch: 84, start: 4.5, end: 5.5))
+    }
+
+    @Test func aPassBegunInALaterSegmentPlaysOnlyFromThere() {
+        let segments = [Segment(start: 0, end: 2), Segment(start: 6, end: 8)]
+        let pass = Playback.pass(scale.notes, segments, from: PlayStart(segment: 1, time: 6))
+        #expect(pass.stretches == [PlayPass.Stretch(from: 6, to: 8, at: 0)])
+        #expect(pass.notes.map(\.pitch) == [53, 83, 84])
+    }
+
+    @Test func theMomentHeardFollowsTheStretches() {
+        let segments = [Segment(start: 0, end: 2), Segment(start: 6, end: 8)]
+        let pass = Playback.pass(scale.notes, segments, from: PlayStart(segment: 0, time: 1))
+        #expect(pass.scoreTime(at: -1) == 1)
+        #expect(pass.scoreTime(at: 0.5) == 1.5)
+        #expect(pass.scoreTime(at: 1.5) == 6.5)
+        #expect(pass.scoreTime(at: 10) == 8)
     }
 }
 

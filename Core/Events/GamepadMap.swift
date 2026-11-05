@@ -41,9 +41,8 @@ enum GamepadButton: Int, CaseIterable, Sendable {
 extension KeyboardMap {
     /// A game controller's buttons to start with: the chords on A, B, X and
     /// Y (I to IV) and the d-pad's up, right and down (V to vii°), loop on
-    /// R1, play and stop on Menu, and a nudge point (in score practice) on
-    /// L1. The left stick is the
-    /// compass, which no map says (`GamepadStick`).
+    /// R1, and play and stop on Menu. The left stick is the compass, which
+    /// no map says (`GamepadStick`).
     static let gamepad: KeyboardMap = {
         var keys: [KeyboardAction: KeyboardKey] = [:]
         let chords: [GamepadButton] = [.a, .b, .x, .y, .up, .right, .down]
@@ -52,7 +51,6 @@ extension KeyboardMap {
         }
         keys[.button(.loop)] = GamepadButton.rightShoulder.key
         keys[.button(.playStop)] = GamepadButton.menu.key
-        keys[.button(.tag)] = GamepadButton.leftShoulder.key
         return KeyboardMap(keys: keys)
     }()
 }

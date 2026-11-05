@@ -154,7 +154,7 @@ An effect a key zone holds on is played, not set, so it has no field.
 
 **The computer keyboard is one more finger.**
 Its keys are chord keys and the compass's places, by a map that is changed key by key in Setup and remembered (`KeyboardMap`: the home row, and the arrows for the compass's first choices to start with).
-A key can also tap one of the screen's buttons (`KeyboardButton`: loop on Return, play and stop on Space, MIDI on M, and a nudge point on N while practising a score), through `KeyboardHost.tap`, which does what the button does.
+A key can also tap one of the screen's buttons (`KeyboardButton`: loop on Return, play and stop on Space, and MIDI on M), through `KeyboardHost.tap`, which does what the button does.
 Each of those buttons shows the key that taps it in a small chit while a pointer is over it (`hotkeyTip`, drawn over the whole screen by `showingHotkeyTips`).
 A map saved before an action existed is given that action's standard key when it is read, unless the key is taken or the action was left with no key on purpose (`KeyboardMap.cleared`).
 `KeyboardInput` is the window's first responder and hands each key to `KeyboardState`, which presses and releases through `PerformanceState`'s own calls (`KeyboardHost`), so modes, loops and effects know nothing of it.
@@ -162,7 +162,7 @@ A compass key plays its place while it is held, as a finger on it does (`Keyboar
 A key that plays nothing is passed on to the system, as is any key pressed with Command, Control or Option.
 
 **A game controller is one more finger, too.**
-Its buttons are keys: `GamepadState` has a `KeyboardState` of its own for them (`buttons`), so they play, tap and are held by the keyboard's rules, by a map of their own that is saved apart from the keyboard's (`KeyboardMap.gamepad`: the chords on A, B, X and Y and the d-pad's up, right and down, loop on R1, play and stop on Menu, a nudge point on L1).
+Its buttons are keys: `GamepadState` has a `KeyboardState` of its own for them (`buttons`), so they play, tap and are held by the keyboard's rules, by a map of their own that is saved apart from the keyboard's (`KeyboardMap.gamepad`: the chords on A, B, X and Y and the d-pad's up, right and down, loop on R1, play and stop on Menu).
 A button is named by where it is (`GamepadButton`), so a controller of another make plays the same way under other names.
 The left stick plays the compass's first choices, the kind of step it is nearest (`GamepadStick`: up adds, right raises, left lowers, down takes away), which sticks a little at its middle and between two kinds; it plays the compass only as it changes place, pressing the new place before it lifts the old, so a stick at rest leaves it to the keyboard or a finger and a stick turned never passes through the plain chord.
 `GamepadInput` hears the controllers (Apple's `GameController`, on the phone and the Mac alike) and tells `GamepadState`, which lets everything go when the controller goes or the app stops being in front.
@@ -185,18 +185,16 @@ A new line of notes is seen on it by a `PianoSource` case and a sink where its `
 
 **Score practice is the piano with the whole screen.**
 `docs/score-practice.md` has the design.
-There the piano is in the middle of the screen (`ScorePracticeView`), with a piece's runs above it and its recording below.
-A piece is a MusicXML score (`.mxl` or `.musicxml`, which says each note's staff and so its hand), or a MIDI file (`.mid`, its hands by its tracks: `MidiScore`), and a recording of it, kept in the app's iCloud container so the phone and the Mac share them, or the device's support folder without iCloud (`ScoreLibrary`, every file coordinated; `ScoreLibraryWatcher` takes up the other device's changes).
+There the piano is in the middle of the screen (`ScorePracticeView`), with a piece's runs above it and the whole score as a bar below (`PracticeOverview`).
+A piece is a MIDI file (`.mid`, its hands by its tracks: `MidiScore`) or a MusicXML score (`.mxl` or `.musicxml`, which says each note's staff and so its hand), kept in the app's iCloud container so the phone and the Mac share them, or the device's support folder without iCloud (`ScoreLibrary`, every file coordinated; `ScoreLibraryWatcher` takes up the other device's changes).
 Each hand's part is a run, cut into runs, which are cut again where the fingering needs it: a tree (`Practice`).
-The recording is matched to runs by anchors, moments of the score and where the recording has them, shared by both hands (`Alignment`): the score's time is bent to the recording's, never the recording to the score.
-The runs chosen, or the run in focus, are watched: played from the recording, once or over again (`Playback.segments`, `RecordingPlayer`, an engine of its own), with their keys lit one after another as the recording has them, each flashing as it is struck and the hand's next keys marked (`Playback.lights`).
+The runs chosen, or the run in focus, are watched: the score is played on the app's own sound at its own timing, both hands, through those runs, once or over again (`Playback.segments`, `Playback.pass`), with their keys lit one after another, each flashing as it is struck and the hand's next keys marked (`Playback.lights`).
+`ScorePlayer` is what plays it: it sends each pass's notes a little ahead of their moments, stamped with them, to the same audio and MIDI as the keys (`PerformanceState`'s `practiceSinks`), and works out the moment heard from the clock, so the lights and the sound agree.
+There is no recording: pieces kept when there were are read as their scores.
 It never shows notes falling toward the keys.
-Under the piano are two timelines on one stretch of the recording (`PracticeTimelines`, the stretch a `RecordingWindow`): its outline, and the score's notes as a piano roll, panned by a drag and zoomed by a pinch, and under them the whole recording with that stretch boxed (`PracticeOverview`).
-While the screen is open the play/stop key plays the runs, `[` and `]` choose the note before and after, `,` and `.` nudge it, and the chord keys play nothing (`PerformanceState.isPractising`).
+While the screen is open the play/stop key plays the runs, and the chord keys play nothing (`PerformanceState.isPractising`).
 The piece menu opens a piece kept, closes the one open (`closePiece`, which keeps it), or deletes it.
-The recording is matched to the score by ear when it is added (`RecordingFeatures`, the pitch classes heard a hundred times a second; `AutoMatch`, a time warp of them against the score's), and the learner only nudges: a step chosen and nudged, or dragged in the notes lane, is a pin (`Practice.anchors`, `ScorePracticeState.nudge`), which the match always passes through, and the rest is matched again around it (`Practice.matched`, merged by `Alignment.merged`).
-Where the match is in doubt it says so (`Practice.unsure`), and the learner tags moments to come back to while listening (`Practice.nudges`, the N key or L1); the transport goes from one such nudge point to the next.
-The core is pure and in the package (`Perfecto/Sources/ScorePractice`, tested by `swift test`), and `ScorePracticeState` is its shell: it keeps what is open and chosen, saves each change, plays the recording, and brings the piano to the runs watched (`PianoSpan.fitting`).
+The core is pure and in the package (`Perfecto/Sources/ScorePractice`, tested by `swift test`), and `ScorePracticeState` is its shell: it keeps what is open and chosen, saves each change, plays the score, and brings the piano to the runs watched (`PianoSpan.fitting`).
 
 **Loops are layers of one timeline** (`docs/sequencer-spec.md` has the design of the sequencer that edited it, which is parked). A `Timeline` is notes in layers, in ticks (480 to a quarter note), so anything played loosely is kept as played; a note is a chord at a time, with its own key, octave, sound and effects or the live ones, setting by setting. Edits are changes to that value (`TimelineEdits`), and `compile` turns a layer into the chords to play, for playback and the MIDI export alike. `TimelinePlayer` runs the timeline against the clock under whatever mode is on (it is not a mode), each layer through a `LayerVoice` of its own: an arpeggiator and a `NotePlayer`, so layers overlap one another and the keys. `SequencerState` owns the timeline (undo, saving, playing); it still has the step editing the sequencer's screen used, which the loop work is to trim. `SequencerStep` is only the old saved format now. A loop is notes played again, not recorded audio, so its effects and its notes can be changed after.
 Play mode's LOOP button (`QuickLoopState`, drawn by `LoopBar`) offers the lengths a loop can be, 1, 2, 4 or 8 bars at the tempo set (`QuickLoopState.lengths`).
@@ -299,7 +297,7 @@ App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100
 - The sound field: the keys' sound beside the note display, changed by a swipe
 - The step compass: the one color surface, the colors one step from the chord held (a tone added, raised, lowered or taken away), its places the same before a chord is struck as after, and a finger sliding between them
 - The piano: 88 keys along the bottom of the screen, lit with the notes the keys and the loops are sounding
-- Score practice: the piano with the whole screen, a MusicXML score and its recording, each hand cut into runs, the recording matched to the score by ear and nudged by hand, and the runs watched on the keys as the recording plays, once or on repeat
+- Score practice: the piano with the whole screen, a MIDI file or MusicXML score, each hand cut into runs, and the runs watched on the keys as the score plays on the app's own sound, once or on repeat
 - The computer keyboard and a game controller: each plays the chord keys, the compass and the screen's buttons by a map that Setup changes
 - Effects: two arpeggios (up and down), chorus, reverb, delay, vocoder; each is switched from the effect strip on the play screen or from a zone of the chord keys, and the arpeggio's cycle and the vocoder's amount can be played by sliding on a key, as can a chord's inversion
 - The effect strip: a field for each effect that is on, on the play screen, each changed by a swipe

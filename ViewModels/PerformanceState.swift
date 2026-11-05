@@ -273,6 +273,7 @@ final class PerformanceState {
     /// and `gamepad` a game controller and its.
     /// `piano` is the piano whose lines the sinks above were made with
     /// (`PianoState.line`); without one the piano stays dark.
+    /// `practiceSinks` are what score practice plays its score on.
     init(sink: any ChordEventSink,
          chordListener: (any ChordEventSink)? = nil,
          layerSink: (() -> any ChordEventSink)? = nil,
@@ -282,6 +283,7 @@ final class PerformanceState {
          gamepad: GamepadState? = nil,
          piano: PianoState? = nil,
          scoreLibrary: ScoreLibrary? = nil,
+         practiceSinks: [any NoteSink] = [],
          liveSound: (any SoundControl & EffectsControl)? = nil,
          output: AudioOutput? = nil,
          micGate: any PermissionGate = NoopPermissionGate(),
@@ -304,7 +306,9 @@ final class PerformanceState {
         self.keyboard     = keyboard ?? KeyboardState(logger: logger)
         self.gamepad      = gamepad ?? GamepadState(logger: logger)
         self.piano        = piano ?? PianoState(logger: logger)
-        self.practice     = ScorePracticeState(piano: self.piano, library: scoreLibrary, logger: logger)
+        self.practice     = ScorePracticeState(piano: self.piano, library: scoreLibrary,
+                                               makePlayer: { ScorePlayer(sinks: practiceSinks, clock: clock) },
+                                               logger: logger)
         self.sequencerState = sequencer ?? SequencerState(logger: logger)
         self.quickLoopState = QuickLoopState(logger: logger)
         self.micAccess = MicAccess(gate: micGate)
@@ -712,21 +716,15 @@ extension PerformanceState: LoopHost {
 
 extension PerformanceState: KeyboardHost {
     /// Whether score practice has the screen: the piano is expanded over
-    /// the play screen, so the keys and the compass play nothing, the
-    /// play/stop key plays the recording, not the loops, the nudge key
-    /// tags a nudge point, and the note keys choose and nudge notes.
+    /// the play screen, so the keys and the compass play nothing and the
+    /// play/stop key plays the score, not the loops.
     var isPractising: Bool { piano.isOn && piano.isExpanded }
 
     func tap(_ button: KeyboardButton) {
         if isPractising {
             switch button {
-            case .playStop:     practice.playOrStop()
-            case .tag:          practice.toggleTag()
-            case .previousNote: practice.selectNext(forward: false)
-            case .nextNote:     practice.selectNext(forward: true)
-            case .nudgeEarlier: practice.nudge(by: -ScorePracticeState.fineNudge)
-            case .nudgeLater:   practice.nudge(by: ScorePracticeState.fineNudge)
-            case .loop, .midi:  break
+            case .playStop:    practice.playOrStop()
+            case .loop, .midi: break
             }
             return
         }
@@ -734,7 +732,6 @@ extension PerformanceState: KeyboardHost {
         case .loop:     quickLoopState.hotkeyTapped()
         case .midi:     isExternalSynth.toggle()
         case .playStop: quickLoopState.toggleRunning()
-        case .tag, .previousNote, .nextNote, .nudgeEarlier, .nudgeLater: break
         }
     }
 }

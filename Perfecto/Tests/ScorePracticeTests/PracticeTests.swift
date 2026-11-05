@@ -86,37 +86,15 @@ struct PracticeTests {
         #expect(Set(ids).count == ids.count)
     }
 
-    @Test func aRunIsHeardWhereTheScoreHasItUntilItIsMatched() {
+    @Test func aRunIsPlayedWhereTheScoreHasIt() {
         let halves = practice.cutting(right.id, before: 4)
         let second = halves.root(.right)!.children[1]
         #expect(halves.span(of: second.id, in: scale) == 4...8)
-    }
-
-    @Test func matchingARunMovesTheRunsInIt() {
-        let halves = practice.cutting(right.id, before: 4)
-        let second = halves.root(.right)!.children[1]
-        let matched = halves
-            .settingStart(of: right.id, to: 10, in: scale)
-            .settingEnd(of: right.id, to: 26, in: scale)
-        // Twice as slow, ten seconds in.
-        #expect(matched.span(of: second.id, in: scale) == 18...26)
-        // The left hand is heard in the same recording.
-        #expect(matched.span(of: matched.root(.left)!.id, in: scale) == 10...26)
-    }
-
-    @Test func matchingAnInnerRunKeepsTheOutsideWhereItWas() {
-        let halves = practice.cutting(right.id, before: 4)
-        let first = halves.root(.right)!.children[0]
-        let matched = halves
-            .settingStart(of: right.id, to: 0, in: scale)
-            .settingEnd(of: right.id, to: 8, in: scale)
-            .settingEnd(of: first.id, to: 5, in: scale)
-        #expect(matched.span(of: first.id, in: scale) == 0...5)
-        #expect(matched.span(of: right.id, in: scale) == 0...8)
+        #expect(halves.span(of: halves.root(.left)!.id, in: scale) == 0...8)
     }
 
     @Test func practiceIsSavedAndReadAsItIs() throws {
-        let diced = practice.cutting(right.id, before: 4).settingStart(of: right.id, to: 2, in: scale)
+        let diced = practice.cutting(right.id, before: 4)
         let data = try JSONEncoder().encode(diced)
         #expect(try JSONDecoder().decode(Practice.self, from: data) == diced)
     }
@@ -165,5 +143,12 @@ struct RunNameTests {
         #expect(again.root(.right)?.name == "all")
         let old = #"{"right":{"id":1,"first":0,"last":3,"children":[]},"anchors":[],"nextID":2}"#
         #expect(try JSONDecoder().decode(Practice.self, from: Data(old.utf8)).root(.right)?.name == nil)
+    }
+
+    @Test func aPracticeSavedWithARecordingsMatchIsReadAsItsRuns() throws {
+        let old = #"{"right":{"id":1,"first":0,"last":3,"children":[]},"anchors":[{"score":0,"recording":47}],"matched":[],"unsure":[3.5],"nudges":[47.2],"nextID":2}"#
+        let practice = try JSONDecoder().decode(Practice.self, from: Data(old.utf8))
+        #expect(practice.root(.right)?.steps == 0...3)
+        #expect(practice.span(of: practice.root(.right)!.id, in: scale) == 0...4)
     }
 }

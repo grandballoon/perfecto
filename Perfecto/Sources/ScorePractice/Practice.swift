@@ -1,69 +1,21 @@
 import Foundation
 
-/// What a learner has made of a score and its recording: each hand diced
-/// into runs, and the recording matched to them.
+/// What a learner has made of a score: each hand diced into runs.
 ///
 /// A run is a stretch of one hand's steps (`Run`). Each hand's part is one
 /// run, its root, and dicing a run cuts it into runs of its own, which can
 /// be cut again when the fingering is still too much to follow: a tree, in
 /// which a run's runs always cover it end to end.
 ///
-/// A run's place in the recording is where its first step and the end of
-/// its last are heard (`span`), by the alignment: the learner's pins
-/// (`anchors`), and between them the recording matched by ear (`matched`,
-/// from `AutoMatch`), which is worked out again around the pins whenever
-/// they change. Matching a run by hand pins its ends.
-///
-/// Nudge points (`nudges`) are moments of the recording the learner tagged
-/// while listening, to come back to, and `unsure` the moments the match
-/// itself doubts.
-///
 /// Every change is a function from one practice to the next, so the
 /// screen keeps one value, saves it as it is, and undoes nothing by hand.
+/// A practice saved when pieces had recordings is read the same, what was
+/// kept of the recording passed over.
 struct Practice: Equatable, Codable, Sendable {
     /// Each hand's whole part; nil for a hand with no notes.
     private(set) var right: Run?
     private(set) var left: Run?
-    /// The learner's pins: where the recording has a moment of the score,
-    /// set by hand. They always win over the match.
-    private(set) var anchors: [AlignmentAnchor] = []
-    /// The recording matched to the score by ear, an anchor at each moment
-    /// a note is struck; empty until it is matched.
-    private(set) var matched: [AlignmentAnchor] = []
-    /// Where the match doubts itself, in recording seconds.
-    private(set) var unsure: [Double] = []
-    /// The moments tagged while listening, in recording seconds, in order.
-    private(set) var nudges: [Double] = []
     private var nextID = 1
-
-    /// The score put to the recording: the pins, and the match between
-    /// them.
-    var alignment: [AlignmentAnchor] {
-        Alignment.merged(pins: anchors, matched: matched)
-    }
-
-    /// The moments to look at again: those tagged, and those the match
-    /// doubts, in order.
-    var nudgePoints: [Double] {
-        (nudges + unsure).sorted()
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case right, left, anchors, matched, unsure, nudges, nextID
-    }
-
-    /// A practice saved before the match and the nudge points were kept
-    /// is read with none.
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        right = try c.decodeIfPresent(Run.self, forKey: .right)
-        left = try c.decodeIfPresent(Run.self, forKey: .left)
-        anchors = try c.decodeIfPresent([AlignmentAnchor].self, forKey: .anchors) ?? []
-        matched = try c.decodeIfPresent([AlignmentAnchor].self, forKey: .matched) ?? []
-        unsure = try c.decodeIfPresent([Double].self, forKey: .unsure) ?? []
-        nudges = try c.decodeIfPresent([Double].self, forKey: .nudges) ?? []
-        nextID = try c.decode(Int.self, forKey: .nextID)
-    }
 
     init(score: Score) {
         right = makeRoot(score.steps(.right).count)
@@ -171,160 +123,16 @@ struct Practice: Equatable, Codable, Sendable {
         }
     }
 
-    // MARK: – Matching the recording
+    // MARK: – Time
 
-    /// Where the run with `id` is heard: from its first step to the end
-    /// of its last, in recording seconds.
+    /// Where the run with `id` is played: from its first step to the end
+    /// of its last, in score seconds.
     func span(of id: RunID, in score: Score) -> ClosedRange<Double>? {
         guard let found = find(id) else { return nil }
         let (run, hand) = (found.run, found.hand)
-        let alignment = alignment
-        let start = Alignment.recordingTime(score.boundary(hand, run.first), alignment)
-        let end = Alignment.recordingTime(score.boundary(hand, run.last + 1), alignment)
+        let start = score.boundary(hand, run.first)
+        let end = score.boundary(hand, run.last + 1)
         return start...max(start, end)
-    }
-
-    /// The run with `id` heard from `recording` seconds on: an anchor at
-    /// its first step.
-    func settingStart(of id: RunID, to recording: Double, in score: Score) -> Practice {
-        guard let found = find(id) else { return self }
-        let (run, hand) = (found.run, found.hand)
-        return anchoring(score.boundary(hand, run.first), to: recording)
-    }
-
-    /// The run with `id` heard to `recording` seconds: an anchor at the end
-    /// of its last step.
-    func settingEnd(of id: RunID, to recording: Double, in score: Score) -> Practice {
-        guard let found = find(id) else { return self }
-        let (run, hand) = (found.run, found.hand)
-        return anchoring(score.boundary(hand, run.last + 1), to: recording)
-    }
-
-    /// The moment `score` of the score heard at `recording` seconds.
-    func anchoring(_ score: Double, to recording: Double) -> Practice {
-        var next = self
-        next.anchors = Alignment.set(AlignmentAnchor(score: score, recording: max(0, recording)), in: anchors)
-        return next
-    }
-
-    // MARK: – Nudging a note
-
-    /// The closest a moment of the score is moved to the next one held in
-    /// place, in recording seconds.
-    static let closest = 0.01
-
-    /// Whether the moment `moment` of the score is pinned by hand.
-    func isPinned(_ moment: Double) -> Bool {
-        anchors.contains { abs($0.score - moment) < Score.sameTime }
-    }
-
-    /// The moment `moment` of the score (the notes struck then, in both
-    /// hands) pinned where the recording has it at `recording` seconds: a
-    /// note dragged or nudged along the recording.
-    ///
-    /// It stays between the moments held in place either side of it (a
-    /// pin, or a moment the match placed), so it never passes a note
-    /// before or after it and the notes around it stay where they are
-    /// heard. With nothing held either side, the whole score moves with it.
-    func moving(_ moment: Double, to recording: Double, in score: Score) -> Practice {
-        let others = alignment.filter { abs($0.score - moment) >= Score.sameTime }
-        let low = others.last { $0.score < moment }.map { $0.recording + Self.closest } ?? 0
-        let high = others.first { $0.score > moment }.map { $0.recording - Self.closest } ?? .infinity
-        guard low <= high else { return self }
-        return anchoring(moment, to: min(max(recording, low), high))
-    }
-
-    /// The moment `moment` of the score heard `seconds` later (earlier for
-    /// less than 0) than it is now, and pinned there.
-    func nudging(_ moment: Double, by seconds: Double, in score: Score) -> Practice {
-        moving(moment, to: Alignment.recordingTime(moment, alignment) + seconds, in: score)
-    }
-
-    /// The pin at the moment `moment` of the score taken away, leaving it
-    /// to the match.
-    func unpinning(_ moment: Double) -> Practice {
-        var next = self
-        next.anchors.removeAll { abs($0.score - moment) < Score.sameTime }
-        return next
-    }
-
-    /// The step of `hand`'s heard nearest `recording` seconds, if one is
-    /// heard within `reach` seconds of it: the note tapped on the screen.
-    func step(_ hand: Hand, nearest recording: Double, within reach: Double, in score: Score) -> Int? {
-        let alignment = alignment
-        let heard = score.steps(hand).enumerated().map { (index: $0.offset, distance: abs(Alignment.recordingTime($0.element.onset, alignment) - recording)) }
-        guard let nearest = heard.min(by: { $0.distance < $1.distance }), nearest.distance <= reach else { return nil }
-        return nearest.index
-    }
-
-    /// The first step of `hand`'s heard at or after `recording` seconds
-    /// (`forward`), or the last heard before it; nil past either end.
-    func step(_ hand: Hand, from recording: Double, forward: Bool, in score: Score) -> Int? {
-        let alignment = alignment
-        let heard = score.steps(hand).map { Alignment.recordingTime($0.onset, alignment) }
-        return forward ? heard.firstIndex { $0 >= recording - Score.sameTime }
-                       : heard.lastIndex { $0 < recording - Score.sameTime }
-    }
-
-    /// The pins cleared: the match alone, or with none, the score heard at
-    /// its own tempo from the recording's start.
-    func clearingAnchors() -> Practice {
-        var next = self
-        next.anchors = []
-        return next
-    }
-
-    /// The recording matched by ear, as `AutoMatch` found it.
-    func matching(_ result: AutoMatch.Result) -> Practice {
-        var next = self
-        next.matched = result.anchors
-        next.unsure = result.unsure
-        return next
-    }
-
-    /// The match forgotten, as for a new recording.
-    func clearingMatch() -> Practice {
-        var next = self
-        next.matched = []
-        next.unsure = []
-        return next
-    }
-
-    /// Everything made of a recording forgotten, for a new one: the pins,
-    /// the match and the nudge points.
-    func clearingRecording() -> Practice {
-        var next = clearingAnchors().clearingMatch()
-        next.nudges = []
-        return next
-    }
-
-    // MARK: – Nudge points
-
-    /// Moments closer than this are one nudge point, in seconds.
-    static let nudgeReach = 0.3
-
-    /// A nudge point tagged at `recording` seconds, unless there is one
-    /// there already.
-    func tagging(_ recording: Double) -> Practice {
-        guard nudge(near: recording) == nil else { return self }
-        var next = self
-        next.nudges = (nudges + [max(0, recording)]).sorted()
-        return next
-    }
-
-    /// The nudge point tagged nearest `recording` seconds taken away, and
-    /// a doubt the match had there too.
-    func untagging(_ recording: Double) -> Practice {
-        var next = self
-        if let tagged = nudge(near: recording) { next.nudges.removeAll { $0 == tagged } }
-        next.unsure.removeAll { abs($0 - recording) < Self.nudgeReach }
-        return next
-    }
-
-    /// The nudge point tagged within reach of `recording` seconds, if any.
-    func nudge(near recording: Double) -> Double? {
-        nudges.filter { abs($0 - recording) < Self.nudgeReach }
-            .min { abs($0 - recording) < abs($1 - recording) }
     }
 }
 
