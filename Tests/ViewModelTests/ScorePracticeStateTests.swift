@@ -58,14 +58,32 @@ struct ScorePracticeStateTests {
         return state
     }
 
+    /// A run of the hands shown made from step `first` to step `last`, as a
+    /// learner makes one: begun at the note at the playhead, taken on a note
+    /// at a time, and saved. Its id.
+    @discardableResult
+    private func addRun(_ state: ScorePracticeState, _ first: Int, _ last: Int) -> RunID? {
+        guard let onset = state.score?.steps(state.hands)[first].onset else { return nil }
+        state.seek(to: onset)
+        state.startNewRun()
+        while let draft = state.draft, draft.last < last { state.extendDraftEnd() }
+        state.saveDraft()
+        return state.selection.first
+    }
+
+    private func stepsOfRuns(_ state: ScorePracticeState) -> [ClosedRange<Int>] {
+        state.shownRuns.map(\.passage.steps)
+    }
+
     // MARK: – Pieces
 
     @Test func anImportedScoreIsOpenedOnItsRightHand() throws {
         let state = try practising()
         #expect(state.piece?.title == "Scale")
-        #expect(state.hands == [.right, .left])
-        #expect(state.hand == .right)
-        #expect(state.focusPath.map(\.steps) == [0...7])
+        #expect(state.handsShown == [.right, .left, .both])
+        #expect(state.hands == .right)
+        #expect(state.shownRuns.isEmpty)
+        #expect(state.watched == [Passage(.right, from: 0, to: 7)])
         #expect(state.length == 8)
         #expect(state.failure == nil)
     }
@@ -84,9 +102,11 @@ struct ScorePracticeStateTests {
         state.importScore(from: url)
         #expect(state.failure == nil)
         #expect(state.piece?.scoreFile == "score.mid")
-        #expect(state.focusSteps.map { $0.step.notes.map(\.pitch) } == [[72]])
+        #expect(state.score!.steps(state.hands).map { $0.notes.map(\.pitch) } == [[72]])
         state.show(.left)
-        #expect(state.focusSteps.map { $0.step.notes.map(\.pitch) } == [[48]])
+        #expect(state.score!.steps(state.hands).map { $0.notes.map(\.pitch) } == [[48]])
+        state.show(.both)
+        #expect(state.score!.steps(state.hands).map { $0.notes.map(\.pitch) } == [[48, 72]])
     }
 
     @Test func whatIsNotAScoreIsRefusedAndSaid() throws {
@@ -98,21 +118,23 @@ struct ScorePracticeStateTests {
         #expect(state.failure != nil)
     }
 
-    @Test func cutsAreKeptAndReadAgain() async throws {
+    @Test func runsAreKeptAndReadAgain() async throws {
         let state = try practising()
-        state.toggleCut(before: 4)
+        addRun(state, 4, 7)
+        addRun(state, 0, 3)
 
         let again = makeState()
         await again.appear()
         #expect(again.piece == state.piece)
-        #expect(again.shownRuns.map(\.steps) == [0...3, 4...7])
+        #expect(stepsOfRuns(again) == [0...3, 4...7])
     }
 
     /// Pieces kept when they had recordings: the recording, its match and
     /// its nudge points are passed over, and the score plays from its start.
     @Test func aPieceSavedWithARecordingIsReadAsItsScore() async throws {
         let state = try practising()
-        state.toggleCut(before: 4)
+        addRun(state, 0, 3)
+        addRun(state, 4, 7)
         let piece = try #require(state.piece)
         let file = folder.appendingPathComponent(piece.id.uuidString).appendingPathComponent("piece.json")
         var json = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
@@ -127,7 +149,8 @@ struct ScorePracticeStateTests {
         let again = makeState()
         await again.appear()
         #expect(again.piece?.id == piece.id)
-        #expect(again.shownRuns.map(\.steps) == [0...3, 4...7])
+        #expect(stepsOfRuns(again) == [0...3, 4...7])
+        again.clearSelection()
         again.play()
         #expect(player.played.last?.segments == [Segment(start: 0, end: 8)])
         #expect(again.currentTime == 0)
@@ -140,21 +163,21 @@ struct ScorePracticeStateTests {
         await mac.appear()
         #expect(mac.piece?.id == phone.piece?.id)
 
-        phone.toggleCut(before: 4)
+        addRun(phone, 0, 3)
         await mac.libraryChanged()
-        #expect(mac.shownRuns.map(\.steps) == [0...3, 4...7])
+        #expect(stepsOfRuns(mac) == [0...3])
     }
 
     @Test func anOlderSaveDoesNotUndoALaterOne() async throws {
         let phone = try practising()
         let mac = makeState()
         await mac.appear()
-        mac.toggleCut(before: 2)
+        addRun(mac, 0, 1)
         // The Mac saved last: the phone takes it up, and the Mac keeps it.
         await phone.libraryChanged()
-        #expect(phone.shownRuns.map(\.steps) == [0...1, 2...7])
+        #expect(stepsOfRuns(phone) == [0...1])
         await mac.libraryChanged()
-        #expect(mac.shownRuns.map(\.steps) == [0...1, 2...7])
+        #expect(stepsOfRuns(mac) == [0...1])
     }
 
     @Test func aPieceDeletedOnTheOtherDeviceIsClosed() async throws {
@@ -188,49 +211,166 @@ struct ScorePracticeStateTests {
 
     // MARK: – Runs
 
-    @Test func aRunIsNamedAndFoundInTheListOfAllRuns() async throws {
+    @Test func aNewRunIsTheNoteAtThePlayheadMovedAndTakenFurtherThenSaved() throws {
         let state = try practising()
-        state.toggleCut(before: 4)
-        let second = state.shownRuns[1].id
-        state.focus(on: second)
-        state.toggleCut(before: 6)
-        let inner = state.shownRuns[1].id
-        state.rename(inner, to: "the turn")
-        #expect(state.title(of: inner) == "the turn")
-        #expect(state.label(of: inner) == "2.2")
+        state.seek(to: 2.5)
+        state.startNewRun()
+        #expect(state.isEditing)
+        #expect(state.editing == nil)
+        #expect(state.draft == Passage(.right, from: 2, to: 2))
+        // Nothing is kept until it is saved.
+        #expect(state.shownRuns.isEmpty)
+        state.extendDraftEnd()
+        state.extendDraftStart()
+        #expect(state.draft == Passage(.right, from: 1, to: 3))
+        // Dragged along the score, a step at a time, keeping its length.
+        state.moveDraft(toStartAt: 4.3)
+        #expect(state.draft == Passage(.right, from: 4, to: 6))
+        #expect(state.currentTime == 4)
+        state.saveDraft()
+        #expect(!state.isEditing)
+        #expect(stepsOfRuns(state) == [4...6])
+        #expect(state.watched == [Passage(.right, from: 4, to: 6)])
+        #expect(state.span(of: state.shownRuns[0]) == 4...7)
+    }
 
-        let right = try #require(state.allRuns.first { $0.hand == .right })
-        #expect(right.runs.map(\.depth) == [0, 1, 1, 2, 2])
-        #expect(right.runs.last?.run.name == "the turn")
+    @Test func aNewRunCalledOffIsNotMade() throws {
+        let state = try practising()
+        state.startNewRun()
+        state.extendDraftEnd()
+        state.cancelDraft()
+        #expect(state.draft == nil)
+        #expect(state.shownRuns.isEmpty)
+        #expect(!state.canUndo)
+    }
 
-        // Gone to from the list: the run it is one of in focus, and it watched.
-        state.focus(on: state.focusPath[0].id)
-        state.goTo(inner)
-        #expect(state.focus == second)
-        #expect(state.watched == [inner])
+    @Test func aRunIsChangedOnlyInEditingAndSaved() throws {
+        let state = try practising()
+        let id = try #require(addRun(state, 0, 1))
+        state.rename(id, to: "start")
+        state.edit(id)
+        #expect(state.editing == id)
+        #expect(state.draft == Passage(.right, from: 0, to: 1))
+        // While it is edited, it is what plays.
+        #expect(state.watched == [Passage(.right, from: 0, to: 1)])
+        state.moveDraft(toStartAt: 5)
+        state.extendDraftEnd()
+        #expect(state.practice?.run(id)?.passage == Passage(.right, from: 0, to: 1))
+        state.saveDraft()
+        #expect(state.practice?.run(id) == PracticeRun(id: id, passage: Passage(.right, from: 5, to: 7), name: "start"))
+        #expect(state.shownRuns.count == 1)
+        // The edit is one change, undone as one.
+        state.undo()
+        #expect(state.practice?.run(id)?.passage == Passage(.right, from: 0, to: 1))
+    }
 
-        // Kept with the piece.
+    @Test func anEditCalledOffLeavesTheRunAsItWas() throws {
+        let state = try practising()
+        let id = try #require(addRun(state, 2, 3))
+        state.edit(id)
+        state.moveDraft(toStartAt: 6)
+        state.cancelDraft()
+        #expect(state.practice?.run(id)?.passage == Passage(.right, from: 2, to: 3))
+        #expect(state.editing == nil)
+    }
+
+    @Test func showingOtherHandsCallsOffAnEdit() throws {
+        let state = try practising()
+        state.startNewRun()
+        state.show(.both)
+        #expect(!state.isEditing)
+        // Editing a run of other hands shows them.
+        state.show(.left)
+        let left = try #require(addRun(state, 0, 0))
+        state.show(.right)
+        state.edit(left)
+        #expect(state.hands == .left)
+        #expect(state.isEditing)
+    }
+
+    @Test func runsOverlapAndDeletingOneLeavesTheOthers() throws {
+        let state = try practising()
+        let whole = try #require(addRun(state, 0, 7))
+        addRun(state, 2, 5)
+        addRun(state, 4, 6)
+        #expect(stepsOfRuns(state) == [0...7, 2...5, 4...6])
+        state.delete(whole)
+        #expect(stepsOfRuns(state) == [2...5, 4...6])
+    }
+
+    @Test func eachViewOfTheScoreHasItsOwnRuns() throws {
+        let state = try practising()
+        addRun(state, 0, 3)
+        state.show(.left)
+        #expect(state.hands == .left)
+        #expect(state.shownRuns.isEmpty)
+        #expect(state.watched == [Passage(.left, from: 0, to: 0)])
+        state.show(.both)
+        let both = try #require(addRun(state, 2, 6))
+        #expect(state.practice?.run(both)?.passage == Passage(.both, from: 2, to: 6))
+        #expect(stepsOfRuns(state) == [2...6])
+        state.show(.right)
+        #expect(stepsOfRuns(state) == [0...3])
+        #expect(state.allRuns.map(\.hands) == [.right, .left, .both])
+        #expect(state.allRuns.map(\.runs.count) == [1, 0, 1])
+    }
+
+    @Test func aRunOfBothHandsLightsBothHandsKeys() throws {
+        let state = try practising()
+        state.show(.both)
+        addRun(state, 0, 1)
+        state.play()
+        let lights = state.lights(at: 0.5)
+        #expect(lights[72] == [KeyLight(hand: .right, kind: .sounding(since: 0.5))])
+        #expect(lights[48] == [KeyLight(hand: .left, kind: .sounding(since: 0.5))])
+    }
+
+    @Test func everyChangeToTheRunsIsUndoneAndRedone() async throws {
+        let state = try practising()
+        #expect(!state.canUndo)
+        let id = try #require(addRun(state, 0, 3))
+        state.rename(id, to: "the climb")
+        state.delete(id)
+        #expect(state.shownRuns.isEmpty)
+
+        state.undo()
+        #expect(state.shownRuns.map(\.name) == ["the climb"])
+        state.undo()
+        #expect(state.shownRuns.map(\.name) == [nil])
+        state.undo()
+        #expect(state.shownRuns.isEmpty)
+        #expect(!state.canUndo)
+        #expect(state.selection.isEmpty)
+
+        state.redo()
+        state.redo()
+        #expect(state.shownRuns.map(\.name) == ["the climb"])
+        #expect(state.canRedo)
+
+        // What is undone or redone is kept, too.
         let again = makeState()
         await again.appear()
-        #expect(again.practice?.find(inner)?.run.name == "the turn")
+        #expect(again.shownRuns.map(\.name) == ["the climb"])
+        #expect(!again.canUndo)
     }
 
-    @Test func aRunIsOpenedAndCutIntoRunsOfItsOwn() throws {
+    @Test func aRunIsNamedAndGoneToFromTheListOfAllRuns() async throws {
         let state = try practising()
-        state.toggleCut(before: 4)
-        let second = state.shownRuns[1]
-        state.focus(on: second.id)
-        state.toggleCut(before: 6)
-        #expect(state.shownRuns.map(\.steps) == [4...5, 6...7])
-        #expect(state.label(of: state.shownRuns[1].id) == "2.2")
-        state.toggleCut(before: 6)
-        #expect(state.shownRuns.map(\.steps) == [4...7])
-    }
+        state.show(.both)
+        let id = try #require(addRun(state, 4, 7))
+        state.rename(id, to: "  the turn ")
+        let run = try #require(state.practice?.run(id))
+        #expect(state.title(of: run) == "the turn")
+        #expect(state.bars(of: run) == "Bar 2")
 
-    @Test func aRunIsWhereTheScoreHasIt() throws {
-        let state = try practising()
-        state.toggleCut(before: 4)
-        #expect(state.shownRuns.map { state.span(of: $0.id) } == [0...4, 4...8])
+        state.show(.right)
+        state.goTo(id)
+        #expect(state.hands == .both)
+        #expect(state.selection == [id])
+
+        // Without a name, a run goes by its bars.
+        state.rename(id, to: " ")
+        #expect(state.title(of: state.practice!.run(id)!) == "Bar 2")
     }
 
     // MARK: – Playing
@@ -248,10 +388,9 @@ struct ScorePracticeStateTests {
 
     @Test func theRunsChosenArePlayedOverAgainOrOnce() throws {
         let state = try practising()
-        state.toggleCut(before: 2)
-        state.toggleCut(before: 4)
-        state.toggle(state.shownRuns[2].id)
-        state.toggle(state.shownRuns[0].id)
+        let late = try #require(addRun(state, 4, 7))
+        addRun(state, 0, 1)
+        state.toggle(late)
         state.play()
         #expect(player.played.last?.segments == [Segment(start: 0, end: 2), Segment(start: 4, end: 8)])
         #expect(player.played.last?.repeats == true)
@@ -335,29 +474,21 @@ struct ScorePracticeStateTests {
         #expect(lights[76] == [KeyLight(hand: .right, kind: .next)])
     }
 
-    @Test func aStepLookedAtWhileCuttingIsLit() throws {
+    @Test func theKeysShowTheFirstNoteOfTheRunBeingEdited() throws {
         let state = try practising()
-        state.isCutting = true
-        state.select(2)
-        #expect(Set(state.lights(at: state.currentTime).keys) == [76])
-        #expect(state.currentTime == 2)
+        state.seek(to: 2)
+        state.startNewRun()
+        let sounding = state.lights(at: state.currentTime).filter { $0.value.contains { $0.kind != .next } }
+        #expect(sounding.keys.contains(76))
+        #expect(piano.span == PianoSpan.fitting(76...76))
     }
 
     @Test func thePianoIsBroughtToTheRunsWatched() throws {
         let state = try practising()
-        state.toggleCut(before: 4)
-        state.toggle(state.shownRuns[0].id)
+        addRun(state, 0, 3)
         #expect(piano.span == PianoSpan.fitting(72...77))
         state.show(.left)
         #expect(piano.span == PianoSpan.fitting(48...48))
-    }
-
-    @Test func theLeftHandHasItsOwnRuns() throws {
-        let state = try practising()
-        state.show(.left)
-        #expect(state.hand == .left)
-        #expect(state.label(of: state.focus!) == "Left hand")
-        #expect(state.focusSteps.map { $0.step.notes.map(\.pitch) } == [[48]])
     }
 }
 

@@ -1,138 +1,176 @@
 import Foundation
 
-/// What a learner has made of a score: each hand diced into runs.
+/// What a learner has made of a score: runs, each a stretch of it to
+/// watch on its own.
 ///
-/// A run is a stretch of one hand's steps (`Run`). Each hand's part is one
-/// run, its root, and dicing a run cuts it into runs of its own, which can
-/// be cut again when the fingering is still too much to follow: a tree, in
-/// which a run's runs always cover it end to end.
+/// Runs are independent views of the one score. Each is of one hand or
+/// of both together (`Hands`), begins and ends on any step of them, and
+/// may overlap any other run, lie inside it or repeat part of it: adding,
+/// naming or deleting one leaves every other as it was.
 ///
 /// Every change is a function from one practice to the next, so the
-/// screen keeps one value, saves it as it is, and undoes nothing by hand.
-/// A practice saved when pieces had recordings is read the same, what was
-/// kept of the recording passed over.
-struct Practice: Equatable, Codable, Sendable {
-    /// Each hand's whole part; nil for a hand with no notes.
-    private(set) var right: Run?
-    private(set) var left: Run?
+/// screen keeps one value, saves it as it is, and undoes a change by
+/// going back to the value before it (`History`). A practice saved when a
+/// hand's runs were cut from its whole part, as a tree, is read as the
+/// runs of that tree, each its own; one saved when pieces had recordings
+/// is read the same, what was kept of the recording passed over.
+struct Practice: Equatable, Sendable {
+    /// In the order they were added.
+    private(set) var runs: [PracticeRun] = []
     private var nextID = 1
 
-    init(score: Score) {
-        right = makeRoot(score.steps(.right).count)
-        left = makeRoot(score.steps(.left).count)
+    init() {}
+
+    func run(_ id: RunID) -> PracticeRun? {
+        runs.first { $0.id == id }
     }
 
-    private mutating func makeRoot(_ steps: Int) -> Run? {
-        guard steps > 0 else { return nil }
-        return Run(id: Run.take(&nextID), first: 0, last: steps - 1)
+    /// The runs of `hands`, in the order they are in the score.
+    func runs(of hands: Hands, in score: Score) -> [PracticeRun] {
+        runs.filter { $0.passage.hands == hands }
+            .sorted { $0.passage.order(in: score) < $1.passage.order(in: score) }
     }
 
-    func root(_ hand: Hand) -> Run? {
-        hand == .right ? right : left
-    }
-
-    /// The run with `id`, and the hand whose it is.
-    func find(_ id: RunID) -> (run: Run, hand: Hand)? {
-        for hand in Hand.allCases {
-            if let run = root(hand)?.find(id) { return (run, hand) }
-        }
-        return nil
-    }
-
-    /// The runs from the hand's root down to the run with `id`, both
-    /// included; empty if there is none.
-    func path(to id: RunID) -> [Run] {
-        for hand in Hand.allCases {
-            if let path = root(hand)?.path(to: id) { return path }
-        }
-        return []
-    }
-
-    // MARK: – Dicing
-
-    /// The run with `id` cut before step `step`, into runs of its own: if
-    /// it has none yet, into two; if it has, the one of them that holds
-    /// the step is cut in two. A cut where there is one already, or at the
-    /// run's own start, changes nothing.
-    func cutting(_ id: RunID, before step: Int) -> Practice {
+    /// A run of `passage` added, and its id; a passage that is a run
+    /// already is not added again, and its run's id is given.
+    func adding(_ passage: Passage, name: String? = nil) -> (Practice, RunID) {
+        if let same = runs.first(where: { $0.passage == passage }) { return (self, same.id) }
         var next = self
-        var ids = nextID
-        next.update(id) { run in
-            guard step > run.first, step <= run.last else { return }
-            if run.children.isEmpty {
-                run.children = [Run(id: Run.take(&ids), first: run.first, last: step - 1),
-                                Run(id: Run.take(&ids), first: step, last: run.last)]
-            } else if let i = run.children.firstIndex(where: { $0.first < step && step <= $0.last }) {
-                let (low, high) = run.children[i].split(before: step, ids: &ids)
-                run.children.replaceSubrange(i...i, with: [low, high])
-            }
-        }
-        next.nextID = ids
+        let id = RunID(rawValue: nextID)
+        next.nextID += 1
+        next.runs.append(PracticeRun(id: id, passage: passage, name: Self.trimmed(name)))
+        return (next, id)
+    }
+
+    /// The run with `id` taken away; nothing else changes.
+    func removing(_ id: RunID) -> Practice {
+        var next = self
+        next.runs.removeAll { $0.id == id }
         return next
     }
 
-    /// The cut before step `step` among the runs of the run with `id`
-    /// taken away: the two runs it divided are one, which keeps the runs
-    /// either had. A run left with one run of its own has none.
-    func joining(_ id: RunID, before step: Int) -> Practice {
+    /// The run with `id` made to watch `passage` in place of its own; its
+    /// id and name stay, and nothing else changes.
+    func replacing(_ id: RunID, with passage: Passage) -> Practice {
         var next = self
-        next.update(id) { run in
-            guard let i = run.children.firstIndex(where: { $0.first == step }), i > 0 else { return }
-            let low = run.children[i - 1], high = run.children[i]
-            let inner = (low.children.isEmpty && high.children.isEmpty)
-                ? [] : low.pieces + high.pieces
-            run.children.replaceSubrange((i - 1)...i, with: [
-                Run(id: low.id, first: low.first, last: high.last, children: inner, name: low.name ?? high.name),
-            ])
-            run.normalize()
-        }
+        guard let i = runs.firstIndex(where: { $0.id == id }) else { return self }
+        next.runs[i] = PracticeRun(id: id, passage: passage, name: runs[i].name)
         return next
     }
 
     /// The run with `id` given the name `name`, trimmed; a name of
     /// nothing but spaces takes its name away.
     func naming(_ id: RunID, _ name: String) -> Practice {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         var next = self
-        next.update(id) { $0.name = trimmed.isEmpty ? nil : trimmed }
+        guard let i = runs.firstIndex(where: { $0.id == id }) else { return self }
+        next.runs[i].name = Self.trimmed(name)
         return next
     }
 
-    /// Every run of `hand`, the root first and each run before its own
-    /// runs, with how deep it is (the root 0): the outline of all the runs.
-    func outline(_ hand: Hand) -> [(run: Run, depth: Int)] {
-        guard let root = root(hand) else { return [] }
-        func walk(_ run: Run, _ depth: Int) -> [(run: Run, depth: Int)] {
-            [(run, depth)] + run.children.flatMap { walk($0, depth + 1) }
+    private static func trimmed(_ name: String?) -> String? {
+        let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    /// For each span, in order, the lane it is drawn in when spans that
+    /// overlap are drawn apart: the lowest lane none of the spans before it
+    /// in that lane overlaps. Spans that only touch share a lane.
+    static func lanes(of spans: [ClosedRange<Double>]) -> [Int] {
+        var ends: [Double] = []
+        var lanes = Array(repeating: 0, count: spans.count)
+        for i in spans.indices.sorted(by: { spans[$0].lowerBound < spans[$1].lowerBound }) {
+            let span = spans[i]
+            if let lane = ends.firstIndex(where: { $0 <= span.lowerBound + Playback.touching }) {
+                lanes[i] = lane
+                ends[lane] = span.upperBound
+            } else {
+                lanes[i] = ends.count
+                ends.append(span.upperBound)
+            }
         }
-        return walk(root, 0)
+        return lanes
+    }
+}
+
+/// A stretch of the score to watch: the steps of `hands` from `first` to
+/// `last`, both included.
+struct Passage: Hashable, Codable, Sendable {
+    let hands: Hands
+    let first: Int
+    let last: Int
+
+    /// From step `a` to step `b` of `hands`, in whichever order they come.
+    init(_ hands: Hands, from a: Int, to b: Int) {
+        self.hands = hands
+        first = max(0, min(a, b))
+        last = max(0, max(a, b))
     }
 
-    /// Where the run with `id` is cut into its runs: the step each of its
-    /// runs after the first begins with.
-    func cuts(of id: RunID) -> [Int] {
-        find(id)?.run.children.dropFirst().map(\.first) ?? []
+    /// The whole part of `hands`; nil if they have no notes.
+    static func whole(_ hands: Hands, in score: Score) -> Passage? {
+        let count = score.steps(hands).count
+        return count > 0 ? Passage(hands, from: 0, to: count - 1) : nil
     }
 
-    private mutating func update(_ id: RunID, _ change: (inout Run) -> Void) {
-        for hand in Hand.allCases {
-            guard var root = root(hand), root.find(id) != nil else { continue }
-            root.update(id, change)
-            if hand == .right { right = root } else { left = root }
-            return
+    var steps: ClosedRange<Int> { first...last }
+
+    /// A new run's passage with the playhead standing at `time`: the one
+    /// step of `hands` struck then, or the last struck by then, to be taken
+    /// further a note at a time. Nil if the hands have no notes.
+    static func step(_ hands: Hands, at time: Double, in score: Score) -> Passage? {
+        guard !score.steps(hands).isEmpty else { return nil }
+        let at = score.step(hands, at: time)
+        return Passage(hands, from: at, to: at)
+    }
+
+    /// The same number of steps, moved so it begins with the step struck
+    /// at `time` (the last one struck by then), and kept within the part.
+    func moved(toStartAt time: Double, in score: Score) -> Passage {
+        let count = score.steps(hands).count
+        let length = last - first
+        let start = min(score.step(hands, at: time), max(0, count - 1 - length))
+        return Passage(hands, from: start, to: start + length)
+    }
+
+    /// One more step before its first, if the part has one.
+    func extendingStart() -> Passage {
+        Passage(hands, from: max(0, first - 1), to: last)
+    }
+
+    /// One more step after its last, if the part has one.
+    func extendingEnd(in score: Score) -> Passage {
+        Passage(hands, from: first, to: min(last + 1, score.steps(hands).count - 1))
+    }
+
+    /// Its steps that the score has.
+    func steps(in score: Score) -> [Step] {
+        let steps = score.steps(hands)
+        return steps.indices.contains(first) ? Array(steps[first...min(last, steps.count - 1)]) : []
+    }
+
+    /// Where it is played: from its first step to where the step after its
+    /// last begins, or the last's notes end, in score seconds.
+    func span(in score: Score) -> ClosedRange<Double> {
+        let start = score.boundary(hands, first)
+        return start...max(start, score.boundary(hands, last + 1))
+    }
+
+    /// What passages are put in order by: where they begin, the longer
+    /// first, then the right hand's before the left's before both.
+    fileprivate func order(in score: Score) -> Order {
+        let span = span(in: score)
+        return Order(start: span.lowerBound, end: span.upperBound,
+                     hands: Hands.allCases.firstIndex(of: hands) ?? 0)
+    }
+
+    fileprivate struct Order: Comparable {
+        let start: Double
+        let end: Double
+        let hands: Int
+
+        static func < (a: Order, b: Order) -> Bool {
+            (a.start, b.end, a.hands) < (b.start, a.end, b.hands)
         }
-    }
-
-    // MARK: – Time
-
-    /// Where the run with `id` is played: from its first step to the end
-    /// of its last, in score seconds.
-    func span(of id: RunID, in score: Score) -> ClosedRange<Double>? {
-        guard let found = find(id) else { return nil }
-        let (run, hand) = (found.run, found.hand)
-        let start = score.boundary(hand, run.first)
-        let end = score.boundary(hand, run.last + 1)
-        return start...max(start, end)
     }
 }
 
@@ -149,81 +187,137 @@ struct RunID: Hashable, Codable, Sendable, Comparable {
     }
 }
 
-/// A stretch of one hand's steps, `first` to `last` of them, and the runs
-/// it is cut into, which cover it end to end in order (none, or two or
-/// more).
-struct Run: Equatable, Codable, Sendable, Identifiable {
+/// A passage the learner keeps to watch, and what they call it.
+struct PracticeRun: Equatable, Codable, Sendable, Identifiable {
+    let id: RunID
+    let passage: Passage
+    /// What the learner calls it ("the leap", "bars 5–8"); nil for none,
+    /// when it goes by its bars.
+    fileprivate(set) var name: String?
+}
+
+/// Where a run is in the score as its bars say: "Bar 5", "Bars 5–8".
+extension Score {
+    func bars(of span: ClosedRange<Double>) -> String {
+        let first = bar(at: span.lowerBound)
+        // The last bar is the one the span ends in, not one it ends at.
+        let opened = barlines.dropLast().lastIndex { $0 < span.upperBound - Self.sameTime } ?? 0
+        let last = max(first, opened + 1)
+        return first == last ? "Bar \(first)" : "Bars \(first)–\(last)"
+    }
+
+    /// The step of `hands` struck at `time`, or the last one struck by
+    /// then; the first before any.
+    func step(_ hands: Hands, at time: Double) -> Int {
+        steps(hands).lastIndex { $0.onset <= time + Self.sameTime } ?? 0
+    }
+
+    /// The bar a moment is in, counted from 1.
+    func bar(at time: Double) -> Int {
+        (barlines.dropLast().lastIndex { $0 <= time + Self.sameTime } ?? 0) + 1
+    }
+}
+
+// MARK: – Kept
+
+extension Practice: Codable {
+    private enum Key: String, CodingKey {
+        case runs, nextID
+        // A tree of runs cut from each hand's whole part, as practice was
+        // once kept.
+        case right, left
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: Key.self)
+        if let runs = try c.decodeIfPresent([PracticeRun].self, forKey: .runs) {
+            self.runs = runs
+        } else {
+            for (hand, key) in [(Hands.right, Key.right), (.left, .left)] {
+                guard let root = try c.decodeIfPresent(CutRun.self, forKey: key) else { continue }
+                runs += root.children.flatMap { $0.flattened(hand) }
+            }
+        }
+        let highest = runs.map(\.id.rawValue).max() ?? 0
+        nextID = max(try c.decodeIfPresent(Int.self, forKey: .nextID) ?? 1, highest + 1)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: Key.self)
+        try c.encode(runs, forKey: .runs)
+        try c.encode(nextID, forKey: .nextID)
+    }
+}
+
+/// A run as it was kept in a tree: a stretch of one hand's steps and the
+/// runs it was cut into.
+private struct CutRun: Decodable {
     let id: RunID
     let first: Int
     let last: Int
-    fileprivate(set) var children: [Run] = []
-    /// What the learner calls it ("the leap", "bars 5–8"); nil for none,
-    /// when it goes by its place. Cutting a run leaves its name on the
-    /// first part, and joining two keeps the first's, or the second's.
-    fileprivate(set) var name: String?
+    var children: [CutRun] = []
+    var name: String?
 
-    var steps: ClosedRange<Int> { first...last }
-    var isLeaf: Bool { children.isEmpty }
+    private enum Key: String, CodingKey { case id, first, last, children, name }
 
-    /// The next id from a counter of them.
-    fileprivate static func take(_ ids: inout Int) -> RunID {
-        defer { ids += 1 }
-        return RunID(rawValue: ids)
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: Key.self)
+        id = try c.decode(RunID.self, forKey: .id)
+        first = try c.decode(Int.self, forKey: .first)
+        last = try c.decode(Int.self, forKey: .last)
+        children = try c.decodeIfPresent([CutRun].self, forKey: .children) ?? []
+        name = try c.decodeIfPresent(String.self, forKey: .name)
     }
 
-    /// Its runs, or itself if it has none.
-    fileprivate var pieces: [Run] { children.isEmpty ? [self] : children }
+    /// This run and every run under it, each a run of its own.
+    func flattened(_ hands: Hands) -> [PracticeRun] {
+        [PracticeRun(id: id, passage: Passage(hands, from: first, to: last), name: name)]
+            + children.flatMap { $0.flattened(hands) }
+    }
+}
 
-    func find(_ id: RunID) -> Run? {
-        path(to: id)?.last
+// MARK: – Undo
+
+/// A value as it has been changed: the values before the present one, to
+/// undo to, and the values undone, to redo. A change made after an undo
+/// leaves nothing to redo.
+struct History<Value: Equatable & Sendable>: Equatable, Sendable {
+    private(set) var present: Value
+    private var past: [Value] = []
+    private var future: [Value] = []
+
+    init(_ value: Value) {
+        present = value
     }
 
-    func path(to id: RunID) -> [Run]? {
-        if self.id == id { return [self] }
-        for child in children {
-            if let path = child.path(to: id) { return [self] + path }
-        }
-        return nil
+    var canUndo: Bool { !past.isEmpty }
+    var canRedo: Bool { !future.isEmpty }
+
+    /// `next` the present value; the same value again is no change.
+    func doing(_ next: Value) -> History {
+        guard next != present else { return self }
+        var history = self
+        history.past.append(present)
+        history.present = next
+        history.future = []
+        return history
     }
 
-    /// The run of this one's that holds step `step`, at every depth, from
-    /// this run down.
-    func path(holding step: Int) -> [Run] {
-        guard steps.contains(step) else { return [] }
-        return [self] + (children.first { $0.steps.contains(step) }?.path(holding: step) ?? [])
+    func undoing() -> History {
+        guard let last = past.last else { return self }
+        var history = self
+        history.past.removeLast()
+        history.future.append(present)
+        history.present = last
+        return history
     }
 
-    fileprivate mutating func update(_ id: RunID, _ change: (inout Run) -> Void) {
-        if self.id == id { change(&self); return }
-        for i in children.indices where children[i].find(id) != nil {
-            children[i].update(id, change)
-        }
-    }
-
-    /// Two runs, before `step` and from it, with this run's runs shared
-    /// out between them and a run of its that holds the step split too.
-    /// The low one keeps this run's id.
-    fileprivate func split(before step: Int, ids: inout Int) -> (Run, Run) {
-        var low = Run(id: id, first: first, last: step - 1, name: name)
-        var high = Run(id: Run.take(&ids), first: step, last: last)
-        for child in children {
-            if child.last < step {
-                low.children.append(child)
-            } else if child.first >= step {
-                high.children.append(child)
-            } else {
-                let (l, h) = child.split(before: step, ids: &ids)
-                low.children.append(l)
-                high.children.append(h)
-            }
-        }
-        low.normalize()
-        high.normalize()
-        return (low, high)
-    }
-
-    /// A run with one run of its own is that run: it takes its runs.
-    fileprivate mutating func normalize() {
-        if children.count == 1 { children = children[0].children }
+    func redoing() -> History {
+        guard let next = future.last else { return self }
+        var history = self
+        history.future.removeLast()
+        history.past.append(present)
+        history.present = next
+        return history
     }
 }

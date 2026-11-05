@@ -1,9 +1,10 @@
 import Foundation
 import Observation
 
-/// Score practice, as the whole-screen piano shows it: a piece's score
-/// diced into runs of each hand, and the runs watched on the piano while
-/// the score plays on the app's own sound, once or over again.
+/// Score practice, as the whole-screen piano shows it: a piece's score,
+/// runs kept of it (each a stretch of one hand or both, independent of
+/// the others), and the runs watched on the piano while the score plays on
+/// the app's own sound, once or over again.
 ///
 /// The decisions are the score practice core's (`Practice`, `Playback`);
 /// this is the shell around them: it keeps the piece being practised and
@@ -17,19 +18,21 @@ final class ScorePracticeState {
     private(set) var piece: Piece?
     private(set) var score: Score?
 
-    /// The hand whose runs are shown.
-    private(set) var hand = Hand.right
-    /// The run whose runs are shown, to choose and to cut.
-    private(set) var focus: RunID?
-    /// The runs chosen to watch; with none, the run in focus is watched.
+    /// The hands whose runs are shown and whose keys are lit: one alone,
+    /// or both together, each a view of the one score.
+    private(set) var hands = Hands.right
+    /// The runs chosen to watch; with none, the whole piece of the hands
+    /// shown is watched.
     private(set) var selection: Set<RunID> = []
     /// Whether the runs watched play over and over.
     var repeats = true
-    /// Whether the steps of the run in focus are shown, to cut it by.
-    var isCutting = false
-    /// The step of the hand shown that is chosen among the steps while
-    /// cutting. It is lit on the piano while the playhead stands at it.
-    private(set) var selectedStep: Int?
+    /// The run being made or edited, as it stands: moved along the score
+    /// and taken further note by note, and kept only when it is saved, so a
+    /// run is never changed by a touch meant for something else. Nil when
+    /// no run is being edited.
+    private(set) var draft: Passage?
+    /// The run being edited; nil while a new one is being made.
+    private(set) var editing: RunID?
     /// Where the score stands, while it is not playing.
     private(set) var playhead = 0.0
     private(set) var isPlaying = false
@@ -47,6 +50,9 @@ final class ScorePracticeState {
     private let makePlayer: () -> any PracticePlaying
     private var player: (any PracticePlaying)?
     private let logger: (any Logger)?
+    /// The changes to the runs of the piece open, to undo and redo; kept
+    /// only while it is open.
+    private var history = History(Practice())
     /// Whether a piece has been opened or closed by the learner: until
     /// then, the screen appearing opens the latest piece, and after, it
     /// leaves the piano as it was left, with no piece if one was closed.
@@ -103,8 +109,8 @@ final class ScorePracticeState {
         }
         guard (kept.modified ?? .distantPast) > (open.modified ?? .distantPast) else { return }
         piece = kept
-        selection = selection.filter { kept.practice.find($0) != nil }
-        if let focus, kept.practice.find(focus) == nil { self.focus = kept.practice.root(hand)?.id }
+        history = History(kept.practice)
+        selection = selection.filter { kept.practice.run($0) != nil }
         refresh()
         if isPlaying { play() }
     }
@@ -159,9 +165,10 @@ final class ScorePracticeState {
         stop()
         piece = nil
         score = nil
-        focus = nil
         selection = []
-        selectedStep = nil
+        draft = nil
+        editing = nil
+        history = History(Practice())
         playhead = 0
         litNotes = []
     }
@@ -171,10 +178,11 @@ final class ScorePracticeState {
         hasChosen = true
         self.piece = piece
         self.score = score
-        hand = piece.practice.root(.right) == nil ? .left : .right
-        focus = piece.practice.root(hand)?.id
+        hands = score.hands.first ?? .right
         selection = []
-        selectedStep = nil
+        draft = nil
+        editing = nil
+        history = History(piece.practice)
         playhead = 0
         refresh()
         fitPiano()
@@ -185,28 +193,17 @@ final class ScorePracticeState {
 
     var practice: Practice? { piece?.practice }
 
-    /// The hands the score has.
-    var hands: [Hand] {
-        Hand.allCases.filter { practice?.root($0) != nil }
-    }
+    /// The views of the score there are: each hand it has, and both
+    /// together when it has both.
+    var handsShown: [Hands] { score?.hands ?? [] }
 
-    func show(_ hand: Hand) {
-        guard hand != self.hand, let root = practice?.root(hand) else { return }
+    /// The runs of `hands` shown, and the whole piece of them watched.
+    func show(_ hands: Hands) {
+        guard hands != self.hands, handsShown.contains(hands) else { return }
         stop()
-        self.hand = hand
-        focus = root.id
+        self.hands = hands
         selection = []
-        selectedStep = nil
-        refresh()
-        fitPiano()
-    }
-
-    /// The run with `id` brought into focus, its runs shown.
-    func focus(on id: RunID) {
-        guard practice?.find(id) != nil else { return }
-        stop()
-        focus = id
-        selection = selection.filter { id != $0 && isInFocus($0) }
+        cancelDraft()
         refresh()
         fitPiano()
     }
@@ -219,6 +216,7 @@ final class ScorePracticeState {
         fitPiano()
     }
 
+    /// No run chosen: the whole piece of the hands shown is watched.
     func clearSelection() {
         selection = []
         stop()
@@ -226,26 +224,36 @@ final class ScorePracticeState {
         fitPiano()
     }
 
-    /// The runs watched: those chosen, or the run in focus.
-    var watched: [RunID] {
-        selection.isEmpty ? (focus.map { [$0] } ?? []) : selection.sorted()
+    /// The runs of the hands shown, in the order of the score.
+    var shownRuns: [PracticeRun] {
+        guard let practice, let score else { return [] }
+        return practice.runs(of: hands, in: score)
     }
 
-    /// The run in focus and the runs above it, from the hand's whole part.
-    var focusPath: [Run] {
-        focus.map { practice?.path(to: $0) ?? [] } ?? []
-    }
-
-    /// The runs of the run in focus, or the run itself if it has none.
-    var shownRuns: [Run] {
-        guard let run = focusPath.last else { return [] }
-        return run.isLeaf ? [run] : run.children
+    /// What is watched: the run being edited, or the runs chosen, or else
+    /// the whole piece of the hands shown.
+    var watched: [Passage] {
+        guard let practice, let score else { return [] }
+        if let draft { return [draft] }
+        let chosen = practice.runs.filter { selection.contains($0.id) }.map(\.passage)
+        return chosen.isEmpty ? (Passage.whole(hands, in: score).map { [$0] } ?? []) : chosen
     }
 
     /// What a run is called: the name the learner gave it, or else its
-    /// place (`label`).
-    func title(of id: RunID) -> String {
-        practice?.find(id)?.run.name ?? label(of: id)
+    /// bars.
+    func title(of run: PracticeRun) -> String {
+        run.name ?? bars(of: run)
+    }
+
+    /// Where a run is, by its bars: "Bars 5–8".
+    func bars(of run: PracticeRun) -> String {
+        guard let score else { return "" }
+        return score.bars(of: run.passage.span(in: score))
+    }
+
+    /// Where a run is in the score, in seconds.
+    func span(of run: PracticeRun) -> ClosedRange<Double>? {
+        score.map { run.passage.span(in: $0) }
     }
 
     /// The run with `id` given the name `name`; nothing but spaces takes
@@ -256,95 +264,154 @@ final class ScorePracticeState {
         logger?.log(.practice_run_named(isNamed: !name.trimmingCharacters(in: .whitespaces).isEmpty))
     }
 
-    /// Every run of every hand, the outline the list of all runs shows.
-    var allRuns: [(hand: Hand, runs: [(run: Run, depth: Int)])] {
-        guard let practice else { return [] }
-        return hands.map { ($0, practice.outline($0)) }
+    /// The run with `id` taken away; every other run is as it was.
+    func delete(_ id: RunID) {
+        guard let practice, practice.run(id) != nil else { return }
+        commit(practice.removing(id))
+        logger?.log(.practice_run_removed)
     }
 
-    /// The run with `id` gone to from the list of all runs: its hand shown,
-    /// the run it is one of in focus, and it chosen to watch; a hand's whole
-    /// part is brought into focus itself.
+    /// Every run, by the hands it is of, for each view of the score: the
+    /// list of all runs.
+    var allRuns: [(hands: Hands, runs: [PracticeRun])] {
+        guard let practice, let score else { return [] }
+        return handsShown.map { ($0, practice.runs(of: $0, in: score)) }
+    }
+
+    /// The run with `id` gone to from the list of all runs: its hands shown
+    /// and it alone chosen to watch.
     func goTo(_ id: RunID) {
-        guard let practice, let found = practice.find(id) else { return }
-        if found.hand != hand { show(found.hand) }
-        let path = practice.path(to: id)
-        if path.count > 1 {
-            focus(on: path[path.count - 2].id)
-            selection = [id]
-            refresh()
-            fitPiano()
-        } else {
-            focus(on: id)
-        }
-    }
-
-    /// A run's place: its place among its run's runs at each depth, "2.3",
-    /// or the hand's for its whole part.
-    func label(of id: RunID) -> String {
-        guard let practice else { return "" }
-        let path = practice.path(to: id)
-        guard path.count > 1 else { return practice.find(id)?.hand.name ?? "" }
-        return zip(path, path.dropFirst())
-            .map { parent, child in String((parent.children.firstIndex { $0.id == child.id } ?? 0) + 1) }
-            .joined(separator: ".")
-    }
-
-    /// Where the run with `id` is in the score, in seconds.
-    func span(of id: RunID) -> ClosedRange<Double>? {
-        guard let practice, let score else { return nil }
-        return practice.span(of: id, in: score)
-    }
-
-    private func isInFocus(_ id: RunID) -> Bool {
-        guard let focus else { return false }
-        return practice?.path(to: id).contains { $0.id == focus } ?? false
-    }
-
-    // MARK: – Cutting
-
-    /// The steps of the run in focus.
-    var focusSteps: [(index: Int, step: Step)] {
-        guard let score, let run = focusPath.last else { return [] }
-        let steps = score.steps(hand)
-        return run.steps.filter { $0 < steps.count }.map { ($0, steps[$0]) }
-    }
-
-    /// Where the run in focus is cut into its runs.
-    var focusCuts: Set<Int> {
-        guard let focus, let practice else { return [] }
-        return Set(practice.cuts(of: focus))
-    }
-
-    /// The run in focus cut before step `step`, or the cut there taken
-    /// away.
-    func toggleCut(before step: Int) {
-        guard let focus, let practice else { return }
-        let isCut = practice.cuts(of: focus).contains(step)
-        commit(isCut ? practice.joining(focus, before: step) : practice.cutting(focus, before: step))
-        logger?.log(.practice_run_cut(step: step, isCut: !isCut))
-    }
-
-    /// Step `step` of the hand shown chosen: play stopped, and the playhead
-    /// standing at it, its keys lit.
-    func select(_ step: Int) {
-        guard let onset = score?.steps(hand)[safe: step]?.onset else { return }
+        guard let run = practice?.run(id) else { return }
+        show(run.passage.hands)
+        selection = [id]
         stop()
-        selectedStep = step
-        playhead = onset
+        refresh()
+        fitPiano()
     }
 
-    /// `next` made the practice, and saved.
+    // MARK: – Undo
+
+    var canUndo: Bool { history.canUndo }
+    var canRedo: Bool { history.canRedo }
+
+    /// The last change to the runs undone: a run added, deleted or named.
+    func undo() {
+        guard history.canUndo else { return }
+        history = history.undoing()
+        save(history.present)
+        logger?.log(.practice_runs_undone(isRedo: false))
+    }
+
+    func redo() {
+        guard history.canRedo else { return }
+        history = history.redoing()
+        save(history.present)
+        logger?.log(.practice_runs_undone(isRedo: true))
+    }
+
+    // MARK: – Making and editing a run
+
+    var isEditing: Bool { draft != nil }
+
+    /// A new run of the hands shown begun: the note at the playhead, to
+    /// move and take further a note at a time before it is saved.
+    func startNewRun() {
+        guard let score, let note = Passage.step(hands, at: currentTime, in: score) else { return }
+        stop()
+        editing = nil
+        show(draft: note)
+    }
+
+    /// The run with `id` put into editing, its hands shown.
+    func edit(_ id: RunID) {
+        guard let run = practice?.run(id) else { return }
+        show(run.passage.hands)
+        stop()
+        editing = id
+        selection = [id]
+        show(draft: run.passage)
+    }
+
+    /// The run being edited moved along the score, keeping its length, to
+    /// begin with the step struck at `time`.
+    func moveDraft(toStartAt time: Double) {
+        guard let score, let draft else { return }
+        let moved = draft.moved(toStartAt: time, in: score)
+        if moved != draft { show(draft: moved) }
+    }
+
+    /// One more note before the run being edited.
+    func extendDraftStart() {
+        guard let draft else { return }
+        show(draft: draft.extendingStart())
+    }
+
+    /// One more note after the run being edited.
+    func extendDraftEnd() {
+        guard let score, let draft else { return }
+        show(draft: draft.extendingEnd(in: score))
+    }
+
+    /// The run being edited kept: a new run added, or the run edited
+    /// changed, as one change that can be undone; it is chosen to watch.
+    func saveDraft() {
+        guard let practice, let draft else { return }
+        let id: RunID
+        if let editing {
+            id = editing
+            commit(practice.replacing(editing, with: draft))
+            logger?.log(.practice_run_edited(steps: draft.steps.count))
+        } else {
+            let added: Practice
+            (added, id) = practice.adding(draft)
+            commit(added)
+            logger?.log(.practice_run_added(hands: draft.hands.rawValue, steps: draft.steps.count))
+        }
+        self.draft = nil
+        editing = nil
+        selection = [id]
+        refresh()
+        fitPiano()
+    }
+
+    /// The run being edited left as it was, or the new one not made.
+    func cancelDraft() {
+        guard draft != nil else { return }
+        stop()
+        draft = nil
+        editing = nil
+        refresh()
+        fitPiano()
+    }
+
+    /// `passage` the run being edited, the playhead at its start so the
+    /// keys show its first step, and the piano brought to it.
+    private func show(draft passage: Passage) {
+        guard let score else { return }
+        stop()
+        draft = passage
+        playhead = passage.span(in: score).lowerBound
+        refresh()
+        fitPiano()
+    }
+
+    /// `next` made the practice, as a change that can be undone, and saved.
     private func commit(_ next: Practice) {
-        guard var piece, next != piece.practice else { return }
-        piece.practice = next
+        guard next != practice else { return }
+        history = history.doing(next)
+        save(next)
+    }
+
+    /// `practice` made the practice of the piece open, and saved.
+    private func save(_ practice: Practice) {
+        guard var piece, practice != piece.practice else { return }
+        piece.practice = practice
         self.piece = piece
         if let saved = try? currentLibrary.save(piece) {
             self.piece = saved
             keep(saved)
         }
-        selection = selection.filter { next.find($0) != nil }
-        if let focus, next.find(focus) == nil { self.focus = next.root(hand)?.id }
+        selection = selection.filter { practice.run($0) != nil }
         refresh()
         if isPlaying { play() }
     }
@@ -364,18 +431,17 @@ final class ScorePracticeState {
     /// is inside them, and otherwise from the next of them
     /// (`Playback.start`), with both hands sounding and the runs' keys lit.
     func play() {
-        guard let practice, let score else { return }
-        let segments = Playback.segments(watched, practice, score)
+        guard let score else { return }
+        let segments = Playback.segments(watched, score)
         guard !segments.isEmpty else { return }
         let from = currentTime
         stopPlayer()
-        litNotes = Playback.notes(of: watched, practice, score)
+        litNotes = Playback.notes(of: watched, score)
         let player = player ?? makePlayer()
         self.player = player
         player.onFinish = { [weak self] in self?.finished() }
         player.play(score.notes, segments, from: from, repeats: repeats)
         isPlaying = true
-        selectedStep = nil
         logger?.log(.practice_playback_started(segments: segments.count, repeats: repeats))
     }
 
@@ -403,7 +469,6 @@ final class ScorePracticeState {
     func seek(to time: Double) {
         let was = isPlaying
         stopPlayer()
-        selectedStep = nil
         playhead = time.clamped(to: 0...(length ?? 0))
         if was { play() } else { refresh() }
     }
@@ -424,42 +489,41 @@ final class ScorePracticeState {
         logger?.log(.practice_playback_stopped)
     }
 
-    /// The keys lit at `time` seconds of the score: the step chosen while
-    /// the playhead stands at it, or else the notes of the runs watched.
+    /// The keys lit at `time` seconds of the score, by the notes of what is
+    /// watched as it plays, or of the hands shown while nothing does.
     func lights(at time: Double) -> [Int: [KeyLight]] {
-        if !isPlaying, let selectedStep, let step = score?.steps(hand)[safe: selectedStep],
-           abs(time - step.onset) < Score.sameTime {
-            return Playback.lights(of: step, hand)
-        }
-        return Playback.lights(at: time, litNotes)
+        Playback.lights(at: time, litNotes)
     }
 
-    /// The notes to light while nothing plays: all of the hand shown, so
+    /// The notes to light while nothing plays: all of the hands shown, so
     /// the keys are right at any moment the playhead stands at.
     private func refresh() {
-        guard !isPlaying, let practice, let score, let root = practice.root(hand) else { return }
-        litNotes = Playback.notes(of: [root.id], practice, score)
+        guard !isPlaying, let score, let whole = Passage.whole(hands, in: score) else { return }
+        litNotes = Playback.notes(of: [whole], score)
     }
 
-    /// The piano brought to the notes of the runs watched.
+    /// The piano brought to the notes of what is watched.
     func fitPiano() {
-        guard let practice, let score,
-              let pitches = Playback.pitches(of: watched, practice, score) else { return }
+        guard let score, let pitches = Playback.pitches(of: watched, score) else { return }
         piano.span = PianoSpan.fitting(pitches)
     }
 }
 
-extension Hand {
+extension Hands {
     var name: String {
         switch self {
         case .right: return "Right hand"
         case .left:  return "Left hand"
+        case .both:  return "Both hands"
         }
     }
-}
 
-private extension Array {
-    subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
+    /// As a chit says it.
+    var short: String {
+        switch self {
+        case .right: return "RH"
+        case .left:  return "LH"
+        case .both:  return "Both"
+        }
     }
 }

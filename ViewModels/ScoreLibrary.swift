@@ -87,7 +87,7 @@ struct ScoreLibrary: Sendable {
         let scoreFile = "score." + (MidiScore.isMidi(bytes) ? "mid" : Mxl.isArchive(data) ? "mxl" : "musicxml")
         try write(data, to: folder(of: id).appendingPathComponent(scoreFile))
         let piece = Piece(id: id, title: score.title, scoreFile: scoreFile,
-                          practice: Practice(score: score), added: .now)
+                          practice: Practice(), added: .now)
         return (try save(piece), score)
     }
 

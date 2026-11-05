@@ -20,6 +20,18 @@ extension Hand {
     }
 }
 
+extension Hands {
+    /// The color the runs of these hands are drawn in: a hand's own, or
+    /// for both together, a third beside them.
+    var color: Color {
+        switch self {
+        case .right: return Hand.right.color
+        case .left:  return Hand.left.color
+        case .both:  return Color(red: 0.98, green: 0.8, blue: 0.4)
+        }
+    }
+}
+
 /// The piano (`PianoState`): the white keys of its span across the frame
 /// it is given, each key lit in the colors of the sources sounding its
 /// note. A key that several sources are sounding is divided between their

@@ -1,14 +1,14 @@
 /// What is played of the score, and what lights on the piano as it
-/// plays: both worked out from the runs being watched, as values, so the
+/// plays: both worked out from the passages being watched, as values, so the
 /// player and the piano only carry them out.
 enum Playback {
 
-    /// The stretches of the score that play `runs`: each run's span,
+    /// The stretches of the score that play `passages`: each one's span,
     /// in order, joined where two overlap or touch, so runs one after
     /// another play straight through and a run inside another is not
     /// played twice.
-    static func segments(_ runs: [RunID], _ practice: Practice, _ score: Score) -> [Segment] {
-        let spans = runs.compactMap { practice.span(of: $0, in: score) }
+    static func segments(_ passages: [Passage], _ score: Score) -> [Segment] {
+        let spans = passages.map { $0.span(in: score) }
             .filter { $0.upperBound > $0.lowerBound }
             .sorted { $0.lowerBound < $1.lowerBound }
         var segments: [Segment] = []
@@ -75,28 +75,22 @@ enum Playback {
                         notes: sounded.sorted { ($0.start, $0.pitch) < ($1.start, $1.pitch) })
     }
 
-    /// Every note of `runs`, each once, at its moments in the score, in
-    /// order. A note is lit until it ends or its run does, so a run
-    /// repeated does not leave its last notes lit into its start.
-    static func notes(of runs: [RunID], _ practice: Practice, _ score: Score) -> [TimedNote] {
+    /// Every note of `passages`, each once, at its moments in the score,
+    /// in order, in the hand that plays it. A note is lit until it ends or
+    /// its passage does, so a run repeated does not leave its last notes
+    /// lit into its start.
+    static func notes(of passages: [Passage], _ score: Score) -> [TimedNote] {
         var byNote: [NoteKey: TimedNote] = [:]
-        for id in runs {
-            guard let found = practice.find(id) else { continue }
-            let (run, hand) = (found.run, found.hand)
-            let steps = score.steps(hand)
-            let runEnd = score.boundary(hand, run.last + 1)
-            for index in run.steps where index < steps.count {
-                for note in steps[index].notes {
-                    let timed = TimedNote(
-                        pitch: note.pitch, hand: hand, step: index,
-                        on: note.onset, off: min(note.end, runEnd))
-                    let key = NoteKey(hand: hand, step: index, pitch: note.pitch)
-                    if let held = byNote[key], held.off >= timed.off { continue }
-                    byNote[key] = timed
-                }
+        for passage in passages {
+            let end = passage.span(in: score).upperBound
+            for note in passage.steps(in: score).flatMap(\.notes) {
+                let timed = TimedNote(pitch: note.pitch, hand: note.hand, on: note.onset, off: min(note.end, end))
+                let key = NoteKey(hand: note.hand, on: note.onset, pitch: note.pitch)
+                if let held = byNote[key], held.off >= timed.off { continue }
+                byNote[key] = timed
             }
         }
-        return byNote.values.sorted { ($0.on, $0.pitch) < ($1.on, $1.pitch) }
+        return byNote.values.sorted { ($0.on, $0.pitch, $0.hand.rawValue) < ($1.on, $1.pitch, $1.hand.rawValue) }
     }
 
     /// The keys lit at `time` seconds into the score, by `notes`: each
@@ -109,34 +103,25 @@ enum Playback {
         }
         for hand in Hand.allCases {
             let ahead = notes.filter { $0.hand == hand && $0.on > time }
-            guard let step = ahead.first?.step else { continue }
-            for note in ahead where note.step == step && !(lights[note.pitch]?.contains { $0.hand == hand } ?? false) {
+            guard let next = ahead.first?.on else { continue }
+            for note in ahead where note.on - next < Score.sameTime
+                && !(lights[note.pitch]?.contains { $0.hand == hand } ?? false) {
                 lights[note.pitch, default: []].append(KeyLight(hand: hand, kind: .next))
             }
         }
         return lights.mapValues { $0.sorted { $0.order < $1.order } }
     }
 
-    /// The keys of one step, lit as if it were sounding: a step looked at
-    /// while a run is being cut.
-    static func lights(of step: Step, _ hand: Hand) -> [Int: [KeyLight]] {
-        Dictionary(step.notes.map { ($0.pitch, [KeyLight(hand: hand, kind: .sounding(since: .infinity))]) },
-                   uniquingKeysWith: { a, _ in a })
-    }
-
-    /// The lowest and highest notes of `runs`, to bring the piano to.
-    static func pitches(of runs: [RunID], _ practice: Practice, _ score: Score) -> ClosedRange<Int>? {
-        let pitches = runs.compactMap { practice.find($0) }.flatMap { found in
-            let steps = score.steps(found.hand)
-            return found.run.steps.filter { $0 < steps.count }.flatMap { steps[$0].notes.map(\.pitch) }
-        }
+    /// The lowest and highest notes of `passages`, to bring the piano to.
+    static func pitches(of passages: [Passage], _ score: Score) -> ClosedRange<Int>? {
+        let pitches = passages.flatMap { $0.steps(in: score).flatMap { $0.notes.map(\.pitch) } }
         guard let low = pitches.min(), let high = pitches.max() else { return nil }
         return low...high
     }
 
     private struct NoteKey: Hashable {
         let hand: Hand
-        let step: Int
+        let on: Double
         let pitch: Int
     }
 }
@@ -161,8 +146,6 @@ struct Segment: Equatable, Sendable {
 struct TimedNote: Equatable, Sendable {
     let pitch: Int
     let hand: Hand
-    /// The step of its hand's it is struck in.
-    let step: Int
     let on: Double
     let off: Double
 }

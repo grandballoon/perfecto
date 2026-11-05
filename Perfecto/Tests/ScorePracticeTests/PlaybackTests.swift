@@ -4,50 +4,51 @@ import Testing
 @Suite("Playback")
 struct PlaybackTests {
 
-    private let practice = Practice(score: scale)
-    private var right: Run { practice.root(.right)! }
-
-    private var quarters: Practice {
-        practice.cutting(right.id, before: 2).cutting(right.id, before: 4).cutting(right.id, before: 6)
-    }
+    private func quarter(_ i: Int) -> Passage { Passage(.right, from: 2 * i, to: 2 * i + 1) }
+    private let right = Passage.whole(.right, in: scale)!
+    private let left = Passage.whole(.left, in: scale)!
 
     @Test func runsOneAfterAnotherPlayStraightThrough() {
-        let runs = quarters.root(.right)!.children
-        #expect(Playback.segments([runs[1].id, runs[0].id], quarters, scale) == [Segment(start: 0, end: 4)])
+        #expect(Playback.segments([quarter(1), quarter(0)], scale) == [Segment(start: 0, end: 4)])
     }
 
     @Test func runsApartPlayApartInOrder() {
-        let runs = quarters.root(.right)!.children
-        #expect(Playback.segments([runs[3].id, runs[0].id], quarters, scale)
+        #expect(Playback.segments([quarter(3), quarter(0)], scale)
                 == [Segment(start: 0, end: 2), Segment(start: 6, end: 8)])
     }
 
-    @Test func aRunInsideAnotherIsNotPlayedTwice() {
-        let runs = quarters.root(.right)!.children
-        #expect(Playback.segments([right.id, runs[2].id], quarters, scale) == [Segment(start: 0, end: 8)])
+    @Test func aRunInsideAnotherOrOverlappingItIsNotPlayedTwice() {
+        #expect(Playback.segments([right, quarter(2)], scale) == [Segment(start: 0, end: 8)])
+        #expect(Playback.segments([Passage(.right, from: 0, to: 4), Passage(.left, from: 1, to: 1)], scale)
+                == [Segment(start: 0, end: 8)])
     }
 
     @Test func aRunsNotesAreLitWhereTheScoreHasThem() {
-        let run = quarters.root(.right)!.children[1]
-        #expect(Playback.notes(of: [run.id], quarters, scale)
-                == [TimedNote(pitch: 76, hand: .right, step: 2, on: 2, off: 3),
-                    TimedNote(pitch: 77, hand: .right, step: 3, on: 3, off: 4)])
+        #expect(Playback.notes(of: [quarter(1)], scale)
+                == [TimedNote(pitch: 76, hand: .right, on: 2, off: 3),
+                    TimedNote(pitch: 77, hand: .right, on: 3, off: 4)])
+    }
+
+    @Test func aRunOfBothHandsLightsEachNoteInItsHand() {
+        #expect(Playback.notes(of: [Passage(.both, from: 3, to: 4)], scale)
+                == [TimedNote(pitch: 77, hand: .right, on: 3, off: 4),
+                    TimedNote(pitch: 53, hand: .left, on: 4, off: 5),
+                    TimedNote(pitch: 79, hand: .right, on: 4, off: 5)])
     }
 
     @Test func aNoteIsLitUntilItsRunEnds() {
-        let left = practice.root(.left)!
-        let cut = practice.cutting(left.id, before: 1)
-        let first = cut.root(.left)!.children[0]
-        #expect(Playback.notes(of: [first.id], cut, scale).map(\.off) == [4, 4])
+        #expect(Playback.notes(of: [Passage(.left, from: 0, to: 0)], scale).map(\.off) == [4, 4])
+        // In both hands' steps, the next step is the right hand's at 1.
+        #expect(Playback.notes(of: [Passage(.both, from: 0, to: 0)], scale).map(\.off) == [1, 1, 1])
     }
 
     @Test func aNoteInTwoRunsWatchedIsOneNote() {
-        let runs = quarters.root(.right)!.children
-        #expect(Playback.notes(of: [right.id, runs[0].id], quarters, scale).count == 8)
+        #expect(Playback.notes(of: [right, quarter(0)], scale).count == 8)
+        #expect(Playback.notes(of: [right, Passage(.both, from: 0, to: 7)], scale).count == 11)
     }
 
     @Test func theKeysSoundingAndEachHandsNextAreLit() {
-        let notes = Playback.notes(of: [right.id, practice.root(.left)!.id], practice, scale)
+        let notes = Playback.notes(of: [right, left], scale)
         let lights = Playback.lights(at: 1.25, notes)
         #expect(lights[74] == [KeyLight(hand: .right, kind: .sounding(since: 0.25))])
         #expect(lights[76] == [KeyLight(hand: .right, kind: .next)])
@@ -57,15 +58,13 @@ struct PlaybackTests {
     }
 
     @Test func beforeARunItsFirstStepIsNext() {
-        let run = quarters.root(.right)!.children[2]
-        let lights = Playback.lights(at: 0, Playback.notes(of: [run.id], quarters, scale))
+        let lights = Playback.lights(at: 0, Playback.notes(of: [quarter(2)], scale))
         #expect(lights == [79: [KeyLight(hand: .right, kind: .next)]])
     }
 
     @Test func thePianoIsBroughtToARunsNotes() {
-        let runs = quarters.root(.right)!.children
-        #expect(Playback.pitches(of: [runs[1].id], quarters, scale) == 76...77)
-        #expect(Playback.pitches(of: [runs[0].id, practice.root(.left)!.id], quarters, scale) == 48...74)
+        #expect(Playback.pitches(of: [quarter(1)], scale) == 76...77)
+        #expect(Playback.pitches(of: [quarter(0), left], scale) == 48...74)
     }
 
 }
