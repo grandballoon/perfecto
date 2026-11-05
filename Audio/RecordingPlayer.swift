@@ -6,9 +6,10 @@ import AVFoundation
 protocol RecordingPlaying: AnyObject {
     /// The recording at `url` made the one played; its length in seconds.
     func load(_ url: URL) throws -> Double
-    /// Plays `segments` in order, from the first, and again from the first
-    /// after the last while `repeats`; anything playing stops first.
-    func play(_ segments: [Segment], repeats: Bool)
+    /// Plays `segments` in order, beginning where `Playback.start` says for
+    /// the recording standing at `from`, and again from the first after the
+    /// last while `repeats`; anything playing stops first.
+    func play(_ segments: [Segment], from: Double, repeats: Bool)
     func stop()
     var isPlaying: Bool { get }
     /// The moment of the recording being heard, in its seconds.
@@ -45,6 +46,9 @@ final class RecordingPlayer: RecordingPlaying {
     private var segments: [Segment] = []
     private var repeats = false
     private var nextSegment = 0
+    /// Where in the file the next segment given to the player begins, if
+    /// not at its start: the first, when play begins inside it.
+    private var resumeAt: Double?
     private var scheduled: [Scheduled] = []
     private var scheduledFrames: AVAudioFramePosition = 0
     /// Which run of `play` the callbacks belong to, so a stopped run's
@@ -68,7 +72,7 @@ final class RecordingPlayer: RecordingPlaying {
         return Double(file.length) / file.processingFormat.sampleRate
     }
 
-    func play(_ segments: [Segment], repeats: Bool) {
+    func play(_ segments: [Segment], from: Double, repeats: Bool) {
         stop()
         guard let file else { return }
         let rate = file.processingFormat.sampleRate
@@ -76,7 +80,9 @@ final class RecordingPlayer: RecordingPlaying {
         self.segments = segments
             .map { Segment(start: $0.start.clamped(to: 0...length), end: $0.end.clamped(to: 0...length)) }
             .filter { $0.duration * rate >= 1 }
-        guard !self.segments.isEmpty else { return }
+        guard let start = Playback.start(at: from, in: self.segments) else { return }
+        nextSegment = start.segment
+        resumeAt = start.time
         self.repeats = repeats
         do {
             if !engine.isRunning { try engine.start() }
@@ -95,6 +101,7 @@ final class RecordingPlayer: RecordingPlaying {
         scheduled = []
         scheduledFrames = 0
         nextSegment = 0
+        resumeAt = nil
         engine.pause()
     }
 
@@ -122,8 +129,10 @@ final class RecordingPlayer: RecordingPlaying {
         let rate = file.processingFormat.sampleRate
         let segment = segments[nextSegment]
         nextSegment += 1
-        let start = AVAudioFramePosition(segment.start * rate)
-        let frames = AVAudioFrameCount(min(segment.duration * rate, Double(file.length - start)))
+        let begin = resumeAt ?? segment.start
+        resumeAt = nil
+        let start = AVAudioFramePosition(begin * rate)
+        let frames = AVAudioFrameCount(max(1, min((segment.end - begin) * rate, Double(file.length - start))))
         let isLast = !repeats && nextSegment == segments.count
         scheduled.append(Scheduled(playerFrame: scheduledFrames, fileFrame: start, frames: frames))
         // Only those still to come, and the one playing, are needed.

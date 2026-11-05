@@ -76,7 +76,8 @@ It is heard as it was recorded: nothing is synthesized, and the recording is nev
 9. **The recording is dragged to go anywhere in it.**
    Under the recording strip is the whole recording as one bar (`PracticeScrubber`), and a finger on the bar or on the strip's waveform drags the recording (`ScorePracticeState.scrub`).
    While it is dragged it stops, and the keys are lit as the shown hand has them at each moment passed; while nothing plays, the whole hand is lit at the moment the recording stands at, not only the runs watched.
-   If it was being listened to, it plays on from where it is let go.
+   Whatever was playing (the runs, or the recording listened to) plays on from where it is let go, and the skip buttons go five seconds back or on in the same way.
+   Play begins where the recording stands, if that is inside the runs watched, and otherwise at the next of them (`Playback.start`); a repeat goes back to the first.
 
 10. **The practice screen has the keys while it is open.**
     The play/stop key (Space to start with) plays the runs watched or stops what plays, and the chord keys and the compass play nothing, from the keyboard or a controller (`PerformanceState.isPractising`).

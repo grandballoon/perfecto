@@ -25,6 +25,26 @@ enum Playback {
     /// Two stretches this close are one: no gap anyone would hear.
     static let touching = 0.001
 
+    /// Where playing `segments` begins with the recording standing at
+    /// `time`: at `time` itself if it is inside one, so play goes on from
+    /// where the recording was left or dragged to; otherwise at the start of
+    /// the next one after it, or of the first when none is after it. A
+    /// recording standing at a segment's very end (`nearEnd`), as one that
+    /// has just played through it does, begins at the next. Nil for none.
+    static func start(at time: Double, in segments: [Segment]) -> PlayStart? {
+        guard let first = segments.first else { return nil }
+        if let inside = segments.firstIndex(where: { time >= $0.start && time < $0.end - nearEnd }) {
+            return PlayStart(segment: inside, time: time)
+        }
+        if let next = segments.firstIndex(where: { $0.start > time }) {
+            return PlayStart(segment: next, time: segments[next].start)
+        }
+        return PlayStart(segment: 0, time: first.start)
+    }
+
+    /// How near a segment's end the recording is taken to have played it.
+    static let nearEnd = 0.05
+
     /// Every note of `runs`, each once, at the moments the recording has
     /// it, in order. A note is lit until it ends or its run does, so a run
     /// repeated does not leave its last notes lit into its start.
@@ -91,6 +111,13 @@ enum Playback {
         let step: Int
         let pitch: Int
     }
+}
+
+/// Where playing a list of segments begins: in which of them, and at what
+/// moment of the recording; repeats go back to the first segment's start.
+struct PlayStart: Equatable, Sendable {
+    let segment: Int
+    let time: Double
 }
 
 /// A stretch of the recording, in its seconds.

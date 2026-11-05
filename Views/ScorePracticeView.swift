@@ -380,8 +380,9 @@ struct PracticeStepsStrip: View {
 
 // MARK: – Playing
 
-/// What plays the recording, and what matches it to a run: play the runs
-/// watched, once or over again, listen on from where the recording stands,
+/// What plays the recording, and what matches it to a run: skip back or on,
+/// play the runs watched from where the recording stands, once or over
+/// again, listen on from where the recording stands,
 /// tag a nudge point where it stands and go from one to the next, and set
 /// where the matched run begins and ends to the moment heard.
 struct PracticeTransport: View {
@@ -390,6 +391,12 @@ struct PracticeTransport: View {
     var body: some View {
         @Bindable var practice = state.practice
         HStack(spacing: 8) {
+            Button { practice.skip(by: -ScorePracticeState.skipSeconds) } label: {
+                Image(systemName: "gobackward.5").practiceChit()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Back 5 seconds")
+
             Button {
                 if practice.listening == .runs { practice.stop() } else { practice.play() }
             } label: {
@@ -399,6 +406,12 @@ struct PracticeTransport: View {
             .buttonStyle(.plain)
             .hotkeyTip(.playStop)
             .accessibilityLabel(practice.listening == .runs ? "Stop" : "Play the runs")
+
+            Button { practice.skip(by: ScorePracticeState.skipSeconds) } label: {
+                Image(systemName: "goforward.5").practiceChit()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Forward 5 seconds")
 
             Button { practice.repeats.toggle() } label: {
                 Image(systemName: "repeat")

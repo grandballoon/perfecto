@@ -106,3 +106,28 @@ struct PlaybackTests {
         #expect(Waveform.peaks([0.1, -0.5, 0.2, 0.3, -0.1], frames: 2) == [0.5, 0.3, 0.1])
     }
 }
+
+@Suite("Where play begins")
+struct PlayStartTests {
+    let segments = [Segment(start: 2, end: 4), Segment(start: 6, end: 9)]
+
+    @Test func insideASegmentPlayGoesOnFromThePlayhead() {
+        #expect(Playback.start(at: 7.5, in: segments) == PlayStart(segment: 1, time: 7.5))
+        #expect(Playback.start(at: 2, in: segments) == PlayStart(segment: 0, time: 2))
+    }
+
+    @Test func betweenSegmentsPlayBeginsAtTheNext() {
+        #expect(Playback.start(at: 0, in: segments) == PlayStart(segment: 0, time: 2))
+        #expect(Playback.start(at: 5, in: segments) == PlayStart(segment: 1, time: 6))
+    }
+
+    @Test func pastTheLastOrAtItsEndPlayBeginsAgainAtTheFirst() {
+        #expect(Playback.start(at: 12, in: segments) == PlayStart(segment: 0, time: 2))
+        #expect(Playback.start(at: 9, in: segments) == PlayStart(segment: 0, time: 2))
+        #expect(Playback.start(at: 3.98, in: segments) == PlayStart(segment: 1, time: 6))
+    }
+
+    @Test func nothingToPlayHasNoStart() {
+        #expect(Playback.start(at: 1, in: []) == nil)
+    }
+}

@@ -51,7 +51,8 @@ final class ScorePracticeState {
     /// The stretch of the recording the strip shows when it is brought to
     /// a nudge point, in place of the run in focus; nil for the run.
     var zoom: ClosedRange<Double>?
-    private var resumesAfterScrub = false
+    /// What was playing when the drag began, played on when it ends.
+    private var resumesAfterScrub: Listening?
     /// What could not be done last, said once.
     var failure: String?
 
@@ -441,7 +442,7 @@ final class ScorePracticeState {
         stop()
         previewStep = step
         let onset = score.boundary(hand, step)
-        playhead = max(0, Alignment.recordingTime(onset, practice.anchors))
+        playhead = max(0, Alignment.recordingTime(onset, practice.alignment))
     }
 
     // MARK: – Matching the recording
@@ -520,11 +521,9 @@ final class ScorePracticeState {
         let reach = Practice.nudgeReach
         guard let target = forward ? points.first(where: { $0 > now + reach })
                                    : points.last(where: { $0 < now - reach }) else { return }
-        let resumes = listening == .free
         seek(to: target)
         let length = recordingLength ?? target
         zoom = max(0, target - Self.zoomReach)...min(length, target + Self.zoomReach)
-        if resumes { listen() }
     }
 
     /// The moment `scoreTime` of the score heard at `recording` seconds: an
@@ -557,7 +556,7 @@ final class ScorePracticeState {
     }
 
     func recordingTime(ofScore t: Double) -> Double {
-        Alignment.recordingTime(t, practice?.anchors ?? [])
+        Alignment.recordingTime(t, practice?.alignment ?? [])
     }
 
     /// `next` made the practice, and saved unless `saving` is false (an
@@ -589,14 +588,17 @@ final class ScorePracticeState {
         return playhead
     }
 
-    /// The runs watched, played from the first.
+    /// The runs watched, played on from where the recording stands if that
+    /// is inside them, and otherwise from the next of them
+    /// (`Playback.start`).
     func play() {
         guard let practice, let score, let player, hasRecording else { return }
         let segments = Playback.segments(watched, practice, score)
         guard !segments.isEmpty else { return }
+        let from = currentTime
         previewStep = nil
         litNotes = Playback.notes(of: watched, practice, score)
-        player.play(segments, repeats: repeats)
+        player.play(segments, from: from, repeats: repeats)
         listening = .runs
         logger?.log(.practice_playback_started(segments: segments.count, repeats: repeats))
     }
@@ -606,10 +608,11 @@ final class ScorePracticeState {
     func listen() {
         guard let practice, let score, let player, let recordingLength,
               let root = practice.root(hand) else { return }
-        let from = playhead < recordingLength - 0.05 ? playhead : 0
+        let now = currentTime
+        let from = now < recordingLength - Playback.nearEnd ? now : 0
         previewStep = nil
         litNotes = Playback.notes(of: [root.id], practice, score)
-        player.play([Segment(start: from, end: recordingLength)], repeats: false)
+        player.play([Segment(start: from, end: recordingLength)], from: from, repeats: false)
         listening = .free
         logger?.log(.practice_playback_started(segments: 1, repeats: false))
     }
@@ -629,26 +632,51 @@ final class ScorePracticeState {
         logger?.log(.practice_playback_stopped)
     }
 
-    /// The recording stood at `time` seconds.
+    /// The recording brought to `time` seconds, and played on from there
+    /// as it was being played (the runs, or listened to), if it was.
     func seek(to time: Double) {
+        let was = listening
+        stand(at: time)
+        resume(was)
+    }
+
+    /// The recording brought `seconds` later, or earlier: the skip buttons.
+    func skip(by seconds: Double) {
+        seek(to: currentTime + seconds)
+    }
+
+    /// How far the skip buttons go.
+    static let skipSeconds = 5.0
+
+    /// The recording dragged to `time` seconds: it stops while it is
+    /// dragged, its keys lit as they are at each moment passed, and when
+    /// the drag ends (`isDone`) it plays on from there as it was being
+    /// played, if it was.
+    func scrub(to time: Double, isDone: Bool) {
+        if !isScrubbing {
+            isScrubbing = true
+            resumesAfterScrub = listening
+        }
+        stand(at: time)
+        guard isDone else { return }
+        isScrubbing = false
+        resume(resumesAfterScrub)
+        resumesAfterScrub = nil
+    }
+
+    /// The recording stopped and standing at `time` seconds.
+    private func stand(at time: Double) {
         stop()
         previewStep = nil
         playhead = time.clamped(to: 0...(recordingLength ?? 0))
     }
 
-    /// The recording dragged to `time` seconds: it stops while it is
-    /// dragged, its keys lit as they are at each moment passed, and when
-    /// the drag ends (`isDone`) it plays on from there if it was being
-    /// listened to.
-    func scrub(to time: Double, isDone: Bool) {
-        if !isScrubbing {
-            isScrubbing = true
-            resumesAfterScrub = listening == .free
+    private func resume(_ was: Listening?) {
+        switch was {
+        case .runs: play()
+        case .free: listen()
+        case nil: break
         }
-        seek(to: time)
-        guard isDone else { return }
-        isScrubbing = false
-        if resumesAfterScrub { listen() }
     }
 
     private func finished() {

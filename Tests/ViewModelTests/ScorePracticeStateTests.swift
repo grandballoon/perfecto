@@ -6,17 +6,17 @@ import Testing
 @MainActor
 private final class FakeRecordingPlayer: RecordingPlaying {
     var length = 20.0
-    var played: [(segments: [Segment], repeats: Bool)] = []
+    var played: [(segments: [Segment], from: Double, repeats: Bool)] = []
     var isPlaying = false
     var currentTime = 0.0
     var onFinish: (() -> Void)?
 
     func load(_ url: URL) throws -> Double { length }
 
-    func play(_ segments: [Segment], repeats: Bool) {
-        played.append((segments, repeats))
+    func play(_ segments: [Segment], from: Double, repeats: Bool) {
+        played.append((segments, from, repeats))
         isPlaying = true
-        currentTime = segments[0].start
+        currentTime = Playback.start(at: from, in: segments)?.time ?? 0
     }
 
     func stop() { isPlaying = false }
@@ -332,6 +332,43 @@ struct ScorePracticeStateTests {
         #expect(!state.isScrubbing)
         #expect(state.listening == .free)
         #expect(player.played.last?.segments == [Segment(start: 6.5, end: 20)])
+    }
+
+    @Test func playGoesOnFromWhereTheRecordingStands() throws {
+        let state = try practising()
+        state.seek(to: 5)
+        state.play()
+        #expect(player.played.last?.segments == [Segment(start: 0, end: 8)])
+        #expect(state.currentTime == 5)
+        // Stopped and played again, it goes on from where it stopped.
+        player.currentTime = 6.5
+        state.stop()
+        state.play()
+        #expect(state.currentTime == 6.5)
+    }
+
+    @Test func theRunsDraggedWhilePlayingPlayOnFromWhereTheyAreLetGo() throws {
+        let state = try practising()
+        state.play()
+        state.scrub(to: 3, isDone: false)
+        #expect(state.listening == nil)
+        state.scrub(to: 4, isDone: true)
+        #expect(state.listening == .runs)
+        #expect(state.currentTime == 4)
+    }
+
+    @Test func skippingGoesFiveSecondsAndKeepsPlaying() throws {
+        let state = try practising()
+        state.listen()
+        state.skip(by: 5)
+        #expect(state.listening == .free)
+        #expect(state.currentTime == 5)
+        state.skip(by: -ScorePracticeState.skipSeconds * 3)
+        #expect(state.currentTime == 0)
+        state.stop()
+        state.skip(by: 5)
+        #expect(state.listening == nil)
+        #expect(state.currentTime == 5)
     }
 
     @Test func theRecordingDraggedWhileStoppedStaysStopped() throws {
