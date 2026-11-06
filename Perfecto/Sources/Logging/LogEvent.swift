@@ -108,8 +108,9 @@ enum LogEvent {
     case practice_piece_closed
     /// A score could not be taken in or read.
     case practice_import_failed(reason: String)
-    /// A run was added: of `hands` ("right", "left" or "both"), `steps` long.
-    case practice_run_added(hands: String, steps: Int)
+    /// A run was added: of `hands` ("right", "left" or "both"), `steps`
+    /// long, and made within another run as its sub-run or not.
+    case practice_run_added(hands: String, steps: Int, isSubRun: Bool)
     /// A run was edited and saved, now `steps` long.
     case practice_run_edited(steps: Int)
     case practice_run_removed
@@ -340,10 +341,11 @@ extension LogEvent: Encodable {
         case let .practice_import_failed(reason):
             try c.encode("practice_import_failed", forKey: Key("type"))
             try c.encode(reason, forKey: Key("reason"))
-        case let .practice_run_added(hands, steps):
+        case let .practice_run_added(hands, steps, isSubRun):
             try c.encode("practice_run_added", forKey: Key("type"))
             try c.encode(hands, forKey: Key("hands"))
             try c.encode(steps, forKey: Key("steps"))
+            try c.encode(isSubRun, forKey: Key("isSubRun"))
         case let .practice_run_edited(steps):
             try c.encode("practice_run_edited", forKey: Key("type"))
             try c.encode(steps, forKey: Key("steps"))

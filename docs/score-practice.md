@@ -60,8 +60,9 @@ The screen opens the latest piece the first time it appears, and after that leav
 
 5. **A run is made and changed only in editing, and kept only when saved.**
    A new run begins as the note of the hands shown at the playhead (`Passage.step`); an existing one is put into editing from its menu, or by the edit button while it is the one run chosen.
-   In editing, the run is dragged along the score's bar, a step at a time and keeping its length (`Passage.moved`), and at each end, Start and End, a button takes in one more note and another gives one up (`extendingStart`, `extendingEnd`, `shrinkingStart`, `shrinkingEnd`), never below one note.
-   Nothing is changed until Save, which adds the run or puts the edited one in place of its old self (`Practice.replacing`) as one change that can be undone; Cancel leaves everything as it was.
+   In editing, the run is a `RunDraft`: dragged along the score's bar, a step at a time and keeping its length (`RunDraft.moved`), and at each end, Start and End, a button takes in one more note and another gives one up (`extendingStart`, `extendingEnd`, `shrinkingStart`, `shrinkingEnd`), never below one note.
+   A draft stays within its room, the whole part of its hands or, for a sub-run, its parent's steps.
+   Nothing is changed until Save, which adds the run or puts the edited one in place of its old self (`Practice.keeping`, `replacing`) as one change that can be undone; Cancel leaves everything as it was.
    On a touch screen this keeps a finger meant to watch or seek from moving a run: while one run is edited, the other runs, the hands chips and undo wait.
    The keys show the run's first note as it moves, the piano follows it, and Play plays it.
    There is no list of notes to choose from; the bar and the keys are enough to place a run by.
@@ -105,10 +106,20 @@ The screen opens the latest piece the first time it appears, and after that leav
     A run goes by its bars ("Bars 5–8"), or by a name the learner gives it ("the leap"), by pressing and holding its chit, or right-clicking it, and choosing Name (`Practice.naming`); Edit and Delete are there too.
     "All runs" lists every run under each view of the score, with its steps and where it is in the score; a row goes to its run, which is shown and chosen to watch (`ScorePracticeState.goTo`), and it can be edited, named or deleted there.
 
-14. **Every control says what it does.**
+14. **A run can have sub-runs, each a run in its own right.**
+    A sub-run is a part of a run kept to watch on its own, such as the hard bar of a phrase, and making one leaves its run whole and watched as it was (`PracticeRun.parent`, `Practice.adding(_:under:)`).
+    It is begun from the Sub-run button while its run is edited and unchanged, or from the run's menu (New sub-run), on the run's note nearest the playhead (`Practice.newRun(_:at:in:under:)`), and then made as any run is, within its run.
+    Begun from editing, Save or Cancel goes back to editing the run, so several are made one after another (`ScorePracticeState.resumesEditing`).
+    A sub-run is of its run's hands and always within its steps: moving the run takes its sub-runs with it (`Practice.replacing(_:with:movedBy:)`), the run cannot give up a step a sub-run has (`RunDraft.keeps`), and deleting the run deletes them, which undo brings back.
+    A sub-run can have its own.
+    It is watched, named, edited and deleted as any run is; the runs bar groups each run with its sub-runs in one frame, marked with an arrow, and All runs lists them indented under it (`Practice.outline`).
+    While one is edited, the score's bar shows its run's span behind it.
+    A sub-run whose run is missing when a piece is read becomes a run of its own.
+
+15. **Every control says what it does.**
     A pointer resting on any button of the screen shows what it does (`help`), beside the key that does it where there is one (`hotkeyTip`).
 
-15. **A run can be tapped on the keys, note by note.**
+16. **A run can be tapped on the keys, note by note.**
     The Tap button turns the piano's keys into keys to press (`ScorePracticeState.startTapping`): the learner taps the runs watched, step by step, in the order of the score, and each tap sounds at once on the same sound the score plays in (`PracticePlaying.press`).
     It is a small amount of embodied practice, to help a run that has been watched to be taken in by the hand; it is not about timing, and nothing waits or hurries.
     Each tap is told: a right one is marked on its key with a tick and said ("Right, E5"), a wrong one is marked red with a cross, said ("Wrong note, F5: try again") and felt, and the place stays where it was until the right note comes (`TapDrill.tapping`).
@@ -124,7 +135,7 @@ The screen opens the latest piece the first time it appears, and after that leav
 ## Where things are
 
 - `Perfecto/Sources/ScorePractice/`: the pure core, tested with `swift test` in `Perfecto/` (`ScorePracticeTests`).
-  `Score`, `MusicXML`, `Mxl` and `MidiScore` read a score; `Practice` is the runs, every change to it a function from one value to the next, and `History` the changes, to undo; `Playback` says what plays, as passes of timed notes, and what lights; `TapDrill` is a run being tapped.
+  `Score`, `MusicXML`, `Mxl` and `MidiScore` read a score; `Practice` is the runs and their sub-runs, every change to it a function from one value to the next, `RunDraft` the run being made or edited, and `History` the changes, to undo; `Playback` says what plays, as passes of timed notes, and what lights; `TapDrill` is a run being tapped.
 - `ViewModels/ScoreLibrary.swift`: the pieces on disk, each a folder in iCloud (or Application Support) with the score as given and `piece.json` beside it, and the watcher of the iCloud folder.
 - `ViewModels/ScorePracticeState.swift`: the shell the screen talks to.
   It keeps the piece open, the hands shown, the runs chosen, the run being made, the changes to undo and the playhead, saves the piece on each change, plays the score and brings the piano to the runs.

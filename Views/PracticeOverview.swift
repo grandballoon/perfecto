@@ -9,7 +9,8 @@ import SwiftUI
 /// they are at each moment passed. Play stops while the bar is dragged and
 /// goes on from where it is let go, if it was playing. While a run is being
 /// edited, a drag that begins on it moves it along the score instead, a
-/// step at a time, keeping its length.
+/// step at a time, keeping its length; a sub-run's parent is outlined, as
+/// the room it moves in.
 struct PracticeOverview: View {
     @Environment(PerformanceState.self) private var state
 
@@ -91,6 +92,9 @@ struct PracticeOverview: View {
         let lanes = Practice.lanes(of: runs.map(\.1))
         let laneCount = max(1, (lanes.max() ?? 0) + 1)
         let draft = practice.score.flatMap { score in practice.draft.map { $0.span(in: score) } }
+        let room = practice.score.flatMap { score in
+            practice.runDraft?.parent.flatMap { practice.practice?.run($0) }.map { $0.passage.span(in: score) }
+        }
         return Canvas { context, size in
             let x = { (t: Double) in CGFloat(min(max(t / length, 0), 1)) * size.width }
             context.fill(Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: 8),
@@ -103,6 +107,14 @@ struct PracticeOverview: View {
                 // While a run is edited, the others wait in the background.
                 let opacity = draft != nil ? 0.12 : (isChosen ? 0.55 : 0.2)
                 context.fill(Path(roundedRect: rect, cornerRadius: 2), with: .color(color.opacity(opacity)))
+            }
+            if let room {
+                // The parent of the sub-run being edited, which it stays within.
+                let rect = CGRect(x: x(room.lowerBound), y: 0,
+                                  width: max(6, x(room.upperBound) - x(room.lowerBound)), height: size.height)
+                context.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(color.opacity(0.12)))
+                context.stroke(Path(roundedRect: rect.insetBy(dx: 0.75, dy: 0.75), cornerRadius: 3),
+                               with: .color(color.opacity(0.6)), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
             }
             if let draft {
                 // The run being edited, with grips at its ends to say it moves.

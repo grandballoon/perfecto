@@ -65,13 +65,16 @@ struct ScorePracticeStateTests {
 
     /// A run of the hands shown made from step `first` to step `last`, as a
     /// learner makes one: begun at the note at the playhead, taken on a note
-    /// at a time, and saved. Its id.
+    /// at a time, and saved. Its id; nil if the hands have no such steps.
     @discardableResult
     private func addRun(_ state: ScorePracticeState, _ first: Int, _ last: Int) -> RunID? {
         guard let onset = state.score?.steps(state.hands)[first].onset else { return nil }
         state.seek(to: onset)
         state.startNewRun()
-        while let draft = state.draft, draft.last < last { state.extendDraftEnd() }
+        while let draft = state.draft, draft.last < last {
+            state.extendDraftEnd()
+            if state.draft == draft { return nil }
+        }
         state.saveDraft()
         return state.selection.first
     }
@@ -315,6 +318,95 @@ struct ScorePracticeStateTests {
         #expect(stepsOfRuns(state) == [0...7, 2...5, 4...6])
         state.delete(whole)
         #expect(stepsOfRuns(state) == [2...5, 4...6])
+    }
+
+    // MARK: – Sub-runs
+
+    @Test func subRunsAreMadeOneAfterAnotherFromARunsEditingLeavingItWhole() throws {
+        let state = try practising()
+        let parent = try #require(addRun(state, 1, 6))
+        state.edit(parent)
+        #expect(state.canStartSubRun)
+        state.startSubRun(of: parent)
+        // Begun on the run's first note, the playhead standing there.
+        #expect(state.draft == Passage(.right, from: 1, to: 1))
+        #expect(state.editing == nil)
+        #expect(state.runDraft?.parent == parent)
+        state.extendDraftEnd()
+        state.saveDraft()
+        // Back to editing the run, which is as it was.
+        #expect(state.editing == parent)
+        #expect(state.draft == Passage(.right, from: 1, to: 6))
+        let first = try #require(state.practice?.subRuns(of: parent, in: state.score!).first)
+        #expect(first.passage == Passage(.right, from: 1, to: 2))
+        // Another, dragged along within the run, and the run cannot give up their notes.
+        state.startSubRun(of: parent)
+        state.moveDraft(toStartAt: 7)
+        #expect(state.draft == Passage(.right, from: 6, to: 6))
+        state.saveDraft()
+        state.shrinkDraftStart()
+        state.shrinkDraftEnd()
+        #expect(state.draft == Passage(.right, from: 1, to: 6))
+        state.cancelDraft()
+        #expect(!state.isEditing)
+        #expect(state.shownOutline.map { [$0.run.passage.first, $0.run.passage.last, $0.depth] }
+                == [[1, 6, 0], [1, 2, 1], [6, 6, 1]])
+        // The run edited is still chosen, and watched as a whole; each sub-run
+        // is watched in its own right.
+        #expect(state.watched == [Passage(.right, from: 1, to: 6)])
+        state.toggle(parent)
+        state.toggle(first.id)
+        #expect(state.watched == [Passage(.right, from: 1, to: 2)])
+    }
+
+    @Test func aSubRunIsBegunOnlyFromARunAsItWasSaved() throws {
+        let state = try practising()
+        let parent = try #require(addRun(state, 1, 6))
+        state.edit(parent)
+        state.extendDraftEnd()
+        #expect(!state.canStartSubRun)
+        state.startNewRun()
+        #expect(!state.canStartSubRun)
+    }
+
+    @Test func aSubRunCalledOffGoesBackToEditingItsRun() throws {
+        let state = try practising()
+        let parent = try #require(addRun(state, 1, 6))
+        state.edit(parent)
+        state.startSubRun(of: parent)
+        state.cancelDraft()
+        #expect(state.editing == parent)
+        #expect(state.practice?.subRuns(of: parent, in: state.score!).isEmpty == true)
+    }
+
+    @Test func aSubRunBegunFromARunsMenuIsChosenWhenSaved() throws {
+        let state = try practising()
+        state.show(.both)
+        let parent = try #require(addRun(state, 0, 3))
+        state.show(.right)
+        state.seek(to: 7)
+        state.startSubRun(of: parent)
+        // Its hands are shown, and it is begun on the run's note nearest the playhead.
+        #expect(state.hands == .both)
+        #expect(state.draft == Passage(.both, from: 3, to: 3))
+        state.saveDraft()
+        #expect(!state.isEditing)
+        let child = try #require(state.selection.first)
+        #expect(state.practice?.run(child)?.parent == parent)
+    }
+
+    @Test func deletingARunDeletesItsSubRunsAndUndoBringsThemBack() throws {
+        let state = try practising()
+        let parent = try #require(addRun(state, 1, 6))
+        state.edit(parent)
+        state.startSubRun(of: parent)
+        state.saveDraft()
+        state.cancelDraft()
+        #expect(state.shownRuns.count == 2)
+        state.delete(parent)
+        #expect(state.shownRuns.isEmpty)
+        state.undo()
+        #expect(state.shownOutline.map(\.depth) == [0, 1])
     }
 
     @Test func eachViewOfTheScoreHasItsOwnRuns() throws {

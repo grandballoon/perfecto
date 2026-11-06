@@ -26,13 +26,9 @@ final class ScorePracticeState {
     private(set) var selection: Set<RunID> = []
     /// Whether the runs watched play over and over.
     var repeats = true
-    /// The run being made or edited, as it stands: moved along the score
-    /// and taken further note by note, and kept only when it is saved, so a
-    /// run is never changed by a touch meant for something else. Nil when
+    /// The run being made or edited, as it stands (`RunDraft`); nil when
     /// no run is being edited.
-    private(set) var draft: Passage?
-    /// The run being edited; nil while a new one is being made.
-    private(set) var editing: RunID?
+    private(set) var runDraft: RunDraft?
     /// Where the score stands, while it is not playing.
     private(set) var playhead = 0.0
     private(set) var isPlaying = false
@@ -78,6 +74,10 @@ final class ScorePracticeState {
     /// then, the screen appearing opens the latest piece, and after, it
     /// leaves the piano as it was left, with no piece if one was closed.
     private var hasChosen = false
+    /// The run whose editing a sub-run was begun from, which is edited
+    /// again once the sub-run is saved or called off, so several are made
+    /// in a row.
+    private var resumesEditing: RunID?
 
     /// `library` nil: the library is found when the screen first appears.
     /// `makePlayer` makes what plays the score, once one is opened.
@@ -188,8 +188,8 @@ final class ScorePracticeState {
         piece = nil
         score = nil
         selection = []
-        draft = nil
-        editing = nil
+        runDraft = nil
+        resumesEditing = nil
         history = History(Practice())
         playhead = 0
         litNotes = []
@@ -202,8 +202,8 @@ final class ScorePracticeState {
         self.score = score
         hands = score.hands.first ?? .right
         selection = []
-        draft = nil
-        editing = nil
+        runDraft = nil
+        resumesEditing = nil
         history = History(piece.practice)
         playhead = 0
         refresh()
@@ -225,6 +225,7 @@ final class ScorePracticeState {
         stop()
         self.hands = hands
         selection = []
+        resumesEditing = nil
         cancelDraft()
         refresh()
         fitPiano()
@@ -250,6 +251,13 @@ final class ScorePracticeState {
     var shownRuns: [PracticeRun] {
         guard let practice, let score else { return [] }
         return practice.runs(of: hands, in: score)
+    }
+
+    /// The runs of the hands shown as they are nested: each run of the
+    /// score followed by its sub-runs.
+    var shownOutline: [OutlinedRun] {
+        guard let practice, let score else { return [] }
+        return practice.outline(of: hands, in: score)
     }
 
     /// What is watched: the run being edited, or the runs chosen, or else
@@ -293,11 +301,11 @@ final class ScorePracticeState {
         logger?.log(.practice_run_removed)
     }
 
-    /// Every run, by the hands it is of, for each view of the score: the
-    /// list of all runs.
-    var allRuns: [(hands: Hands, runs: [PracticeRun])] {
+    /// Every run, nested, by the hands it is of, for each view of the
+    /// score: the list of all runs.
+    var allRuns: [(hands: Hands, runs: [OutlinedRun])] {
         guard let practice, let score else { return [] }
-        return handsShown.map { ($0, practice.runs(of: $0, in: score)) }
+        return handsShown.map { ($0, practice.outline(of: $0, in: score)) }
     }
 
     /// The run with `id` gone to from the list of all runs: its hands shown
@@ -333,98 +341,122 @@ final class ScorePracticeState {
 
     // MARK: – Making and editing a run
 
-    var isEditing: Bool { draft != nil }
+    var isEditing: Bool { runDraft != nil }
+    /// The steps of the run being made or edited, as they stand.
+    var draft: Passage? { runDraft?.passage }
+    /// The run being edited; nil while a new one is being made.
+    var editing: RunID? { runDraft?.run }
 
     /// A new run of the hands shown begun: the note at the playhead, to
     /// move and take further a note at a time before it is saved.
     func startNewRun() {
-        guard let score, let note = Passage.step(hands, at: currentTime, in: score) else { return }
-        stop()
-        editing = nil
-        show(draft: note)
+        guard let score, let next = (practice ?? Practice()).newRun(hands, at: currentTime, in: score) else { return }
+        resumesEditing = nil
+        show(draft: next)
+    }
+
+    /// Whether a sub-run can be begun from the run being edited: it is a
+    /// run kept, and as it was, so nothing unsaved is left behind.
+    var canStartSubRun: Bool {
+        guard let runDraft, let id = runDraft.run else { return false }
+        return runDraft.moved == 0 && runDraft.passage == practice?.run(id)?.passage
+    }
+
+    /// A sub-run of the run with `id` begun, its hands shown: the note of
+    /// it nearest the playhead, to move within it and take further before
+    /// it is saved. Begun from that run's editing, it goes back to editing
+    /// that run once it is saved or called off.
+    func startSubRun(of id: RunID) {
+        guard let run = practice?.run(id) else { return }
+        let fromEditing = editing == id
+        if !fromEditing { show(run.passage.hands) }
+        guard let score, let next = practice?.newRun(hands, at: currentTime, in: score, under: id) else { return }
+        resumesEditing = fromEditing ? id : nil
+        selection = [id]
+        show(draft: next)
     }
 
     /// The run with `id` put into editing, its hands shown.
     func edit(_ id: RunID) {
         guard let run = practice?.run(id) else { return }
         show(run.passage.hands)
-        stop()
-        editing = id
+        guard let score, let next = practice?.editing(id, in: score) else { return }
+        resumesEditing = nil
         selection = [id]
-        show(draft: run.passage)
+        show(draft: next)
     }
 
     /// The run being edited moved along the score, keeping its length, to
     /// begin with the step struck at `time`.
     func moveDraft(toStartAt time: Double) {
-        guard let score, let draft else { return }
-        let moved = draft.moved(toStartAt: time, in: score)
-        if moved != draft { show(draft: moved) }
+        guard let score, let runDraft else { return }
+        let moved = runDraft.moved(toStartAt: time, in: score)
+        if moved != runDraft { show(draft: moved) }
     }
 
     /// One more note before the run being edited.
-    func extendDraftStart() {
-        guard let draft else { return }
-        show(draft: draft.extendingStart())
-    }
+    func extendDraftStart() { change { $0.extendingStart() } }
 
     /// One more note after the run being edited.
-    func extendDraftEnd() {
-        guard let score, let draft else { return }
-        show(draft: draft.extendingEnd(in: score))
-    }
+    func extendDraftEnd() { change { $0.extendingEnd() } }
 
     /// One note fewer at the start of the run being edited, down to one.
-    func shrinkDraftStart() {
-        guard let draft else { return }
-        show(draft: draft.shrinkingStart())
-    }
+    func shrinkDraftStart() { change { $0.shrinkingStart() } }
 
     /// One note fewer at the end of the run being edited, down to one.
-    func shrinkDraftEnd() {
-        guard let draft else { return }
-        show(draft: draft.shrinkingEnd())
+    func shrinkDraftEnd() { change { $0.shrinkingEnd() } }
+
+    private func change(_ edit: (RunDraft) -> RunDraft) {
+        guard let runDraft else { return }
+        let next = edit(runDraft)
+        if next != runDraft { show(draft: next) }
     }
 
     /// The run being edited kept: a new run added, or the run edited
-    /// changed, as one change that can be undone; it is chosen to watch.
+    /// changed, as one change that can be undone; it is chosen to watch,
+    /// or the run a sub-run was begun from is edited again.
     func saveDraft() {
-        guard let practice, let draft else { return }
-        let id: RunID
-        if let editing {
-            id = editing
-            commit(practice.replacing(editing, with: draft))
-            logger?.log(.practice_run_edited(steps: draft.steps.count))
+        guard let practice, let runDraft else { return }
+        let (next, id) = practice.keeping(runDraft)
+        commit(next)
+        let steps = runDraft.passage.steps.count
+        if runDraft.run == nil {
+            logger?.log(.practice_run_added(hands: runDraft.passage.hands.rawValue, steps: steps,
+                                            isSubRun: runDraft.parent != nil))
         } else {
-            let added: Practice
-            (added, id) = practice.adding(draft)
-            commit(added)
-            logger?.log(.practice_run_added(hands: draft.hands.rawValue, steps: draft.steps.count))
+            logger?.log(.practice_run_edited(steps: steps))
         }
-        self.draft = nil
-        editing = nil
+        self.runDraft = nil
+        if let parent = resumesEditing {
+            edit(parent)
+            return
+        }
         selection = [id]
         refresh()
         fitPiano()
     }
 
-    /// The run being edited left as it was, or the new one not made.
+    /// The run being edited left as it was, or the new one not made; the
+    /// run a sub-run was begun from is edited again.
     func cancelDraft() {
-        guard draft != nil else { return }
+        guard runDraft != nil else { return }
         stop()
-        draft = nil
-        editing = nil
+        runDraft = nil
+        if let parent = resumesEditing {
+            edit(parent)
+            return
+        }
         refresh()
         fitPiano()
     }
 
-    /// `passage` the run being edited, the playhead at its start so the
-    /// keys show its first step, and the piano brought to it.
-    private func show(draft passage: Passage) {
+    /// `next` the run being edited, the playhead at its start so the keys
+    /// show its first step, and the piano brought to it.
+    private func show(draft next: RunDraft) {
         guard let score else { return }
         stop()
-        draft = passage
-        playhead = passage.span(in: score).lowerBound
+        runDraft = next
+        playhead = next.passage.span(in: score).lowerBound
         refresh()
         fitPiano()
     }

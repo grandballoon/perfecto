@@ -127,6 +127,7 @@
 		E7F500000000000000000004 /* MusicXML.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000003 /* MusicXML.swift */; };
 		E7F500000000000000000006 /* Mxl.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000005 /* Mxl.swift */; };
 		E7F50000000000000000000A /* Practice.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000009 /* Practice.swift */; };
+		D1F7A0000000000000005D02 /* RunDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F7A0000000000000005D01 /* RunDraft.swift */; };
 		E7F50000000000000000000C /* Playback.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F50000000000000000000B /* Playback.swift */; };
 		E7F5000000000000000000A2 /* MidiScore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F5000000000000000000A1 /* MidiScore.swift */; };
 		E7F5000000000000000000C2 /* TapDrill.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F5000000000000000000C1 /* TapDrill.swift */; };
@@ -331,6 +332,7 @@
 		E7F500000000000000000003 /* MusicXML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicXML.swift; path = ../Perfecto/Sources/ScorePractice/MusicXML.swift; sourceTree = "<group>"; };
 		E7F500000000000000000005 /* Mxl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Mxl.swift; path = ../Perfecto/Sources/ScorePractice/Mxl.swift; sourceTree = "<group>"; };
 		E7F500000000000000000009 /* Practice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Practice.swift; path = ../Perfecto/Sources/ScorePractice/Practice.swift; sourceTree = "<group>"; };
+		D1F7A0000000000000005D01 /* RunDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RunDraft.swift; path = ../Perfecto/Sources/ScorePractice/RunDraft.swift; sourceTree = "<group>"; };
 		E7F50000000000000000000B /* Playback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Playback.swift; path = ../Perfecto/Sources/ScorePractice/Playback.swift; sourceTree = "<group>"; };
 		E7F5000000000000000000A1 /* MidiScore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MidiScore.swift; path = ../Perfecto/Sources/ScorePractice/MidiScore.swift; sourceTree = "<group>"; };
 		E7F5000000000000000000C1 /* TapDrill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TapDrill.swift; path = ../Perfecto/Sources/ScorePractice/TapDrill.swift; sourceTree = "<group>"; };
@@ -445,6 +447,7 @@
 				E7F5000000000000000000A1 /* MidiScore.swift */,
 				E7F5000000000000000000C1 /* TapDrill.swift */,
 				E7F500000000000000000009 /* Practice.swift */,
+				D1F7A0000000000000005D01 /* RunDraft.swift */,
 				E7F500000000000000000005 /* Mxl.swift */,
 				E7F500000000000000000003 /* MusicXML.swift */,
 				E7F500000000000000000001 /* Score.swift */,
@@ -1107,6 +1110,7 @@
 				E7F5000000000000000000A2 /* MidiScore.swift in Sources */,
 				E7F5000000000000000000C2 /* TapDrill.swift in Sources */,
 				E7F50000000000000000000A /* Practice.swift in Sources */,
+				D1F7A0000000000000005D02 /* RunDraft.swift in Sources */,
 				E7F500000000000000000006 /* Mxl.swift in Sources */,
 				E7F500000000000000000004 /* MusicXML.swift in Sources */,
 				E7F500000000000000000002 /* Score.swift in Sources */,

@@ -243,8 +243,10 @@ struct ScorePracticeView: View {
 
 /// The runs of the hands shown: the whole piece, and a chit for each run
 /// kept, tapped to watch it (several are watched in turn), and pressed
-/// and held or right-clicked to edit, name or delete it. Beside them, every
-/// run of every view, editing the one run chosen, and a new run.
+/// and held or right-clicked to edit, name, make a sub-run of or delete
+/// it. A run with sub-runs is drawn with them beside it in one frame, each
+/// a run to watch in its own right. Beside them, every run of every view,
+/// editing the one run chosen, and a new run.
 ///
 /// A run is changed only in editing, which is asked for and then saved,
 /// so a touch meant for watching never moves one. While a run is edited,
@@ -260,8 +262,17 @@ struct PracticeRunsBar: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     wholePiece
-                    ForEach(practice.shownRuns) { run in
-                        chit(run)
+                    ForEach(Self.groups(of: practice.shownOutline), id: \.first?.id) { group in
+                        if group.count == 1, let only = group.first {
+                            chit(only)
+                        } else {
+                            HStack(spacing: 4) {
+                                ForEach(group) { chit($0) }
+                            }
+                            .padding(3)
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.06)))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(white: 0.2), lineWidth: 1))
+                        }
                     }
                 }
             }
@@ -315,14 +326,32 @@ struct PracticeRunsBar: View {
         .help("Watch the whole piece of the \(practice.hands.name.lowercased()), choosing no run")
     }
 
-    private func chit(_ run: PracticeRun) -> some View {
+    /// The outline cut where each run of the score begins: a run with its
+    /// sub-runs, all the way down.
+    private static func groups(of outline: [OutlinedRun]) -> [[OutlinedRun]] {
+        outline.reduce(into: []) { groups, item in
+            if item.depth == 0 || groups.isEmpty { groups.append([item]) } else { groups[groups.count - 1].append(item) }
+        }
+    }
+
+    private func chit(_ item: OutlinedRun) -> some View {
         let practice = state.practice
+        let run = item.run
         let isChosen = practice.selection.contains(run.id)
         return Button { practice.toggle(run.id) } label: {
             VStack(alignment: .leading, spacing: 1) {
-                Text(practice.title(of: run))
-                    .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
+                HStack(spacing: 3) {
+                    if item.depth > 0 {
+                        // One mark for each run it is within.
+                        Image(systemName: "arrow.turn.down.right")
+                            .font(.system(size: 9, weight: .bold))
+                            .opacity(0.6)
+                            .padding(.leading, CGFloat(item.depth - 1) * 6)
+                    }
+                    Text(practice.title(of: run))
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                }
                 let place = run.name == nil ? nil : practice.bars(of: run)
                 let time = practice.span(of: run).map { PracticeTime.text($0.lowerBound) }
                 Text([place, time].compactMap { $0 }.joined(separator: " · "))
@@ -335,14 +364,17 @@ struct PracticeRunsBar: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isChosen ? .isSelected : [])
-        .help(isChosen ? "Stop watching this run" : "Watch this run (choose several to watch them in turn)")
+        .help(isChosen ? "Stop watching this \(item.depth > 0 ? "sub-run" : "run")"
+              : "Watch this \(item.depth > 0 ? "sub-run" : "run") (choose several to watch them in turn)")
         .contextMenu { RunActions(run: run, renaming: $renaming) }
     }
 }
 
 /// The run being made or edited: where it is, a note more before it or
 /// after it, and keeping it or leaving it as it was. It is moved by
-/// dragging it along the score's bar.
+/// dragging it along the score's bar. A run kept can have sub-runs made
+/// within it from here, one after another, each saved on its own while
+/// the run itself is left as it is.
 struct PracticeRunEditor: View {
     @Environment(PerformanceState.self) private var state
 
@@ -361,30 +393,45 @@ struct PracticeRunEditor: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
-            let draft = practice.draft
-            let count = practice.score.map { $0.steps(practice.hands).count } ?? 0
-            let canShrink = draft.map { $0.first < $0.last } ?? false
+            let draft = practice.runDraft
+            let within = draft?.parent == nil ? "" : " within its run"
+            let keeping = draft?.keeps == nil ? "" : " (its sub-runs' notes stay in it)"
             edge("Start",
-                 fewer: (practice.shrinkDraftStart, canShrink, "One note fewer at the start"),
-                 more: (practice.extendDraftStart, (draft?.first ?? 0) > 0, "One more note before the run"))
+                 fewer: (practice.shrinkDraftStart, draft?.canShrinkStart ?? false, "One note fewer at the start\(keeping)"),
+                 more: (practice.extendDraftStart, draft?.canExtendStart ?? false, "One more note before the run\(within)"))
             edge("End",
-                 fewer: (practice.shrinkDraftEnd, canShrink, "One note fewer at the end"),
-                 more: (practice.extendDraftEnd, (draft?.last ?? count) < count - 1, "One more note after the run"))
+                 fewer: (practice.shrinkDraftEnd, draft?.canShrinkEnd ?? false, "One note fewer at the end\(keeping)"),
+                 more: (practice.extendDraftEnd, draft?.canExtendEnd ?? false, "One more note after the run\(within)"))
+            if let id = practice.editing {
+                Button { practice.startSubRun(of: id) } label: {
+                    Label("Sub-run", systemImage: "plus").practiceChit()
+                }
+                .buttonStyle(.plain)
+                .disabled(!practice.canStartSubRun)
+                .opacity(practice.canStartSubRun ? 1 : 0.4)
+                .accessibilityLabel("New sub-run")
+                .help(practice.canStartSubRun
+                      ? "Make a sub-run within this run, to watch on its own; the run itself stays as it is"
+                      : "Save or cancel the change to this run first, then make a sub-run within it")
+            }
             Button("Cancel") { practice.cancelDraft() }
                 .font(.system(size: 13))
                 .foregroundStyle(Color(white: 0.7))
                 .buttonStyle(.plain)
                 .keyboardShortcut(.cancelAction)
                 .padding(.horizontal, 4)
-                .help(practice.editing == nil ? "Make no run" : "Leave the run as it was")
+                .help(practice.editing == nil ? "Make no \(noun)" : "Leave the \(noun) as it was")
             Button { practice.saveDraft() } label: {
                 Text("Save").practiceChit(fill: color)
             }
             .buttonStyle(.plain)
-            .help(practice.editing == nil ? "Keep this run and watch it" : "Keep the run as it is now")
+            .help(practice.editing == nil ? "Keep this \(noun) and watch it" : "Keep the \(noun) as it is now")
         }
         .font(.system(size: 13, weight: .semibold, design: .monospaced))
     }
+
+    /// What the run being edited is.
+    private var noun: String { state.practice.runDraft?.parent == nil ? "run" : "sub-run" }
 
     /// One end of the run: a note fewer there, or a note more.
     private func edge(_ name: String,
@@ -409,10 +456,13 @@ struct PracticeRunEditor: View {
 
     private var title: String {
         let practice = state.practice
-        guard let id = practice.editing, let run = practice.practice?.run(id) else {
-            return "New run · \(practice.hands.name)"
+        if let id = practice.editing, let run = practice.practice?.run(id) {
+            return "Editing \(practice.title(of: run))"
         }
-        return "Editing \(practice.title(of: run))"
+        if let parent = practice.runDraft?.parent, let run = practice.practice?.run(parent) {
+            return "New sub-run of \(practice.title(of: run))"
+        }
+        return "New run · \(practice.hands.name)"
     }
 
     private var detail: String {
@@ -423,16 +473,21 @@ struct PracticeRunEditor: View {
     }
 }
 
-/// What can be done to a run from its menu: edit it, name it, or delete it.
+/// What can be done to a run from its menu: edit it, name it, make a
+/// sub-run within it, or delete it (and its sub-runs with it).
 private struct RunActions: View {
     @Environment(PerformanceState.self) private var state
     let run: PracticeRun
     @Binding var renaming: RunID?
 
     var body: some View {
-        Button("Edit", systemImage: "slider.horizontal.below.rectangle") { state.practice.edit(run.id) }
+        let practice = state.practice
+        Button("Edit", systemImage: "slider.horizontal.below.rectangle") { practice.edit(run.id) }
         Button("Name…", systemImage: "pencil") { renaming = run.id }
-        Button("Delete", systemImage: "trash", role: .destructive) { state.practice.delete(run.id) }
+        Button("New sub-run", systemImage: "plus") { practice.startSubRun(of: run.id) }
+        let subRuns = practice.practice?.descendants(of: run.id).count ?? 0
+        Button(subRuns == 0 ? "Delete" : "Delete with \(subRuns) sub-run\(subRuns == 1 ? "" : "s")",
+               systemImage: "trash", role: .destructive) { practice.delete(run.id) }
     }
 }
 
@@ -477,8 +532,8 @@ private struct RenameRunAlert: ViewModifier {
 }
 
 /// Every run, under each view of the score (each hand alone, both
-/// together): its name, its bars, how many steps it has and where it is
-/// heard. A row goes to its run (`goTo`); its pencil names it, and a swipe
+/// together), each followed by its sub-runs, set in under it: its name,
+/// its bars, how many steps it has and where it is heard. A row goes to its run (`goTo`); its pencil names it, and a swipe
 /// or its menu deletes it.
 struct PracticeAllRuns: View {
     @Environment(PerformanceState.self) private var state
@@ -495,14 +550,15 @@ struct PracticeAllRuns: View {
                             Text("No runs yet")
                                 .foregroundStyle(.secondary)
                         }
-                        ForEach(runs) { run in
-                            row(run)
+                        ForEach(runs) { item in
+                            row(item.run)
+                                .padding(.leading, CGFloat(item.depth) * 18)
                                 .swipeActions {
                                     Button("Delete", systemImage: "trash", role: .destructive) {
-                                        practice.delete(run.id)
+                                        practice.delete(item.id)
                                     }
                                 }
-                                .contextMenu { RunActions(run: run, renaming: $renaming) }
+                                .contextMenu { RunActions(run: item.run, renaming: $renaming) }
                         }
                     }
                 }
@@ -567,7 +623,9 @@ struct PracticeAllRuns: View {
                 Image(systemName: "trash")
             }
             .buttonStyle(.borderless)
-            .help("Delete this run (Undo brings it back)")
+            .help(practice.practice?.descendants(of: run.id).isEmpty == false
+                  ? "Delete this run and its sub-runs (Undo brings them back)"
+                  : "Delete this run (Undo brings it back)")
             .accessibilityLabel("Delete \(practice.title(of: run))")
         }
     }

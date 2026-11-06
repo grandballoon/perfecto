@@ -8,6 +8,13 @@ import Foundation
 /// may overlap any other run, lie inside it or repeat part of it: adding,
 /// naming or deleting one leaves every other as it was.
 ///
+/// A run can also be made within another, as its sub-run (`parent`): a
+/// part of it to watch on its own, which leaves the run itself whole and
+/// watched as it was. A sub-run is always within its parent's steps: it
+/// moves with its parent, the parent cannot give up the steps it has
+/// (`RunDraft`), and it goes when its parent does. Sub-runs can have
+/// their own.
+///
 /// Every change is a function from one practice to the next, so the
 /// screen keeps one value, saves it as it is, and undoes a change by
 /// going back to the value before it (`History`). A practice saved when a
@@ -27,35 +34,92 @@ struct Practice: Equatable, Sendable {
 
     /// The runs of `hands`, in the order they are in the score.
     func runs(of hands: Hands, in score: Score) -> [PracticeRun] {
-        runs.filter { $0.passage.hands == hands }
-            .sorted { $0.passage.order(in: score) < $1.passage.order(in: score) }
+        runs.filter { $0.passage.hands == hands }.sorted { Self.isBefore($0, $1, in: score) }
     }
 
-    /// A run of `passage` added, and its id; a passage that is a run
-    /// already is not added again, and its run's id is given.
-    func adding(_ passage: Passage, name: String? = nil) -> (Practice, RunID) {
-        if let same = runs.first(where: { $0.passage == passage }) { return (self, same.id) }
+    /// The sub-runs of the run with `id`, the runs made within it, in the
+    /// order they are in the score; not theirs.
+    func subRuns(of id: RunID, in score: Score) -> [PracticeRun] {
+        runs.filter { $0.parent == id }.sorted { Self.isBefore($0, $1, in: score) }
+    }
+
+    /// The runs of `hands` as they are nested: each run of the score, in
+    /// the order of the score, followed by its sub-runs, each followed by
+    /// its own, and how deep each is (0 for a run of the score).
+    func outline(of hands: Hands, in score: Score) -> [OutlinedRun] {
+        func under(_ parent: RunID?, depth: Int) -> [OutlinedRun] {
+            runs.filter { $0.parent == parent && $0.passage.hands == hands }
+                .sorted { Self.isBefore($0, $1, in: score) }
+                .flatMap { [OutlinedRun(run: $0, depth: depth)] + under($0.id, depth: depth + 1) }
+        }
+        return under(nil, depth: 0)
+    }
+
+    private static func isBefore(_ a: PracticeRun, _ b: PracticeRun, in score: Score) -> Bool {
+        a.passage.order(in: score) < b.passage.order(in: score)
+    }
+
+    /// A run of `passage` added, and its id. Under `parent` it is a sub-run
+    /// of that run, kept within its steps (of its hands). A passage that is
+    /// a run already beside it is not added again, and that run's id is
+    /// given; so is the parent's, for a sub-run of the whole parent.
+    func adding(_ passage: Passage, under parent: RunID? = nil, name: String? = nil) -> (Practice, RunID) {
+        let parentRun = parent.flatMap(run)
+        let passage = parentRun.map { passage.fitted(into: $0.passage) } ?? passage
+        if let parentRun, passage == parentRun.passage { return (self, parentRun.id) }
+        if let same = runs.first(where: { $0.passage == passage && $0.parent == parentRun?.id }) {
+            return (self, same.id)
+        }
         var next = self
         let id = RunID(rawValue: nextID)
         next.nextID += 1
-        next.runs.append(PracticeRun(id: id, passage: passage, name: Self.trimmed(name)))
+        next.runs.append(PracticeRun(id: id, passage: passage, name: Self.trimmed(name), parent: parentRun?.id))
         return (next, id)
     }
 
-    /// The run with `id` taken away; nothing else changes.
+    /// The run with `id` taken away, and its sub-runs with it, which were
+    /// within it; nothing else changes.
     func removing(_ id: RunID) -> Practice {
         var next = self
-        next.runs.removeAll { $0.id == id }
+        let gone = descendants(of: id).union([id])
+        next.runs.removeAll { gone.contains($0.id) }
         return next
     }
 
-    /// The run with `id` made to watch `passage` in place of its own; its
-    /// id and name stay, and nothing else changes.
-    func replacing(_ id: RunID, with passage: Passage) -> Practice {
-        var next = self
+    /// The runs made within the run with `id`, and within them, all the
+    /// way down.
+    func descendants(of id: RunID) -> Set<RunID> {
+        runs.filter { $0.parent == id }.reduce(into: Set()) { all, child in
+            all.insert(child.id)
+            all.formUnion(descendants(of: child.id))
+        }
+    }
+
+    /// The run with `id` made to watch `passage` in place of its own, kept
+    /// within its parent if it has one; its id and name stay. Its sub-runs
+    /// are moved `steps` along with it (a run dragged along the score takes
+    /// them with it) and kept within it; nothing else changes.
+    func replacing(_ id: RunID, with passage: Passage, movedBy steps: Int = 0) -> Practice {
         guard let i = runs.firstIndex(where: { $0.id == id }) else { return self }
-        next.runs[i] = PracticeRun(id: id, passage: passage, name: runs[i].name)
+        var next = self
+        let old = runs[i]
+        let fitted = old.parent.flatMap(run).map { passage.fitted(into: $0.passage) } ?? passage
+        next.runs[i] = PracticeRun(id: id, passage: fitted, name: old.name, parent: old.parent)
+        next.refitSubRuns(of: id, movedBy: steps)
         return next
+    }
+
+    /// The sub-runs of `id`, and theirs, moved `steps` and kept within
+    /// their parents.
+    private mutating func refitSubRuns(of id: RunID, movedBy steps: Int) {
+        guard let parent = run(id) else { return }
+        for i in runs.indices where runs[i].parent == id {
+            let child = runs[i]
+            let moved = Passage(child.passage.hands, from: child.passage.first + steps, to: child.passage.last + steps)
+            runs[i] = PracticeRun(id: child.id, passage: moved.fitted(into: parent.passage),
+                                  name: child.name, parent: id)
+            refitSubRuns(of: child.id, movedBy: steps)
+        }
     }
 
     /// The run with `id` given the name `name`, trimmed; a name of
@@ -123,33 +187,9 @@ struct Passage: Hashable, Codable, Sendable {
         return Passage(hands, from: at, to: at)
     }
 
-    /// The same number of steps, moved so it begins with the step struck
-    /// at `time` (the last one struck by then), and kept within the part.
-    func moved(toStartAt time: Double, in score: Score) -> Passage {
-        let count = score.steps(hands).count
-        let length = last - first
-        let start = min(score.step(hands, at: time), max(0, count - 1 - length))
-        return Passage(hands, from: start, to: start + length)
-    }
-
-    /// One more step before its first, if the part has one.
-    func extendingStart() -> Passage {
-        Passage(hands, from: max(0, first - 1), to: last)
-    }
-
-    /// One more step after its last, if the part has one.
-    func extendingEnd(in score: Score) -> Passage {
-        Passage(hands, from: first, to: min(last + 1, score.steps(hands).count - 1))
-    }
-
-    /// One step fewer at its start; never fewer than one.
-    func shrinkingStart() -> Passage {
-        Passage(hands, from: min(first + 1, last), to: last)
-    }
-
-    /// One step fewer at its end; never fewer than one.
-    func shrinkingEnd() -> Passage {
-        Passage(hands, from: first, to: max(last - 1, first))
+    /// The same steps, each kept within `other`'s, and of its hands.
+    func fitted(into other: Passage) -> Passage {
+        Passage(other.hands, from: other.steps.nearest(first), to: other.steps.nearest(last))
     }
 
     /// Its steps that the score has.
@@ -184,6 +224,13 @@ struct Passage: Hashable, Codable, Sendable {
     }
 }
 
+extension ClosedRange<Int> {
+    /// The step of these nearest `step`: itself if it is one of them.
+    func nearest(_ step: Int) -> Int {
+        Swift.min(Swift.max(step, lowerBound), upperBound)
+    }
+}
+
 struct RunID: Hashable, Codable, Sendable, Comparable {
     let rawValue: Int
 
@@ -204,7 +251,27 @@ struct PracticeRun: Equatable, Codable, Sendable, Identifiable {
     /// What the learner calls it ("the leap", "bars 5–8"); nil for none,
     /// when it goes by its bars.
     fileprivate(set) var name: String?
+    /// The run this is a sub-run of, made within it: its steps are within
+    /// that run's, of the same hands. Nil for a run of the score.
+    let parent: RunID?
+
+    init(id: RunID, passage: Passage, name: String? = nil, parent: RunID? = nil) {
+        self.id = id
+        self.passage = passage
+        self.name = name
+        self.parent = parent
+    }
 }
+
+/// A run in the outline of the runs, and how deep it is nested: 0 for a
+/// run of the score, 1 for a sub-run of one, and so on.
+struct OutlinedRun: Equatable, Sendable, Identifiable {
+    let run: PracticeRun
+    let depth: Int
+
+    var id: RunID { run.id }
+}
+
 
 /// Where a run is in the score as its bars say: "Bar 5", "Bars 5–8".
 extension Score {
@@ -246,6 +313,13 @@ extension Practice: Codable {
             for (hand, key) in [(Hands.right, Key.right), (.left, .left)] {
                 guard let root = try c.decodeIfPresent(CutRun.self, forKey: key) else { continue }
                 runs += root.children.flatMap { $0.flattened(hand) }
+            }
+        }
+        // A sub-run comes after the run it was made within; one that does
+        // not, or whose parent is gone, is a run of the score.
+        for i in runs.indices {
+            if let parent = runs[i].parent, !runs[..<i].contains(where: { $0.id == parent }) {
+                runs[i] = PracticeRun(id: runs[i].id, passage: runs[i].passage, name: runs[i].name)
             }
         }
         let highest = runs.map(\.id.rawValue).max() ?? 0
