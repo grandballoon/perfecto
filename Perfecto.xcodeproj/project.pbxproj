@@ -131,6 +131,8 @@
 		E7F50000000000000000000C /* Playback.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F50000000000000000000B /* Playback.swift */; };
 		E7F5000000000000000000A2 /* MidiScore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F5000000000000000000A1 /* MidiScore.swift */; };
 		E7F5000000000000000000C2 /* TapDrill.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F5000000000000000000C1 /* TapDrill.swift */; };
+		E7F5000000000000000000D2 /* Flags.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F5000000000000000000D1 /* Flags.swift */; };
+		E7F5000000000000000000D4 /* PracticeFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F5000000000000000000D3 /* PracticeFlags.swift */; };
 		E7F50000000000000000000E /* ScorePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F50000000000000000000D /* ScorePlayer.swift */; };
 		E7F500000000000000000010 /* ScoreLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F50000000000000000000F /* ScoreLibrary.swift */; };
 		E7F500000000000000000012 /* ScorePracticeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F500000000000000000011 /* ScorePracticeState.swift */; };
@@ -336,6 +338,8 @@
 		E7F50000000000000000000B /* Playback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Playback.swift; path = ../Perfecto/Sources/ScorePractice/Playback.swift; sourceTree = "<group>"; };
 		E7F5000000000000000000A1 /* MidiScore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MidiScore.swift; path = ../Perfecto/Sources/ScorePractice/MidiScore.swift; sourceTree = "<group>"; };
 		E7F5000000000000000000C1 /* TapDrill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TapDrill.swift; path = ../Perfecto/Sources/ScorePractice/TapDrill.swift; sourceTree = "<group>"; };
+		E7F5000000000000000000D1 /* Flags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Flags.swift; path = ../Perfecto/Sources/ScorePractice/Flags.swift; sourceTree = "<group>"; };
+		E7F5000000000000000000D3 /* PracticeFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeFlags.swift; sourceTree = "<group>"; };
 		E7F50000000000000000000D /* ScorePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScorePlayer.swift; sourceTree = "<group>"; };
 		E7F50000000000000000000F /* ScoreLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreLibrary.swift; sourceTree = "<group>"; };
 		E7F500000000000000000011 /* ScorePracticeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScorePracticeState.swift; sourceTree = "<group>"; };
@@ -446,6 +450,7 @@
 				E7F50000000000000000000B /* Playback.swift */,
 				E7F5000000000000000000A1 /* MidiScore.swift */,
 				E7F5000000000000000000C1 /* TapDrill.swift */,
+				E7F5000000000000000000D1 /* Flags.swift */,
 				E7F500000000000000000009 /* Practice.swift */,
 				D1F7A0000000000000005D01 /* RunDraft.swift */,
 				E7F500000000000000000005 /* Mxl.swift */,
@@ -612,6 +617,7 @@
 				E7E000000000000000000011 /* SidePanel */,
 				E7E100000000000000000005 /* PianoView.swift */,
 				E7F5000000000000000000B1 /* PracticeOverview.swift */,
+				E7F5000000000000000000D3 /* PracticeFlags.swift */,
 				E7F500000000000000000013 /* ScorePracticeView.swift */,
 				E7E10000000000000000000B /* PianoTouches.swift */,
 				E7D100000000000000000021 /* HotkeyTip.swift */,
@@ -1045,6 +1051,7 @@
 				EE2200000000000000001102 /* MicrophonePermissionGate.swift in Sources */,
 				E7E100000000000000000006 /* PianoView.swift in Sources */,
 				E7F5000000000000000000B2 /* PracticeOverview.swift in Sources */,
+				E7F5000000000000000000D4 /* PracticeFlags.swift in Sources */,
 				E7F500000000000000000014 /* ScorePracticeView.swift in Sources */,
 				E7E10000000000000000000C /* PianoTouches.swift in Sources */,
 				E7D100000000000000000022 /* HotkeyTip.swift in Sources */,
@@ -1109,6 +1116,7 @@
 				E7F50000000000000000000C /* Playback.swift in Sources */,
 				E7F5000000000000000000A2 /* MidiScore.swift in Sources */,
 				E7F5000000000000000000C2 /* TapDrill.swift in Sources */,
+				E7F5000000000000000000D2 /* Flags.swift in Sources */,
 				E7F50000000000000000000A /* Practice.swift in Sources */,
 				D1F7A0000000000000005D02 /* RunDraft.swift in Sources */,
 				E7F500000000000000000006 /* Mxl.swift in Sources */,

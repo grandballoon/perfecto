@@ -132,17 +132,41 @@ The screen opens the latest piece the first time it appears, and after that leav
     While tapping, a finger on the piano is a key the moment it touches, so the pinch, the one-finger drag and the double tap are off (a trackpad's or a mouse wheel's scroll still moves it), and the fit button brings the keys to the runs.
     The core is `TapDrill`: the steps to tap and how far the learner has got, every tap a function from one drill to the next.
 
+17. **The score can be stepped through a note at a time.**
+    Beside Play, one button steps the playhead back a note and another steps it on, through the steps of the hands shown (`Score.step(_:after:)`, `step(_:before:)`), the whole of them and not only the runs watched.
+    Each step is heard as it is stepped to, its notes struck at once and held as long as the score holds them (`Step.sounded`, `PracticePlaying.sound`), and the next step lets go of what is still sounding, so the steps are heard one by one.
+    The keys show the step, since the playhead stands on its moment.
+    A step's ends are sent when they are due, not ahead, because an end sent ahead over MIDI could not be called back and would end the same key struck again by the next step.
+    Stepping stops the score playing, and is not offered while tapping, which goes note by note itself.
+
+18. **A moment can be flagged, with a note.**
+    The Flag button flags the moment at the playhead, while the score plays as well as while it stands still, and asks for a note, which can be left empty (`ScoreFlags.adding`).
+    It is how a learner notes what they hear ("the leap", "left hand crosses") before making any runs.
+    A flag is a moment of the score, in its seconds, so it means the same in every view: it is put on in one view, which it names, and is seen in all of them.
+    In a view it marks a step, the one of those hands struck at its moment or the last struck by then (`ScoreFlags.step`), by the rule a new run begins on.
+    The score's bar shows every flag as a pennant, the flags at the playhead's step are shown over the bar with their notes, to note again or delete, and the Flags list has every flag, each going to its moment.
+    Flagging again where the hands shown already have a flag notes that flag again rather than putting on a second.
+    Flags are part of the practice (`Practice.flags`), so they are saved, shared and undone as the runs are.
+
+19. **A run being edited says the flags its edges are on.**
+    While a run is made or edited, the editor marks Start or End when the run's first or last step is a step a flag marks, and says the flags' notes (`ScoreFlags.edges`), and the bar brightens those flags.
+    So notes made while listening are what runs are fitted to afterwards.
+    A run's edges are not drawn to flags; that is left to the learner for now.
+
 ## Where things are
 
 - `Perfecto/Sources/ScorePractice/`: the pure core, tested with `swift test` in `Perfecto/` (`ScorePracticeTests`).
-  `Score`, `MusicXML`, `Mxl` and `MidiScore` read a score; `Practice` is the runs and their sub-runs, every change to it a function from one value to the next, `RunDraft` the run being made or edited, and `History` the changes, to undo; `Playback` says what plays, as passes of timed notes, and what lights; `TapDrill` is a run being tapped.
+  `Score`, `MusicXML`, `Mxl` and `MidiScore` read a score; `Practice` is the runs and their sub-runs, every change to it a function from one value to the next, `RunDraft` the run being made or edited, and `History` the changes, to undo; `Playback` says what plays, as passes of timed notes, and what lights; `TapDrill` is a run being tapped; `ScoreFlags` is the moments flagged and their notes, and where the score is stepped to.
 - `ViewModels/ScoreLibrary.swift`: the pieces on disk, each a folder in iCloud (or Application Support) with the score as given and `piece.json` beside it, and the watcher of the iCloud folder.
 - `ViewModels/ScorePracticeState.swift`: the shell the screen talks to.
   It keeps the piece open, the hands shown, the runs chosen, the run being made, the changes to undo and the playhead, saves the piece on each change, plays the score and brings the piano to the runs.
 - `Audio/ScorePlayer.swift`: what plays the score on the note sinks, behind `PracticePlaying` so the state is tested without sound.
-- `Views/ScorePracticeView.swift`, `PracticeOverview.swift`: the screen.
+- `Views/ScorePracticeView.swift`, `PracticeOverview.swift`, `PracticeFlags.swift`: the screen.
 
 ## Open questions
+
+- Stepping has no keys of its own yet: the arrows are the compass's, so it would want new keyboard buttons with keys chosen in Setup.
+- A run's edges could be drawn to the nearest flag as they are moved, once it is clear how often that is wanted.
 
 - Playing slower than written would help with fast runs, and is now only a matter of stretching each pass's times.
 - A score whose hands cross staves (a right-hand note written in the bass staff) is read by staff, so such a note counts for the left hand.

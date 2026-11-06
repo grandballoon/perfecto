@@ -19,6 +19,9 @@ protocol PracticePlaying: AnyObject {
     /// is let go (`release`); a key pressed again while held is struck again.
     func press(_ pitch: Int)
     func release(_ pitch: Int)
+    /// `notes` sounded from now, timed from it, as a step is heard when the
+    /// playhead is stepped to it; what was sounded so before is let go.
+    func sound(_ notes: [PassNote])
 }
 
 /// The score played on the app's own sound, as notes: each pass
@@ -54,6 +57,8 @@ final class ScorePlayer: PracticePlaying {
     private var pump: ClockCall?
     /// The keys tapped on the piano and held, each with its note.
     private var pressed: [Int: NoteID] = [:]
+    /// The notes of the step last stepped to, each with the call that ends it.
+    private var stepped: [(id: NoteID, end: ClockCall)] = []
 
     /// How far ahead of their moments notes are sent, and how often.
     private static let lookahead: TimeInterval = 0.25
@@ -73,6 +78,8 @@ final class ScorePlayer: PracticePlaying {
 
     func play(_ notes: [ScoreNote], _ segments: [Segment], from: Double, repeats: Bool) {
         stop()
+        // The step last stepped to is let go: the score takes over.
+        sound([])
         guard let start = Playback.start(at: from, in: segments) else { return }
         self.notes = notes
         self.segments = segments
@@ -104,6 +111,30 @@ final class ScorePlayer: PracticePlaying {
 
     func release(_ pitch: Int) {
         guard let id = pressed.removeValue(forKey: pitch) else { return }
+        let now = clock.time
+        sinks.forEach { $0.noteOff(id, at: now) }
+    }
+
+    func sound(_ notes: [PassNote]) {
+        let now = clock.time
+        for note in stepped {
+            note.end.cancel()
+            sinks.forEach { $0.noteOff(note.id, at: now) }
+        }
+        stepped = notes.map { note in
+            let id = NoteID.next()
+            sinks.forEach { $0.noteOn(id, note: note.pitch, sound: sound, at: now + note.start) }
+            // Its end is sent when it is due, not ahead: a step stepped to
+            // before then lets it go itself, and an end sent ahead could not
+            // be called back from MIDI, where it would end the same key
+            // struck again.
+            let end = clock.after(seconds: note.end) { [weak self] in self?.endStepped(id) }
+            return (id, end)
+        }
+    }
+
+    private func endStepped(_ id: NoteID) {
+        stepped.removeAll { $0.id == id }
         let now = clock.time
         sinks.forEach { $0.noteOff(id, at: now) }
     }

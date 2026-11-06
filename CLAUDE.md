@@ -193,6 +193,7 @@ The runs chosen, or else the whole piece of the hands shown, are watched: the sc
 `ScorePlayer` is what plays it: it sends each pass's notes a little ahead of their moments, stamped with them, to the same audio and MIDI as the keys (`PerformanceState`'s `practiceSinks`), and works out the moment heard from the clock, so the lights and the sound agree.
 There is no recording: pieces kept when there were are read as their scores.
 It never shows notes falling toward the keys.
+The score can be stepped through a note at a time, each step heard as it is stepped to (`Score.step(_:after:)`, `PracticePlaying.sound`), and any moment flagged with a note, in any view and seen in all of them (`ScoreFlags`, kept with the runs in `Practice`); a run being edited says the flags its first and last steps are on (`ScoreFlags.edges`).
 A run can also be tapped on the keys, note by note (`TapDrill`): each tap sounds and is told right or wrong, and the next note is marked or left to memory by a switch that can be changed at any moment; while tapping, a finger on the piano presses the key it is on (`PianoTouches.onPress`), the one time the piano is played rather than only shown.
 While the screen is open the play/stop key plays the runs, and the chord keys play nothing (`PerformanceState.isPractising`).
 The piece menu opens a piece kept, closes the one open (`closePiece`, which keeps it), or deletes it.

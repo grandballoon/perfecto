@@ -22,6 +22,10 @@ private final class FakeScorePlayer: PracticePlaying {
     var held: [Int] = []
     func press(_ pitch: Int) { held.append(pitch) }
     func release(_ pitch: Int) { held.removeAll { $0 == pitch } }
+
+    /// The notes of each step stepped to, in turn.
+    var sounded: [[PassNote]] = []
+    func sound(_ notes: [PassNote]) { sounded.append(notes) }
 }
 
 @Suite("ScorePracticeState")
@@ -602,6 +606,114 @@ struct ScorePracticeStateTests {
         #expect(piano.span == PianoSpan.fitting(48...48))
     }
 
+
+    // MARK: – Stepping
+
+    @Test func theScoreIsSteppedThroughANoteAtATimeEachStepHeard() throws {
+        let state = try practising()
+        #expect(!state.canStepBack)
+        state.stepOn()
+        #expect(state.playhead == 1)
+        #expect(player.sounded.last == [PassNote(pitch: 74, start: 0, end: 1)])
+        state.seek(to: 2.5)
+        state.stepBack()
+        #expect(state.playhead == 2)
+        #expect(player.sounded.last?.map(\.pitch) == [76])
+        // The keys show the step stepped to.
+        #expect(state.lights(at: state.currentTime)[76]?.first?.kind == .sounding(since: 0))
+        // Each view steps through its own notes: the left hand has one.
+        state.show(.left)
+        state.seek(to: 3)
+        #expect(!state.canStepOn)
+        state.stepBack()
+        #expect(state.playhead == 0)
+        #expect(player.sounded.last == [PassNote(pitch: 48, start: 0, end: 4)])
+        #expect(!state.canStepBack)
+        state.stepBack()
+        #expect(state.playhead == 0)
+    }
+
+    @Test func steppingStopsPlayingAndIsNotDoneWhileTapping() throws {
+        let state = try practising()
+        state.play()
+        #expect(state.isPlaying)
+        state.stepOn()
+        #expect(!state.isPlaying)
+        #expect(state.playhead == 1)
+        state.startTapping()
+        #expect(!state.canStepOn)
+        state.stepOn()
+        #expect(player.sounded.count == 1)
+    }
+
+    // MARK: – Flags
+
+    @Test func aMomentIsFlaggedWithANoteKeptAndSeenInEveryView() async throws {
+        let state = try practising()
+        state.seek(to: 2)
+        #expect(state.flagNoting(at: state.currentTime) == .new(time: 2))
+        let id = try #require(state.addFlag(at: 2, note: "the turn"))
+        #expect(state.flags.map(\.note) == ["the turn"])
+        #expect(state.flags(at: 2.5).map(\.id) == [id])
+        #expect(state.flags(at: 3).isEmpty)
+        // A second flag there is that flag, noted again.
+        #expect(state.flagNoting(at: 2.5) == .existing(id))
+        state.show(.left)
+        #expect(state.flags(at: 0).map(\.id) == [id])
+        #expect(state.flagNoting(at: 0) == .new(time: 0))
+
+        let again = makeState()
+        await again.appear()
+        #expect(again.flags == state.flags)
+    }
+
+    @Test func aFlagsNoteIsChangedAndTheFlagDeletedAndEachIsUndone() throws {
+        let state = try practising()
+        let id = try #require(state.addFlag(at: 1))
+        #expect(state.flag(id)?.note == nil)
+        state.note(id, "slow here")
+        #expect(state.flag(id)?.note == "slow here")
+        state.deleteFlag(id)
+        #expect(state.flags.isEmpty)
+        state.undo()
+        #expect(state.flag(id)?.note == "slow here")
+        state.undo()
+        #expect(state.flag(id)?.note == nil)
+        state.undo()
+        #expect(state.flags.isEmpty)
+        #expect(!state.canUndo)
+        state.redo()
+        #expect(state.flag(id) != nil)
+    }
+
+    @Test func flaggingGoesOnWhilePlayingAndAFlagIsGoneTo() throws {
+        let state = try practising()
+        state.play()
+        let id = try #require(state.addFlag(at: 5))
+        #expect(state.isPlaying)
+        state.stop()
+        state.goTo(flag: id)
+        #expect(state.playhead == 5)
+    }
+
+    @Test func aRunBeingEditedSaysTheFlagsItBeginsAndEndsOn() throws {
+        let state = try practising()
+        state.addFlag(at: 2, note: "start")
+        state.addFlag(at: 4, note: "end")
+        #expect(state.draftEdgeFlags == nil)
+        state.seek(to: 2)
+        state.startNewRun()
+        #expect(state.draftEdgeFlags?.start.map(\.note) == ["start"])
+        #expect(state.draftEdgeFlags?.end.map(\.note) == ["start"])
+        state.extendDraftEnd()
+        #expect(state.draftEdgeFlags?.end.isEmpty == true)
+        state.extendDraftEnd()
+        #expect(state.draftEdgeFlags?.start.map(\.note) == ["start"])
+        #expect(state.draftEdgeFlags?.end.map(\.note) == ["end"])
+        state.shrinkDraftStart()
+        #expect(state.draftEdgeFlags?.start.isEmpty == true)
+    }
+
     // MARK: – Tapping
 
     /// The keys marked to tap next.
@@ -782,5 +894,28 @@ struct ScorePlayerTests {
         clock.advance(seconds: 5)
         #expect(sink.started == [60])
         #expect(!player.isPlaying)
+    }
+    @Test func aStepSoundsAtOnceForItsLengthAndTheNextLetsItGo() {
+        let player = player
+        player.sound([PassNote(pitch: 48, start: 0, end: 4), PassNote(pitch: 72, start: 0, end: 1)])
+        #expect(sink.started == [48, 72])
+        #expect(sink.endTimes.isEmpty)
+        clock.advance(seconds: 1.5)
+        #expect(near(sink.endTimes, [1]))
+        // The next step lets go of what still sounds, and its own end is
+        // not sent before it is due, so it cannot end the same key again.
+        player.sound([PassNote(pitch: 48, start: 0, end: 1)])
+        #expect(near(sink.endTimes, [1, 1.5]))
+        #expect(sink.started == [48, 72, 48])
+        clock.advance(seconds: 5)
+        #expect(near(sink.endTimes, [1, 1.5, 2.5]))
+        #expect(sink.sounding.isEmpty)
+    }
+
+    @Test func playingLetsGoOfTheStepSteppedTo() {
+        let player = player
+        player.sound([PassNote(pitch: 48, start: 0, end: 4)])
+        player.play(notes, whole, from: 0, repeats: false)
+        #expect(near(Array(sink.endTimes.prefix(1)), [0]))
     }
 }

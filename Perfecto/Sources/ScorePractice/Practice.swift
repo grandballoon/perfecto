@@ -25,8 +25,18 @@ struct Practice: Equatable, Sendable {
     /// In the order they were added.
     private(set) var runs: [PracticeRun] = []
     private var nextID = 1
+    /// The moments of the score flagged, and what was noted of them; they
+    /// are kept, saved and undone with the runs.
+    private(set) var flags = ScoreFlags()
 
     init() {}
+
+    /// The same runs with `flags`.
+    func with(_ flags: ScoreFlags) -> Practice {
+        var next = self
+        next.flags = flags
+        return next
+    }
 
     func run(_ id: RunID) -> PracticeRun? {
         runs.first { $0.id == id }
@@ -299,7 +309,7 @@ extension Score {
 
 extension Practice: Codable {
     private enum Key: String, CodingKey {
-        case runs, nextID
+        case runs, nextID, flags
         // A tree of runs cut from each hand's whole part, as practice was
         // once kept.
         case right, left
@@ -324,12 +334,14 @@ extension Practice: Codable {
         }
         let highest = runs.map(\.id.rawValue).max() ?? 0
         nextID = max(try c.decodeIfPresent(Int.self, forKey: .nextID) ?? 1, highest + 1)
+        flags = try c.decodeIfPresent(ScoreFlags.self, forKey: .flags) ?? ScoreFlags()
     }
 
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: Key.self)
         try c.encode(runs, forKey: .runs)
         try c.encode(nextID, forKey: .nextID)
+        try c.encode(flags, forKey: .flags)
     }
 }
 

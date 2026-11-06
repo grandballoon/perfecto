@@ -128,6 +128,14 @@ enum LogEvent {
     case practice_tapped(pitch: Int, isRight: Bool)
     /// A pass of tapping was finished: `steps` long, with `mistakes` wrong taps.
     case practice_tap_pass_finished(steps: Int, mistakes: Int)
+    /// The playhead was stepped a note on, or back, and the note heard.
+    case practice_stepped(isForward: Bool)
+    /// A moment of the score was flagged, in the view of `hands`, with a
+    /// note or without.
+    case practice_flag_added(hands: String, hasNote: Bool)
+    /// A flag's note was written, changed or taken away.
+    case practice_flag_noted(hasNote: Bool)
+    case practice_flag_removed
 
     // Computer keyboard
     /// `key` nil: the action was left with no key.
@@ -377,6 +385,18 @@ extension LogEvent: Encodable {
             try c.encode("practice_tap_pass_finished", forKey: Key("type"))
             try c.encode(steps, forKey: Key("steps"))
             try c.encode(mistakes, forKey: Key("mistakes"))
+        case let .practice_stepped(isForward):
+            try c.encode("practice_stepped", forKey: Key("type"))
+            try c.encode(isForward, forKey: Key("isForward"))
+        case let .practice_flag_added(hands, hasNote):
+            try c.encode("practice_flag_added", forKey: Key("type"))
+            try c.encode(hands, forKey: Key("hands"))
+            try c.encode(hasNote, forKey: Key("hasNote"))
+        case let .practice_flag_noted(hasNote):
+            try c.encode("practice_flag_noted", forKey: Key("type"))
+            try c.encode(hasNote, forKey: Key("hasNote"))
+        case .practice_flag_removed:
+            try c.encode("practice_flag_removed", forKey: Key("type"))
         case let .keyboard_key_chosen(action, key):
             try c.encode("keyboard_key_chosen", forKey: Key("type"))
             try c.encode(action, forKey: Key("action"))

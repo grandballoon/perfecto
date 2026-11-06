@@ -67,6 +67,7 @@ struct ScorePracticeView: View {
                     if practice.piece == nil {
                         emptyMessage
                     } else {
+                        PracticeFlagLine()
                         PracticeOverview()
                         PracticeTransport()
                     }
@@ -381,7 +382,18 @@ struct PracticeRunEditor: View {
     var body: some View {
         let practice = state.practice
         let color = practice.hands.color
-        HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
+            controls(color: color)
+            if let edges = practice.draftEdgeFlags, !edges.isEmpty {
+                edgeFlags(edges)
+            }
+        }
+    }
+
+    private func controls(color: Color) -> some View {
+        let practice = state.practice
+        let edges = practice.draftEdgeFlags
+        return HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
@@ -396,10 +408,10 @@ struct PracticeRunEditor: View {
             let draft = practice.runDraft
             let within = draft?.parent == nil ? "" : " within its run"
             let keeping = draft?.keeps == nil ? "" : " (its sub-runs' notes stay in it)"
-            edge("Start",
+            edge("Start", isOnFlag: edges?.start.isEmpty == false,
                  fewer: (practice.shrinkDraftStart, draft?.canShrinkStart ?? false, "One note fewer at the start\(keeping)"),
                  more: (practice.extendDraftStart, draft?.canExtendStart ?? false, "One more note before the run\(within)"))
-            edge("End",
+            edge("End", isOnFlag: edges?.end.isEmpty == false,
                  fewer: (practice.shrinkDraftEnd, draft?.canShrinkEnd ?? false, "One note fewer at the end\(keeping)"),
                  more: (practice.extendDraftEnd, draft?.canExtendEnd ?? false, "One more note after the run\(within)"))
             if let id = practice.editing {
@@ -433,14 +445,42 @@ struct PracticeRunEditor: View {
     /// What the run being edited is.
     private var noun: String { state.practice.runDraft?.parent == nil ? "run" : "sub-run" }
 
-    /// One end of the run: a note fewer there, or a note more.
-    private func edge(_ name: String,
+    /// The flags the run begins and ends on, with their notes, so a run is
+    /// fitted to what was noted while listening.
+    private func edgeFlags(_ edges: RunEdgeFlags) -> some View {
+        let lines = [("Starts", edges.start), ("Ends", edges.end)].filter { !$0.1.isEmpty }.map { edge, flags in
+            "\(edge) on " + flags.map { $0.note.map { "“\($0)”" } ?? "a flag" }.joined(separator: ", ")
+        }
+        return HStack(spacing: 6) {
+            Image(systemName: "flag.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.practiceFlag)
+                .accessibilityHidden(true)
+            Text(lines.joined(separator: " · "))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color(white: 0.85))
+                .lineLimit(2)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// One end of the run: a note fewer there, or a note more; marked with
+    /// a flag while it is on one.
+    private func edge(_ name: String, isOnFlag: Bool,
                       fewer: (action: () -> Void, isAble: Bool, help: String),
                       more: (action: () -> Void, isAble: Bool, help: String)) -> some View {
         HStack(spacing: 4) {
-            Text(name)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Color(white: 0.55))
+            HStack(spacing: 2) {
+                if isOnFlag {
+                    Image(systemName: "flag.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .accessibilityLabel("on a flag")
+                }
+                Text(name)
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundStyle(isOnFlag ? Color.practiceFlag : Color(white: 0.55))
+            .help(isOnFlag ? "The run's \(name.lowercased()) is on a flag" : "")
             ForEach([(fewer, "minus"), (more, "plus")], id: \.1) { button, symbol in
                 Button(action: button.action) {
                     Image(systemName: symbol).practiceChit()
@@ -633,10 +673,14 @@ struct PracticeAllRuns: View {
 
 // MARK: – Playing
 
-/// What plays the score: skip back or on, and play the runs watched from
-/// where the playhead stands, once or over again.
+/// What plays the score: skip back or on, step back or on a note at a
+/// time (each step heard), and play the runs watched from where the
+/// playhead stands, once or over again; and flag the moment at the
+/// playhead, or see every flag.
 struct PracticeTransport: View {
     @Environment(PerformanceState.self) private var state
+    @State private var noting: FlagNoting?
+    @State private var isShowingFlags = false
 
     var body: some View {
         @Bindable var practice = state.practice
@@ -648,6 +692,15 @@ struct PracticeTransport: View {
             .accessibilityLabel("Back 5 seconds")
             .help("Back 5 seconds, playing on if it was playing")
 
+            Button { practice.stepBack() } label: {
+                Image(systemName: "backward.frame.fill").practiceChit()
+            }
+            .buttonStyle(.plain)
+            .disabled(!practice.canStepBack)
+            .opacity(practice.canStepBack ? 1 : 0.4)
+            .accessibilityLabel("Back a note")
+            .help("Back to the \(practice.hands.name.lowercased())'s note before the playhead, and hear it")
+
             Button { practice.playOrStop() } label: {
                 Image(systemName: practice.isPlaying ? "stop.fill" : "play.fill")
                     .practiceChit(fill: practice.isPlaying ? Color.orange : nil, width: 44)
@@ -656,6 +709,15 @@ struct PracticeTransport: View {
             .hotkeyTip(.playStop)
             .accessibilityLabel(practice.isPlaying ? "Stop" : "Play the runs")
             .help(practice.isPlaying ? "Stop" : "Play the runs watched from the playhead (or from the next of them)")
+
+            Button { practice.stepOn() } label: {
+                Image(systemName: "forward.frame.fill").practiceChit()
+            }
+            .buttonStyle(.plain)
+            .disabled(!practice.canStepOn)
+            .opacity(practice.canStepOn ? 1 : 0.4)
+            .accessibilityLabel("On a note")
+            .help("On to the \(practice.hands.name.lowercased())'s next note after the playhead, and hear it")
 
             Button { practice.skip(by: ScorePracticeState.skipSeconds) } label: {
                 Image(systemName: "goforward.5").practiceChit()
@@ -684,7 +746,26 @@ struct PracticeTransport: View {
                                      : "Tap the runs watched on the keys yourself, note by note, told right or wrong")
 
             Spacer(minLength: 0)
+
+            Button { noting = practice.flagNoting(at: practice.currentTime) } label: {
+                Label("Flag", systemImage: "flag").practiceChit()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Flag the playhead")
+            .help("Flag the moment at the playhead, with a note if you like; playing goes on")
+
+            Button { isShowingFlags = true } label: {
+                Image(systemName: "list.bullet.indent").practiceChit()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("All flags")
+            .help("See every flag on the score, note or delete them, and go to one")
+            .popover(isPresented: $isShowingFlags) {
+                PracticeFlagsList(isShown: $isShowingFlags)
+                    .environment(state)
+            }
         }
+        .notingFlag($noting, in: practice)
     }
 }
 

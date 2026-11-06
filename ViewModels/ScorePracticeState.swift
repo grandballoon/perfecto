@@ -324,7 +324,8 @@ final class ScorePracticeState {
     var canUndo: Bool { history.canUndo }
     var canRedo: Bool { history.canRedo }
 
-    /// The last change to the runs undone: a run added, deleted or named.
+    /// The last change to the runs or the flags undone: a run added,
+    /// deleted or named, or a flag put on, noted or taken away.
     func undo() {
         guard history.canUndo else { return }
         history = history.undoing()
@@ -578,6 +579,106 @@ final class ScorePracticeState {
         syncDrill()
         guard !isPlaying, let score, let whole = Passage.whole(hands, in: score) else { return }
         litNotes = Playback.notes(of: [whole], score)
+    }
+
+    // MARK: – Stepping
+
+    /// Whether there is a step of the hands shown after the playhead, or
+    /// before it, to step to. Not while tapping, which goes note by note
+    /// itself.
+    var canStepOn: Bool { !isTapping && score?.step(hands, after: currentTime) != nil }
+    var canStepBack: Bool { !isTapping && score?.step(hands, before: currentTime) != nil }
+
+    /// The playhead brought to the next step of the hands shown, and the
+    /// step heard: the score walked through a note at a time.
+    func stepOn() {
+        guard !isTapping, let score, let next = score.step(hands, after: currentTime) else { return }
+        step(to: score.steps(hands)[next], isForward: true)
+    }
+
+    /// The playhead brought to the step of the hands shown before it, and
+    /// the step heard.
+    func stepBack() {
+        guard !isTapping, let score, let previous = score.step(hands, before: currentTime) else { return }
+        step(to: score.steps(hands)[previous], isForward: false)
+    }
+
+    private func step(to step: Step, isForward: Bool) {
+        stop()
+        playhead = step.onset
+        refresh()
+        let player = player ?? makePlayer()
+        self.player = player
+        player.sound(step.sounded)
+        logger?.log(.practice_stepped(isForward: isForward))
+    }
+
+    // MARK: – Flags
+
+    /// Every flag on the score, in its order, whichever view it was put on in.
+    var flags: [ScoreFlag] { practice?.flags.all ?? [] }
+
+    func flag(_ id: FlagID) -> ScoreFlag? { practice?.flags.flag(id) }
+
+    /// The flags at the step of the hands shown where the playhead stands
+    /// at `time`.
+    func flags(at time: Double) -> [ScoreFlag] {
+        guard let practice, let score else { return [] }
+        return practice.flags.at(time, hands, in: score)
+    }
+
+    /// The flag of the hands shown that the playhead stands on at `time`,
+    /// if there is one: a flag put on there now is that flag.
+    func ownFlag(at time: Double) -> ScoreFlag? {
+        flags(at: time).first { $0.hands == hands }
+    }
+
+    /// A flag put on the score at `time`, in the view of the hands shown,
+    /// with `note` (nothing but spaces is no note), as a change that can be
+    /// undone; its id. Playing goes on.
+    @discardableResult
+    func addFlag(at time: Double, note: String = "") -> FlagID? {
+        guard let practice, score != nil else { return nil }
+        let (flags, id) = practice.flags.adding(at: time, hands, note: note)
+        guard flags != practice.flags else { return id }
+        commit(practice.with(flags))
+        logger?.log(.practice_flag_added(hands: hands.rawValue,
+                                         hasNote: flags.flag(id)?.note != nil))
+        return id
+    }
+
+    /// The flag with `id` given the note `note`; nothing but spaces takes
+    /// its note away.
+    func note(_ id: FlagID, _ note: String) {
+        guard let practice, practice.flags.flag(id) != nil else { return }
+        let flags = practice.flags.noting(id, note)
+        guard flags != practice.flags else { return }
+        commit(practice.with(flags))
+        logger?.log(.practice_flag_noted(hasNote: flags.flag(id)?.note != nil))
+    }
+
+    func deleteFlag(_ id: FlagID) {
+        guard let practice, practice.flags.flag(id) != nil else { return }
+        commit(practice.with(practice.flags.removing(id)))
+        logger?.log(.practice_flag_removed)
+    }
+
+    /// The playhead brought to the flag with `id`.
+    func goTo(flag id: FlagID) {
+        guard let flag = flag(id) else { return }
+        seek(to: flag.time)
+    }
+
+    /// The flags the run being made or edited begins and ends on, as it
+    /// stands; nil when no run is being edited.
+    var draftEdgeFlags: RunEdgeFlags? {
+        guard let practice, let score, let draft else { return nil }
+        return practice.flags.edges(of: draft, in: score)
+    }
+
+    /// Where a flag is, by its bar: "Bar 5".
+    func bar(of flag: ScoreFlag) -> String {
+        score.map { "Bar \($0.bar(at: flag.time))" } ?? ""
     }
 
     // MARK: – Tapping

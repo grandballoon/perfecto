@@ -2,8 +2,9 @@ import SwiftUI
 
 /// The whole score as one bar: the runs shown laid along it where they
 /// are in the score (the chosen ones brighter), runs that overlap in lanes
-/// one above another, and a line where it is playing or the playhead
-/// stands, with the time either side.
+/// one above another, the flags as pennants where they are (bright where
+/// the run being edited begins or ends on one), and a line where it is
+/// playing or the playhead stands, with the time either side.
 ///
 /// A tap or a drag on the bar brings the playhead there, the keys lit as
 /// they are at each moment passed. Play stops while the bar is dragged and
@@ -95,6 +96,9 @@ struct PracticeOverview: View {
         let room = practice.score.flatMap { score in
             practice.runDraft?.parent.flatMap { practice.practice?.run($0) }.map { $0.passage.span(in: score) }
         }
+        let flags = practice.flags
+        let edges = practice.draftEdgeFlags
+        let onEdges = Set(((edges?.start ?? []) + (edges?.end ?? [])).map(\.id))
         return Canvas { context, size in
             let x = { (t: Double) in CGFloat(min(max(t / length, 0), 1)) * size.width }
             context.fill(Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: 8),
@@ -129,13 +133,30 @@ struct PracticeOverview: View {
                                  with: .color(.black.opacity(0.5)))
                 }
             }
+            for flag in flags {
+                // A pennant on a staff; brighter where the run being edited
+                // begins or ends on it.
+                let isOnEdge = onEdges.contains(flag.id)
+                let at = x(flag.time)
+                let opacity = draft == nil || isOnEdge ? 1 : 0.45
+                context.fill(Path(CGRect(x: at - 0.5, y: 0, width: isOnEdge ? 1.5 : 1, height: size.height)),
+                             with: .color(Color.practiceFlag.opacity(opacity * 0.7)))
+                let pennant = isOnEdge ? 9.0 : 7.0
+                var path = Path()
+                path.move(to: CGPoint(x: at, y: 0))
+                path.addLine(to: CGPoint(x: at + pennant, y: pennant / 2))
+                path.addLine(to: CGPoint(x: at, y: pennant))
+                path.closeSubpath()
+                context.fill(path, with: .color(Color.practiceFlag.opacity(opacity)))
+            }
             context.fill(Path(CGRect(x: x(now) - 0.75, y: 0, width: 1.5, height: size.height)), with: .color(.white))
         }
         .frame(width: size.width, height: size.height)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Score position")
-        .accessibilityValue("\(PracticeTime.text(now)) of \(PracticeTime.text(length))")
+        .accessibilityValue("\(PracticeTime.text(now)) of \(PracticeTime.text(length))"
+                            + (flags.isEmpty ? "" : ", \(flags.count) flag\(flags.count == 1 ? "" : "s")"))
         .accessibilityAdjustableAction { direction in
             practice.skip(by: direction == .increment ? ScorePracticeState.skipSeconds : -ScorePracticeState.skipSeconds)
         }
