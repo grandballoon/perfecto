@@ -33,7 +33,8 @@ extension Hands {
 }
 
 /// The piano (`PianoState`): the white keys of its span across the frame
-/// it is given, each key lit in the colors of the sources sounding its
+/// it is given (with the whole screen, no wider than a piano's keys as
+/// long as the frame is high, centered with black either side), each key lit in the colors of the sources sounding its
 /// note. A key that several sources are sounding is divided between their
 /// colors along its length, and a lit key out of view is marked in its
 /// colors at the end it lies beyond.
@@ -74,7 +75,11 @@ struct PianoView: View {
     var body: some View {
         let piano = state.piano
         GeometryReader { geo in
-            let keys = PianoKeys(size: geo.size, span: piano.span)
+            // With the whole screen the keys keep a piano's proportions,
+            // centered with black either side; the strip's fill it.
+            let width = isExpanded ? PianoKeys.width(of: piano.span, in: geo.size) : geo.size.width
+            let inset = (geo.size.width - width) / 2
+            let keys = PianoKeys(size: CGSize(width: width, height: geo.size.height), span: piano.span)
             let lights = piano.lights
             ZStack(alignment: .topLeading) {
                 ZStack(alignment: .topLeading) {
@@ -84,18 +89,21 @@ struct PianoView: View {
                     }
                     edgeMarks(lights, in: keys)
                 }
-                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+                .frame(width: width, height: geo.size.height, alignment: .topLeading)
+                .clipped()
+                .offset(x: inset)
                 PianoTouches(
                     onZoom: { scale, x in
-                        let at = Double(x / geo.size.width)
+                        let at = Double((x - inset) / width)
                         piano.span = piano.span.moved(by: Double(scale), from: at, to: at)
                     },
                     onDrag: { dx in
-                        piano.span = piano.span.moved(from: 0, to: Double(dx / geo.size.width))
+                        piano.span = piano.span.moved(from: 0, to: Double(dx / width))
                     },
                     onDoubleTap: toggleExpanded,
                     onPress: onKeyDown.map { down in
                         { (point: CGPoint) -> Int? in
+                            let point = CGPoint(x: point.x - inset, y: point.y)
                             guard let note = keys.note(at: point) else { return nil }
                             down(note)
                             return note

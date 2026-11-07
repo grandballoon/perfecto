@@ -118,4 +118,19 @@ struct PianoKeysTests {
         // screen is high.
         #expect(PianoKeys.length(forWidth: 844, span: octave, longest: 160) == 160)
     }
+
+    /// Keys whose length was held to their room are not stretched across
+    /// the screen to make up for it: they keep a piano's proportions, and
+    /// what is left either side is black.
+    @Test func theWholeScreensKeysAreNotStretchedPastAPianosShape() {
+        // An octave on a phone on its side, held to 160 long.
+        let narrow = PianoKeys.width(of: octave, in: CGSize(width: 844, height: 160))
+        #expect(abs(narrow - 7 * 160 / PianoKeys.whiteLength) < 0.001)
+        let keys = PianoKeys(size: CGSize(width: narrow, height: 160), span: octave)
+        #expect(abs(keys.whiteWidth * PianoKeys.whiteLength - 160) < 0.001)
+
+        // Keys as long as a piano's for the width fill it.
+        let upright = CGSize(width: 390, height: 390 / 52 * PianoKeys.whiteLength)
+        #expect(abs(PianoKeys.width(of: .whole, in: upright) - 390) < 0.001)
+    }
 }

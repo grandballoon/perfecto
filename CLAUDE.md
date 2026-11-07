@@ -178,7 +178,7 @@ A key several sources are sounding is divided between their colors.
 A pinch brings it closer, to as few as an octave's keys, or farther, to all 88, and a drag moves it along (`PianoSpan`, read by `PianoTouches`); a lit key out of view is marked at the end it lies beyond.
 The span is on `PianoState`, so the strip and the whole screen show the same keys.
 Its corner button or a double tap gives it the whole screen (`PianoState.isExpanded`), over the screen, which stays laid out as it was under the strip, so nothing there changes size or stops.
-There its keys keep a piano's proportions, standing on the bottom of the screen (`PianoKeys.standing`), so they grow longer as they are brought closer and reach past the top when they are longer than the screen is high.
+There its keys keep a piano's proportions (`PianoKeys.length`, `PianoKeys.width`): they grow longer as they are brought closer, up to their share of the screen's height, and past that are no wider either, so a run of a few keys is shown alone in the middle with black either side rather than stretched across the screen.
 The strip reaches under a phone's notch on its side.
 A note is lit when it is sent, so the timeline's are seen their lead before they are heard, and notes outside the 88 are not shown.
 A new line of notes is seen on it by a `PianoSource` case and a sink where its `NotePlayer` is made (`PerfectoApp`).

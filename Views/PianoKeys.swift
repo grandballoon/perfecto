@@ -50,6 +50,14 @@ struct PianoKeys {
         min(width / CGFloat(span.count) * whiteLength, longest)
     }
 
+    /// How wide the keys of `span` are drawn with the whole screen, in a
+    /// frame of `size` whose height is their length: across the frame, or
+    /// narrower where that would make them wider than a piano's keys of
+    /// that length, so they keep its proportions and are not stretched.
+    static func width(of span: PianoSpan, in size: CGSize) -> CGFloat {
+        min(size.width, CGFloat(span.count) * size.height / whiteLength)
+    }
+
     var whiteWidth: CGFloat { size.width / CGFloat(span.count) }
 
     /// The frame of `note`'s key, for a note in `notes`.
