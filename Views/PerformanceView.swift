@@ -42,8 +42,7 @@ struct PerformanceView: View {
                 }
                 .ignoresSafeArea(edges: .bottom)
                 if state.piano.isOn && state.piano.isExpanded {
-                    PianoView(isExpanded: true)
-                        .ignoresSafeArea()
+                    ScorePracticeView()
                         .transition(.move(edge: .bottom))
                 }
             }

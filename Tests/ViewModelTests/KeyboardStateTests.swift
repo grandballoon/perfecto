@@ -153,6 +153,26 @@ struct KeyboardStateTests {
         #expect(makeState(defaults: defaults).state.keyboard.map.key(for: .button(.playStop)) == nil)
     }
 
+    /// A map saved with buttons the app no longer has (score practice's
+    /// nudge points) keeps everything else it had.
+    @Test func aMapSavedWithAButtonSinceTakenAwayKeepsTheRest() throws {
+        var map = KeyboardMap(keys: [.button(.midi): KeyboardKey(code: 27, name: "X"),
+                                     .button(.playStop): KeyboardKey(code: 17, name: "N")])
+        map.clear(.button(.loop))
+        map.clear(.button(.playStop))
+        map.assign(KeyboardKey(code: 17, name: "N"), to: .button(.playStop))
+        map.clear(.button(.midi))
+        map.assign(KeyboardKey(code: 27, name: "X"), to: .button(.midi))
+        map.clear(.compass(CompassPlace(.add, 2)))
+        // Saved when Play/stop was a button the app has since taken away.
+        let json = String(decoding: try JSONEncoder().encode(map), as: UTF8.self)
+            .replacingOccurrences(of: "playStop", with: "tag")
+        #expect(json.contains("tag"))
+        let read = try JSONDecoder().decode(KeyboardMap.self, from: Data(json.utf8))
+        #expect(read.keys == [.button(.midi): KeyboardKey(code: 27, name: "X")])
+        #expect(read.cleared == [.button(.loop), .compass(CompassPlace(.add, 2))])
+    }
+
     @Test func returnRecordsALoopAndSpaceStopsAndStartsIt() {
         let clock = ManualClock()
         let (state, _) = makeState(clock: clock)
@@ -172,6 +192,41 @@ struct KeyboardStateTests {
         state.keyboard.keyDown(space)
         state.keyboard.keyUp(code: space.code)
         #expect(!loops.isRunning)
+        state.keyboard.keyDown(space)
+        #expect(loops.isRunning)
+    }
+
+    @Test func whileScorePracticeHasTheScreenTheKeysAreItsAndNotThePlayScreens() {
+        let clock = ManualClock()
+        let (state, keys) = makeState(clock: clock)
+        let loops = state.quickLoopState
+        state.keyboard.keyDown(enter)
+        state.keyboard.keyUp(code: enter.code)
+        clock.advance(seconds: Double(QuickLoopState.countIn))
+        state.keyboard.keyDown(a)
+        clock.advance(beats: 8)
+        state.keyboard.keyUp(code: a.code)
+        state.keyboard.keyDown(space)
+        state.keyboard.keyUp(code: space.code)
+        #expect(!loops.isRunning)
+        let chords = keys.playCalls.count
+
+        state.piano.isOn = true
+        state.piano.isExpanded = true
+        #expect(state.isPractising)
+        // Space is the score's (there is none here), not the loops'.
+        state.keyboard.keyDown(space)
+        state.keyboard.keyUp(code: space.code)
+        #expect(!loops.isRunning)
+        // The chord keys and the compass play nothing.
+        state.keyboard.keyDown(a)
+        state.keyboard.keyDown(up)
+        #expect(keys.playCalls.count == chords)
+        #expect(state.heldKeys.isEmpty)
+        state.keyboard.keyUp(code: a.code)
+        state.keyboard.keyUp(code: up.code)
+
+        state.piano.isExpanded = false
         state.keyboard.keyDown(space)
         #expect(loops.isRunning)
     }

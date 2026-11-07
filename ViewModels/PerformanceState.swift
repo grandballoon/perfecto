@@ -223,6 +223,8 @@ final class PerformanceState {
     let gamepad: GamepadState
     /// The piano along the bottom of the screen, lit with what is sounding.
     let piano: PianoState
+    /// Score practice, on the piano when it has the whole screen.
+    let practice: ScorePracticeState
     let micSample: MicSampleState
     /// Whether the app may use the mic, for the sample and the vocoder.
     let micAccess: MicAccess
@@ -271,6 +273,7 @@ final class PerformanceState {
     /// and `gamepad` a game controller and its.
     /// `piano` is the piano whose lines the sinks above were made with
     /// (`PianoState.line`); without one the piano stays dark.
+    /// `practiceSinks` are what score practice plays its score on.
     init(sink: any ChordEventSink,
          chordListener: (any ChordEventSink)? = nil,
          layerSink: (() -> any ChordEventSink)? = nil,
@@ -279,6 +282,8 @@ final class PerformanceState {
          keyboard: KeyboardState? = nil,
          gamepad: GamepadState? = nil,
          piano: PianoState? = nil,
+         scoreLibrary: ScoreLibrary? = nil,
+         practiceSinks: [any NoteSink] = [],
          liveSound: (any SoundControl & EffectsControl)? = nil,
          output: AudioOutput? = nil,
          micGate: any PermissionGate = NoopPermissionGate(),
@@ -301,6 +306,9 @@ final class PerformanceState {
         self.keyboard     = keyboard ?? KeyboardState(logger: logger)
         self.gamepad      = gamepad ?? GamepadState(logger: logger)
         self.piano        = piano ?? PianoState(logger: logger)
+        self.practice     = ScorePracticeState(piano: self.piano, library: scoreLibrary,
+                                               makePlayer: { ScorePlayer(sinks: practiceSinks, clock: clock) },
+                                               logger: logger)
         self.sequencerState = sequencer ?? SequencerState(logger: logger)
         self.quickLoopState = QuickLoopState(logger: logger)
         self.micAccess = MicAccess(gate: micGate)
@@ -390,6 +398,7 @@ final class PerformanceState {
     // lifting it hands the chord back to the press beneath it.
 
     func press(_ key: ChordKey) {
+        guard !isPractising else { return }
         heldKeys.append(key)
         followSlide()
         mode.onButtonDown(key: key, state: self)
@@ -483,6 +492,7 @@ final class PerformanceState {
         if let heldPlace { compassLifted(heldPlace) }
         releaseVoicing()
         quickLoopState.stop()
+        practice.stop()
         output?.isInBackground = true
         logger?.log(.app_left_screen)
     }
@@ -500,6 +510,7 @@ final class PerformanceState {
     /// from the plain chord until it lifts (`compassLifted`), the latest
     /// place if several are down; kept, it is one more step of the walk.
     func compassPressed(_ place: CompassPlace) {
+        guard !isPractising else { return }
         if keepsCompassColor {
             compassWalk.append(place)
         } else {
@@ -704,7 +715,19 @@ extension PerformanceState: LoopHost {
 }
 
 extension PerformanceState: KeyboardHost {
+    /// Whether score practice has the screen: the piano is expanded over
+    /// the play screen, so the keys and the compass play nothing and the
+    /// play/stop key plays the score, not the loops.
+    var isPractising: Bool { piano.isOn && piano.isExpanded }
+
     func tap(_ button: KeyboardButton) {
+        if isPractising {
+            switch button {
+            case .playStop:    practice.playOrStop()
+            case .loop, .midi: break
+            }
+            return
+        }
         switch button {
         case .loop:     quickLoopState.hotkeyTapped()
         case .midi:     isExternalSynth.toggle()

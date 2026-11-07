@@ -133,6 +133,17 @@ struct PianoSpan: Equatable, Sendable {
         self.start = start.clamped(to: 0...(Self.whites - self.count))
     }
 
+    /// The span that shows the keys of `notes` with half a white key to
+    /// spare at each end, or as near as it can come: about an octave
+    /// around them if they are fewer, all 88 if they are more.
+    static func fitting(_ notes: ClosedRange<Int>) -> PianoSpan {
+        let keys = PianoKeys.notes
+        let low = Double(PianoKeys.whitesBelow(notes.lowerBound.clamped(to: keys)))
+        let high = Double(PianoKeys.whitesBelow(notes.upperBound.clamped(to: keys)) + 1)
+        let count = max(high - low + 1, fewest)
+        return PianoSpan(start: (low + high - count) / 2, count: count)
+    }
+
     /// This span `scale` times closer (2 shows half as many keys), moved so
     /// that what was at `from` is at `to`, each a share of the width from
     /// the low end: a pinch, whose fingers move as they spread, or with a

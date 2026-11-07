@@ -101,6 +101,42 @@ enum LogEvent {
     /// The piano was given the whole screen, or put back along its bottom.
     case piano_expanded(isExpanded: Bool)
 
+    // Score practice
+    /// A score was read, newly imported or opened again.
+    case practice_piece_opened(title: String, notes: Int)
+    /// The piece open was taken off the piano, kept among the pieces.
+    case practice_piece_closed
+    /// A score could not be taken in or read.
+    case practice_import_failed(reason: String)
+    /// A run was added: of `hands` ("right", "left" or "both"), `steps`
+    /// long, and made within another run as its sub-run or not.
+    case practice_run_added(hands: String, steps: Int, isSubRun: Bool)
+    /// A run was edited and saved, now `steps` long.
+    case practice_run_edited(steps: Int)
+    case practice_run_removed
+    /// A change to the runs was undone, or redone.
+    case practice_runs_undone(isRedo: Bool)
+    case practice_playback_started(segments: Int, repeats: Bool)
+    case practice_playback_stopped
+    /// A run given a name, or its name taken away.
+    case practice_run_named(isNamed: Bool)
+    /// Tapping the runs watched on the keys was begun, or ended.
+    case practice_tapping_switched(isOn: Bool)
+    /// Whether the next notes to tap are marked on the keys was switched.
+    case practice_tap_hint_switched(isOn: Bool)
+    /// A key tapped while tapping a run, right or wrong.
+    case practice_tapped(pitch: Int, isRight: Bool)
+    /// A pass of tapping was finished: `steps` long, with `mistakes` wrong taps.
+    case practice_tap_pass_finished(steps: Int, mistakes: Int)
+    /// The playhead was stepped a note on, or back, and the note heard.
+    case practice_stepped(isForward: Bool)
+    /// A moment of the score was flagged, in the view of `hands`, with a
+    /// note or without.
+    case practice_flag_added(hands: String, hasNote: Bool)
+    /// A flag's note was written, changed or taken away.
+    case practice_flag_noted(hasNote: Bool)
+    case practice_flag_removed
+
     // Computer keyboard
     /// `key` nil: the action was left with no key.
     case keyboard_key_chosen(action: String, key: String?)
@@ -304,6 +340,63 @@ extension LogEvent: Encodable {
         case let .piano_expanded(isExpanded):
             try c.encode("piano_expanded", forKey: Key("type"))
             try c.encode(isExpanded, forKey: Key("isExpanded"))
+        case let .practice_piece_opened(title, notes):
+            try c.encode("practice_piece_opened", forKey: Key("type"))
+            try c.encode(title, forKey: Key("title"))
+            try c.encode(notes, forKey: Key("notes"))
+        case .practice_piece_closed:
+            try c.encode("practice_piece_closed", forKey: Key("type"))
+        case let .practice_import_failed(reason):
+            try c.encode("practice_import_failed", forKey: Key("type"))
+            try c.encode(reason, forKey: Key("reason"))
+        case let .practice_run_added(hands, steps, isSubRun):
+            try c.encode("practice_run_added", forKey: Key("type"))
+            try c.encode(hands, forKey: Key("hands"))
+            try c.encode(steps, forKey: Key("steps"))
+            try c.encode(isSubRun, forKey: Key("isSubRun"))
+        case let .practice_run_edited(steps):
+            try c.encode("practice_run_edited", forKey: Key("type"))
+            try c.encode(steps, forKey: Key("steps"))
+        case .practice_run_removed:
+            try c.encode("practice_run_removed", forKey: Key("type"))
+        case let .practice_runs_undone(isRedo):
+            try c.encode("practice_runs_undone", forKey: Key("type"))
+            try c.encode(isRedo, forKey: Key("isRedo"))
+        case let .practice_playback_started(segments, repeats):
+            try c.encode("practice_playback_started", forKey: Key("type"))
+            try c.encode(segments, forKey: Key("segments"))
+            try c.encode(repeats, forKey: Key("repeats"))
+        case .practice_playback_stopped:
+            try c.encode("practice_playback_stopped", forKey: Key("type"))
+        case let .practice_run_named(isNamed):
+            try c.encode("practice_run_named", forKey: Key("type"))
+            try c.encode(isNamed, forKey: Key("isNamed"))
+        case let .practice_tapping_switched(isOn):
+            try c.encode("practice_tapping_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .practice_tap_hint_switched(isOn):
+            try c.encode("practice_tap_hint_switched", forKey: Key("type"))
+            try c.encode(isOn, forKey: Key("isOn"))
+        case let .practice_tapped(pitch, isRight):
+            try c.encode("practice_tapped", forKey: Key("type"))
+            try c.encode(pitch, forKey: Key("pitch"))
+            try c.encode(isRight, forKey: Key("isRight"))
+        case let .practice_tap_pass_finished(steps, mistakes):
+            try c.encode("practice_tap_pass_finished", forKey: Key("type"))
+            try c.encode(steps, forKey: Key("steps"))
+            try c.encode(mistakes, forKey: Key("mistakes"))
+        case let .practice_stepped(isForward):
+            try c.encode("practice_stepped", forKey: Key("type"))
+            try c.encode(isForward, forKey: Key("isForward"))
+        case let .practice_flag_added(hands, hasNote):
+            try c.encode("practice_flag_added", forKey: Key("type"))
+            try c.encode(hands, forKey: Key("hands"))
+            try c.encode(hasNote, forKey: Key("hasNote"))
+        case let .practice_flag_noted(hasNote):
+            try c.encode("practice_flag_noted", forKey: Key("type"))
+            try c.encode(hasNote, forKey: Key("hasNote"))
+        case .practice_flag_removed:
+            try c.encode("practice_flag_removed", forKey: Key("type"))
         case let .keyboard_key_chosen(action, key):
             try c.encode("keyboard_key_chosen", forKey: Key("type"))
             try c.encode(action, forKey: Key("action"))

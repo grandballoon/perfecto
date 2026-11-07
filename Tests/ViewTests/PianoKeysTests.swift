@@ -45,6 +45,20 @@ struct PianoKeysTests {
         #expect(PianoKeys.octaveName(of: 62) == nil)
     }
 
+    @Test func aFingerFindsTheBlackKeyOverTheWhiteOnesAndTheWhiteKeyBelow() {
+        let keys = PianoKeys(size: CGSize(width: 700, height: 90), span: octave)
+        // Between C4 and D4, near the top: C♯4; near the bottom: whichever
+        // white key it is on.
+        #expect(keys.note(at: CGPoint(x: 100, y: 10)) == 61)
+        #expect(keys.note(at: CGPoint(x: 95, y: 80)) == 60)
+        #expect(keys.note(at: CGPoint(x: 105, y: 80)) == 62)
+        // Between E4 and F4 there is no black key.
+        #expect(keys.note(at: CGPoint(x: 300, y: 10)) == 65)
+        #expect(keys.note(at: CGPoint(x: 699, y: 50)) == 71)
+        #expect(keys.note(at: CGPoint(x: 350, y: 95)) == nil)
+        #expect(keys.note(at: CGPoint(x: -1, y: 50)) == nil)
+    }
+
     @Test func theStripIsTallerInAWiderScreenWithinLimits() {
         #expect(PianoKeys.height(forWidth: 393) == 44)
         #expect(PianoKeys.height(forWidth: 1500) == 104)
@@ -94,17 +108,29 @@ struct PianoKeysTests {
         #expect(octave.moved(from: 0, to: -10).start == PianoSpan.whites - 7)
     }
 
-    /// With the whole screen, the keys keep a piano's proportions, however
-    /// high the screen is, and stand on its bottom.
-    @Test func theWholeScreensKeysAreAPianosShape() {
-        let upright = PianoKeys.standing(in: CGSize(width: 390, height: 844), above: 34, span: .whole)
-        #expect(abs(upright.height - 390 / 52 * PianoKeys.whiteLength) < 0.001)
-        #expect(upright.maxY == 810 && upright.width == 390)
+    /// With the whole screen, the keys keep a piano's proportions until
+    /// they would be longer than the room they are given.
+    @Test func theWholeScreensKeysAreAPianosShapeUpToTheirRoom() {
+        let upright = PianoKeys.length(forWidth: 390, span: .whole, longest: 300)
+        #expect(abs(upright - 390 / 52 * PianoKeys.whiteLength) < 0.001)
 
-        // An octave on a phone on its side is longer than the screen is
-        // high, and reaches past its top.
-        let close = PianoKeys.standing(in: CGSize(width: 844, height: 390), above: 21, span: octave)
-        #expect(abs(close.height - 844 / 7 * PianoKeys.whiteLength) < 0.001)
-        #expect(close.maxY == 369 && close.minY < 0)
+        // An octave on a phone on its side would be longer than the
+        // screen is high.
+        #expect(PianoKeys.length(forWidth: 844, span: octave, longest: 160) == 160)
+    }
+
+    /// Keys whose length was held to their room are not stretched across
+    /// the screen to make up for it: they keep a piano's proportions, and
+    /// what is left either side is black.
+    @Test func theWholeScreensKeysAreNotStretchedPastAPianosShape() {
+        // An octave on a phone on its side, held to 160 long.
+        let narrow = PianoKeys.width(of: octave, in: CGSize(width: 844, height: 160))
+        #expect(abs(narrow - 7 * 160 / PianoKeys.whiteLength) < 0.001)
+        let keys = PianoKeys(size: CGSize(width: narrow, height: 160), span: octave)
+        #expect(abs(keys.whiteWidth * PianoKeys.whiteLength - 160) < 0.001)
+
+        // Keys as long as a piano's for the width fill it.
+        let upright = CGSize(width: 390, height: 390 / 52 * PianoKeys.whiteLength)
+        #expect(abs(PianoKeys.width(of: .whole, in: upright) - 390) < 0.001)
     }
 }
