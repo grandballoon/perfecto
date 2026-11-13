@@ -1,15 +1,49 @@
 import SwiftUI
 
-/// The side panel's Key page: root, scale and octave.
+/// The side panel's Key page, the first the menu shows: a quick way to the
+/// whole-screen piano, then root, scale and octave.
 struct KeyPanel: View {
     @Environment(PerformanceState.self) private var state
+    @Environment(SidePanelState.self) private var panel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
+            pianoButton
             rootSection
             scaleSection
             octaveSection
         }
+    }
+
+    // MARK: – Piano
+
+    /// Gives the piano the whole screen, showing it first if it is off, and
+    /// closes the menu, so it is not still open when the piano is shrunk.
+    private var pianoButton: some View {
+        Button {
+            panel.close()
+            state.piano.isOn = true
+            withAnimation(.easeOut(duration: 0.25)) { state.piano.isExpanded = true }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "pianokeys")
+                    .font(.system(size: 16, weight: .medium))
+                Text("Piano")
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color(white: 0.5))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.15)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open the piano")
+        .help("Give the piano the whole screen, to practise a score run by run")
     }
 
     // MARK: – Root

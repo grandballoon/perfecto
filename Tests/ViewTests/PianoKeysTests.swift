@@ -98,6 +98,28 @@ struct PianoKeysTests {
         #expect(closer.moved(by: 100, from: 0.5, to: 0.5).count == PianoSpan.fewest)
     }
 
+    @Test func theWholeScreenShowsFourWhiteKeysGreyedEitherSideOfTheSpan() {
+        let shown = octave.withContext
+        #expect(shown.start == octave.start - 4)
+        #expect(shown.count == octave.count + 8)
+        // At an end of the piano there is nothing more to show there.
+        let low = PianoSpan(start: 1, count: 10).withContext
+        #expect(low.start == 0 && low.count == 15)
+        #expect(PianoSpan.whole.withContext == .whole)
+    }
+
+    @Test func aSpanHoldsTheKeysWhoseMiddlesAreInIt() {
+        // C4 to B4, with C♯4 and A♯4 over lines within it.
+        #expect(octave.holds(60) && octave.holds(71) && octave.holds(61) && octave.holds(70))
+        #expect(!octave.holds(58) && !octave.holds(59) && !octave.holds(72) && !octave.holds(73))
+        // A fitted run's half key spared at each end is greyed, not held.
+        let run = PianoSpan.fitting(60...64)
+        #expect(run.holds(60) && run.holds(64))
+        let fitted = PianoSpan.fitting(48...72)
+        #expect(fitted.holds(48) && fitted.holds(72))
+        #expect(!fitted.holds(47) && !fitted.holds(74))
+    }
+
     @Test func aDragMovesTheKeysWithTheFingerAndStopsAtTheEnds() {
         // A finger moved a quarter of the way toward the high end brings
         // the lower keys into view.

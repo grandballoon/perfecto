@@ -18,7 +18,7 @@ It does not sound like a pianist, but every note is where the score puts it.
 There are no notes falling toward the keys, as in the videos that teach by that.
 That view is about timing; this one is about which keys, in which order, and it is deliberately not built.
 
-The piano is pinched and dragged as it always is, and it is brought to the runs being watched when they are chosen (the fit button does it again), so a run is seen all at once.
+The piano is pinched and dragged as it always is, and it is brought to the runs being watched when they are chosen (the fit button does it again), so a run is seen all at once. Four white keys either side of what is fitted are shown too, greyed, so the run can be placed on the keyboard.
 
 ## The format
 

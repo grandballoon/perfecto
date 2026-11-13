@@ -62,6 +62,11 @@ final class SidePanelState {
         show(.effects)
     }
 
+    /// Closes the menu, to open where it was left next time.
+    func close() {
+        page = nil
+    }
+
     /// The menu button's tap: opens the menu where it was left, or closes it.
     func toggle() {
         page = isOpen ? nil : lastPage

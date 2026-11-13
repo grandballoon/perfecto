@@ -34,7 +34,9 @@ extension Hands {
 
 /// The piano (`PianoState`): the white keys of its span across the frame
 /// it is given (with the whole screen, no wider than a piano's keys as
-/// long as the frame is high, centered with black either side), each key lit in the colors of the sources sounding its
+/// long as the frame is high, centered with black either side, and with
+/// `PianoSpan.context` white keys greyed either side of the span so a
+/// short run is seen where it lies), each key lit in the colors of the sources sounding its
 /// note. A key that several sources are sounding is divided between their
 /// colors along its length, and a lit key out of view is marked in its
 /// colors at the end it lies beyond.
@@ -71,21 +73,30 @@ struct PianoView: View {
     private static let adjustingStep = 1.5
     /// How long a struck key flashes.
     private static let strike = 0.15
+    /// How much darker the keys beside the span are drawn with the whole
+    /// screen: a white key a mid grey.
+    private static let contextShade = 0.5
 
     var body: some View {
         let piano = state.piano
         GeometryReader { geo in
             // With the whole screen the keys keep a piano's proportions,
-            // centered with black either side; the strip's fill it.
-            let width = isExpanded ? PianoKeys.width(of: piano.span, in: geo.size) : geo.size.width
+            // centered with black either side, and the keys either side of
+            // the span are shown too, greyed; the strip's fill it.
+            let span = piano.span
+            let shown = isExpanded ? span.withContext : span
+            let width = isExpanded ? PianoKeys.width(of: shown, in: geo.size) : geo.size.width
             let inset = (geo.size.width - width) / 2
-            let keys = PianoKeys(size: CGSize(width: width, height: geo.size.height), span: piano.span)
+            let keys = PianoKeys(size: CGSize(width: width, height: geo.size.height), span: shown)
+            // A share of the width shown, as a share of the span's.
+            let spanShare = { (share: Double) in (shown.start + share * shown.count - span.start) / span.count }
             let lights = piano.lights
             ZStack(alignment: .topLeading) {
                 ZStack(alignment: .topLeading) {
                     // The black keys lie over the white ones.
                     ForEach((PianoKeys.whites + PianoKeys.blacks).filter(keys.shows), id: \.self) { note in
-                        key(note, in: keys, lit: lights[note] ?? [], practice: practice[note] ?? [])
+                        key(note, in: keys, lit: lights[note] ?? [], practice: practice[note] ?? [],
+                            isContext: isExpanded && !span.holds(note))
                     }
                     edgeMarks(lights, in: keys)
                 }
@@ -94,11 +105,11 @@ struct PianoView: View {
                 .offset(x: inset)
                 PianoTouches(
                     onZoom: { scale, x in
-                        let at = Double((x - inset) / width)
+                        let at = spanShare(Double((x - inset) / width))
                         piano.span = piano.span.moved(by: Double(scale), from: at, to: at)
                     },
                     onDrag: { dx in
-                        piano.span = piano.span.moved(from: 0, to: Double(dx / width))
+                        piano.span = piano.span.moved(from: 0, to: Double(dx / width) * shown.count / span.count)
                     },
                     onDoubleTap: toggleExpanded,
                     onPress: onKeyDown.map { down in
@@ -129,7 +140,9 @@ struct PianoView: View {
         withAnimation(.easeOut(duration: 0.25)) { state.piano.isExpanded.toggle() }
     }
 
-    private func key(_ note: Int, in keys: PianoKeys, lit: [PianoSource], practice: [KeyLight]) -> some View {
+    /// `isContext`: the key is beside the span, not in it, and is greyed.
+    private func key(_ note: Int, in keys: PianoKeys, lit: [PianoSource], practice: [KeyLight],
+                     isContext: Bool = false) -> some View {
         let isBlack = PianoKeys.isBlack(note)
         let frame = keys.frame(of: note)
         let sounding = practice.compactMap { light -> (hand: Hand, since: Double)? in
@@ -149,6 +162,9 @@ struct PianoView: View {
         // A lit black key is a shade darker than the white keys lit beside it.
         .overlay(Color.black.opacity(isBlack && !colors.isEmpty ? 0.25 : 0))
         .overlay(Color.white.opacity(0.55 * flash))
+        // Beside the span: greyed, so the eye stays on the run but can
+        // still place it on the keyboard.
+        .overlay(Color.black.opacity(isContext ? Self.contextShade : 0))
         .overlay { tapMark(on: note, width: frame.width) }
         .overlay(alignment: .bottom) {
             VStack(spacing: 3) {

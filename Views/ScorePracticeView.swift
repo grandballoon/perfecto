@@ -59,7 +59,7 @@ struct ScorePracticeView: View {
                 }
                 .frame(height: PianoKeys.length(
                     forWidth: geo.size.width + geo.safeAreaInsets.leading + geo.safeAreaInsets.trailing,
-                    span: state.piano.span, longest: geo.size.height * Self.pianoShare))
+                    span: state.piano.span.withContext, longest: geo.size.height * Self.pianoShare))
                 .ignoresSafeArea(edges: .horizontal)
                 .padding(.vertical, 12)
 

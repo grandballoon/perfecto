@@ -144,6 +144,29 @@ struct PianoSpan: Equatable, Sendable {
         return PianoSpan(start: (low + high - count) / 2, count: count)
     }
 
+    /// The white keys shown greyed either side of the span with the whole
+    /// screen, so a short run is seen where it lies on the keyboard.
+    static let context = 4.0
+
+    /// This span with `whites` more white keys at each end, as far as the
+    /// piano goes: an end of the piano is not moved past, and adds none.
+    func widened(by whites: Double) -> PianoSpan {
+        let low = max(0, start - whites)
+        let high = min(Self.whites, start + count + whites)
+        return PianoSpan(start: low, count: high - low)
+    }
+
+    /// What the whole screen shows of this span: it, and `context` white
+    /// keys greyed either side.
+    var withContext: PianoSpan { widened(by: Self.context) }
+
+    /// Whether `note`'s key is in the span: the middle of it within it, so
+    /// the half key spared at an end is not.
+    func holds(_ note: Int) -> Bool {
+        let middle = Double(PianoKeys.whitesBelow(note)) + (PianoKeys.isBlack(note) ? 0 : 0.5)
+        return middle > start && middle < start + count
+    }
+
     /// This span `scale` times closer (2 shows half as many keys), moved so
     /// that what was at `from` is at `to`, each a share of the width from
     /// the low end: a pinch, whose fingers move as they spread, or with a
