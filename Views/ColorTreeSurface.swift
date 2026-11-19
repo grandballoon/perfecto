@@ -127,6 +127,9 @@ struct ColorTreeLayout {
 /// kept by the pin, lifting keeps the path, and the tree is drawn from its
 /// node next. With a chord held (and the compass's names on) each node is
 /// named by the chord it plays; otherwise by what its step does, from I.
+/// With a chord held, the key assistance tells apart the nodes whose path
+/// leads out of the key, and a finger passes over one that plays nothing
+/// as over the space between nodes.
 struct ColorTreeSurface: View {
     @Environment(PerformanceState.self) private var state
 
@@ -165,7 +168,10 @@ struct ColorTreeSurface: View {
                 ForEach(shown, id: \.self) { path in
                     let frame = layout.frame(of: .node(path))
                     let steps = ColorTree.steps(of: path, from: origin, key: key, degree: degree, ranking: ranking)
-                    nodeChip(path, step: steps?.last, degree: named ? degree : nil, isOn: held == path)
+                    // Out of the key if any step on its path is: that is heard on the way.
+                    let isInKey: Bool? = state.activeDegree == nil ? nil : steps?.allSatisfy { $0.fit != .borrowed }
+                    nodeChip(path, step: steps?.last, degree: named ? degree : nil, isOn: held == path,
+                             mark: state.keyAssistance.mark(isInKey: isInKey))
                         .frame(width: frame.width, height: frame.height)
                         .offset(x: frame.minX, y: frame.minY)
                 }
@@ -178,6 +184,7 @@ struct ColorTreeSurface: View {
                     .onChanged { drag in
                         guard let target = layout.target(at: drag.location, among: shown),
                               target != touched else { return }
+                        if case .node(let path) = target, !state.placesSound(path) { return }
                         touched = target
                         switch target {
                         case .root:
@@ -233,23 +240,23 @@ struct ColorTreeSurface: View {
         let name = degree.map { chordLabel(key: state.playedKey, spec: ChordSpec(degree: $0, color: .tones(origin))) }
         let kept = state.keepsCompassColor && !state.compassWalk.isEmpty
         return CompassChip(text: name ?? (kept ? "kept" : "plain"), detail: kept ? "KEPT" : "AS IT IS",
-                           isOn: false, isEnabled: true, isBorrowed: false, isMiddle: true,
+                           isOn: false, isEnabled: true, isMiddle: true,
                            onTap: { state.treeHeld([]); state.treeLifted() })
             .accessibilityLabel("The chord the tree steps from")
             .accessibilityValue(name ?? "")
     }
 
-    private func nodeChip(_ path: [CompassPlace], step: ColorStep?, degree: Degree?, isOn: Bool) -> some View {
+    private func nodeChip(_ path: [CompassPlace], step: ColorStep?, degree: Degree?, isOn: Bool,
+                          mark: KeyMark) -> some View {
         let text: String
         if let degree, let step {
             text = chordLabel(key: state.playedKey, spec: ChordSpec(degree: degree, color: .tones(step.tones)))
-                + (step.fit == .borrowed ? "*" : step.fit == .avoid ? "◦" : "")
+                + mark.suffix(avoid: step.fit == .avoid)
         } else {
             text = step?.editName ?? "—"
         }
         let detail = degree == nil ? "" : step?.editName ?? ""
-        return CompassChip(text: text, detail: detail, isOn: isOn, isEnabled: true,
-                           isBorrowed: step?.fit == .borrowed,
+        return CompassChip(text: text, detail: detail, isOn: isOn, isEnabled: true, mark: mark,
                            onTap: { state.treeHeld(path); state.treeLifted() })
             .accessibilityLabel(path.map { "\($0.kind) \($0.rank)" }.joined(separator: ", then "))
             .accessibilityValue(text)
@@ -263,7 +270,8 @@ struct ColorTreeSurface: View {
         let walk = state.compassWalk
         let degree = state.activeDegree
         let walkText = walk.isEmpty ? "—" : degree.map {
-            CompassWalk.steps(walk, key: state.playedKey, degree: $0, ranking: state.compassRanking)
+            CompassWalk.steps(walk, key: state.playedKey, degree: $0, ranking: state.compassRanking,
+                              assistance: state.keyAssistance)
                 .map(\.editName).joined(separator: " · ")
         } ?? "\(walk.count) step\(walk.count == 1 ? "" : "s")"
         return HStack(spacing: 6) {

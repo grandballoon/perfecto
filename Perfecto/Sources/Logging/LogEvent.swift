@@ -79,6 +79,8 @@ enum LogEvent {
     case table_color_changed(quality: String?, color: String)
     /// What the edge layout has in its middle was switched (e.g. "Tree").
     case center_surface_switched(surface: String)
+    /// How the play screen helps keep to the key was switched (`KeyAssistance`).
+    case key_assistance_switched(assistance: String)
     /// The hand the edge layout is laid out for was switched.
     case handedness_switched(hand: String)
     case chord_button_pressed(degree: Int, key: String, color: String, resultingNotes: [Int])
@@ -338,6 +340,9 @@ extension LogEvent: Encodable {
         case let .center_surface_switched(surface):
             try c.encode("center_surface_switched", forKey: Key("type"))
             try c.encode(surface, forKey: Key("surface"))
+        case let .key_assistance_switched(assistance):
+            try c.encode("key_assistance_switched", forKey: Key("type"))
+            try c.encode(assistance, forKey: Key("assistance"))
         case let .handedness_switched(hand):
             try c.encode("handedness_switched", forKey: Key("type"))
             try c.encode(hand, forKey: Key("hand"))

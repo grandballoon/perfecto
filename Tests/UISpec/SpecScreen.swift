@@ -43,6 +43,16 @@ extension SpecScreen {
             state.centerSurface = .tree
             state.press(.degree(.V))
         },
+        SpecScreen(name: "play-edge-assist") { state in
+            state.chordGridLayout = .edge
+            state.keyAssistance = .assist
+            state.press(.degree(.ii))
+        },
+        SpecScreen(name: "play-octave-assist") { state in
+            state.chordGridLayout = .octave
+            state.keyAssistance = .assist
+            state.press(.degree(.V))
+        },
         SpecScreen(name: "play-compass-held") { state in
             state.compassPressed(CompassPlace(.add, 1))
             state.press(.degree(.V))

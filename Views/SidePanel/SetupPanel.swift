@@ -3,8 +3,8 @@ import SwiftUI
 /// The menu's Setup page: how the chord keys are laid out (and, for the
 /// edge layout, for which hand), whether the play screen has the key
 /// strip, whether a finger's place on a chord key plays its brightness,
-/// how the compass orders and names its places, and whether the piano is
-/// shown under them.
+/// how the compass orders and names its places, how the colors out of the
+/// key are told apart, and whether the piano is shown under them.
 struct SetupPanel: View {
     @Environment(PerformanceState.self) private var state
 
@@ -26,6 +26,15 @@ struct SetupPanel: View {
                 }
             }
             compassNamesSection
+
+            choiceSection("KEY ASSIST",
+                          detail: "How the colors that take the chord held out of the key are told apart, on the compass, the table and the tree, and how the octave's notes outside the key are. Normal: they are drawn as the others. Color code: those in the key are blue and those out of it pink, outlined in dashes. Assist: those out of the key are greyed out and play nothing, so a finger can press one or slide over it and the chord stays as it was; only colors in the key are heard.") {
+                Picker("Key assist", selection: $state.keyAssistance) {
+                    ForEach(KeyAssistance.allCases, id: \.self) { assistance in
+                        Text(assistance.displayName).tag(assistance)
+                    }
+                }
+            }
 
             pianoSection
 

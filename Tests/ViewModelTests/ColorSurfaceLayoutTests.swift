@@ -40,9 +40,9 @@ struct ColorSurfaceLayoutTests {
 
     @Test func aQualityIsInKeyOnADegreeWhoseScaleHasItsTones() {
         let maj7 = ChordTones([0, 4, 7, 11]), dominant = ChordTones([0, 4, 7, 10])
-        #expect(ColorTable.isInKey(maj7, key: key, degree: .I))
-        #expect(!ColorTable.isInKey(maj7, key: key, degree: .V))
-        #expect(ColorTable.isInKey(dominant, key: key, degree: .V))
+        #expect(KeyAssistance.isInKey(maj7, key: key, degree: .I))
+        #expect(!KeyAssistance.isInKey(maj7, key: key, degree: .V))
+        #expect(KeyAssistance.isInKey(dominant, key: key, degree: .V))
     }
 
     // MARK: – The tree

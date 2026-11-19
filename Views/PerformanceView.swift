@@ -288,7 +288,8 @@ struct PerformanceView: View {
     /// named in the key they are in (a key zone can have its own).
     private func chordKeys(_ arrangement: ChordKeyArrangement) -> some View {
         ChordKeySurface {
-            ChordKeysView(arrangement: arrangement, key: state.homeKey, lit: state.heldKeys)
+            ChordKeysView(arrangement: arrangement, key: state.homeKey, lit: state.heldKeys,
+                          assistance: state.keyAssistance)
         }
     }
 

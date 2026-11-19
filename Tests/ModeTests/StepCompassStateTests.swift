@@ -75,8 +75,8 @@ struct StepCompassStateTests {
     @Test func aWalksStepsAreTheDegreesOwn() {
         let key = Key(root: .C, scale: .major)
         let walk = [CompassPlace(.add, 1), CompassPlace(.add, 1)]
-        #expect(CompassWalk.steps(walk, key: key, degree: .V, ranking: .theory).map(\.editName) == ["+♭7", "+2"])
-        #expect(CompassWalk.steps(walk, key: key, degree: .I, ranking: .theory).map(\.editName) == ["+7", "+2"])
+        #expect(CompassWalk.steps(walk, key: key, degree: .V, ranking: .theory, assistance: .none).map(\.editName) == ["+♭7", "+2"])
+        #expect(CompassWalk.steps(walk, key: key, degree: .I, ranking: .theory, assistance: .none).map(\.editName) == ["+7", "+2"])
     }
 
     @Test func liftingAnotherPlaceLeavesTheLatest() {
@@ -226,5 +226,96 @@ struct ColorSurfaceStateTests {
         state.centerSurface = .tree
         #expect(state.tableTones == nil)
         #expect(state.compassPlaces.isEmpty)
+    }
+}
+
+/// The key assistance on the live surfaces: assisting, a choice out of the
+/// key does nothing when pressed, and a color kept out of the key on
+/// another chord is not heard.
+@Suite("KeyAssistanceState")
+@MainActor
+struct KeyAssistanceStateTests {
+
+    private func makeState(_ assistance: KeyAssistance) -> (PerformanceState, RecordingSink) {
+        let sink = RecordingSink()
+        let state = PerformanceState(sink: sink, clock: ManualClock())
+        state.keyAssistance = assistance
+        return (state, sink)
+    }
+
+    /// On I in C major, the compass's first lower is C minor: out of the key.
+    private let minorThird = CompassPlace(.lower, 1)
+    private let maj7 = ChordTones([0, 4, 7, 11])
+
+    @Test func aPlaceOutOfTheKeyIsPlayedUnlessAssisting() {
+        for assistance in [KeyAssistance.none, .colorCode] {
+            let (state, sink) = makeState(assistance)
+            state.press(.degree(.I))
+            state.compassPressed(minorThird)
+            #expect(sink.playCalls.last?.notes == [60, 63, 67])
+        }
+    }
+
+    @Test func assistingAPlaceOutOfTheKeyDoesNothing() {
+        let (state, sink) = makeState(.assist)
+        state.press(.degree(.I))
+        let calls = sink.playCalls.count
+        state.compassPressed(minorThird)
+        #expect(sink.playCalls.count == calls)
+        #expect(state.compassPlaces.isEmpty)
+        #expect(!state.placesSound([minorThird]))
+        #expect(state.placesSound([CompassPlace(.raise, 1)]))
+    }
+
+    /// Before a chord there is no telling, so the place comes down; the
+    /// chord struck under it does not take the step out of its key.
+    @Test func assistingAPlaceHeldBeforeAChordIsLeftOutIfOutOfItsKey() {
+        let (state, sink) = makeState(.assist)
+        state.compassPressed(minorThird)
+        state.press(.degree(.I))
+        #expect(sink.playCalls.last?.notes == [60, 64, 67])
+    }
+
+    @Test func assistingAQualityOutOfTheKeyDoesNothing() {
+        let (state, sink) = makeState(.assist)
+        state.press(.degree(.V))
+        let calls = sink.playCalls.count
+        state.tablePressed(maj7)
+        #expect(sink.playCalls.count == calls)
+        #expect(state.tableTones == nil)
+    }
+
+    /// maj7 kept on I is out of the key on V, which plays its triad.
+    @Test func assistingAQualityKeptIsNotHeardWhereItIsOutOfTheKey() {
+        let (state, sink) = makeState(.assist)
+        state.keepsCompassColor = true
+        state.press(.degree(.I))
+        state.tablePressed(maj7)
+        #expect(sink.playCalls.last?.notes == [60, 64, 67, 71])
+        state.release(.degree(.I))
+        state.press(.degree(.V))
+        #expect(sink.playCalls.last?.notes == [67, 71, 74])
+        #expect(state.tableTones == maj7)
+    }
+
+    @Test func switchingToAssistSilencesAColorHeldOutOfTheKey() {
+        let (state, sink) = makeState(.colorCode)
+        state.keepsCompassColor = true
+        state.press(.degree(.V))
+        state.tablePressed(maj7)
+        #expect(sink.playCalls.last?.notes == [67, 71, 74, 78])
+        state.keyAssistance = .assist
+        #expect(sink.playCalls.last?.notes == [67, 71, 74])
+    }
+
+    @Test func assistingAnOctavesRootOutOfTheKeyIsSilent() {
+        let (state, _) = makeState(.assist)
+        #expect(state.isSilent(.root(.Cs)))
+        #expect(!state.isSilent(.root(.D)))
+        #expect(!state.isSilent(.degree(.ii)))
+        state.press(.root(.Cs))
+        #expect(state.heldKeys.isEmpty)
+        let (coded, _) = makeState(.colorCode)
+        #expect(!coded.isSilent(.root(.Cs)))
     }
 }

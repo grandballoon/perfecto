@@ -58,7 +58,7 @@ A row is a family, commonest first:
 - Sevenths: maj7, 7, min7, min7♭5, dim7, min(maj7), 7sus4.
 - Ninths, altered and 11ths: maj9, 9, min9, 7♭9, 7♯9, add11, min add11.
 
-A quality is played on whatever chord is held, in key or not, so maj7 on V is G maj7, marked as out of key.
+A quality is played on whatever chord is held, in key or not, so maj7 on V is G maj7, marked as out of key (see the key assistance below).
 It is a color of its own (`PerformanceState.tableTones`), not a place: while there is one it is the color on every degree, and the compass's places are not.
 The last column has the plain chord at the top, which lets the table's color go, and the pin at the bottom.
 The pin works as on the compass: played, a quality sounds while a finger is on it; kept, it stays until another is chosen or the plain chord.
@@ -86,6 +86,20 @@ Setup's Middle choice, under the Left-handed switch, picks the surface.
 Switching surfaces lets go of whatever color was played or kept.
 The surfaces share the pin (`keepsCompassColor`), the compass's order and its names, and the latest one touched is the color: a compass place lets the table's quality go, and a quality lets the walk go.
 
+### The key assistance
+
+Setup's Key assist choice (`PerformanceState.keyAssistance`, a `KeyAssistance`) says how the choices that would take the chord held out of the key are told apart, on all three surfaces alike.
+A choice is out of the key when the chord it plays has a tone the key has not (`ColorFit.borrowed`); an avoid note is in the key.
+On the tree a node is out of the key if any step on its path is, since that is heard on the way to it.
+Which choices those are depends on the chord held, so with none held nothing is told apart.
+
+- Normal: every choice is drawn alike and sounds.
+- Color code, the default: the choices in the key are blue and those out of it pink, outlined in dashes and starred (`KeyMark`), so the two read apart at a glance and in grey.
+- Assist: the choices out of the key are greyed out and play nothing.
+  A finger can press one or slide over it and the chord stays as it was: the surface passes over it as over a gap, and the state refuses it too (`placesSound`, `qualitySounds`), so the keyboard and a controller keep to the key as a finger does.
+  A place that came down before the chord, or a walk or quality kept from another chord, is not heard where it is out of the key: the walk leaves the step out as it leaves out a place with no choice (`KeyAssistance.walk`), and the table's quality is the triad.
+
+The octave's roots outside the key are told apart by the same choice: drawn as the others, in the out-of-key pink, or greyed out as keys that play nothing (`PerformanceState.isSilent`), which a finger slides over and keeps the key it had (`KeyTouches.silent`).
 
 ## Open questions
 
@@ -93,6 +107,6 @@ The surfaces share the pin (`keepsCompassColor`), the compass's order and its na
 - Whether the root should be the larger key, since it is played most.
 - Whether the loop bar and the effect strip belong in the middle, over the surface, or somewhere that leaves the surface the whole height.
 - Whether the switches in the compass's corners are the right ones, or whether the corners should be more places (two-step colors, or a third choice).
-- Whether the table should hold only the qualities that fit the key on the degree held, or all of them as now.
+- Whether the table should hold only the qualities that fit the key on the degree held, or all of them as now (the key assistance's Assist greys out the others but keeps their places).
 - Whether the tree's children should show for the last branch played after the finger lifts, so the second level can be read before it is reached.
 - Whether the tree's branches should give a kind both its choices at the second level too, once it is clear how much can be read at once.

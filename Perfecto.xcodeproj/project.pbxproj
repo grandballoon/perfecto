@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		E8ED0000000000000000000C /* ColorSurfaceLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED0000000000000000000B /* ColorSurfaceLayoutTests.swift */; };
+		CA5500000000000000000004 /* KeyAssistanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA5500000000000000000003 /* KeyAssistanceTests.swift */; };
 		E8ED0000000000000000000A /* ColorTreeSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED00000000000000000009 /* ColorTreeSurface.swift */; };
 		E8ED00000000000000000008 /* ColorTableSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED00000000000000000007 /* ColorTableSurface.swift */; };
 		E8ED00000000000000000006 /* EdgeKeyLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED00000000000000000005 /* EdgeKeyLayoutTests.swift */; };
@@ -123,6 +124,7 @@
 		E7F000000000000000000002 /* Arpeggiator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000001 /* Arpeggiator.swift */; };
 		E7F000000000000000000004 /* AudioEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000003 /* AudioEffects.swift */; };
 		E7F000000000000000000008 /* EffectsState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000007 /* EffectsState.swift */; };
+		CA5500000000000000000002 /* KeyAssistance.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA5500000000000000000001 /* KeyAssistance.swift */; };
 		E7F000000000000000000012 /* ArpeggiatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000011 /* ArpeggiatorTests.swift */; };
 		E7F000000000000000000014 /* EffectsStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000013 /* EffectsStateTests.swift */; };
 		E7F000000000000000000082 /* WaitUntil.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F000000000000000000081 /* WaitUntil.swift */; };
@@ -220,6 +222,7 @@
 
 /* Begin PBXFileReference section */
 		E8ED0000000000000000000B /* ColorSurfaceLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSurfaceLayoutTests.swift; sourceTree = "<group>"; };
+		CA5500000000000000000003 /* KeyAssistanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyAssistanceTests.swift; sourceTree = "<group>"; };
 		E8ED00000000000000000009 /* ColorTreeSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorTreeSurface.swift; sourceTree = "<group>"; };
 		E8ED00000000000000000007 /* ColorTableSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorTableSurface.swift; sourceTree = "<group>"; };
 		E8ED00000000000000000005 /* EdgeKeyLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeKeyLayoutTests.swift; sourceTree = "<group>"; };
@@ -336,6 +339,7 @@
 		E7F000000000000000000001 /* Arpeggiator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Arpeggiator.swift; sourceTree = "<group>"; };
 		E7F000000000000000000003 /* AudioEffects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEffects.swift; sourceTree = "<group>"; };
 		E7F000000000000000000007 /* EffectsState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsState.swift; sourceTree = "<group>"; };
+		CA5500000000000000000001 /* KeyAssistance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyAssistance.swift; sourceTree = "<group>"; };
 		E7F000000000000000000011 /* ArpeggiatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArpeggiatorTests.swift; sourceTree = "<group>"; };
 		E7F000000000000000000013 /* EffectsStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectsStateTests.swift; sourceTree = "<group>"; };
 		E7F000000000000000000081 /* WaitUntil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaitUntil.swift; sourceTree = "<group>"; };
@@ -477,6 +481,7 @@
 			isa = PBXGroup;
 			children = (
 				E7F000000000000000000007 /* EffectsState.swift */,
+				CA5500000000000000000001 /* KeyAssistance.swift */,
 				E7E100000000000000000001 /* PianoState.swift */,
 				E7F500000000000000000011 /* ScorePracticeState.swift */,
 				E7F50000000000000000000F /* ScoreLibrary.swift */,
@@ -875,6 +880,7 @@
 				E8F2E0700B4425144A8EFD07 /* SequencerEditingTests.swift */,
 				E7D1000000000000000000B0 /* StepCompassGridTests.swift */,
 				E8ED0000000000000000000B /* ColorSurfaceLayoutTests.swift */,
+				CA5500000000000000000003 /* KeyAssistanceTests.swift */,
 				E8FB924ACF1DB7791C4292DA /* StepGridShapeTests.swift */,
 				D5E9A3000000000000000F01 /* SequencerSelectionTests.swift */,
 			);
@@ -1037,6 +1043,7 @@
 				E81000000000000000000B04 /* HostedWindow.swift in Sources */,
 				E7D1000000000000000000AF /* StepCompassGridTests.swift in Sources */,
 				E8ED0000000000000000000C /* ColorSurfaceLayoutTests.swift in Sources */,
+				CA5500000000000000000004 /* KeyAssistanceTests.swift in Sources */,
 				E8BB924ACF1DB7791C4292DA /* StepGridShapeTests.swift in Sources */,
 				D5E9A3000000000000000B01 /* SequencerSelectionTests.swift in Sources */,
 			);
@@ -1156,6 +1163,7 @@
 				E7C2000000000000000000DE /* SoundField.swift in Sources */,
 				E7C2000000000000000000DC /* SwipeField.swift in Sources */,
 				E7F000000000000000000008 /* EffectsState.swift in Sources */,
+				CA5500000000000000000002 /* KeyAssistance.swift in Sources */,
 				E7E100000000000000000002 /* PianoState.swift in Sources */,
 				E7F500000000000000000012 /* ScorePracticeState.swift in Sources */,
 				E7F500000000000000000010 /* ScoreLibrary.swift in Sources */,

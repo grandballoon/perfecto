@@ -12,6 +12,10 @@ struct ChordKeysView: View {
     /// The keys drawn as down. A key is down with any that plays its chord,
     /// so a degree lights the octave's key for its root.
     let lit: [ChordKey]
+    /// How the octave's roots outside the key are told apart
+    /// (`KeyAssistance`): drawn as the others, in the out-of-key color, or
+    /// greyed out as keys that play nothing.
+    var assistance = KeyAssistance.none
 
     private static let color = Color.orange
 
@@ -197,20 +201,22 @@ struct ChordKeysView: View {
 
     /// One key of the octave, named by the chord it plays. A note of the
     /// key is colored as the degrees' keys are and has its numeral; a note
-    /// outside it is grey.
+    /// outside it is colored by the key assistance (`KeyMark`): as the
+    /// others, in the out-of-key color and outlined in dashes, or greyed out.
     private func octaveKey(_ root: PitchClass, size: CGSize) -> some View {
         let chordKey = ChordKey.root(root)
         let chord = chordKey.chord(in: key)
         let degree = key.degree(of: root)
         let isPressed = isLit(chordKey)
-        let tint = degree != nil ? Self.color : Color(white: 0.5)
+        let mark = assistance.mark(isInKey: degree != nil)
+        let tint = mark == .silent ? Color(white: 0.35) : mark == .outOfKey ? KeyMark.outOfKeyColor : Self.color
         let shape = UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 10,
                                            bottomTrailingRadius: 10, topTrailingRadius: 4)
         return ZStack(alignment: .bottom) {
             // Opaque, so a black key hides the white keys it lies over.
             shape.fill(Color.black)
-            shape.fill(tint.opacity(isPressed ? 0.9 : degree != nil ? 0.6 : 0.35))
-                .overlay(shape.stroke(tint, lineWidth: 2))
+            shape.fill(tint.opacity(isPressed ? 0.9 : mark == .silent ? 0.2 : 0.6))
+                .overlay(shape.stroke(tint, style: StrokeStyle(lineWidth: 2, dash: mark.isOutOfKey ? [5, 3] : [])))
             VStack(spacing: 2) {
                 Text(root.name + Self.triadSuffix(of: chord))
                     .font(.system(size: 15, weight: .bold, design: .monospaced))
@@ -220,7 +226,7 @@ struct ChordKeysView: View {
                         .opacity(0.8)
                 }
             }
-            .foregroundStyle(Color.white)
+            .foregroundStyle(Color(white: mark == .silent ? 0.45 : 1))
             .minimumScaleFactor(0.5)
             .lineLimit(1)
             .padding(.horizontal, 3)

@@ -120,6 +120,7 @@ The step compass grown (`StepCompassSurface.hasCorners`), whose empty corners (`
 The color table (`ColorTable`), chord qualities in rows that never move, each played on whatever chord is held: a color of its own (`PerformanceState.tableTones`), which while there is one is the color on every degree.
 The color tree (`ColorTree`, `ColorTreeLayout`), the compass's places as branches from the chord held and, from the branch a finger is on, each kind's first choice a step further; a node is its path of places, played as a walk (`treeHeld`), and kept by the pin it is added to the walk when the finger lifts (`treeLifted`).
 The compass's held place is a path (`heldPath`, on top of the walk kept), so the compass and the tree share one state; the surfaces share the pin, and the latest touched is the color.
+Setup's Key assist (`PerformanceState.keyAssistance`, a `KeyAssistance`) says how the choices out of the key on the chord held are told apart on every surface and the octave: not at all, in two colors (`KeyMark`), or greyed out and silent, refused by the state (`placesSound`, `qualitySounds`, `isSilent`), passed over by a finger (`KeyTouches.silent`) and left out of a walk or quality kept (`KeyAssistance.walk`).
 
 **The key strip changes the key and the voicing while playing.**
 It is a row on the play screen, under the loop bar (`KeyStrip`): the key, changed by a swipe along it, and the voicing, which is the octave and the inversion as one field.

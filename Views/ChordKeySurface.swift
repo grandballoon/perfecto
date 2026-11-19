@@ -25,7 +25,7 @@ struct ChordKeySurface<Content: View>: View {
             GeometryReader { proxy in
                 let shapes = anchors.mapValues { $0.shape(in: proxy) }
                 KeyZoneEdges(keys: shapes.map { ($0.value, state.effects.zones(of: state.zonedDegree(of: $0.key)).edges) })
-                ChordTouchLayer(shapes: shapes, state: state)
+                ChordTouchLayer(shapes: shapes, silent: Set(shapes.keys.filter(state.isSilent)), state: state)
             }
         }
     }
@@ -163,6 +163,7 @@ private struct KeyZoneEdges: View {
 
 private struct ChordTouchLayer: UIViewRepresentable {
     let shapes: [ChordKey: KeyShape]
+    let silent: Set<ChordKey>
     let state: PerformanceState
 
     func makeUIView(context: Context) -> ChordTouchView {
@@ -173,6 +174,7 @@ private struct ChordTouchLayer: UIViewRepresentable {
 
     func updateUIView(_ view: ChordTouchView, context: Context) {
         view.keyTouches.shapes = shapes
+        view.keyTouches.silent = silent
         view.state = state
     }
 }

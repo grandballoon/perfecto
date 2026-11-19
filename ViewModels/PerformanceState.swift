@@ -251,6 +251,17 @@ final class PerformanceState {
     /// chord held. Off, its places keep their own names ("+ tone", "raise"),
     /// whatever chord is held. It changes nothing that sounds.
     var compassShowsChords = true
+    /// How the color surfaces and the octave help keep to the key
+    /// (`KeyAssistance`): not at all, by coloring what is in the key and
+    /// what is not, or by greying out what is not so it plays nothing.
+    var keyAssistance = KeyAssistance.colorCode {
+        didSet {
+            guard keyAssistance != oldValue else { return }
+            logger?.log(.key_assistance_switched(assistance: keyAssistance.displayName))
+            // A color kept out of the key is heard or not from now on.
+            if tableTones != nil { tableColorChanged() } else { compassColorChanged() }
+        }
+    }
     /// The places a finger holds, played on top of the walk kept: the
     /// compass's one place while it does not keep, or the path to the tree's
     /// node a finger is on, which the walk takes up when it lifts.
@@ -269,12 +280,20 @@ final class PerformanceState {
     /// The live chord color for `degree`: the table's quality if one is
     /// playing, or else the compass's places, each a step resolved against
     /// the degree that plays in `key` (the key being played, unless another
-    /// is given). With neither, the diatonic triad plays.
+    /// is given). With neither, the diatonic triad plays. While the key
+    /// assistance holds to the key, a quality or a step out of it on this
+    /// degree is not heard: the table's is the triad, and the walk leaves
+    /// the step out.
     func color(for degree: Degree, in key: Key? = nil) -> ChordColor {
-        if let tableTones { return .tones(tableTones) }
+        let key = key ?? playedKey
+        if let tableTones {
+            let isInKey = KeyAssistance.isInKey(tableTones, key: key, degree: degree)
+            return keyAssistance.sounds(isInKey: isInKey) ? .tones(tableTones) : .base
+        }
         let places = compassPlaces
         guard !places.isEmpty else { return .base }
-        return .tones(StepCompass.walk(places, key: key ?? playedKey, degree: degree, ranking: compassRanking))
+        return .tones(keyAssistance.walk(places, from: StepCompass.base(key: key, degree: degree),
+                                         key: key, degree: degree, ranking: compassRanking))
     }
     private(set) var activeDegree: Degree? = nil
     /// The chord keys that are down, oldest first; the last is the active press.
@@ -474,7 +493,7 @@ final class PerformanceState {
     // lifting it hands the chord back to the press beneath it.
 
     func press(_ key: ChordKey) {
-        guard !isPractising else { return }
+        guard !isPractising, !isSilent(key) else { return }
         heldKeys.append(key)
         followSlide()
         mode.onButtonDown(key: key, state: self)
@@ -549,6 +568,13 @@ final class PerformanceState {
     /// A root outside the key has every key's (`EffectsState.zones(of:)`),
     /// and is read against them by its finger's place, which a touch
     /// always has.
+    /// Whether `key` plays nothing: an octave's root outside the key the
+    /// keys are in, while the key assistance holds to the key. Its finger
+    /// keeps the key it had (`KeyTouches.silent`).
+    func isSilent(_ key: ChordKey) -> Bool {
+        !keyAssistance.sounds(isInKey: key.degree(in: homeKey) != nil)
+    }
+
     func zonedDegree(of key: ChordKey) -> Degree? {
         key.degree(in: self.key)
     }
@@ -586,7 +612,7 @@ final class PerformanceState {
     /// from the plain chord until it lifts (`compassLifted`), the latest
     /// place if several are down; kept, it is one more step of the walk.
     func compassPressed(_ place: CompassPlace) {
-        guard !isPractising else { return }
+        guard !isPractising, placesSound([place]) else { return }
         tableTones = nil
         if keepsCompassColor {
             compassWalk.append(place)
@@ -609,7 +635,7 @@ final class PerformanceState {
     /// its places play on top of the walk kept, every step of the path at
     /// once, whether the compass keeps or not.
     func treeHeld(_ path: [CompassPlace]) {
-        guard !isPractising, path != heldPath || tableTones != nil else { return }
+        guard !isPractising, path != heldPath || tableTones != nil, placesSound(path) else { return }
         tableTones = nil
         heldPath = path
         compassColorChanged()
@@ -633,7 +659,7 @@ final class PerformanceState {
     /// chord is held, until the finger lifts or, kept, until another is
     /// chosen or the table is cleared.
     func tablePressed(_ quality: ChordTones) {
-        guard !isPractising, quality != tableTones else { return }
+        guard !isPractising, quality != tableTones, qualitySounds(quality) else { return }
         heldPath = []
         compassWalk = []
         tableTones = quality
@@ -680,9 +706,32 @@ final class PerformanceState {
     /// The chord the compass's places step from for `degree`: the plain
     /// chord while it plays, the walk so far while it keeps.
     func compassOrigin(for degree: Degree) -> ChordTones {
-        keepsCompassColor
-            ? StepCompass.walk(compassWalk, key: playedKey, degree: degree, ranking: compassRanking)
-            : StepCompass.base(key: playedKey, degree: degree)
+        let base = StepCompass.base(key: playedKey, degree: degree)
+        return keepsCompassColor
+            ? keyAssistance.walk(compassWalk, from: base, key: playedKey, degree: degree, ranking: compassRanking)
+            : base
+    }
+
+    /// Whether a finger may take the places of `path` (one, on the
+    /// compass) from where the compass is, on the chord held: not, while the
+    /// key assistance holds to the key, if a step on it leads out of the
+    /// key. With no chord held there is no telling, so any may come down.
+    func placesSound(_ path: [CompassPlace]) -> Bool {
+        guard let degree = activeDegree else { return true }
+        return keyAssistance.sounds(path, from: compassOrigin(for: degree), key: playedKey, degree: degree,
+                                    ranking: compassRanking)
+    }
+
+    /// Whether a finger may play the color table's `quality` on the chord
+    /// held, by the same rule.
+    func qualitySounds(_ quality: ChordTones) -> Bool {
+        guard let degree = activeDegree else { return true }
+        return keyAssistance.sounds(isInKey: KeyAssistance.isInKey(quality, key: playedKey, degree: degree))
+    }
+
+    /// Whether `tones` on the chord held are in the key; nil with no chord held.
+    func isInKey(_ tones: ChordTones) -> Bool? {
+        activeDegree.map { KeyAssistance.isInKey(tones, key: playedKey, degree: $0) }
     }
 
     private func tableColorChanged() {

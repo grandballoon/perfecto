@@ -67,18 +67,15 @@ enum ColorTable {
         }
     }
 
-    /// Whether every tone of `quality` on `degree` is in `key`.
-    static func isInKey(_ quality: ChordTones, key: Key, degree: Degree) -> Bool {
-        let root = key.scale.offset(of: degree)
-        return quality.pitchClasses.allSatisfy { key.scale.intervals.contains((root + $0) % 12) }
-    }
 }
 
 /// The color table, wired to the live performance: a quality played while
 /// a finger is on it, or kept by the pin until another is chosen or the
 /// plain chord. A finger slides from cell to cell as on the compass. With a
 /// chord held (and the compass's names on) each cell is named by the chord
-/// it plays, marked if it is out of key; otherwise by its quality.
+/// it plays; otherwise by its quality. With a chord held, the key
+/// assistance tells the qualities out of the key apart, and a finger
+/// passes over one that plays nothing as over a gap.
 struct ColorTableSurface: View {
     @Environment(PerformanceState.self) private var state
 
@@ -114,6 +111,7 @@ struct ColorTableSurface: View {
                         .onChanged { drag in
                             guard let target = ColorTable.target(at: drag.location, in: geo.size),
                                   target != touched else { return }
+                            if case .quality(let quality) = target, !state.qualitySounds(quality) { return }
                             touched = target
                             switch target {
                             case .quality(let quality): state.tablePressed(quality)
@@ -142,18 +140,17 @@ struct ColorTableSurface: View {
 
     private func qualityChip(_ quality: ChordTones, degree: Degree?) -> some View {
         let isOn = state.tableTones == quality
-        let text: String, detail: String, isBorrowed: Bool
+        let mark = state.keyAssistance.mark(isInKey: state.isInKey(quality))
+        let text: String, detail: String
         if let degree {
-            isBorrowed = !ColorTable.isInKey(quality, key: state.playedKey, degree: degree)
             text = chordLabel(key: state.playedKey, spec: ChordSpec(degree: degree, color: .tones(quality)))
-                + (isBorrowed ? "*" : "")
-            detail = isBorrowed ? "OUT OF KEY" : quality.name.uppercased()
+                + mark.suffix(avoid: false)
+            detail = mark.note?.uppercased() ?? quality.name.uppercased()
         } else {
-            isBorrowed = false
             text = quality.name
-            detail = ""
+            detail = mark.note?.uppercased() ?? ""
         }
-        return CompassChip(text: text, detail: detail, isOn: isOn, isEnabled: true, isBorrowed: isBorrowed,
+        return CompassChip(text: text, detail: detail, isOn: isOn, isEnabled: true, mark: mark,
                            onTap: { state.tablePressed(quality); state.tableLifted(quality) })
             .accessibilityLabel(quality.name)
             .accessibilityValue(degree == nil ? "" : text)
@@ -163,7 +160,7 @@ struct ColorTableSurface: View {
         let plain = degree.map { chordLabel(key: state.playedKey, spec: ChordSpec(degree: $0, color: .base)) }
         let keeps = state.keepsCompassColor
         return CompassChip(text: keeps ? "clear" : plain ?? "plain", detail: keeps ? "BACK TO PLAIN" : "AS IT IS",
-                           isOn: false, isEnabled: true, isBorrowed: false, isMiddle: true,
+                           isOn: false, isEnabled: true, isMiddle: true,
                            onTap: { state.compassCleared() })
             .accessibilityLabel(keeps ? "Back to the plain chord" : "The plain chord")
     }
