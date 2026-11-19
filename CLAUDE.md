@@ -109,6 +109,19 @@ A root of the key is divided by its degree's own zones, and a root outside it by
 The black keys lie over the white ones, so of keys that overlap a finger plays the smaller (`KeyTouches`), and a zone's edge is marked on what shows of a key.
 The computer keyboard and a game controller play the degrees' keys whatever the layout, and a key lights with any that plays its chord.
 
+**The edge layout keeps the keys at the sides and colors in the middle.**
+It is one more chord layout (`ChordGridLayout.edge`), for a phone on its side alone (upright it shows the circle), and `docs/edge-layout.md` has the design.
+The keys are two columns (`EdgeKeyLayout`, a value worked out from the size alone, so the keys and the middle are laid out by the same frames): I to IV up the root's side from a bottom corner, and V to vii° down the other.
+Right-handed the root is in the bottom leading corner; Setup's Left-handed switch (`PerformanceState.handedness`, a `Handedness` carried by `ChordKeyArrangement.edge`) mirrors the whole layout.
+A band along the top has the note display, the sound, the key strip and MIDI (`PerformanceView.edgeLandscapeLayout`), and the middle has the loop bar and the effect strip over a surface that colors the chord.
+That surface is a slot: a `CenterSurface` on `PerformanceState.centerSurface`, drawn by `EdgeCenterSurface`, so another is a case and a line there, and Setup offers the choice once there is more than one.
+There are three, chosen in Setup.
+The step compass grown (`StepCompassSurface.hasCorners`), whose empty corners (`StepCompassGrid.Corner`) hold its order, its names, a step back along the walk kept (`compassStepBack`) and the pin.
+The color table (`ColorTable`), chord qualities in rows that never move, each played on whatever chord is held: a color of its own (`PerformanceState.tableTones`), which while there is one is the color on every degree.
+The color tree (`ColorTree`, `ColorTreeLayout`), the compass's places as branches from the chord held and, from the branch a finger is on, each kind's first choice a step further; a node is its path of places, played as a walk (`treeHeld`), and kept by the pin it is added to the walk when the finger lifts (`treeLifted`).
+The compass's held place is a path (`heldPath`, on top of the walk kept), so the compass and the tree share one state; the surfaces share the pin, and the latest touched is the color.
+Setup's Key assist (`PerformanceState.keyAssistance`, a `KeyAssistance`) says how the choices out of the key on the chord held are told apart on every surface and the octave: not at all, in two colors (`KeyMark`), or greyed out and silent, refused by the state (`placesSound`, `qualitySounds`, `isSilent`), passed over by a finger (`KeyTouches.silent`) and left out of a walk or quality kept (`KeyAssistance.walk`).
+
 **The key strip changes the key and the voicing while playing.**
 It is a row on the play screen, under the loop bar (`KeyStrip`): the key, changed by a swipe along it, and the voicing, which is the octave and the inversion as one field.
 The key is one field that shows the key the keys are in (`KeyField`), and a swipe changes its root, the Key page's root, within reach: every step of travel to the right is a semitone up and to the left a semitone down (`SwipeSteps`), so one long swipe crosses several, and the twelve notes go round, so B is followed by C.
@@ -154,7 +167,7 @@ An effect a key zone holds on is played, not set, so it has no field.
 
 **The computer keyboard is one more finger.**
 Its keys are chord keys and the compass's places, by a map that is changed key by key in Setup and remembered (`KeyboardMap`: the home row, and the arrows for the compass's first choices to start with).
-A key can also tap one of the screen's buttons (`KeyboardButton`: loop on Return, play and stop on Space, MIDI on M), through `KeyboardHost.tap`, which does what the button does.
+A key can also tap one of the screen's buttons (`KeyboardButton`: loop on Return, play and stop on Space, and MIDI on M), through `KeyboardHost.tap`, which does what the button does.
 Each of those buttons shows the key that taps it in a small chit while a pointer is over it (`hotkeyTip`, drawn over the whole screen by `showingHotkeyTips`).
 A map saved before an action existed is given that action's standard key when it is read, unless the key is taken or the action was left with no key on purpose (`KeyboardMap.cleared`).
 `KeyboardInput` is the window's first responder and hands each key to `KeyboardState`, which presses and releases through `PerformanceState`'s own calls (`KeyboardHost`), so modes, loops and effects know nothing of it.
@@ -178,10 +191,26 @@ A key several sources are sounding is divided between their colors.
 A pinch brings it closer, to as few as an octave's keys, or farther, to all 88, and a drag moves it along (`PianoSpan`, read by `PianoTouches`); a lit key out of view is marked at the end it lies beyond.
 The span is on `PianoState`, so the strip and the whole screen show the same keys.
 Its corner button or a double tap gives it the whole screen (`PianoState.isExpanded`), over the screen, which stays laid out as it was under the strip, so nothing there changes size or stops.
-There its keys keep a piano's proportions, standing on the bottom of the screen (`PianoKeys.standing`), so they grow longer as they are brought closer and reach past the top when they are longer than the screen is high.
+There its keys keep a piano's proportions (`PianoKeys.length`, `PianoKeys.width`): they grow longer as they are brought closer, up to their share of the screen's height, and past that are no wider either, so a run of a few keys is shown alone in the middle with black either side rather than stretched across the screen.
 The strip reaches under a phone's notch on its side.
 A note is lit when it is sent, so the timeline's are seen their lead before they are heard, and notes outside the 88 are not shown.
 A new line of notes is seen on it by a `PianoSource` case and a sink where its `NotePlayer` is made (`PerfectoApp`).
+
+**Score practice is the piano with the whole screen.**
+`docs/score-practice.md` has the design.
+There the piano is in the middle of the screen (`ScorePracticeView`), with a piece's runs above it and the whole score as a bar below (`PracticeOverview`).
+A piece is a MIDI file (`.mid`, its hands by its tracks: `MidiScore`) or a MusicXML score (`.mxl` or `.musicxml`, which says each note's staff and so its hand), kept in the app's iCloud container so the phone and the Mac share them, or the device's support folder without iCloud (`ScoreLibrary`, every file coordinated; `ScoreLibraryWatcher` takes up the other device's changes).
+The screen shows one hand, or both together, and a run is a stretch of the hands shown from any step to any other (`Passage`, `PracticeRun`): runs are independent views of the one score, which may overlap, and adding, naming or deleting one leaves the others as they were (`Practice`); a run is made and changed only in editing, dragged along the score's bar and grown or shrunk a note at a time at either end, and kept only when saved (`RunDraft`, `ScorePracticeState.runDraft`), and every change to them can be undone (`History`).
+A run can have sub-runs, parts of it kept to watch in their own right that leave it whole (`PracticeRun.parent`): each is of its run's hands and within its steps, moves with it and goes with it, and the runs bar and All runs show them nested under it (`Practice.outline`).
+The runs chosen, or else the whole piece of the hands shown, are watched: the score is played on the app's own sound at its own timing, both hands, through those runs, once or over again (`Playback.segments`, `Playback.pass`), with their keys lit one after another, each flashing as it is struck and the hand's next keys marked (`Playback.lights`).
+`ScorePlayer` is what plays it: it sends each pass's notes a little ahead of their moments, stamped with them, to the same audio and MIDI as the keys (`PerformanceState`'s `practiceSinks`), and works out the moment heard from the clock, so the lights and the sound agree.
+There is no recording: pieces kept when there were are read as their scores.
+It never shows notes falling toward the keys.
+The score can be stepped through a note at a time, each step heard as it is stepped to (`Score.step(_:after:)`, `PracticePlaying.sound`), and any moment flagged with a note, in any view and seen in all of them (`ScoreFlags`, kept with the runs in `Practice`); a run being edited says the flags its first and last steps are on (`ScoreFlags.edges`).
+A run can also be tapped on the keys, note by note (`TapDrill`): each tap sounds and is told right or wrong, and the next note is marked or left to memory by a switch that can be changed at any moment; while tapping, a finger on the piano presses the key it is on (`PianoTouches.onPress`), the one time the piano is played rather than only shown.
+While the screen is open the play/stop key plays the runs, and the chord keys play nothing (`PerformanceState.isPractising`).
+The piece menu opens a piece kept, closes the one open (`closePiece`, which keeps it), or deletes it.
+The core is pure and in the package (`Perfecto/Sources/ScorePractice`, tested by `swift test`), and `ScorePracticeState` is its shell: it keeps what is open and chosen, saves each change, plays the score, and brings the piano to the runs watched (`PianoSpan.fitting`).
 
 **Loops are layers of one timeline** (`docs/sequencer-spec.md` has the design of the sequencer that edited it, which is parked). A `Timeline` is notes in layers, in ticks (480 to a quarter note), so anything played loosely is kept as played; a note is a chord at a time, with its own key, octave, sound and effects or the live ones, setting by setting. Edits are changes to that value (`TimelineEdits`), and `compile` turns a layer into the chords to play, for playback and the MIDI export alike. `TimelinePlayer` runs the timeline against the clock under whatever mode is on (it is not a mode), each layer through a `LayerVoice` of its own: an arpeggiator and a `NotePlayer`, so layers overlap one another and the keys. `SequencerState` owns the timeline (undo, saving, playing); it still has the step editing the sequencer's screen used, which the loop work is to trim. `SequencerStep` is only the old saved format now. A loop is notes played again, not recorded audio, so its effects and its notes can be changed after.
 Play mode's LOOP button (`QuickLoopState`, drawn by `LoopBar`) offers the lengths a loop can be, 1, 2, 4 or 8 bars at the tempo set (`QuickLoopState.lengths`).
@@ -264,7 +293,7 @@ Swift Testing (`@Test`, `#expect`) is the default for all new test files.
 )
 ```
 
-The C++ core's tests are ported one for one into `Perfecto/Tests/PerfectoTheoryTests/` (doctest, built by `Perfecto/CMakeLists.txt`), and its parity with the Swift core is `swift test`'s `PerfectoTheoryParityTests` (whole spaces with `-c release`). Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/` and the kernel's in `Perfecto/Tests/PerfectoKernelTests/` (both run on the Mac with `swift test` in `Perfecto/`); app tests live in `Tests/` (run with `xcodebuild … test` on a simulator or on the Mac as a Catalyst app; see `Tests/README.md`).
+The C++ core's tests are ported one for one into `Perfecto/Tests/PerfectoTheoryTests/` (doctest, built by `Perfecto/CMakeLists.txt`), and its parity with the Swift core is `swift test`'s `PerfectoTheoryParityTests` (whole spaces with `-c release`). Core tests live in `Perfecto/Tests/MusicTheoryCoreTests/`, score practice's in `Perfecto/Tests/ScorePracticeTests/` and the kernel's in `Perfecto/Tests/PerfectoKernelTests/` (all run on the Mac with `swift test` in `Perfecto/`); app tests live in `Tests/` (run with `xcodebuild … test` on a simulator or on the Mac as a Catalyst app; see `Tests/README.md`).
 
 ## Audio session
 
@@ -279,11 +308,13 @@ App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100
 ## V1 scope
 
 - Play mode; loops (up to 6 layers) are recorded from it
+- The edge layout: on a phone on its side, the chord keys in two columns at the screen's sides, the root in a bottom corner (mirrored for the left hand), around a large color surface in the middle: the step compass grown, a table of qualities that never moves, or a tree of steps from the chord held
 - The octave: a chord layout of a piano's twelve keys, each the root of a chord, with the notes outside the key borrowed from its parallel modes
 - The key strip: the key on the play screen, changed by a swipe, and the octave and the inversion as one field, set or played by a finger that moves along it and across it
 - The sound field: the keys' sound beside the note display, changed by a swipe
 - The step compass: the one color surface, the colors one step from the chord held (a tone added, raised, lowered or taken away), its places the same before a chord is struck as after, and a finger sliding between them
 - The piano: 88 keys along the bottom of the screen, lit with the notes the keys and the loops are sounding
+- Score practice: the piano with the whole screen, a MIDI file or MusicXML score, each hand cut into runs, and the runs watched on the keys as the score plays on the app's own sound, once or on repeat
 - The computer keyboard and a game controller: each plays the chord keys, the compass and the screen's buttons by a map that Setup changes
 - Effects: two arpeggios (up and down), chorus, reverb, delay, vocoder; each is switched from the effect strip on the play screen or from a zone of the chord keys, and the arpeggio's cycle and the vocoder's amount can be played by sliding on a key, as can a chord's inversion
 - The effect strip: a field for each effect that is on, on the play screen, each changed by a swipe

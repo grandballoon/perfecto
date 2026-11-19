@@ -119,6 +119,9 @@ enum KeyShape: Equatable {
 /// Further out it keeps the key it had, so sliding across the space between
 /// two keys never drops the chord. Where keys overlap (a piano's black keys
 /// lie over its white ones) it plays the smaller, which is the one on top.
+/// A key that is `silent` is found as any other, but a finger on it keeps
+/// the key it had, as between two keys, so it can be slid over or pressed
+/// and nothing changes.
 struct KeyTouches<Touch: Hashable, PlayedKey: Hashable> {
     /// How far outside a key a finger still plays it. Covers the gaps between
     /// adjacent keys in the row and grid layouts.
@@ -130,6 +133,8 @@ struct KeyTouches<Touch: Hashable, PlayedKey: Hashable> {
         get { shapes.compactMapValues { if case .rect(let frame) = $0 { frame } else { nil } } }
         set { shapes = newValue.mapValues(KeyShape.rect) }
     }
+    /// The keys drawn that play nothing (`PerformanceState.isSilent`).
+    var silent: Set<PlayedKey> = []
     private var keys: [Touch: PlayedKey] = [:]
 
     /// A finger landed at, or moved to, `point`.
@@ -171,7 +176,7 @@ struct KeyTouches<Touch: Hashable, PlayedKey: Hashable> {
         let nearest = shapes
             .map { (key: $0.key, distance: $0.value.distance(from: point), area: $0.value.area) }
             .min { ($0.distance, $0.area) < ($1.distance, $1.area) }
-        guard let nearest, nearest.distance <= Self.reach else { return nil }
+        guard let nearest, nearest.distance <= Self.reach, !silent.contains(nearest.key) else { return nil }
         return nearest.key
     }
 }
