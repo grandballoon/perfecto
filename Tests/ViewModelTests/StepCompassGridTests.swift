@@ -36,4 +36,19 @@ struct StepCompassGridTests {
         #expect(StepCompassGrid.target(at: gap, in: size) == nil)
         #expect(StepCompassGrid.target(at: CGPoint(x: -5, y: size.height / 2), in: size) == nil)
     }
+
+    /// A corner is the two cells by two the cross leaves empty, so nothing
+    /// in it is a place.
+    @Test func aCornerIsTheFourCellsTheCrossLeaves() {
+        let topLeading = StepCompassGrid.frame(of: .topLeading, in: size)
+        #expect(topLeading == StepCompassGrid.frame(column: 0, row: 0, in: size)
+            .union(StepCompassGrid.frame(column: 1, row: 1, in: size)))
+        let bottomTrailing = StepCompassGrid.frame(of: .bottomTrailing, in: size)
+        #expect(bottomTrailing.maxX == size.width)
+        #expect(bottomTrailing.maxY == size.height)
+        for corner in StepCompassGrid.Corner.allCases {
+            let frame = StepCompassGrid.frame(of: corner, in: size)
+            #expect(StepCompassGrid.target(at: CGPoint(x: frame.midX, y: frame.midY), in: size) == nil)
+        }
+    }
 }

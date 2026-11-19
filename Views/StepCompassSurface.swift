@@ -36,6 +36,23 @@ enum StepCompassGrid {
                       width: width, height: height)
     }
 
+    /// A corner of the compass: the two cells by two the cross leaves
+    /// empty there, which a compass with room for them fills with its
+    /// switches (`StepCompassSurface.hasCorners`).
+    enum Corner: CaseIterable {
+        case topLeading, topTrailing, bottomLeading, bottomTrailing
+    }
+
+    /// The frame of `corner` in a compass of `size`: its four cells and the
+    /// gaps between them.
+    static func frame(of corner: Corner, in size: CGSize) -> CGRect {
+        let leading = corner == .topLeading || corner == .bottomLeading
+        let top = corner == .topLeading || corner == .topTrailing
+        let (column, row) = (leading ? 0 : middle.column + 1, top ? 0 : middle.row + 1)
+        return frame(column: column, row: row, in: size)
+            .union(frame(column: column + 1, row: row + 1, in: size))
+    }
+
     /// What is under `point` in a compass of `size`: nil in a gap between
     /// cells, in a corner, or outside it, so a finger sliding across one
     /// stays on what it was on.
@@ -70,9 +87,19 @@ extension StepCompassGrid.Target {
 /// as a tap there would be, so a finger played is the latest place it is
 /// on and a finger kept walks a step for every place it crosses. A gap, a
 /// corner or a place with no chord leaves it on what it was on.
+///
+/// With room for them (`hasCorners`, the edge layout's middle), the corners
+/// the cross leaves empty hold the compass's switches, so they are within
+/// reach while playing: the order its choices are in, whether its places
+/// are named by chords, a step back along the walk kept (which it names),
+/// and the pin.
 struct StepCompassSurface: View {
     /// Its height on a phone held upright: five rows of places.
     static let portraitHeight: CGFloat = 250
+
+    /// Whether the corners hold the compass's switches; without them, the
+    /// pin is a small switch in the bottom trailing corner.
+    var hasCorners = false
 
     @Environment(PerformanceState.self) private var state
 
@@ -130,12 +157,71 @@ struct StepCompassSurface: View {
                     if case .place(let place) = touched { state.compassLifted(place) }
                     touched = nil
                 }
-                @Bindable var state = state
-                KeepSwitch(label: "Keep the compass's color", keeps: $state.keepsCompassColor)
-                    .frame(height: keepSide)
-                    .offset(x: geo.size.width - keepSide, y: geo.size.height - keepSide)
+                if hasCorners {
+                    ForEach(StepCompassGrid.Corner.allCases, id: \.self) { corner in
+                        let frame = StepCompassGrid.frame(of: corner, in: geo.size)
+                        cornerButton(corner, degree: degree)
+                            .frame(width: frame.width, height: frame.height)
+                            .offset(x: frame.minX, y: frame.minY)
+                    }
+                } else {
+                    @Bindable var state = state
+                    KeepSwitch(label: "Keep the compass's color", keeps: $state.keepsCompassColor)
+                        .frame(height: keepSide)
+                        .offset(x: geo.size.width - keepSide, y: geo.size.height - keepSide)
+                }
             }
         }
+    }
+
+    // MARK: – Corners
+
+    @ViewBuilder
+    private func cornerButton(_ corner: StepCompassGrid.Corner, degree: Degree?) -> some View {
+        let keeps = state.keepsCompassColor
+        switch corner {
+        case .topLeading:
+            let ranking = state.compassRanking
+            CornerChip(text: ranking.displayName.lowercased(), detail: "ORDER",
+                              isOn: false, isEnabled: true) {
+                let all = ColorStepRanking.allCases
+                state.compassRanking = all[((all.firstIndex(of: ranking) ?? 0) + 1) % all.count]
+            }
+            .accessibilityLabel("The order of the compass's choices")
+            .accessibilityValue(ranking.displayName)
+        case .topTrailing:
+            let named = state.compassShowsChords
+            CornerChip(text: named ? "chords" : "places", detail: "NAMES",
+                              isOn: false, isEnabled: true) {
+                state.compassShowsChords.toggle()
+            }
+            .accessibilityLabel("Name the compass's places by their chords")
+            .accessibilityValue(named ? "On" : "Off")
+        case .bottomLeading:
+            let walk = state.compassWalk
+            let text = keeps && !walk.isEmpty ? walkText(walk, on: degree) : "—"
+            CornerChip(text: text, detail: keeps ? "BACK A STEP" : "PIN TO WALK",
+                              isOn: false, isEnabled: keeps && !walk.isEmpty) {
+                state.compassStepBack()
+            }
+            .accessibilityLabel("Back a step along the compass's walk")
+            .accessibilityValue(text)
+        case .bottomTrailing:
+            CornerChip(text: keeps ? "kept" : "played", detail: "PIN",
+                              isOn: keeps, isEnabled: true) {
+                state.keepsCompassColor.toggle()
+            }
+            .accessibilityLabel("Keep the compass's color")
+            .accessibilityValue(keeps ? "On" : "Off")
+        }
+    }
+
+    /// The walk kept, as the steps it takes: by what each does on the chord
+    /// held ("+7 · +9"), or by its places' names with none held.
+    private func walkText(_ walk: [CompassPlace], on degree: Degree?) -> String {
+        guard let degree else { return walk.map { Self.inertName($0.kind) }.joined(separator: " · ") }
+        return CompassWalk.steps(walk, key: state.playedKey, degree: degree, ranking: state.compassRanking)
+            .map(\.editName).joined(separator: " · ")
     }
 
     private func placeButton(_ place: CompassPlace, step: ColorStep?, degree: Degree?) -> some View {
@@ -180,10 +266,62 @@ struct StepCompassSurface: View {
     }
 }
 
-/// One of the compass's places, as drawn. Its finger is read by the
-/// compass as a whole, so it can slide onto another; `onTap` is for
-/// accessibility.
-private struct CompassChip: View {
+/// The steps a walk of the compass's places takes from a degree's triad,
+/// in order: each from where the last one led, a place with no choice
+/// left out, as `StepCompass.walk` takes them.
+enum CompassWalk {
+    static func steps(_ places: [CompassPlace], key: Key, degree: Degree,
+                      ranking: ColorStepRanking) -> [ColorStep] {
+        var tones = StepCompass.base(key: key, degree: degree)
+        return places.compactMap { place in
+            let step = StepCompass.step(at: place, from: tones, key: key, degree: degree, ranking: ranking)
+            if let step { tones = step.tones }
+            return step
+        }
+    }
+}
+
+/// One of a color surface's switches (the compass's corners, the table's
+/// and the tree's controls): a button, dimmer than the places so the
+/// colors read first.
+struct CornerChip: View {
+    let text: String
+    let detail: String
+    let isOn: Bool
+    let isEnabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                Text(text)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .foregroundStyle(isOn ? Color.black : Color(white: isEnabled ? 0.8 : 0.3))
+                Text(detail)
+                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .foregroundStyle(isOn ? Color.black.opacity(0.7) : Color(white: 0.45))
+            }
+            .padding(.horizontal, 6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(RoundedRectangle(cornerRadius: 8)
+                .fill(isOn ? Color.orange : Color(white: 0.07)))
+            .overlay(RoundedRectangle(cornerRadius: 8)
+                .stroke(isOn ? Color.orange : Color(white: 0.18), lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+    }
+}
+
+/// One of a color surface's places, as drawn: the compass's, the table's
+/// and the tree's. Its finger is read by the surface as a whole, so it can
+/// slide onto another; `onTap` is for accessibility.
+struct CompassChip: View {
     let text: String
     let detail: String
     let isOn: Bool

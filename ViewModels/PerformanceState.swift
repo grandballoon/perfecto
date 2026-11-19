@@ -6,6 +6,7 @@ enum ChordGridLayout: CaseIterable {
     case circle
     case horizontalBar
     case octave
+    case edge
 
     var displayName: String {
         switch self {
@@ -13,6 +14,7 @@ enum ChordGridLayout: CaseIterable {
         case .circle:        return "Circle"
         case .horizontalBar: return "Horizontal bar"
         case .octave:        return "Piano octave"
+        case .edge:          return "Edge"
         }
     }
 
@@ -22,12 +24,57 @@ enum ChordGridLayout: CaseIterable {
         case .circle:        return "Root chord in the centre, six chords arranged clockwise around the edge."
         case .horizontalBar: return "In landscape, one tall row of all seven chords. Portrait uses the grid."
         case .octave:        return "The twelve notes from C to B as a piano has them, each the root of a chord. A note of the key plays its chord in the key; a note outside it plays a chord borrowed from the nearest scale that has it."
+        case .edge:          return "In landscape, the seven chords up one side of the screen and down the other, the root in a bottom corner, around a large color surface in the middle. Portrait uses the circle."
+        }
+    }
+}
+
+/// Which hand the edge layout is laid out for. Right-handed, the root is in
+/// the bottom leading corner, so the left hand chooses the chords as a
+/// guitarist's frets them and the right colors them in the middle;
+/// left-handed, everything is mirrored and the root is in the bottom
+/// trailing corner.
+enum Handedness: CaseIterable {
+    case right
+    case left
+}
+
+/// What the edge layout has in the middle, between its two columns of
+/// chord keys: a surface that colors the chord held. Each is drawn by
+/// `EdgeCenterSurface`; a new one is a case here and a view there, and
+/// Setup offers the choice once there is more than one.
+enum CenterSurface: CaseIterable {
+    /// The step compass, grown to the middle, its corners holding the
+    /// compass's own switches (`StepCompassSurface.hasCorners`).
+    case compass
+    /// A table of chord qualities that never moves (`ColorTable`), each
+    /// played on whatever chord is held.
+    case table
+    /// The compass's steps as a tree drawn from the chord held
+    /// (`ColorTree`): a branch for each place, and from the one a finger
+    /// is on, a step further.
+    case tree
+
+    var displayName: String {
+        switch self {
+        case .compass: return "Compass"
+        case .table:   return "Table"
+        case .tree:    return "Tree"
+        }
+    }
+}
+
+extension Handedness {
+    var displayName: String {
+        switch self {
+        case .right: return "Right"
+        case .left:  return "Left"
         }
     }
 }
 
 /// How the chord keys are arranged on screen.
-enum ChordKeyArrangement: CaseIterable {
+enum ChordKeyArrangement: Equatable {
     /// The staggered Nashville grid, four keys over three.
     case grid
     /// The root in the centre, the other six around it.
@@ -37,18 +84,23 @@ enum ChordKeyArrangement: CaseIterable {
     /// An octave of piano keys, a key to each note: the chords' roots
     /// (`ChordKey.root`), where the others have the seven degrees.
     case octave
+    /// The seven degrees in two columns at the screen's sides, the root's
+    /// bottom to top and the other's top to bottom, around a surface in
+    /// the middle (`EdgeKeyLayout`), laid out for `Handedness`.
+    case edge(Handedness)
 }
 
 extension ChordGridLayout {
     /// The arrangement this layout gives a screen held upright or on its
-    /// side. Every screen that shows the chord keys asks here, so they all
-    /// show the layout chosen.
-    func arrangement(isLandscape: Bool) -> ChordKeyArrangement {
+    /// side, for a player of `handedness`. Every screen that shows the
+    /// chord keys asks here, so they all show the layout chosen.
+    func arrangement(isLandscape: Bool, handedness: Handedness) -> ChordKeyArrangement {
         switch self {
         case .grid:          return .grid
         case .circle:        return .circle
         case .horizontalBar: return isLandscape ? .row : .grid
         case .octave:        return .octave
+        case .edge:          return isLandscape ? .edge(handedness) : .circle
         }
     }
 }
@@ -148,6 +200,22 @@ final class PerformanceState {
     private(set) var bpm = MusicalTime.defaultTempo
 
     var chordGridLayout: ChordGridLayout = .circle
+    /// Which hand the edge layout is laid out for (`Handedness`).
+    var handedness = Handedness.right {
+        didSet {
+            guard handedness != oldValue else { return }
+            logger?.log(.handedness_switched(hand: handedness.displayName))
+        }
+    }
+    /// What the edge layout has in the middle (`CenterSurface`). A color
+    /// played or kept on one surface does not carry over to the next.
+    var centerSurface = CenterSurface.compass {
+        didSet {
+            guard centerSurface != oldValue else { return }
+            logger?.log(.center_surface_switched(surface: centerSurface.displayName))
+            compassCleared()
+        }
+    }
     /// Whether the play screen has the key strip (`KeyStrip`): the key and
     /// the voicing.
     var showsKeyStrip = true
@@ -173,8 +241,9 @@ final class PerformanceState {
         didSet {
             guard keepsCompassColor != oldValue else { return }
             logger?.log(.compass_keep_switched(isOn: keepsCompassColor))
-            heldPlace = nil
+            heldPath = []
             compassWalk = []
+            tableTones = nil
             compassColorChanged()
         }
     }
@@ -182,20 +251,27 @@ final class PerformanceState {
     /// chord held. Off, its places keep their own names ("+ tone", "raise"),
     /// whatever chord is held. It changes nothing that sounds.
     var compassShowsChords = true
-    /// The compass's place a finger is on while it does not keep.
-    private(set) var heldPlace: CompassPlace? = nil
+    /// The places a finger holds, played on top of the walk kept: the
+    /// compass's one place while it does not keep, or the path to the tree's
+    /// node a finger is on, which the walk takes up when it lifts.
+    private(set) var heldPath: [CompassPlace] = []
     /// The places tapped while the compass keeps, in order: each a step
     /// from where the last led, so each degree takes the walk as its own.
     private(set) var compassWalk: [CompassPlace] = []
-    /// The places the compass's color is made by: the walk kept, or the
-    /// place held.
-    var compassPlaces: [CompassPlace] { keepsCompassColor ? compassWalk : heldPlace.map { [$0] } ?? [] }
+    /// The places the color is made by: the walk kept, if the compass
+    /// keeps, then the places held.
+    var compassPlaces: [CompassPlace] { (keepsCompassColor ? compassWalk : []) + heldPath }
+    /// The color table's quality playing (`ColorTable`), held or kept by
+    /// the pin as the compass's places are. While there is one it is the
+    /// color, on every degree, and the places are not.
+    private(set) var tableTones: ChordTones? = nil
 
-    /// The live chord color for `degree`: the compass's places, each a step
-    /// resolved against the degree that plays in `key` (the key being
-    /// played, unless another is given). With no place, the diatonic triad
-    /// plays.
+    /// The live chord color for `degree`: the table's quality if one is
+    /// playing, or else the compass's places, each a step resolved against
+    /// the degree that plays in `key` (the key being played, unless another
+    /// is given). With neither, the diatonic triad plays.
     func color(for degree: Degree, in key: Key? = nil) -> ChordColor {
+        if let tableTones { return .tones(tableTones) }
         let places = compassPlaces
         guard !places.isEmpty else { return .base }
         return .tones(StepCompass.walk(places, key: key ?? playedKey, degree: degree, ranking: compassRanking))
@@ -489,7 +565,7 @@ final class PerformanceState {
         keyboard.releaseAll()
         gamepad.releaseAll()
         release(heldKeys)
-        if let heldPlace { compassLifted(heldPlace) }
+        letGoOfHeldColor()
         releaseVoicing()
         quickLoopState.stop()
         practice.stop()
@@ -511,11 +587,12 @@ final class PerformanceState {
     /// place if several are down; kept, it is one more step of the walk.
     func compassPressed(_ place: CompassPlace) {
         guard !isPractising else { return }
+        tableTones = nil
         if keepsCompassColor {
             compassWalk.append(place)
         } else {
-            guard place != heldPlace else { return }
-            heldPlace = place
+            guard heldPath != [place] else { return }
+            heldPath = [place]
         }
         compassColorChanged()
     }
@@ -523,17 +600,81 @@ final class PerformanceState {
     /// A finger lifted from the compass's `place`: if it was the place
     /// playing, the chord is plain again. A walk kept is not changed.
     func compassLifted(_ place: CompassPlace) {
-        guard !keepsCompassColor, heldPlace == place else { return }
-        heldPlace = nil
+        guard !keepsCompassColor, heldPath == [place] else { return }
+        heldPath = []
+        compassColorChanged()
+    }
+
+    /// A finger is on the tree's node at the end of `path` (`ColorTree`):
+    /// its places play on top of the walk kept, every step of the path at
+    /// once, whether the compass keeps or not.
+    func treeHeld(_ path: [CompassPlace]) {
+        guard !isPractising, path != heldPath || tableTones != nil else { return }
+        tableTones = nil
+        heldPath = path
+        compassColorChanged()
+    }
+
+    /// The finger on the tree lifted: kept, the walk takes up the path it
+    /// was on, so its node is where the tree is drawn from next; played,
+    /// the chord is plain again.
+    func treeLifted() {
+        guard !heldPath.isEmpty else { return }
+        if keepsCompassColor {
+            compassWalk += heldPath
+            heldPath = []
+        } else {
+            heldPath = []
+            compassColorChanged()
+        }
+    }
+
+    /// A finger is on the color table's `quality`: it plays on whatever
+    /// chord is held, until the finger lifts or, kept, until another is
+    /// chosen or the table is cleared.
+    func tablePressed(_ quality: ChordTones) {
+        guard !isPractising, quality != tableTones else { return }
+        heldPath = []
+        compassWalk = []
+        tableTones = quality
+        tableColorChanged()
+    }
+
+    /// A finger lifted from the color table's `quality`: played, the chord
+    /// is plain again; kept, it stays.
+    func tableLifted(_ quality: ChordTones) {
+        guard !keepsCompassColor, tableTones == quality else { return }
+        tableTones = nil
+        tableColorChanged()
+    }
+
+    /// Whatever a finger holds on a color surface is let go, and nothing
+    /// is kept of it.
+    private func letGoOfHeldColor() {
+        if !keepsCompassColor, tableTones != nil {
+            tableTones = nil
+            tableColorChanged()
+        }
+        guard !heldPath.isEmpty else { return }
+        heldPath = []
+        compassColorChanged()
+    }
+
+    /// The walk kept, less its last step: the chord it led to before.
+    func compassStepBack() {
+        guard keepsCompassColor, !compassWalk.isEmpty else { return }
+        compassWalk.removeLast()
         compassColorChanged()
     }
 
     /// The compass's middle: back to the plain chord.
     func compassCleared() {
-        guard heldPlace != nil || !compassWalk.isEmpty else { return }
-        heldPlace = nil
+        guard !heldPath.isEmpty || !compassWalk.isEmpty || tableTones != nil else { return }
+        let hadTable = tableTones != nil
+        heldPath = []
         compassWalk = []
-        compassColorChanged()
+        tableTones = nil
+        if hadTable { tableColorChanged() } else { compassColorChanged() }
     }
 
     /// The chord the compass's places step from for `degree`: the plain
@@ -542,6 +683,14 @@ final class PerformanceState {
         keepsCompassColor
             ? StepCompass.walk(compassWalk, key: playedKey, degree: degree, ranking: compassRanking)
             : StepCompass.base(key: playedKey, degree: degree)
+    }
+
+    private func tableColorChanged() {
+        let degree = activeDegree ?? .I
+        logger?.log(.table_color_changed(
+            quality: tableTones?.name,
+            color: chordLabel(key: playedKey, spec: ChordSpec(degree: degree, color: color(for: degree)))))
+        mode.onColorChange(state: self)
     }
 
     private func compassColorChanged() {

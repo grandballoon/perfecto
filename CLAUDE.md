@@ -109,6 +109,18 @@ A root of the key is divided by its degree's own zones, and a root outside it by
 The black keys lie over the white ones, so of keys that overlap a finger plays the smaller (`KeyTouches`), and a zone's edge is marked on what shows of a key.
 The computer keyboard and a game controller play the degrees' keys whatever the layout, and a key lights with any that plays its chord.
 
+**The edge layout keeps the keys at the sides and colors in the middle.**
+It is one more chord layout (`ChordGridLayout.edge`), for a phone on its side alone (upright it shows the circle), and `docs/edge-layout.md` has the design.
+The keys are two columns (`EdgeKeyLayout`, a value worked out from the size alone, so the keys and the middle are laid out by the same frames): I to IV up the root's side from a bottom corner, and V to vii° down the other.
+Right-handed the root is in the bottom leading corner; Setup's Left-handed switch (`PerformanceState.handedness`, a `Handedness` carried by `ChordKeyArrangement.edge`) mirrors the whole layout.
+A band along the top has the note display, the sound, the key strip and MIDI (`PerformanceView.edgeLandscapeLayout`), and the middle has the loop bar and the effect strip over a surface that colors the chord.
+That surface is a slot: a `CenterSurface` on `PerformanceState.centerSurface`, drawn by `EdgeCenterSurface`, so another is a case and a line there, and Setup offers the choice once there is more than one.
+There are three, chosen in Setup.
+The step compass grown (`StepCompassSurface.hasCorners`), whose empty corners (`StepCompassGrid.Corner`) hold its order, its names, a step back along the walk kept (`compassStepBack`) and the pin.
+The color table (`ColorTable`), chord qualities in rows that never move, each played on whatever chord is held: a color of its own (`PerformanceState.tableTones`), which while there is one is the color on every degree.
+The color tree (`ColorTree`, `ColorTreeLayout`), the compass's places as branches from the chord held and, from the branch a finger is on, each kind's first choice a step further; a node is its path of places, played as a walk (`treeHeld`), and kept by the pin it is added to the walk when the finger lifts (`treeLifted`).
+The compass's held place is a path (`heldPath`, on top of the walk kept), so the compass and the tree share one state; the surfaces share the pin, and the latest touched is the color.
+
 **The key strip changes the key and the voicing while playing.**
 It is a row on the play screen, under the loop bar (`KeyStrip`): the key, changed by a swipe along it, and the voicing, which is the octave and the inversion as one field.
 The key is one field that shows the key the keys are in (`KeyField`), and a swipe changes its root, the Key page's root, within reach: every step of travel to the right is a semitone up and to the left a semitone down (`SwipeSteps`), so one long swipe crosses several, and the twelve notes go round, so B is followed by C.
@@ -295,6 +307,7 @@ App registers as a virtual MIDI source named "Perfecto". Channel 1, velocity 100
 ## V1 scope
 
 - Play mode; loops (up to 6 layers) are recorded from it
+- The edge layout: on a phone on its side, the chord keys in two columns at the screen's sides, the root in a bottom corner (mirrored for the left hand), around a large color surface in the middle: the step compass grown, a table of qualities that never moves, or a tree of steps from the chord held
 - The octave: a chord layout of a piano's twelve keys, each the root of a chord, with the notes outside the key borrowed from its parallel modes
 - The key strip: the key on the play screen, changed by a swipe, and the octave and the inversion as one field, set or played by a finger that moves along it and across it
 - The sound field: the keys' sound beside the note display, changed by a swipe

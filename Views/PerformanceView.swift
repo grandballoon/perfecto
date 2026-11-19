@@ -108,7 +108,7 @@ struct PerformanceView: View {
             // high under the function buttons.
             Spacer()
 
-            chordKeys(state.chordGridLayout.arrangement(isLandscape: false))
+            chordKeys(state.chordGridLayout.arrangement(isLandscape: false, handedness: state.handedness))
                 .padding(.horizontal, 20)
 
             // Bottom input: the chord colors
@@ -125,8 +125,11 @@ struct PerformanceView: View {
 
     @ViewBuilder
     private func landscapeLayout(geo: GeometryProxy) -> some View {
-        if state.chordGridLayout.arrangement(isLandscape: true) == .circle {
+        let arrangement = state.chordGridLayout.arrangement(isLandscape: true, handedness: state.handedness)
+        if arrangement == .circle {
             ringLandscapeLayout(geo: geo)
+        } else if case .edge(let handedness) = arrangement {
+            edgeLandscapeLayout(handedness: handedness)
         } else {
         HStack(spacing: 0) {
                 let leftW = geo.size.width / 2
@@ -153,9 +156,8 @@ struct PerformanceView: View {
                     }
                     EffectStrip()
                         .padding(.bottom, 8)
-                    let arrangement = state.chordGridLayout.arrangement(isLandscape: true)
                     switch arrangement {
-                    case .row, .circle, .octave:
+                    case .row, .circle, .octave, .edge:
                         chordKeys(arrangement)
                             .padding(.vertical, 8)
                     case .grid:
@@ -194,6 +196,52 @@ struct PerformanceView: View {
             .frame(width: geo.size.width - half, height: geo.size.height)
         }
     }
+
+    /// The edge layout's own arrangement, on its side alone. A band along
+    /// the top has the menu button's corner, the note display and the
+    /// sound, the key strip and MIDI; under it the chord keys are two
+    /// columns at the sides (`EdgeKeyLayout`), and the middle has the loops
+    /// and the effects over the surface that colors the chord
+    /// (`EdgeCenterSurface`), as large as what is left.
+    private func edgeLandscapeLayout(handedness: Handedness) -> some View {
+        @Bindable var state = state
+        return VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                // Where the menu button lies, over the screen.
+                Color.clear.frame(width: SidePanelLayout.buttonSize)
+                displayAndSound
+                if state.showsKeyStrip {
+                    KeyStrip()
+                        .frame(maxWidth: Self.edgeKeyStripWidth)
+                }
+                toggleButton(label: "MIDI", isOn: $state.isExternalSynth)
+                    .frame(width: Self.midiChitWidth)
+                    .hotkeyTip(.midi)
+            }
+            .frame(height: SidePanelLayout.buttonSize)
+            .padding(.top, SidePanelLayout.buttonTop)
+            GeometryReader { area in
+                let center = EdgeKeyLayout(size: area.size, handedness: handedness).center
+                ZStack {
+                    chordKeys(.edge(handedness))
+                    VStack(spacing: 8) {
+                        LoopBar()
+                        EffectStrip()
+                        EdgeCenterSurface()
+                    }
+                    .frame(width: center.width, height: center.height)
+                    .position(x: center.midX, y: center.midY)
+                }
+            }
+        }
+        // Inset as the menu button is, so the band's first place is under it.
+        .padding(.horizontal, SidePanelLayout.buttonLeading)
+        .padding(.bottom, Self.edgeMargin)
+    }
+
+    /// The key strip's width in the edge layout's top band: its key and
+    /// its voicing, and no more.
+    private static let edgeKeyStripWidth: CGFloat = 260
 
     // MARK: – Shared subviews
 

@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E8ED0000000000000000000C /* ColorSurfaceLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED0000000000000000000B /* ColorSurfaceLayoutTests.swift */; };
+		E8ED0000000000000000000A /* ColorTreeSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED00000000000000000009 /* ColorTreeSurface.swift */; };
+		E8ED00000000000000000008 /* ColorTableSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED00000000000000000007 /* ColorTableSurface.swift */; };
+		E8ED00000000000000000006 /* EdgeKeyLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED00000000000000000005 /* EdgeKeyLayoutTests.swift */; };
+		E8ED00000000000000000004 /* EdgeCenterSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED00000000000000000003 /* EdgeCenterSurface.swift */; };
+		E8ED00000000000000000002 /* EdgeKeyLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED00000000000000000001 /* EdgeKeyLayout.swift */; };
 		127D4567FB6CAA5C37D09E0A /* PerformanceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F62B3A63EFEA69395677B0 /* PerformanceState.swift */; };
 		132354CBD3FCEB8F5BBBDBEC /* Key.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */; };
 		3596D666C3C2BB154DDAAE55 /* PerformanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E1668DFD39019C2EF87326 /* PerformanceView.swift */; };
@@ -213,6 +219,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E8ED0000000000000000000B /* ColorSurfaceLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSurfaceLayoutTests.swift; sourceTree = "<group>"; };
+		E8ED00000000000000000009 /* ColorTreeSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorTreeSurface.swift; sourceTree = "<group>"; };
+		E8ED00000000000000000007 /* ColorTableSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorTableSurface.swift; sourceTree = "<group>"; };
+		E8ED00000000000000000005 /* EdgeKeyLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeKeyLayoutTests.swift; sourceTree = "<group>"; };
+		E8ED00000000000000000003 /* EdgeCenterSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeCenterSurface.swift; sourceTree = "<group>"; };
+		E8ED00000000000000000001 /* EdgeKeyLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeKeyLayout.swift; sourceTree = "<group>"; };
 		044A454352EB036A9EF35C95 /* PerformanceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMode.swift; sourceTree = "<group>"; };
 		0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Key.swift; sourceTree = "<group>"; };
 		1118CE8ABE0D40F8660377C7 /* Perfecto.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Perfecto.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -630,6 +642,10 @@
 				E7D000000000000000000A31 /* LoopBar.swift */,
 				E7C2000000000000000000DF /* KeyField.swift */,
 				E7C2000000000000000000D5 /* KeyStrip.swift */,
+				E8ED00000000000000000003 /* EdgeCenterSurface.swift */,
+				E8ED00000000000000000001 /* EdgeKeyLayout.swift */,
+				E8ED00000000000000000009 /* ColorTreeSurface.swift */,
+				E8ED00000000000000000007 /* ColorTableSurface.swift */,
 				E7D1000000000000000000A3 /* EffectStrip.swift */,
 				E7C2000000000000000000D7 /* VoicingField.swift */,
 				E7C3000000000000000000A1 /* VoicingPad.swift */,
@@ -800,6 +816,7 @@
 			isa = PBXGroup;
 			children = (
 				E80000000000000000000F02 /* ChordKeyLayoutTests.swift */,
+				E8ED00000000000000000005 /* EdgeKeyLayoutTests.swift */,
 				E7C2000000000000000000D9 /* SwipeStepsTests.swift */,
 				E7C3000000000000000000C3 /* VoicingSwipeTests.swift */,
 				E7E100000000000000000009 /* PianoKeysTests.swift */,
@@ -857,6 +874,7 @@
 				D5E9A4000000000000000F01 /* SequencerBarsTests.swift */,
 				E8F2E0700B4425144A8EFD07 /* SequencerEditingTests.swift */,
 				E7D1000000000000000000B0 /* StepCompassGridTests.swift */,
+				E8ED0000000000000000000B /* ColorSurfaceLayoutTests.swift */,
 				E8FB924ACF1DB7791C4292DA /* StepGridShapeTests.swift */,
 				D5E9A3000000000000000F01 /* SequencerSelectionTests.swift */,
 			);
@@ -1009,6 +1027,7 @@
 				D5E9A4000000000000000B01 /* SequencerBarsTests.swift in Sources */,
 				E8B2E0700B4425144A8EFD07 /* SequencerEditingTests.swift in Sources */,
 				E80000000000000000000B02 /* ChordKeyLayoutTests.swift in Sources */,
+				E8ED00000000000000000006 /* EdgeKeyLayoutTests.swift in Sources */,
 				E7C2000000000000000000DA /* SwipeStepsTests.swift in Sources */,
 				E7C3000000000000000000C4 /* VoicingSwipeTests.swift in Sources */,
 				E7E10000000000000000000A /* PianoKeysTests.swift in Sources */,
@@ -1017,6 +1036,7 @@
 				E81000000000000000000B03 /* UISpecExportTests.swift in Sources */,
 				E81000000000000000000B04 /* HostedWindow.swift in Sources */,
 				E7D1000000000000000000AF /* StepCompassGridTests.swift in Sources */,
+				E8ED0000000000000000000C /* ColorSurfaceLayoutTests.swift in Sources */,
 				E8BB924ACF1DB7791C4292DA /* StepGridShapeTests.swift in Sources */,
 				D5E9A3000000000000000B01 /* SequencerSelectionTests.swift in Sources */,
 			);
@@ -1125,6 +1145,10 @@
 				E7D000000000000000000A32 /* LoopBar.swift in Sources */,
 				E7C2000000000000000000E0 /* KeyField.swift in Sources */,
 				E7C2000000000000000000D6 /* KeyStrip.swift in Sources */,
+				E8ED00000000000000000004 /* EdgeCenterSurface.swift in Sources */,
+				E8ED00000000000000000002 /* EdgeKeyLayout.swift in Sources */,
+				E8ED0000000000000000000A /* ColorTreeSurface.swift in Sources */,
+				E8ED00000000000000000008 /* ColorTableSurface.swift in Sources */,
 				E7D1000000000000000000A4 /* EffectStrip.swift in Sources */,
 				E7C2000000000000000000D8 /* VoicingField.swift in Sources */,
 				E7C3000000000000000000A2 /* VoicingPad.swift in Sources */,

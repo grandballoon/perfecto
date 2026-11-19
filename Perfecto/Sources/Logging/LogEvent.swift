@@ -74,6 +74,13 @@ enum LogEvent {
     case compass_keep_switched(isOn: Bool)
     /// The order of the step compass's choices was switched.
     case compass_ranking_switched(ranking: String)
+    /// The color table's quality playing changed (e.g. "maj7"; nil once
+    /// none is), and the chord it gives the active degree, "G maj7".
+    case table_color_changed(quality: String?, color: String)
+    /// What the edge layout has in its middle was switched (e.g. "Tree").
+    case center_surface_switched(surface: String)
+    /// The hand the edge layout is laid out for was switched.
+    case handedness_switched(hand: String)
     case chord_button_pressed(degree: Int, key: String, color: String, resultingNotes: [Int])
     case chord_played(notes: [Int], source: ChordSource)
     case chord_stopped(notes: [Int], source: ChordSource)
@@ -324,6 +331,16 @@ extension LogEvent: Encodable {
         case let .compass_ranking_switched(ranking):
             try c.encode("compass_ranking_switched", forKey: Key("type"))
             try c.encode(ranking, forKey: Key("ranking"))
+        case let .table_color_changed(quality, color):
+            try c.encode("table_color_changed", forKey: Key("type"))
+            try c.encode(quality, forKey: Key("quality"))
+            try c.encode(color, forKey: Key("color"))
+        case let .center_surface_switched(surface):
+            try c.encode("center_surface_switched", forKey: Key("type"))
+            try c.encode(surface, forKey: Key("surface"))
+        case let .handedness_switched(hand):
+            try c.encode("handedness_switched", forKey: Key("type"))
+            try c.encode(hand, forKey: Key("hand"))
         case let .key_changed(key):
             try c.encode("key_changed", forKey: Key("type"))
             try c.encode(key, forKey: Key("key"))

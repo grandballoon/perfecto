@@ -53,6 +53,32 @@ struct StepCompassStateTests {
         #expect(state.activeVoicingText == "C maj7")
     }
 
+    /// A step back takes the walk kept to the chord it led to before, and
+    /// the chord held follows; played, there is no walk to step back on.
+    @Test func aStepBackUndoesTheWalksLastStep() {
+        let (state, sink) = makeCompassState()
+        state.keepsCompassColor = true
+        state.press(.degree(.V))
+        state.compassPressed(CompassPlace(.add, 1))
+        state.compassPressed(CompassPlace(.add, 1))
+        #expect(sink.playCalls.last?.notes == [67, 71, 74, 77, 81])   // G9
+        state.compassStepBack()
+        #expect(state.compassWalk == [CompassPlace(.add, 1)])
+        #expect(sink.playCalls.last?.notes == [67, 71, 74, 77])       // G7
+        state.compassStepBack()
+        state.compassStepBack()
+        #expect(state.compassWalk.isEmpty)
+        #expect(sink.playCalls.last?.notes == [67, 71, 74])
+    }
+
+    /// The walk's steps, as the edge layout's compass names them.
+    @Test func aWalksStepsAreTheDegreesOwn() {
+        let key = Key(root: .C, scale: .major)
+        let walk = [CompassPlace(.add, 1), CompassPlace(.add, 1)]
+        #expect(CompassWalk.steps(walk, key: key, degree: .V, ranking: .theory).map(\.editName) == ["+♭7", "+2"])
+        #expect(CompassWalk.steps(walk, key: key, degree: .I, ranking: .theory).map(\.editName) == ["+7", "+2"])
+    }
+
     @Test func liftingAnotherPlaceLeavesTheLatest() {
         let (state, sink) = makeCompassState()
         state.press(.degree(.V))
@@ -113,5 +139,92 @@ struct StepCompassStateTests {
         #expect(cells.allSatisfy { $0.column == 2 || $0.row == 2 })
         #expect(StepCompassGrid.cell(of: CompassPlace(.add, 1)) == (2, 1))
         #expect(StepCompassGrid.cell(of: CompassPlace(.lower, 2)) == (0, 2))
+    }
+}
+
+/// The edge layout's table and tree color the chord through the same state
+/// as the compass: held while a finger is on them, kept by the pin.
+@Suite("ColorSurfaceState")
+@MainActor
+struct ColorSurfaceStateTests {
+
+    private func makeState() -> (PerformanceState, RecordingSink) {
+        let sink = RecordingSink()
+        let state = PerformanceState(sink: sink, clock: ManualClock())
+        return (state, sink)
+    }
+
+    private let maj7 = ChordTones([0, 4, 7, 11])
+
+    /// A quality is the same quality on every degree, in key or not.
+    @Test func aTableQualityPlaysOnTheChordHeldAndLiftingGoesBack() {
+        let (state, sink) = makeState()
+        state.press(.degree(.V))
+        state.tablePressed(maj7)
+        #expect(sink.playCalls.last?.notes == [67, 71, 74, 78])   // Gmaj7
+        state.tableLifted(maj7)
+        #expect(sink.playCalls.last?.notes == [67, 71, 74])
+    }
+
+    @Test func aKeptTableQualityStaysUntilThePlainChord() {
+        let (state, sink) = makeState()
+        state.keepsCompassColor = true
+        state.tablePressed(maj7)
+        state.tableLifted(maj7)
+        state.press(.degree(.ii))
+        #expect(sink.playCalls.last?.notes == [62, 66, 69, 73])   // Dmaj7
+        state.compassCleared()
+        #expect(sink.playCalls.last?.notes == [62, 65, 69])
+    }
+
+    /// The latest surface touched is the color: a compass place lets the
+    /// table's quality go.
+    @Test func aCompassPlaceTakesOverFromTheTable() {
+        let (state, sink) = makeState()
+        state.keepsCompassColor = true
+        state.tablePressed(maj7)
+        state.compassPressed(CompassPlace(.add, 1))
+        state.press(.degree(.V))
+        #expect(state.tableTones == nil)
+        #expect(sink.playCalls.last?.notes == [67, 71, 74, 77])   // G7
+    }
+
+    /// A tree node plays every step of its path at once; played, lifting
+    /// is the plain chord again.
+    @Test func aTreeNodePlaysItsWholePath() {
+        let (state, sink) = makeState()
+        state.press(.degree(.V))
+        state.treeHeld([CompassPlace(.add, 1)])
+        #expect(sink.playCalls.last?.notes == [67, 71, 74, 77])        // G7
+        state.treeHeld([CompassPlace(.add, 1), CompassPlace(.add, 1)])
+        #expect(sink.playCalls.last?.notes == [67, 71, 74, 77, 81])    // G9
+        state.treeLifted()
+        #expect(sink.playCalls.last?.notes == [67, 71, 74])
+        #expect(state.compassWalk.isEmpty)
+    }
+
+    /// Kept, lifting keeps the path, and the tree steps from it next.
+    @Test func aKeptTreeNodeIsWhereTheTreeStepsFromNext() {
+        let (state, sink) = makeState()
+        state.keepsCompassColor = true
+        state.press(.degree(.V))
+        state.treeHeld([CompassPlace(.add, 1)])
+        state.treeLifted()
+        #expect(state.compassWalk == [CompassPlace(.add, 1)])
+        #expect(sink.playCalls.last?.notes == [67, 71, 74, 77])        // G7 stays
+        state.treeHeld([CompassPlace(.add, 1)])
+        #expect(sink.playCalls.last?.notes == [67, 71, 74, 77, 81])    // G9, a step on
+        state.enterBackground()
+        #expect(state.compassWalk == [CompassPlace(.add, 1)])
+        #expect(state.heldPath.isEmpty)
+    }
+
+    @Test func anotherSurfaceStartsPlain() {
+        let (state, _) = makeState()
+        state.keepsCompassColor = true
+        state.tablePressed(maj7)
+        state.centerSurface = .tree
+        #expect(state.tableTones == nil)
+        #expect(state.compassPlaces.isEmpty)
     }
 }

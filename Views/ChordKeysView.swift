@@ -21,6 +21,7 @@ struct ChordKeysView: View {
         case .circle: circle
         case .row:    row
         case .octave: octave
+        case .edge(let handedness): edge(handedness)
         }
     }
 
@@ -49,6 +50,24 @@ struct ChordKeysView: View {
     private var row: some View {
         HStack(spacing: 8) {
             ForEach(Degree.allCases) { barKey($0, pressedScale: 0.96) }
+        }
+    }
+
+    // MARK: – Edge: two columns at the sides, the root in a bottom corner
+
+    /// The keys where `EdgeKeyLayout` puts them, the middle left empty for
+    /// the screen to fill.
+    private func edge(_ handedness: Handedness) -> some View {
+        GeometryReader { geo in
+            let layout = EdgeKeyLayout(size: geo.size, handedness: handedness)
+            ZStack {
+                ForEach(Degree.allCases) { degree in
+                    let frame = layout.keys[degree] ?? .zero
+                    barKey(degree, pressedScale: 0.96)
+                        .frame(width: frame.width, height: frame.height)
+                        .position(x: frame.midX, y: frame.midY)
+                }
+            }
         }
     }
 

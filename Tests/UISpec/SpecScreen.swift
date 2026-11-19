@@ -21,6 +21,28 @@ extension SpecScreen {
         SpecScreen(name: "play-grid") { $0.chordGridLayout = .grid },
         SpecScreen(name: "play-bar") { $0.chordGridLayout = .horizontalBar },
         SpecScreen(name: "play-octave") { $0.chordGridLayout = .octave },
+        SpecScreen(name: "play-edge") { $0.chordGridLayout = .edge },
+        SpecScreen(name: "play-edge-left") { state in
+            state.chordGridLayout = .edge
+            state.handedness = .left
+        },
+        SpecScreen(name: "play-edge-kept") { state in
+            state.chordGridLayout = .edge
+            state.keepsCompassColor = true
+            state.compassPressed(CompassPlace(.add, 1))
+            state.compassPressed(CompassPlace(.add, 1))
+            state.press(.degree(.V))
+        },
+        SpecScreen(name: "play-edge-table") { state in
+            state.chordGridLayout = .edge
+            state.centerSurface = .table
+            state.press(.degree(.V))
+        },
+        SpecScreen(name: "play-edge-tree") { state in
+            state.chordGridLayout = .edge
+            state.centerSurface = .tree
+            state.press(.degree(.V))
+        },
         SpecScreen(name: "play-compass-held") { state in
             state.compassPressed(CompassPlace(.add, 1))
             state.press(.degree(.V))

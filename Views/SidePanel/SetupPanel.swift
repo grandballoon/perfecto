@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// The menu's Setup page: how the chord keys are laid out, whether the play
-/// screen has the key strip, whether a finger's place on a chord key plays
-/// its brightness, how the compass orders and names its places, and
-/// whether the piano is shown under them.
+/// The menu's Setup page: how the chord keys are laid out (and, for the
+/// edge layout, for which hand), whether the play screen has the key
+/// strip, whether a finger's place on a chord key plays its brightness,
+/// how the compass orders and names its places, and whether the piano is
+/// shown under them.
 struct SetupPanel: View {
     @Environment(PerformanceState.self) private var state
 
@@ -46,6 +47,41 @@ struct SetupPanel: View {
                 ForEach(ChordGridLayout.allCases, id: \.self) { layout in
                     chordLayoutRow(layout)
                 }
+            }
+            if state.chordGridLayout == .edge { edgeOptions }
+        }
+    }
+
+    /// The edge layout's own settings: the hand it is laid out for, and
+    /// what it has in the middle once there is a choice.
+    private var edgeOptions: some View {
+        @Bindable var state = state
+        let leftHanded = Binding(get: { state.handedness == .left },
+                                 set: { state.handedness = $0 ? .left : .right })
+        return VStack(alignment: .leading, spacing: 10) {
+            Toggle(isOn: leftHanded) {
+                Text("Left-handed")
+                    .font(.system(size: 15, design: .monospaced))
+                    .foregroundStyle(.white)
+            }
+            .tint(.orange)
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
+            Text("Mirrors the edge layout: the root in the bottom right corner and the chords going round from it the other way, so the right hand chooses the chords and the left colors them in the middle.")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Color(white: 0.3))
+                .fixedSize(horizontal: false, vertical: true)
+            if CenterSurface.allCases.count > 1 {
+                Picker("Middle", selection: $state.centerSurface) {
+                    ForEach(CenterSurface.allCases, id: \.self) { surface in
+                        Text(surface.displayName).tag(surface)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text("What colors the chord in the middle. Compass: the step compass, larger, its switches in its corners. Table: chord qualities in rows that never move, each played on whatever chord is held. Tree: the compass's steps as branches from the chord held, a finger on a branch fanning out a step further. The pin keeps what is chosen on each of them.")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.3))
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
