@@ -76,7 +76,7 @@ struct ScorePracticeStateTests {
         state.seek(to: onset)
         state.startNewRun()
         while let draft = state.draft, draft.last < last {
-            state.extendDraftEnd()
+            state.moveDraft(.end, .later)
             if state.draft == draft { return nil }
         }
         state.saveDraft()
@@ -232,8 +232,8 @@ struct ScorePracticeStateTests {
         #expect(state.draft == Passage(.right, from: 2, to: 2))
         // Nothing is kept until it is saved.
         #expect(state.shownRuns.isEmpty)
-        state.extendDraftEnd()
-        state.extendDraftStart()
+        state.moveDraft(.end, .later)
+        state.moveDraft(.start, .earlier)
         #expect(state.draft == Passage(.right, from: 1, to: 3))
         // Dragged along the score, a step at a time, keeping its length.
         state.moveDraft(toStartAt: 4.3)
@@ -250,9 +250,9 @@ struct ScorePracticeStateTests {
         let state = try practising()
         let id = try #require(addRun(state, 1, 6))
         state.edit(id)
-        state.shrinkDraftStart()
-        state.shrinkDraftEnd()
-        state.shrinkDraftEnd()
+        state.moveDraft(.start, .later)
+        state.moveDraft(.end, .earlier)
+        state.moveDraft(.end, .earlier)
         #expect(state.draft == Passage(.right, from: 2, to: 4))
         // The playhead and the keys follow its start.
         #expect(state.currentTime == 2)
@@ -263,7 +263,7 @@ struct ScorePracticeStateTests {
     @Test func aNewRunCalledOffIsNotMade() throws {
         let state = try practising()
         state.startNewRun()
-        state.extendDraftEnd()
+        state.moveDraft(.end, .later)
         state.cancelDraft()
         #expect(state.draft == nil)
         #expect(state.shownRuns.isEmpty)
@@ -280,7 +280,7 @@ struct ScorePracticeStateTests {
         // While it is edited, it is what plays.
         #expect(state.watched == [Passage(.right, from: 0, to: 1)])
         state.moveDraft(toStartAt: 5)
-        state.extendDraftEnd()
+        state.moveDraft(.end, .later)
         #expect(state.practice?.run(id)?.passage == Passage(.right, from: 0, to: 1))
         state.saveDraft()
         #expect(state.practice?.run(id) == PracticeRun(id: id, passage: Passage(.right, from: 5, to: 7), name: "start"))
@@ -336,7 +336,7 @@ struct ScorePracticeStateTests {
         #expect(state.draft == Passage(.right, from: 1, to: 1))
         #expect(state.editing == nil)
         #expect(state.runDraft?.parent == parent)
-        state.extendDraftEnd()
+        state.moveDraft(.end, .later)
         state.saveDraft()
         // Back to editing the run, which is as it was.
         #expect(state.editing == parent)
@@ -348,8 +348,8 @@ struct ScorePracticeStateTests {
         state.moveDraft(toStartAt: 7)
         #expect(state.draft == Passage(.right, from: 6, to: 6))
         state.saveDraft()
-        state.shrinkDraftStart()
-        state.shrinkDraftEnd()
+        state.moveDraft(.start, .later)
+        state.moveDraft(.end, .earlier)
         #expect(state.draft == Passage(.right, from: 1, to: 6))
         state.cancelDraft()
         #expect(!state.isEditing)
@@ -367,7 +367,7 @@ struct ScorePracticeStateTests {
         let state = try practising()
         let parent = try #require(addRun(state, 1, 6))
         state.edit(parent)
-        state.extendDraftEnd()
+        state.moveDraft(.end, .later)
         #expect(!state.canStartSubRun)
         state.startNewRun()
         #expect(!state.canStartSubRun)
@@ -705,12 +705,12 @@ struct ScorePracticeStateTests {
         state.startNewRun()
         #expect(state.draftEdgeFlags?.start.map(\.note) == ["start"])
         #expect(state.draftEdgeFlags?.end.map(\.note) == ["start"])
-        state.extendDraftEnd()
+        state.moveDraft(.end, .later)
         #expect(state.draftEdgeFlags?.end.isEmpty == true)
-        state.extendDraftEnd()
+        state.moveDraft(.end, .later)
         #expect(state.draftEdgeFlags?.start.map(\.note) == ["start"])
         #expect(state.draftEdgeFlags?.end.map(\.note) == ["end"])
-        state.shrinkDraftStart()
+        state.moveDraft(.start, .later)
         #expect(state.draftEdgeFlags?.start.isEmpty == true)
     }
 

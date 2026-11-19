@@ -395,17 +395,8 @@ final class ScorePracticeState {
         if moved != runDraft { show(draft: moved) }
     }
 
-    /// One more note before the run being edited.
-    func extendDraftStart() { change { $0.extendingStart() } }
-
-    /// One more note after the run being edited.
-    func extendDraftEnd() { change { $0.extendingEnd() } }
-
-    /// One note fewer at the start of the run being edited, down to one.
-    func shrinkDraftStart() { change { $0.shrinkingStart() } }
-
-    /// One note fewer at the end of the run being edited, down to one.
-    func shrinkDraftEnd() { change { $0.shrinkingEnd() } }
+    /// An edge of the run being edited moved a step along the score.
+    func moveDraft(_ edge: RunEdge, _ way: RunEdgeWay) { change { $0.moving(edge, way) } }
 
     private func change(_ edit: (RunDraft) -> RunDraft) {
         guard let runDraft else { return }

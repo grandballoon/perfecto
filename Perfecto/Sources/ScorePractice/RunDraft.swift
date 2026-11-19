@@ -65,6 +65,27 @@ struct RunDraft: Equatable, Sendable {
         canShrinkEnd ? with(last: passage.last - 1) : self
     }
 
+    /// Whether `edge` can be moved a step `way`: earlier at the start or
+    /// later at the end takes in a note, the other way gives one up.
+    func canMove(_ edge: RunEdge, _ way: RunEdgeWay) -> Bool {
+        switch (edge, way) {
+        case (.start, .earlier): canExtendStart
+        case (.start, .later): canShrinkStart
+        case (.end, .earlier): canShrinkEnd
+        case (.end, .later): canExtendEnd
+        }
+    }
+
+    /// `edge` moved a step `way` along the score, if it can be.
+    func moving(_ edge: RunEdge, _ way: RunEdgeWay) -> RunDraft {
+        switch (edge, way) {
+        case (.start, .earlier): extendingStart()
+        case (.start, .later): shrinkingStart()
+        case (.end, .earlier): shrinkingEnd()
+        case (.end, .later): extendingEnd()
+        }
+    }
+
     private func shifted(by steps: Int) -> RunDraft {
         var next = self
         next.passage = Passage(passage.hands, from: passage.first + steps, to: passage.last + steps)
@@ -79,6 +100,13 @@ struct RunDraft: Equatable, Sendable {
         return next
     }
 }
+
+/// One end of a run.
+enum RunEdge: Sendable, CaseIterable { case start, end }
+
+/// A way along the score an edge of a run is moved: toward its beginning
+/// or toward its end, as the score's bar is drawn left to right.
+enum RunEdgeWay: Sendable, CaseIterable { case earlier, later }
 
 extension Practice {
     /// A new run of `hands` begun with the playhead at `time`: the one step

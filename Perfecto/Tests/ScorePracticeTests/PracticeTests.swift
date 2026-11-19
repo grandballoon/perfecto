@@ -113,6 +113,22 @@ struct PracticeTests {
         #expect(one.shrinkingEnd() == one)
     }
 
+    @Test func eachEdgeMovesEarlierOrLaterAlongTheScore() {
+        let run = draft(2, 4)
+        #expect(run.moving(.start, .earlier).passage == Passage(.right, from: 1, to: 4))
+        #expect(run.moving(.start, .later).passage == Passage(.right, from: 3, to: 4))
+        #expect(run.moving(.end, .earlier).passage == Passage(.right, from: 2, to: 3))
+        #expect(run.moving(.end, .later).passage == Passage(.right, from: 2, to: 5))
+        // A new run of one note can still have its start moved earlier and
+        // its end later, but neither edge past the other.
+        let one = draft(5, 5)
+        #expect(one.canMove(.start, .earlier) && one.canMove(.end, .later))
+        #expect(!one.canMove(.start, .later) && !one.canMove(.end, .earlier))
+        let whole = draft(0, 7)
+        #expect(!whole.canMove(.start, .earlier) && !whole.canMove(.end, .later))
+        #expect(whole.moving(.start, .earlier) == whole)
+    }
+
     @Test func aNewRunIsTheNoteAtThePlayhead() {
         #expect(Practice().newRun(.right, at: 2.5, in: scale) == RunDraft(Passage(.right, from: 2, to: 2), room: 0...7))
         #expect(Practice().newRun(.left, at: 0, in: Score(title: "", notes: [])) == nil)

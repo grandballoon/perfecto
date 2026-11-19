@@ -60,7 +60,7 @@ The screen opens the latest piece the first time it appears, and after that leav
 
 5. **A run is made and changed only in editing, and kept only when saved.**
    A new run begins as the note of the hands shown at the playhead (`Passage.step`); an existing one is put into editing from its menu, or by the edit button while it is the one run chosen.
-   In editing, the run is a `RunDraft`: dragged along the score's bar, a step at a time and keeping its length (`RunDraft.moved`), and at each end, Start and End, a button takes in one more note and another gives one up (`extendingStart`, `extendingEnd`, `shrinkingStart`, `shrinkingEnd`), never below one note.
+   In editing, the run is a `RunDraft`: dragged along the score's bar, a step at a time and keeping its length (`RunDraft.moved`), and each end, Start and End, is moved a note at a time by a left arrow, a note earlier in the score, and a right arrow, a note later (`RunDraft.moving`, by `RunEdge` and `RunEdgeWay`), never past the other end.
    A draft stays within its room, the whole part of its hands or, for a sub-run, its parent's steps.
    Nothing is changed until Save, which adds the run or puts the edited one in place of its old self (`Practice.keeping`, `replacing`) as one change that can be undone; Cancel leaves everything as it was.
    On a touch screen this keeps a finger meant to watch or seek from moving a run: while one run is edited, the other runs, the hands chips and undo wait.

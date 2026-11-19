@@ -371,8 +371,8 @@ struct PracticeRunsBar: View {
     }
 }
 
-/// The run being made or edited: where it is, a note more before it or
-/// after it, and keeping it or leaving it as it was. It is moved by
+/// The run being made or edited: where it is, each end moved a note
+/// earlier or later, and keeping it or leaving it as it was. It is moved by
 /// dragging it along the score's bar. A run kept can have sub-runs made
 /// within it from here, one after another, each saved on its own while
 /// the run itself is left as it is.
@@ -406,14 +406,10 @@ struct PracticeRunEditor: View {
             }
             Spacer(minLength: 4)
             let draft = practice.runDraft
-            let within = draft?.parent == nil ? "" : " within its run"
-            let keeping = draft?.keeps == nil ? "" : " (its sub-runs' notes stay in it)"
-            edge("Start", isOnFlag: edges?.start.isEmpty == false,
-                 fewer: (practice.shrinkDraftStart, draft?.canShrinkStart ?? false, "One note fewer at the start\(keeping)"),
-                 more: (practice.extendDraftStart, draft?.canExtendStart ?? false, "One more note before the run\(within)"))
-            edge("End", isOnFlag: edges?.end.isEmpty == false,
-                 fewer: (practice.shrinkDraftEnd, draft?.canShrinkEnd ?? false, "One note fewer at the end\(keeping)"),
-                 more: (practice.extendDraftEnd, draft?.canExtendEnd ?? false, "One more note after the run\(within)"))
+            ForEach(RunEdge.allCases, id: \.self) { edge in
+                self.edge(edge, draft: draft,
+                          isOnFlag: edge == .start ? edges?.start.isEmpty == false : edges?.end.isEmpty == false)
+            }
             if let id = practice.editing {
                 Button { practice.startSubRun(of: id) } label: {
                     Label("Sub-run", systemImage: "plus").practiceChit()
@@ -464,12 +460,12 @@ struct PracticeRunEditor: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// One end of the run: a note fewer there, or a note more; marked with
-    /// a flag while it is on one.
-    private func edge(_ name: String, isOnFlag: Bool,
-                      fewer: (action: () -> Void, isAble: Bool, help: String),
-                      more: (action: () -> Void, isAble: Bool, help: String)) -> some View {
-        HStack(spacing: 4) {
+    /// One end of the run, with an arrow to move it a note earlier in the
+    /// score and one to move it a note later; marked with a flag while it
+    /// is on one.
+    private func edge(_ edge: RunEdge, draft: RunDraft?, isOnFlag: Bool) -> some View {
+        let name = edge == .start ? "Start" : "End"
+        return HStack(spacing: 4) {
             HStack(spacing: 2) {
                 if isOnFlag {
                     Image(systemName: "flag.fill")
@@ -481,16 +477,30 @@ struct PracticeRunEditor: View {
             }
             .foregroundStyle(isOnFlag ? Color.practiceFlag : Color(white: 0.55))
             .help(isOnFlag ? "The run's \(name.lowercased()) is on a flag" : "")
-            ForEach([(fewer, "minus"), (more, "plus")], id: \.1) { button, symbol in
-                Button(action: button.action) {
-                    Image(systemName: symbol).practiceChit()
+            ForEach(RunEdgeWay.allCases, id: \.self) { way in
+                let isAble = draft?.canMove(edge, way) ?? false
+                let help = edgeHelp(edge, way, draft: draft)
+                Button { state.practice.moveDraft(edge, way) } label: {
+                    Image(systemName: way == .earlier ? "arrow.left" : "arrow.right").practiceChit()
                 }
                 .buttonStyle(.plain)
-                .disabled(!button.isAble)
-                .opacity(button.isAble ? 1 : 0.4)
-                .accessibilityLabel(button.help)
-                .help(button.help)
+                .disabled(!isAble)
+                .opacity(isAble ? 1 : 0.4)
+                .accessibilityLabel(help)
+                .help(help)
             }
+        }
+    }
+
+    /// What moving `edge` a step `way` does to the run.
+    private func edgeHelp(_ edge: RunEdge, _ way: RunEdgeWay, draft: RunDraft?) -> String {
+        let within = draft?.parent == nil ? "" : ", within its run"
+        let keeping = draft?.keeps == nil ? "" : " (its sub-runs' notes stay in it)"
+        switch (edge, way) {
+        case (.start, .earlier): return "Start a note earlier\(within)"
+        case (.start, .later): return "Start a note later\(keeping)"
+        case (.end, .earlier): return "End a note earlier\(keeping)"
+        case (.end, .later): return "End a note later\(within)"
         }
     }
 
