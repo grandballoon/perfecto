@@ -1,14 +1,17 @@
 ## What the face buttons strike, as a file says: a degree for each of A, B,
-## X and Y, without LT and with it held. A button a layer leaves out strikes
+## X and Y, without the layer trigger and with it held: RT in the desk's
+## `face_chords.json`, LT in the measuring scene. A button a layer leaves out strikes
 ## nothing in it. The desk's Face Chords reads `face_chords.json`, and the
 ## measuring scene `pad.json` (or the file given with `--pad`).
 ##
 ##   {"plain": {"A": "I", "B": "IV", "X": "V", "Y": "vii°"},
-##    "LT":    {"A": "I", "B": "ii", "X": "iii", "Y": "vi"}}
+##    "RT":    {"A": "I", "B": "ii", "X": "iii", "Y": "vi"}}
 class_name FaceButtons
 
 const BUTTONS := {"A": JOY_BUTTON_A, "B": JOY_BUTTON_B, "X": JOY_BUTTON_X, "Y": JOY_BUTTON_Y}
 const LAYERS := ["plain", "LT"]
+## Another name for the second layer, the one the desk's file uses.
+const SECOND_LAYER_ALIAS := "RT"
 
 ## Each layer, a button's index to a degree (0 is I).
 var plain := {}
@@ -35,6 +38,9 @@ static func parse(text: String, degree_names: Array, source: String) -> FaceButt
 	if not json is Dictionary:
 		buttons.error = "%s is not a JSON object" % source
 		return buttons
+	if json.has(SECOND_LAYER_ALIAS) and not json.has(LAYERS[1]):
+		json[LAYERS[1]] = json[SECOND_LAYER_ALIAS]
+		json.erase(SECOND_LAYER_ALIAS)
 	for name in json:
 		if name not in LAYERS:
 			problems.append("no layer \"%s\" (there are %s)" % [name, ", ".join(LAYERS)])

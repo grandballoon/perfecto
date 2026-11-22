@@ -495,7 +495,7 @@ TEST_CASE("the screen shows the beat under Face Chords, and the pads while RB is
     CHECK(patterns.chosen == 0);
     CHECK(items<Faces>(panel).at(0).faces[0].numeral == "I");
     CHECK(std::any_of(shown.hand.right.begin(), shown.hand.right.end(),
-                      [](const auto &e) { return e.mark == "RB" && e.text == "Hold: drum pads"; }));
+                      [](const auto &e) { return e.mark == "RB" && e.text == "Hold: drum pads · with LB: timeline"; }));
 
     studio.step(frame(1.2, {PadButton::rb, PadButton::x}));
     shown = scene(studio, false);
@@ -517,15 +517,13 @@ TEST_CASE("the drums take their buttons before the timeline, and the hand shows 
     CHECK(studio.step(kick).drums == std::vector<DrumEffect>{DrumEffect::hit(Drum::kick, 0.9, 1.1)});
     CHECK_FALSE(studio.timeline().recording());
     studio.step(frame(1.2));
-    // RT and A without RB: the timeline records.
-    GamepadFrame record = frame(1.3, {PadButton::a});
-    record.rightTrigger = 1;
-    studio.step(record);
+    // LB and RB together, and A: the timeline records.
+    studio.step(frame(1.3, {PadButton::lb, PadButton::rb, PadButton::a}));
     CHECK(studio.timeline().recording());
     const auto shown = scene(studio, false);
     CHECK(shown.timeline.has_value());
     CHECK(std::any_of(shown.hand.right.begin(), shown.hand.right.end(),
-                      [](const auto &e) { return e.mark == "RB" && e.text == "Hold: drum pads"; }));
+                      [](const auto &e) { return e.mark == "RB" && e.text == "Timeline (let go to play)"; }));
     CHECK(std::any_of(shown.hand.right.begin(), shown.hand.right.end(), [](const auto &e) { return e.mark == "RT"; }));
 }
 

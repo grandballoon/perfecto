@@ -1,5 +1,7 @@
 #include "perfecto/desk/face_colors.hpp"
 
+#include "perfecto/desk/face_compass.hpp"
+
 #include <perfecto/theory/joystick.hpp>
 
 #include <algorithm>
@@ -29,6 +31,12 @@ std::optional<ChordExtension> extension(OrchidButton button) {
     case OrchidButton::ninth: return ChordExtension::ninth;
     default: return std::nullopt;
     }
+}
+
+/// LT as a switch: on past halfway, held a little either side of it.
+const TriggerSteps &outerTrigger() {
+    static const TriggerSteps steps{{0.5}};
+    return steps;
 }
 
 JoystickMode mode(FaceStick stick) {
@@ -80,14 +88,15 @@ ChordBuild FaceColors::build(OrchidButton anchor, OrchidButton aim) {
 }
 
 ChordColor FaceColors::live(FaceStick stick, std::optional<int> anchor, std::optional<int> aim) {
-    if (!aim) return ChordColor::base();
+    // The compass's color depends on the degree (`FaceCompass::color`).
+    if (!aim || stick == FaceStick::compass) return ChordColor::base();
     if (stick != FaceStick::orchid) return ChordColor::joystick(mode(stick), direction(*aim));
     return ChordColor::built(build(ring[static_cast<size_t>(anchor.value_or(*aim))], ring[static_cast<size_t>(*aim)]));
 }
 
 void FaceColors::reset() {
-    aim_ = anchor_ = keepsLive_ = std::nullopt;
-    isOnPins_ = false;
+    aim_ = anchor_ = compassAim_ = keepsLive_ = std::nullopt;
+    isOnPins_ = isOuter_ = false;
 }
 
 FaceColors::Step FaceColors::step(const PadInput &input, bool reachable, const FaceChords &face,
@@ -98,18 +107,22 @@ FaceColors::Step FaceColors::step(const PadInput &input, bool reachable, const F
     }
     Step out;
     const bool pins = input.isDown(PadButton::lb);
+    const bool onCompass = settings.faceStick == FaceStick::compass;
     aim_ = gate().select(input.frame.left, aim_);
+    compassAim_ = FaceCompass::gate().select(input.frame.left, compassAim_);
+    isOuter_ = outerTrigger().step(input.frame.leftTrigger, isOuter_ ? 1 : 0) == 1;
+    const std::optional<int> held = onCompass ? compassAim_ : aim_;
     // The Orchid's first button is held from the first lean until the stick
     // is back in the middle.
     if (!aim_) anchor_ = std::nullopt;
     else if (!anchor_) anchor_ = aim_;
-    if (keepsLive_ != aim_) keepsLive_ = std::nullopt;
+    if (keepsLive_ != held) keepsLive_ = std::nullopt;
 
     if (pins != isOnPins_) {
-        if (pins && aim_ && !live(settings.faceStick, anchor_, aim_).isBase()) {
+        if (pins && held && colorsWhatSounds(face, settings)) {
             // LB while coloring pins what sounds, and the color stays until the stick moves on.
             out.effects = pin(face, settings);
-            keepsLive_ = aim_;
+            keepsLive_ = held;
         } else if (!keepsLive_) {
             // Each layer starts the Orchid's buttons afresh; a color kept keeps them.
             anchor_ = aim_;
@@ -125,16 +138,26 @@ FaceColors::Step FaceColors::step(const PadInput &input, bool reachable, const F
     return out;
 }
 
-ChordColor FaceColors::colorAt(std::optional<int> anchor, std::optional<int> aim, Degree degree,
-                               const DeskSettings &settings) const {
-    if (!aim) return ChordColor::base();
-    if (!isOnPins_ || keepsLive_ == aim) return live(settings.faceStick, anchor, aim);
-    const auto pinned = settings.favorites.colors(settings.key, degree);
-    return *aim < static_cast<int>(pinned.size()) ? pinned[static_cast<size_t>(*aim)] : ChordColor::base();
+ChordColor FaceColors::liveColor(Degree degree, const DeskSettings &settings) const {
+    if (settings.faceStick != FaceStick::compass) return live(settings.faceStick, anchor_, aim_);
+    if (!compassAim_) return ChordColor::base();
+    return FaceCompass::color(FaceCompass::place(*compassAim_, isOuter_), settings.key, degree, settings.ranking,
+                              settings.keyAssist);
+}
+
+bool FaceColors::colorsWhatSounds(const FaceChords &face, const DeskSettings &settings) const {
+    if (settings.faceStick != FaceStick::compass) return !liveColor(Degree::I, settings).isBase();
+    return std::any_of(face.voices().begin(), face.voices().end(), [&](const FaceChords::Voice &voice) {
+        const auto heard = voice.heard();
+        return heard && !liveColor(heard->second, settings).isBase();
+    });
 }
 
 ChordColor FaceColors::color(Degree degree, const DeskSettings &settings) const {
-    return colorAt(anchor_, aim_, degree, settings);
+    if (!aim_) return ChordColor::base();
+    if (!isOnPins_ || keepsLive_) return liveColor(degree, settings);
+    const auto pinned = settings.favorites.colors(settings.key, degree);
+    return *aim_ < static_cast<int>(pinned.size()) ? pinned[static_cast<size_t>(*aim_)] : ChordColor::base();
 }
 
 std::vector<DeskEffect> FaceColors::pin(const FaceChords &face, DeskSettings &settings) const {
@@ -177,11 +200,12 @@ std::vector<std::optional<Target>> FaceColors::targets(std::optional<Degree> deg
                                  .name = chord.name(),
                                  .detail = std::to_string(index + 1),
                                  .fit = chord.fit(settings.key),
-                                 .isAimed = aim_ == index && keepsLive_ != aim_,
+                                 .isAimed = aim_ == index && !keepsLive_,
                                  .isHidden = !settings.playable(chord)});
         }
         return out;
     }
+    if (settings.faceStick == FaceStick::compass) return compassTargets(degree, settings);
     for (int index = 0; index < static_cast<int>(ring.size()); ++index) {
         // With a button held, each other direction is what rolling on to it adds.
         const std::string does = settings.faceStick == FaceStick::orchid
@@ -202,12 +226,45 @@ std::vector<std::optional<Target>> FaceColors::targets(std::optional<Degree> deg
     return out;
 }
 
+std::vector<std::optional<Target>> FaceColors::compassTargets(std::optional<Degree> degree,
+                                                              const DeskSettings &settings) const {
+    std::vector<std::optional<Target>> out;
+    const auto &bearings = FaceCompass::gate().bearings;
+    for (int index = 0; index < static_cast<int>(bearings.size()); ++index) {
+        const CompassPlace place = FaceCompass::place(index, isOuter_);
+        const std::string does = FaceCompass::name(place);
+        Target target{.bearing = bearings[static_cast<size_t>(index)], .name = does, .isAimed = compassAim_ == index};
+        if (degree) {
+            const auto step = FaceCompass::step(place, settings.key, *degree, settings.ranking, settings.keyAssist);
+            if (step) {
+                const DeskChord chord(settings.key, *degree, ChordColor::tones(step->tones));
+                const auto asked = StepCompass::step(place, StepCompass::base(settings.key, *degree), settings.key,
+                                                     *degree, settings.ranking);
+                target.name = chord.name();
+                target.detail = (asked == step ? "" : "nearest ") + step->editName();
+                target.fit = FaceCompass::shownFit(chord.fit(settings.key), settings.keyAssist);
+                target.isHidden = !settings.playable(chord);
+            } else {
+                target.detail = "plain";
+                target.isHidden = true;
+            }
+        }
+        out.push_back(target);
+    }
+    return out;
+}
+
 Legend FaceColors::legend(Legend legend, bool reachable, const DeskSettings &settings) const {
     if (!reachable) return legend;
+    const bool onCompass = settings.faceStick == FaceStick::compass;
     legend[PadControl::leftStick()] =
         isOnPins_ ? "The pins of the chord held"
-                  : "Color: " + name(settings.faceStick) +
-                        (settings.faceStick == FaceStick::orchid ? " · roll on for two" : "");
+        : onCompass ? "Compass: ↑ add · → raise · ↓ take away · ← lower"
+                    : "Color: " + name(settings.faceStick) +
+                          (settings.faceStick == FaceStick::orchid ? " · roll on for two" : "");
+    if (onCompass) legend[PadControl::leftTrigger()] = isOuter_ ? "Let go: the compass's inner places"
+                                                                : "Hold: the compass's outer places";
+    else legend.erase(PadControl::leftTrigger());
     const auto lb = legend.find(PadControl::button(PadButton::lb));
     const std::string pins = "press while coloring: pin · hold: the pins";
     legend[PadControl::button(PadButton::lb)] = lb == legend.end() ? "Press while coloring: pin · hold: the pins"

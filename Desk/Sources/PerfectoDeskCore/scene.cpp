@@ -162,6 +162,17 @@ Panel faceColors(const FaceColors &colors, const FaceChords &layout, const DeskS
             Note{"LB pressed while coloring pins the color, or takes it out"},
         }};
     }
+    if (settings.faceStick == FaceStick::compass) {
+        const bool outer = colors.isOuter();
+        return Panel{{
+            Caption{outer ? "LT + left stick" : "Left stick", outer ? "Compass · outer" : "Compass · inner",
+                    "Key assist: " + name(settings.keyAssist), outer ? Tint::borrowed : Tint::faint},
+            Pie{colors.targets(degree, settings), std::nullopt, frame.left, title.empty() ? "Color" : title,
+                outer ? "second choices" : "hold LT: second choices"},
+            Triggers{{{"LT", frame.leftTrigger, {0.5}, Tint::borrowed}}},
+            Note{"LB while coloring: pin · hold LB: the pins · Menu: Key assist"},
+        }};
+    }
     const bool orchid = settings.faceStick == FaceStick::orchid;
     return Panel{{
         Caption{"Left stick", orchid ? "The Orchid's chord buttons" : "Perfecto's joystick table",
@@ -188,7 +199,7 @@ std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &sett
         }
         const auto other = map.degree(button, !layered);
         if (other && other != map.degree(button, layered))
-            face.other = (layered ? "−LT " : "+LT ") + numeral(*other, settings.key);
+            face.other = (layered ? "−RT " : "+RT ") + numeral(*other, settings.key);
         faces.faces.push_back(face);
     }
     if (heard) {
@@ -206,7 +217,7 @@ std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &sett
     Caption voices{"R3 · LB", "One voice", "R3 adds a second", Tint::faint};
     if (layout.isTogether()) {
         voices.title = "Both voices";
-        voices.aside = "LB, or a face with LT: voice 2 over";
+        voices.aside = "LB, or a face with RT: voice 2 over";
         voices.asideTint = Tint::melody;
     } else if (layout.hasSecond()) {
         voices.title = "Second voice";
@@ -214,10 +225,10 @@ std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &sett
         voices.asideTint = Tint::melody;
     }
     Panel panel{{
-        Caption{"Face buttons", layered ? "LT held" : "Chords by number", legend.at(PadControl::leftTrigger()),
+        Caption{"Face buttons", layered ? "RT held" : "Chords by number", legend.at(PadControl::leftTrigger()),
                 layered ? Tint::borrowed : Tint::faint},
         faces,
-        Triggers{{{"LT", frame.leftTrigger, {0.5}, Tint::borrowed}}},
+        Triggers{{{"RT", frame.rightTrigger, {0.5}, Tint::borrowed}}},
         voices,
     }};
     if (drums) {

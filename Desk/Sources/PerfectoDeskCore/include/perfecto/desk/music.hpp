@@ -58,15 +58,25 @@ inline constexpr std::array<LBLayer, 2> allLBLayers = {LBLayer::compass, LBLayer
 
 std::string name(LBLayer layer);
 
-/// What the left stick colors Face Chords' chords with: the Orchid's chord
-/// buttons, one to a direction, or the phone's joystick table in one of its
-/// three modes.
-enum class FaceStick { orchid, perfectoDefault, perfectoExtended, perfectoChromatic };
+/// What the left stick colors Face Chords' chords with: the phone's step
+/// compass, the Orchid's chord buttons, one to a direction, or the phone's
+/// joystick table in one of its three modes.
+enum class FaceStick { compass, orchid, perfectoDefault, perfectoExtended, perfectoChromatic };
 
-inline constexpr std::array<FaceStick, 4> allFaceSticks = {FaceStick::orchid, FaceStick::perfectoDefault,
-                                                           FaceStick::perfectoExtended, FaceStick::perfectoChromatic};
+inline constexpr std::array<FaceStick, 5> allFaceSticks = {FaceStick::compass, FaceStick::orchid,
+                                                           FaceStick::perfectoDefault, FaceStick::perfectoExtended,
+                                                           FaceStick::perfectoChromatic};
 
 std::string name(FaceStick stick);
+
+/// How the compass helps keep to the key, as the phone's Key assist does:
+/// not at all, by telling what is out of it apart, or by playing only what
+/// is in it.
+enum class KeyAssist { normal, colorCode, assist };
+
+inline constexpr std::array<KeyAssist, 3> allKeyAssists = {KeyAssist::normal, KeyAssist::colorCode, KeyAssist::assist};
+
+std::string name(KeyAssist assist);
 
 /// Where notes go: the kernel's own sound, MIDI, or both.
 enum class DeskOutput { synth, midi, both };
@@ -171,7 +181,9 @@ struct DeskSettings {
     /// What LB puts on the sticks in Twin rings.
     LBLayer lbLayer = LBLayer::compass;
     /// What the left stick colors Face Chords' chords with.
-    FaceStick faceStick = FaceStick::perfectoDefault;
+    FaceStick faceStick = FaceStick::compass;
+    /// How the compass on Face Chords' left stick keeps to the key.
+    KeyAssist keyAssist = KeyAssist::normal;
     /// Which chords and notes can be played, and what the guard has heard.
     ConsonanceGuard consonance;
 

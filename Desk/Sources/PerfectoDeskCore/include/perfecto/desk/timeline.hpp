@@ -1,7 +1,8 @@
 // The timeline: a bar along the top of Face Chords that records what is
 // played, layer over layer, plays it back, and edits it.
 //
-// RT held is the timeline's hand, as RB is the drums' and LT the chords'
+// RT held is the timeline's hand (in the studio, LB + RB held stand for it:
+// `FaceHands`), as RB is the drums' and the other trigger the chords'
 // second layer; it leaves R3 and LB to the second voice and L3 and RB to the
 // drums. A button pressed while RT is held is the timeline's until it is let
 // go, so it never reaches the chords:

@@ -57,9 +57,14 @@ void Studio::Played::append(Timeline::Out out) {
 bool Studio::reachable() const { return desk_.layout() == LayoutKind::faceChords && !desk_.menu(); }
 
 Studio::Played Studio::step(const GamepadFrame &frame) {
-    const GamepadFrame previous = frame_ ? *frame_ : GamepadFrame{.time = frame.time};
     frame_ = frame;
-    Drums::Step drummed = drums_.step(PadInput(frame, previous), reachable(), desk_.settings);
+    const FaceHands::Read hands = hands_.read(frame, reachable());
+    const GamepadFrame handedBefore = handed_ ? *handed_ : GamepadFrame{.time = frame.time};
+    handed_ = hands.frame;
+    Drums::Step drummed = drums_.step(PadInput(hands.frame, handedBefore), reachable(), desk_.settings);
+    const double chordLayer = hands_.chordLayer(drummed.frame.rightTrigger, hands.isTimeline);
+    // The timeline reads its layer from RT, which LB + RB stand for now.
+    if (reachable()) drummed.frame.rightTrigger = hands.isTimeline ? 1 : 0;
     const GamepadFrame drummedBefore = drummed_ ? *drummed_ : GamepadFrame{.time = frame.time};
     drummed_ = drummed.frame;
     Played played;
@@ -70,7 +75,10 @@ Studio::Played Studio::step(const GamepadFrame &frame) {
     auto colored = colors_.step(PadInput(taken.frame, takenBefore), reachable(), desk_.faceChords(), desk_.settings);
     desk_.setFaceColors(std::move(colored.colors));
     played.append(std::move(colored.effects));
-    played.append(settled(desk_.step(taken.frame)));
+    // Face Chords reads its second layer from LT, which RT plays here.
+    GamepadFrame played_frame = taken.frame;
+    if (reachable()) played_frame.leftTrigger = chordLayer;
+    played.append(settled(desk_.step(played_frame)));
     played.append(std::move(drummed.effects));
     played.drums.insert(played.drums.end(), drummed.drums.begin(), drummed.drums.end());
     played.append(timeline_.hear(heard(desk_), frame.time));
@@ -129,8 +137,24 @@ Studio::Played Studio::perform(const Action &action) {
 }
 
 Legend Studio::legend() const {
-    return drums_.legend(timeline_.legend(colors_.legend(desk_.legend(), reachable(), desk_.settings), reachable()),
-                         reachable());
+    Legend base = desk_.legend();
+    if (reachable()) {
+        // The chords' second layer is on RT.
+        const auto layer = base.find(PadControl::leftTrigger());
+        if (layer != base.end()) base[PadControl::rightTrigger()] = layer->second;
+    }
+    Legend legend = drums_.legend(timeline_.legend(colors_.legend(std::move(base), reachable(), desk_.settings), reachable()),
+                                  reachable());
+    if (!reachable()) return legend;
+    const auto rb = PadControl::button(PadButton::rb), lb = PadControl::button(PadButton::lb);
+    if (hands_.isTimeline()) {
+        legend[rb] = legend[lb] = "Timeline (let go to play)";
+    } else {
+        legend[rb] += " · with LB: timeline";
+        const auto held = legend.find(lb);
+        legend[lb] = (held == legend.end() ? "" : held->second + " · ") + "with RB: timeline";
+    }
+    return legend;
 }
 
 // MARK: – What it shows
@@ -195,25 +219,25 @@ TimelineBar timelineBar(const Timeline &timeline, double time) {
     const bool looping = chosenLayer && chosenLayer->loop;
     using Icon = TimelineBar::Icon;
     view.controls = {
-        {Icon::rewind, "Back to start", "RT + LT + X", false, (head && *head > 0) && !recording,
+        {Icon::rewind, "Back to start", "LB+RB + LT + X", false, (head && *head > 0) && !recording,
          {Kind::rewind, 0, 0, {}}},
-        {rolling ? Icon::pause : Icon::play, rolling ? "Pause" : "Play", "RT + X", false, !song.isEmpty() || rolling,
+        {rolling ? Icon::pause : Icon::play, rolling ? "Pause" : "Play", "LB+RB + X", false, !song.isEmpty() || rolling,
          {Kind::play, 0, 0, {}}},
-        {recording ? Icon::stopRecording : Icon::record, recording ? "Stop recording" : "Record", "RT + A",
+        {recording ? Icon::stopRecording : Icon::record, recording ? "Stop recording" : "Record", "LB+RB + A",
          recording.has_value(), true, {Kind::record, 0, 0, {}}},
-        {Icon::none, selection || !looping ? "⟲ Loop selection" : "⟲ Stop looping", "RT + Y", false,
+        {Icon::none, selection || !looping ? "⟲ Loop selection" : "⟲ Stop looping", "LB+RB + Y", false,
          selection || looping, {Kind::loop, 0, 0, {}}},
-        {Icon::none, "⌗ Fix timing", "RT + B", false, chosenLayer != nullptr, {Kind::quantize, 0, 0, {}}},
-        {Icon::none, "✕ Delete", "RT + R-stick ↓", false, selection, {Kind::erase, 0, 0, {}}},
-        {Icon::none, "↶ Undo", "RT + L-stick ←", false, timeline.canUndo(), {Kind::undo, 0, 0, {}}},
-        {Icon::none, "↷ Redo", "RT + L-stick →", false, timeline.canRedo(), {Kind::redo, 0, 0, {}}},
+        {Icon::none, "⌗ Fix timing", "LB+RB + B", false, chosenLayer != nullptr, {Kind::quantize, 0, 0, {}}},
+        {Icon::none, "✕ Delete", "LB+RB + R-stick ↓", false, selection, {Kind::erase, 0, 0, {}}},
+        {Icon::none, "↶ Undo", "LB+RB + L-stick ←", false, timeline.canUndo(), {Kind::undo, 0, 0, {}}},
+        {Icon::none, "↷ Redo", "LB+RB + L-stick →", false, timeline.canRedo(), {Kind::redo, 0, 0, {}}},
     };
 
     if (recording) {
         view.status = "● Recording track " + std::to_string(song.layers.size()) + " · " + position(*playhead);
         view.statusTint = Tint::chord;
         view.message = "Recording: play along, and every chord you play is captured.";
-        view.tips = {{"RT + A", "Stop recording"}, {"RT + X", "Pause"}};
+        view.tips = {{"LB+RB + A", "Stop recording"}, {"LB+RB + X", "Pause"}};
         return view;
     }
     if (playhead) {
@@ -225,22 +249,22 @@ TimelineBar timelineBar(const Timeline &timeline, double time) {
         view.status = song.isEmpty() ? "Nothing recorded yet" : "Stopped · " + count(song.layers.size(), "track", "tracks");
     }
     if (song.isEmpty()) {
-        view.message = "Hold RT and press A to start recording, then play chords. Press RT + A again to stop.";
-        view.tips = {{"RT + A", "Record"}};
+        view.message = "Hold LB + RB and press A to start recording, then play chords. Press LB + RB + A again to stop.";
+        view.tips = {{"LB+RB + A", "Record"}};
     } else if (selection) {
         view.message = count(chosen.size(), "chord", "chords") +
                        " selected. Play a chord to replace " + (chosen.size() == 1 ? "it" : "them") +
                        ": the timing stays the same.";
-        view.tips = {{"RT + LT + ← →", "Select more"},       {"RT + Y", "Loop selection"},
-                     {"RT + B", "Fix timing"},                {"RT + R-stick ← →", "Move earlier / later"},
-                     {"RT + R-stick ↓", "Delete"},            {"Tap RT", "Deselect"}};
+        view.tips = {{"LB+RB + LT + ← →", "Select more"},       {"LB+RB + Y", "Loop selection"},
+                     {"LB+RB + B", "Fix timing"},                {"LB+RB + R-stick ← →", "Move earlier / later"},
+                     {"LB+RB + R-stick ↓", "Delete"},            {"Tap LB+RB", "Deselect"}};
     } else {
-        view.message = "Hold RT to work with what you recorded.";
-        view.tips = {{"RT + X", playhead ? "Pause" : "Play"}, {"RT + A", "Record a new track"},
-                     {"RT + ← →", "Select a chord"},         {"RT + ↑ ↓", "Pick a track"},
-                     {"RT + B", "Fix timing of the track"}};
-        if (looping) view.tips.push_back({"RT + Y", "Stop looping"});
-        if (head && *head > 0) view.tips.push_back({"RT + LT + X", "Back to start"});
+        view.message = "Hold LB + RB to work with what you recorded.";
+        view.tips = {{"LB+RB + X", playhead ? "Pause" : "Play"}, {"LB+RB + A", "Record a new track"},
+                     {"LB+RB + ← →", "Select a chord"},         {"LB+RB + ↑ ↓", "Pick a track"},
+                     {"LB+RB + B", "Fix timing of the track"}};
+        if (looping) view.tips.push_back({"LB+RB + Y", "Stop looping"});
+        if (head && *head > 0) view.tips.push_back({"LB+RB + LT + X", "Back to start"});
     }
     return view;
 }

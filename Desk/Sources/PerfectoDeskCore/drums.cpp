@@ -268,8 +268,12 @@ Drums::Step Drums::step(const PadInput &input, bool reachable, DeskSettings &set
 
     for (const PadButton button : claimed_) out.frame.buttons.erase(button);
     for (const PadButton button : input.edges.released) claimed_.erase(button);
-    if (isLayered()) out.frame.leftTrigger = deskTrigger_;
+    if (isLayered()) {
+        out.frame.leftTrigger = deskTrigger_;
+        out.frame.rightTrigger = deskRightTrigger_;
+    }
     deskTrigger_ = out.frame.leftTrigger;
+    deskRightTrigger_ = out.frame.rightTrigger;
     return out;
 }
 

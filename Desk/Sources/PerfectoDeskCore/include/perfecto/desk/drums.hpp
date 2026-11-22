@@ -234,6 +234,7 @@ private:
     bool isShifted_ = false;
     /// LT as the desk was last given it.
     double deskTrigger_ = 0;
+    double deskRightTrigger_ = 0;
 };
 
 } // namespace perfecto::desk
