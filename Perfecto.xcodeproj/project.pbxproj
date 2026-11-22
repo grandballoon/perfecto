@@ -14,6 +14,8 @@
 		E8ED00000000000000000006 /* EdgeKeyLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED00000000000000000005 /* EdgeKeyLayoutTests.swift */; };
 		E8ED00000000000000000004 /* EdgeCenterSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED00000000000000000003 /* EdgeCenterSurface.swift */; };
 		E8ED00000000000000000002 /* EdgeKeyLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED00000000000000000001 /* EdgeKeyLayout.swift */; };
+		A7C4E1B20000000000000001 /* RingLandscapeLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C4E1B20000000000000002 /* RingLandscapeLayout.swift */; };
+		A7C4E1B20000000000000003 /* RingLandscapeLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C4E1B20000000000000004 /* RingLandscapeLayoutTests.swift */; };
 		127D4567FB6CAA5C37D09E0A /* PerformanceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F62B3A63EFEA69395677B0 /* PerformanceState.swift */; };
 		132354CBD3FCEB8F5BBBDBEC /* Key.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */; };
 		3596D666C3C2BB154DDAAE55 /* PerformanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E1668DFD39019C2EF87326 /* PerformanceView.swift */; };
@@ -228,6 +230,8 @@
 		E8ED00000000000000000005 /* EdgeKeyLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeKeyLayoutTests.swift; sourceTree = "<group>"; };
 		E8ED00000000000000000003 /* EdgeCenterSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeCenterSurface.swift; sourceTree = "<group>"; };
 		E8ED00000000000000000001 /* EdgeKeyLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeKeyLayout.swift; sourceTree = "<group>"; };
+		A7C4E1B20000000000000002 /* RingLandscapeLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingLandscapeLayout.swift; sourceTree = "<group>"; };
+		A7C4E1B20000000000000004 /* RingLandscapeLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingLandscapeLayoutTests.swift; sourceTree = "<group>"; };
 		044A454352EB036A9EF35C95 /* PerformanceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMode.swift; sourceTree = "<group>"; };
 		0AFB0F6B253F8CD99DBDCCF5 /* Key.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Key.swift; sourceTree = "<group>"; };
 		1118CE8ABE0D40F8660377C7 /* Perfecto.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Perfecto.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -649,6 +653,7 @@
 				E7C2000000000000000000D5 /* KeyStrip.swift */,
 				E8ED00000000000000000003 /* EdgeCenterSurface.swift */,
 				E8ED00000000000000000001 /* EdgeKeyLayout.swift */,
+				A7C4E1B20000000000000002 /* RingLandscapeLayout.swift */,
 				E8ED00000000000000000009 /* ColorTreeSurface.swift */,
 				E8ED00000000000000000007 /* ColorTableSurface.swift */,
 				E7D1000000000000000000A3 /* EffectStrip.swift */,
@@ -822,6 +827,7 @@
 			children = (
 				E80000000000000000000F02 /* ChordKeyLayoutTests.swift */,
 				E8ED00000000000000000005 /* EdgeKeyLayoutTests.swift */,
+				A7C4E1B20000000000000004 /* RingLandscapeLayoutTests.swift */,
 				E7C2000000000000000000D9 /* SwipeStepsTests.swift */,
 				E7C3000000000000000000C3 /* VoicingSwipeTests.swift */,
 				E7E100000000000000000009 /* PianoKeysTests.swift */,
@@ -1034,6 +1040,7 @@
 				E8B2E0700B4425144A8EFD07 /* SequencerEditingTests.swift in Sources */,
 				E80000000000000000000B02 /* ChordKeyLayoutTests.swift in Sources */,
 				E8ED00000000000000000006 /* EdgeKeyLayoutTests.swift in Sources */,
+				A7C4E1B20000000000000003 /* RingLandscapeLayoutTests.swift in Sources */,
 				E7C2000000000000000000DA /* SwipeStepsTests.swift in Sources */,
 				E7C3000000000000000000C4 /* VoicingSwipeTests.swift in Sources */,
 				E7E10000000000000000000A /* PianoKeysTests.swift in Sources */,
@@ -1154,6 +1161,7 @@
 				E7C2000000000000000000D6 /* KeyStrip.swift in Sources */,
 				E8ED00000000000000000004 /* EdgeCenterSurface.swift in Sources */,
 				E8ED00000000000000000002 /* EdgeKeyLayout.swift in Sources */,
+				A7C4E1B20000000000000001 /* RingLandscapeLayout.swift in Sources */,
 				E8ED0000000000000000000A /* ColorTreeSurface.swift in Sources */,
 				E8ED00000000000000000008 /* ColorTableSurface.swift in Sources */,
 				E7D1000000000000000000A4 /* EffectStrip.swift in Sources */,

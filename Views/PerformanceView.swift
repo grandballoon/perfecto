@@ -173,27 +173,26 @@ struct PerformanceView: View {
         }
     }
 
-    /// The circle's own arrangement on a phone on its side. The compass
-    /// has the leading half to itself, as large as it can be; the note
-    /// display, the sound, the loops, and the key and the voicing are
-    /// over the chord keys, which have the trailing half.
+    /// The circle's own arrangement on a phone on its side
+    /// (`RingLandscapeLayout`). The compass is in the bottom leading corner;
+    /// the note display, the sound, the loops, and the key and the voicing
+    /// are over the chord keys, whose ring is against the trailing edge.
     private func ringLandscapeLayout(geo: GeometryProxy) -> some View {
-        let half = geo.size.width / 2
-        return HStack(spacing: 0) {
+        let layout = RingLandscapeLayout(size: geo.size)
+        return ZStack {
             StepCompassSurface()
                 .environment(state)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(Self.edgeMargin)
-                .frame(width: half, height: geo.size.height)
+                .frame(width: layout.compass.width, height: layout.compass.height)
+                .position(x: layout.compass.midX, y: layout.compass.midY)
             VStack(spacing: 8) {
                 displayAndSound
                 LoopBar()
                 if state.showsKeyStrip { KeyStrip() }
                 chordKeys(.circle)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
-            .padding(Self.edgeMargin)
-            .frame(width: geo.size.width - half, height: geo.size.height)
+            .frame(width: layout.column.width, height: layout.column.height)
+            .position(x: layout.column.midX, y: layout.column.midY)
         }
     }
 
