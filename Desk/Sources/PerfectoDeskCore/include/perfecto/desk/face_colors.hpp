@@ -124,6 +124,11 @@ public:
     std::vector<std::optional<Target>> targets(std::optional<theory::Degree> degree,
                                                const DeskSettings &settings) const;
 
+    /// The compass's four directions on `degree`, as targets: its inner
+    /// places, or the outer ones LT reaches.
+    std::vector<std::optional<Target>> compassRing(bool isOuter, std::optional<theory::Degree> degree,
+                                                   const DeskSettings &settings) const;
+
     /// What the left stick and LB do now, over `legend`.
     Legend legend(Legend legend, bool reachable, const DeskSettings &settings) const;
 
@@ -141,9 +146,6 @@ private:
     theory::ChordColor liveColor(theory::Degree degree, const DeskSettings &settings) const;
     /// Whether the scheme colors any chord Face Chords is sounding.
     bool colorsWhatSounds(const FaceChords &face, const DeskSettings &settings) const;
-    /// The compass's four directions, as targets.
-    std::vector<std::optional<Target>> compassTargets(std::optional<theory::Degree> degree,
-                                                      const DeskSettings &settings) const;
     /// Pins what Face Chords sounds, or takes it out if it is pinned.
     std::vector<DeskEffect> pin(const FaceChords &face, DeskSettings &settings) const;
 };

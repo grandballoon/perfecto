@@ -205,7 +205,7 @@ std::vector<std::optional<Target>> FaceColors::targets(std::optional<Degree> deg
         }
         return out;
     }
-    if (settings.faceStick == FaceStick::compass) return compassTargets(degree, settings);
+    if (settings.faceStick == FaceStick::compass) return compassRing(false, degree, settings);
     for (int index = 0; index < static_cast<int>(ring.size()); ++index) {
         // With a button held, each other direction is what rolling on to it adds.
         const std::string does = settings.faceStick == FaceStick::orchid
@@ -226,14 +226,15 @@ std::vector<std::optional<Target>> FaceColors::targets(std::optional<Degree> deg
     return out;
 }
 
-std::vector<std::optional<Target>> FaceColors::compassTargets(std::optional<Degree> degree,
-                                                              const DeskSettings &settings) const {
+std::vector<std::optional<Target>> FaceColors::compassRing(bool isOuter, std::optional<Degree> degree,
+                                                           const DeskSettings &settings) const {
     std::vector<std::optional<Target>> out;
     const auto &bearings = FaceCompass::gate().bearings;
     for (int index = 0; index < static_cast<int>(bearings.size()); ++index) {
-        const CompassPlace place = FaceCompass::place(index, isOuter_);
+        const CompassPlace place = FaceCompass::place(index, isOuter);
         const std::string does = FaceCompass::name(place);
-        Target target{.bearing = bearings[static_cast<size_t>(index)], .name = does, .isAimed = compassAim_ == index};
+        Target target{.bearing = bearings[static_cast<size_t>(index)], .name = does,
+                      .isAimed = compassAim_ == index && isOuter_ == isOuter};
         if (degree) {
             const auto step = FaceCompass::step(place, settings.key, *degree, settings.ranking, settings.keyAssist);
             if (step) {

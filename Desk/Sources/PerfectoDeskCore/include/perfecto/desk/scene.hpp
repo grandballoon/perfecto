@@ -78,6 +78,8 @@ struct Action {
         selectEvent,
         stretchChoice,
         deselect,
+        write,
+        saveSong,
         /// The drums' (`Studio::perform`): a beat, a kit.
         choosePattern,
         chooseKit,
@@ -133,6 +135,11 @@ struct Pie {
     std::string detail;
     Tint accent = Tint::chord;
     bool compact = false;
+    /// The trigger that plays the outer shell, if one does: "LT". The shell
+    /// is then drawn as a ring of its own, marked with it.
+    std::string outerTrigger{};
+    /// Whether that trigger is held now.
+    bool isOuterOn = false;
 
     bool operator==(const Pie &) const = default;
 };
@@ -246,8 +253,9 @@ struct Diamond {
 };
 
 /// The face buttons as large tiles where they are on the controller, each
-/// with the number and the name of the chord it strikes now, and in the
-/// middle the chord sounding.
+/// with the number and the name of the chord it strikes, and in the middle
+/// the chord sounding. With an outer ring, the tiles are the plain layer and
+/// the ring the trigger's, both always shown and neither moving.
 struct Faces {
     struct Face {
         PadButton button;
@@ -257,19 +265,27 @@ struct Faces {
         std::string numeral;
         /// "F".
         std::string name;
-        /// The other layer's chord on it, if it has another: "+LT ii" while
-        /// LT is let go, "−LT IV" while it is held.
+        /// The other layer's chord on it, for a tile with no ring to show it.
         std::string other;
         bool isHeld;
         /// It is the button heard.
         bool isHeard;
         /// It is the button the second voice sounds.
         bool isOver = false;
+        /// A place on the outer ring with nothing of its own: it plays what
+        /// the inner one does.
+        bool isSpare = false;
 
         bool operator==(const Face &) const = default;
     };
 
     std::vector<Face> faces;
+    /// The trigger's layer, at the same bearings; empty with no ring.
+    std::vector<Face> outer;
+    /// The trigger that plays it: "RT".
+    std::string outerTrigger{};
+    /// Whether that trigger is held now.
+    bool isOuterOn = false;
     /// The chord sounding, its number and its name; empty with none.
     std::string numeral;
     std::string name;
@@ -321,45 +337,8 @@ struct Bar {
     bool operator==(const Bar &) const = default;
 };
 
-/// The arranger's bars, a lane to each. Places are 0 at the bar's start to 1
-/// at its end.
-struct Lanes {
-    struct Block {
-        double from;
-        double to;
-        /// The chord's name, in the bar it starts in only.
-        std::string name;
-        bool isHeard;
-
-        bool operator==(const Block &) const = default;
-    };
-
-    struct GridLine {
-        double place;
-        bool isBeat;
-
-        bool operator==(const GridLine &) const = default;
-    };
-
-    struct Lane {
-        int number;
-        std::vector<GridLine> lines;
-        std::vector<Block> blocks;
-        /// The chord being written, as far as it has grown.
-        std::optional<std::pair<double, double>> writing;
-        std::optional<double> cursor;
-        std::optional<double> playhead;
-
-        bool operator==(const Lane &) const = default;
-    };
-
-    std::vector<Lane> lanes;
-
-    bool operator==(const Lanes &) const = default;
-};
-
 using Item = std::variant<Caption, Note, Pie, Pies, Ring, Triggers, Facts, Choices, Sounding, Voices, Diamond,
-                          Faces, Scale, Chips, Bar, Lanes>;
+                          Faces, Scale, Chips, Bar>;
 
 /// A panel of the stage: its items top to bottom.
 struct Panel {
@@ -449,8 +428,6 @@ struct MenuView {
         std::string name;
         std::string value;
         bool isChosen;
-        /// Whether ◀ ▶ change it (a row that does something has none).
-        bool changes;
 
         bool operator==(const Row &) const = default;
     };
@@ -551,6 +528,11 @@ struct TimelineBar {
     /// What to do next, in a sentence, and the controls for it.
     std::string message;
     std::vector<Tip> tips;
+    /// Where the next chord is written, in Write mode.
+    std::optional<double> cursor{};
+
+    /// Whether the hands are in the timeline (Back goes in and out).
+    bool isEditing{};
 
     bool operator==(const TimelineBar &) const = default;
 };

@@ -231,4 +231,84 @@ Layer shifted(const Layer &layer, double beats) {
     return out;
 }
 
+Layer written(const Layer &layer, int id, double start, double length, const ChordPart &part) {
+    const double end = start + length;
+    const int on = part.voice;
+    Layer out = layer;
+    std::erase_if(out.events, [&](const Event &event) {
+        return channel(event.part) == on && event.start >= start && event.start < end;
+    });
+    for (Event &event : out.events)
+        if (channel(event.part) == on && event.start < start && event.end() > start) event.length = start - event.start;
+    const auto at = std::find_if(out.events.begin(), out.events.end(),
+                                 [&](const Event &event) { return event.start > start; });
+    out.events.insert(at, Event{id, start, length, part});
+    return out;
+}
+
+Layer resized(const Layer &layer, const std::set<int> &ids, double beats) {
+    Layer out = layer;
+    for (Event &event : out.events) {
+        if (!ids.contains(event.id)) continue;
+        double limit = std::numeric_limits<double>::infinity();
+        for (const Event &other : layer.events)
+            if (channel(other.part) == channel(event.part) && other.start > event.start)
+                limit = std::min(limit, other.start);
+        // One already running into the next (played legato) keeps its end.
+        limit = std::max(limit, event.end());
+        const double least = std::min(event.length, shortestEvent);
+        event.length = std::max(least, std::min(event.length + beats, limit - event.start));
+    }
+    return out;
+}
+
+std::optional<theory::MidiFile> midiFile(const Song &song, const DeskSettings &settings) {
+    using theory::MidiEvent;
+    constexpr int ticks = 480;
+    const auto tick = [](double beats) { return static_cast<int>(std::round(beats * ticks)); };
+    double reach = 0;
+    for (const Layer &layer : song.layers) {
+        if (layer.isMuted) continue;
+        for (const Event &event : layer.events) reach = std::max(reach, event.end());
+        if (layer.loop) reach = std::max(reach, layer.loop->to);
+    }
+    if (reach <= 0) return std::nullopt;
+
+    std::vector<theory::MidiTrack> tracks = {theory::MidiTrack{{
+        MidiEvent{0, MidiEvent::TrackName{"Perfecto Desk"}},
+        MidiEvent{0, MidiEvent::Tempo{settings.tempo}},
+        MidiEvent{0, MidiEvent::TimeSignature{Song::beatsPerBar, 4}},
+        MidiEvent{0, theory::midiKeySignature(settings.key)},
+    }, tick(reach)}};
+    for (size_t index = 0; index < song.layers.size(); ++index) {
+        const Layer &layer = song.layers[index];
+        if (layer.isMuted) continue;
+        std::vector<Occurrence> heard = song.heard(layer, 0, reach);
+        std::stable_sort(heard.begin(), heard.end(),
+                         [](const Occurrence &a, const Occurrence &b) { return a.start < b.start; });
+        const int midiChannel = static_cast<int>(index);
+        std::vector<MidiEvent> events = {MidiEvent{0, MidiEvent::TrackName{"Track " + std::to_string(index + 1)}}};
+        for (size_t i = 0; i < heard.size(); ++i) {
+            const Occurrence &occurrence = heard[i];
+            // One sound at a time on a channel: a chord ends where the next starts.
+            double to = std::min(occurrence.end, reach);
+            for (size_t later = i + 1; later < heard.size(); ++later)
+                if (heard[later].track == occurrence.track && heard[later].start > occurrence.start) {
+                    to = std::min(to, heard[later].start);
+                    break;
+                }
+            const int on = tick(std::max(occurrence.start, 0.0)), off = tick(to);
+            if (off <= on) continue;
+            const auto &part = std::get<ChordPart>(occurrence.part);
+            events.push_back(MidiEvent{on, MidiEvent::Marker{part.chord.name()}});
+            for (const int note : part.notes) {
+                events.push_back(MidiEvent{on, MidiEvent::NoteOn{midiChannel, note, 100}});
+                events.push_back(MidiEvent{off, MidiEvent::NoteOff{midiChannel, note}});
+            }
+        }
+        tracks.push_back(theory::MidiTrack{std::move(events), tick(reach)});
+    }
+    return theory::MidiFile{ticks, std::move(tracks)};
+}
+
 } // namespace perfecto::desk

@@ -455,7 +455,7 @@ TEST_CASE("the beat plays on under the menu, and stops with another layout") {
     CHECK_FALSE(studio.step(frame(1.6)).drums.empty());
     studio.step(frame(1.7, {PadButton::start}));
     studio.step(frame(1.8));
-    studio.step(frame(1.9, {PadButton::back}));
+    studio.choose(LayoutKind::twinRings);
     CHECK(studio.desk().layout() == LayoutKind::twinRings);
     CHECK_FALSE(studio.drums().machine().isPlaying());
 }
@@ -495,12 +495,14 @@ TEST_CASE("the screen shows the beat under Face Chords, and the pads while RB is
     CHECK(patterns.chosen == 0);
     CHECK(items<Faces>(panel).at(0).faces[0].numeral == "I");
     CHECK(std::any_of(shown.hand.right.begin(), shown.hand.right.end(),
-                      [](const auto &e) { return e.mark == "RB" && e.text == "Hold: drum pads · with LB: timeline"; }));
+                      [](const auto &e) { return e.mark == "RB" && e.text == "Hold: drum pads"; }));
 
     studio.step(frame(1.2, {PadButton::rb, PadButton::x}));
     shown = scene(studio, false);
     const auto pads = items<Faces>(shown.stage.at(1)).at(0);
-    CHECK(pads.faces[1] == Faces::Face{PadButton::x, 270, "Closed hat", "", "+LT Mid tom", true, false});
+    CHECK(pads.faces[1] == Faces::Face{PadButton::x, 270, "Closed hat", "", "", true, false});
+    CHECK(pads.outer[1] == Faces::Face{PadButton::x, 270, "Mid tom", "", "", false, false});
+    CHECK(pads.outerTrigger == "LT");
     CHECK(pads.detail == "Drum pads");
     CHECK(items<Caption>(shown.stage.at(1)).at(0).title == "Drum pads");
     // The hand shows X held, as the hands hold it.
@@ -517,13 +519,18 @@ TEST_CASE("the drums take their buttons before the timeline, and the hand shows 
     CHECK(studio.step(kick).drums == std::vector<DrumEffect>{DrumEffect::hit(Drum::kick, 0.9, 1.1)});
     CHECK_FALSE(studio.timeline().recording());
     studio.step(frame(1.2));
-    // LB and RB together, and A: the timeline records.
-    studio.step(frame(1.3, {PadButton::lb, PadButton::rb, PadButton::a}));
+    // Back, then A: the timeline records.
+    studio.step(frame(1.25, {PadButton::back}));
+    studio.step(frame(1.27));
+    {
+        const auto editing = scene(studio, false);
+        CHECK(std::any_of(editing.hand.right.begin(), editing.hand.right.end(),
+                          [](const auto &e) { return e.mark == "RB" && e.text == "Save as MIDI"; }));
+    }
+    studio.step(frame(1.3, {PadButton::a}));
     CHECK(studio.timeline().recording());
     const auto shown = scene(studio, false);
     CHECK(shown.timeline.has_value());
-    CHECK(std::any_of(shown.hand.right.begin(), shown.hand.right.end(),
-                      [](const auto &e) { return e.mark == "RB" && e.text == "Timeline (let go to play)"; }));
     CHECK(std::any_of(shown.hand.right.begin(), shown.hand.right.end(), [](const auto &e) { return e.mark == "RT"; }));
 }
 

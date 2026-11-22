@@ -4,7 +4,7 @@
 #ifndef PERFECTO_DESK_DESK_HPP
 #define PERFECTO_DESK_DESK_HPP
 
-#include "perfecto/desk/arranger.hpp"
+#include "perfecto/desk/beat_grid.hpp"
 #include "perfecto/desk/face_chords.hpp"
 #include "perfecto/desk/layout.hpp"
 #include "perfecto/desk/music.hpp"
@@ -68,14 +68,14 @@ private:
 struct DeskMenu {
     enum class Row {
         layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, faceStick, keyAssist, chordSound,
-        lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI,
+        lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output,
     };
 
-    static constexpr std::array<Row, 21> allRows = {
+    static constexpr std::array<Row, 20> allRows = {
         Row::layout,     Row::consonance, Row::guardInKey, Row::forgetRun,    Row::ring,
         Row::ringOrder,  Row::ringFilter, Row::lbLayer,    Row::faceStick,    Row::keyAssist,  Row::chordSound,   Row::lineSound,
         Row::key,        Row::scale,      Row::octave,     Row::tempo,        Row::grid,
-        Row::voiceLeading, Row::ranking,  Row::output,     Row::saveMIDI,
+        Row::voiceLeading, Row::ranking,  Row::output,
     };
 
     /// The library open over the menu: a sound for `line`, browsed by
@@ -115,7 +115,6 @@ public:
     const Petals &petals() const { return petals_; }
     const Neighbourhood &neighbourhood() const { return neighbourhood_; }
     const TwoVoices &twoVoices() const { return twoVoices_; }
-    const Arranger &arranger() const { return arranger_; }
     const std::optional<DeskMenu> &menu() const { return menu_; }
     const SoundCatalog &catalog() const { return catalog_; }
     /// What the last frame said, if any has come.
@@ -158,7 +157,6 @@ private:
     Petals petals_;
     Neighbourhood neighbourhood_;
     TwoVoices twoVoices_;
-    Arranger arranger_;
     std::optional<DeskMenu> menu_;
     SoundCatalog catalog_;
     std::optional<GamepadFrame> frame_;

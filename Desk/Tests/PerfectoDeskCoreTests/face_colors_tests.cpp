@@ -194,13 +194,14 @@ TEST_CASE("LB with the second voice still routes a press, and the stick plays th
     CHECK(studio.colors().isOnPins());
 }
 
-TEST_CASE("the timeline's layer takes the stick, and the menu lets go of the color") {
+TEST_CASE("the timeline takes the stick, and the menu lets go of the color") {
     Studio studio = faceChords();
     studio.step(frame(1, {a}));
     studio.step(frame(1.1, {a}, lean(90)));
-    studio.step(frame(1.2, {a, lb, PadButton::rb}, lean(90)));
+    studio.step(frame(1.2, {a, PadButton::back}, lean(90)));
     CHECK(notes(studio) == std::vector{60, 64, 67});
-    studio.step(frame(1.3, {a}, lean(90)));
+    studio.step(frame(1.25, {a}, lean(90)));
+    studio.step(frame(1.3, {a, PadButton::back}, lean(90)));
     CHECK(notes(studio) == std::vector{60, 64, 67, 74});
     studio.toggleMenu();
     studio.step(frame(1.4, {a}, lean(90)));
@@ -255,7 +256,7 @@ TEST_CASE("the screen shows what each direction plays on the chord held, and wit
     CHECK(studio.legend().at(PadControl::leftStick()) == "The pins of the chord held");
     studio.step(frame(1.5, {a}));
     CHECK(studio.legend().at(PadControl::leftStick()) == "Color: Orchid buttons · roll on for two");
-    CHECK(studio.legend().at(PadControl::button(lb)) == "Press while coloring: pin · hold: the pins · with RB: timeline");
+    CHECK(studio.legend().at(PadControl::button(lb)) == "Press while coloring: pin · hold: the pins");
 }
 
 TEST_CASE("the menu chooses the stick's scheme") {

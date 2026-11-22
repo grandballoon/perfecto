@@ -24,18 +24,6 @@ std::optional<Tint> tint(PadButton button) {
 
 namespace {
 
-/// `value` with at least `least` and at most `most` places after the point.
-std::string decimal(double value, int least, int most) {
-    char text[32];
-    std::snprintf(text, sizeof text, "%.*f", most, value);
-    std::string out = text;
-    const auto point = out.find('.');
-    if (point == std::string::npos) return out;
-    while (static_cast<int>(out.size() - point - 1) > least && out.back() == '0') out.pop_back();
-    if (out.back() == '.') out.pop_back();
-    return out;
-}
-
 std::string signedInt(int value) { return (value >= 0 ? "+" : "") + std::to_string(value); }
 
 /// "C4": a note's name and octave.
@@ -135,12 +123,18 @@ std::vector<Item> drumItems(const Drums &drums, const DeskSettings &settings, do
 /// The face buttons as the drum layer plays them: a drum on each.
 Faces drumPads(const Drums &drums, const GamepadFrame &frame) {
     const bool shifted = drums.isShifted();
+    const auto ring = [&](bool isOuter) {
+        std::vector<Faces::Face> out;
+        for (const PadButton button : FaceChords::faces)
+            out.push_back({button, FaceChords::bearing(button), name(*Drums::pad(button, isOuter)), "", "",
+                           frame.isDown(button) && isOuter == shifted, false});
+        return out;
+    };
     Faces faces;
-    for (const PadButton button : FaceChords::faces) {
-        faces.faces.push_back({button, FaceChords::bearing(button), name(*Drums::pad(button, shifted)), "",
-                               (shifted ? "−LT " : "+LT ") + name(*Drums::pad(button, !shifted)), frame.isDown(button),
-                               false});
-    }
+    faces.faces = ring(false);
+    faces.outer = ring(true);
+    faces.outerTrigger = "LT";
+    faces.isOuterOn = shifted;
     faces.detail = "Drum pads";
     return faces;
 }
@@ -167,9 +161,8 @@ Panel faceColors(const FaceColors &colors, const FaceChords &layout, const DeskS
         return Panel{{
             Caption{outer ? "LT + left stick" : "Left stick", outer ? "Compass · outer" : "Compass · inner",
                     "Key assist: " + name(settings.keyAssist), outer ? Tint::borrowed : Tint::faint},
-            Pie{colors.targets(degree, settings), std::nullopt, frame.left, title.empty() ? "Color" : title,
-                outer ? "second choices" : "hold LT: second choices"},
-            Triggers{{{"LT", frame.leftTrigger, {0.5}, Tint::borrowed}}},
+            Pie{colors.compassRing(false, degree, settings), colors.compassRing(true, degree, settings), frame.left,
+                title.empty() ? "Color" : title, "", Tint::chord, false, "LT", outer},
             Note{"LB while coloring: pin · hold LB: the pins · Menu: Key assist"},
         }};
     }
@@ -189,19 +182,32 @@ std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &sett
     const bool layered = layout.isLayered();
     const auto heard = layout.heard();
     const auto over = layout.voices()[1].heard();
-    Faces faces;
-    for (const PadButton button : FaceChords::faces) {
-        Faces::Face face{button, FaceChords::bearing(button), "", "", "", frame.isDown(button),
-                         heard && heard->first == button, over && over->first == button};
-        if (const auto degree = map.degree(button, layered)) {
-            face.numeral = numeral(*degree, settings.key);
-            face.name = DeskChord(settings.key, *degree).name();
+    // Each layer in a ring of its own. A button with one chord in both is
+    // lit in the ring its layer is in.
+    const auto chordRing = [&](bool isOuter) {
+        std::vector<Faces::Face> out;
+        for (const PadButton button : FaceChords::faces) {
+            const auto degree = map.degree(button, isOuter);
+            const bool same = map.degree(button, false) == map.degree(button, true);
+            const auto lit = [&](const auto &voice) {
+                return voice && voice->first == button && voice->second == degree && (!same || isOuter == layered);
+            };
+            Faces::Face face{button, FaceChords::bearing(button), "", "", "", frame.isDown(button) && isOuter == layered,
+                             lit(heard), lit(over)};
+            if (degree) {
+                face.numeral = numeral(*degree, settings.key);
+                face.name = DeskChord(settings.key, *degree).name();
+            }
+            face.isSpare = isOuter && same;
+            out.push_back(face);
         }
-        const auto other = map.degree(button, !layered);
-        if (other && other != map.degree(button, layered))
-            face.other = (layered ? "−RT " : "+RT ") + numeral(*other, settings.key);
-        faces.faces.push_back(face);
-    }
+        return out;
+    };
+    Faces faces;
+    faces.faces = chordRing(false);
+    faces.outer = chordRing(true);
+    faces.outerTrigger = "RT";
+    faces.isOuterOn = layered;
     if (heard) {
         faces.numeral = numeral(heard->second, settings.key);
         faces.name = layout.line().chord() ? layout.line().chord()->name() : "";
@@ -213,7 +219,6 @@ std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &sett
         const auto &line = layout.voices()[1].line;
         faces.over = numeral(over->second, settings.key) + " · " + (line.chord() ? line.chord()->name() : "");
     }
-    const auto legend = layout.legend(settings);
     Caption voices{"R3 · LB", "One voice", "R3 adds a second", Tint::faint};
     if (layout.isTogether()) {
         voices.title = "Both voices";
@@ -225,15 +230,14 @@ std::vector<Panel> faceChords(const FaceChords &layout, const DeskSettings &sett
         voices.asideTint = Tint::melody;
     }
     Panel panel{{
-        Caption{"Face buttons", layered ? "RT held" : "Chords by number", legend.at(PadControl::leftTrigger()),
+        Caption{"Face buttons", layered ? "RT held" : "Chords by number", "Outer ring: RT",
                 layered ? Tint::borrowed : Tint::faint},
         faces,
-        Triggers{{{"RT", frame.rightTrigger, {0.5}, Tint::borrowed}}},
         voices,
     }};
     if (drums) {
         if (drums->isLayered()) {
-            panel.items[0] = Caption{"RB held", "Drum pads", drums->isShifted() ? "LT held: toms, clap" : "LT: toms, clap",
+            panel.items[0] = Caption{"RB held", "Drum pads", drums->isShifted() ? "LT held: toms, clap" : "Outer ring: LT",
                                      drums->isShifted() ? Tint::borrowed : Tint::faint};
             panel.items[1] = drumPads(*drums, frame);
         }
@@ -348,74 +352,6 @@ std::vector<Panel> twoVoices(const TwoVoices &layout, const DeskSettings &settin
     return {left, right};
 }
 
-/// "bar 2 · beat 3.5"
-std::string position(double beats) {
-    const int bar = static_cast<int>(beats) / Arrangement::beatsPerBar + 1;
-    const double beat = std::fmod(beats, static_cast<double>(Arrangement::beatsPerBar)) + 1;
-    return "bar " + std::to_string(bar) + " · beat " + decimal(beat, 0, 2);
-}
-
-Lanes lanes(const Arranger &layout, const DeskSettings &settings) {
-    Lanes lanes;
-    const double beats = Arrangement::beatsPerBar;
-    const double grid = std::min(step(settings.grid).value_or(1.0), 1.0);
-    for (int bar = 0; bar < Arrangement::bars; ++bar) {
-        const double from = bar * beats, to = from + beats;
-        const auto place = [&](double at) { return (at - from) / beats; };
-        Lanes::Lane lane{bar + 1, {}, {}, std::nullopt, std::nullopt, std::nullopt};
-        for (double line = from; line < to; line += grid) lane.lines.push_back({place(line), line == std::round(line)});
-        for (const auto &placed : layout.arrangement().chords()) {
-            if (!(placed.start < to && placed.end() > from)) continue;
-            const bool heard = layout.playhead() && !layout.writing() && placed.covers(*layout.playhead());
-            lane.blocks.push_back({place(std::max(placed.start, from)), place(std::min(placed.end(), to)),
-                                   placed.start >= from ? placed.chord.name() : "", heard});
-        }
-        if (const auto &writing = layout.writing(); writing && writing->start < to && writing->start + writing->length > from)
-            lane.writing = std::pair{place(std::max(writing->start, from)),
-                                     place(std::min(writing->start + std::max(writing->length, 0.05), to))};
-        if (layout.cursor() >= from && layout.cursor() < to) lane.cursor = place(layout.cursor());
-        if (const auto playhead = layout.playhead(); playhead && *playhead >= from && *playhead < to)
-            lane.playhead = place(*playhead);
-        lanes.lanes.push_back(lane);
-    }
-    return lanes;
-}
-
-std::vector<Panel> arranger(const Arranger &layout, const DeskSettings &settings, const GamepadFrame &frame) {
-    std::string status;
-    if (const auto &writing = layout.writing())
-        status = (writing->isLive ? "Recording live: " : "Writing: ") + decimal(writing->length, 2, 2) +
-                 " beats held, let go to place it";
-    else if (layout.playing())
-        status = "Playing round the four bars. RT records live at the playhead; Y stops.";
-    else
-        status = "Hold RT to write for as long as it's held. Y plays from the cursor.";
-    Panel left{{
-        Caption{"D-pad · RT · LB RB", "Four bars at " + std::to_string(static_cast<int>(settings.tempo)) + " bpm"},
-        Facts{{{"Grid · L3", name(settings.grid)}, {"Cursor", position(layout.cursor())}}, ""},
-        lanes(layout, settings),
-        Note{status, layout.writing() ? Tint::chord : Tint::secondary, layout.writing().has_value()},
-    }};
-    // The ring's inner band, compactly: a sector for each mode.
-    const auto pie = settings.ring(layout.degree());
-    std::vector<std::optional<Target>> ring;
-    for (const auto &sector : pie.sectors) {
-        const DeskChord chord(settings.key, layout.degree(), pie.color(RingCell{sector.mode, theory::StackHeight::seventh}));
-        ring.push_back(Target{sector.bearing, chord.name(), "", chord.fit(settings.key), false,
-                              layout.aim() && layout.aim()->mode == sector.mode});
-    }
-    Panel right{{
-                    Caption{"Both sticks", "Aim"},
-                    Note{layout.aimed(settings).name(), Tint::chord, true, true},
-                    Pies{{Pie{optionals(layout.degreeTargets(settings)), std::nullopt, frame.left, "", "", Tint::chord, true},
-                          Pie{ring, std::nullopt, frame.right, "", "", Tint::chord, true}}},
-                    Triggers{{{"RT", frame.rightTrigger, {}, Tint::chord}}},
-                    Triggers{{{"LT", frame.leftTrigger, {}, Tint::melody}}},
-                },
-                460};
-    return {left, right};
-}
-
 TopBar topBar(const Desk &desk) {
     const auto &settings = desk.settings;
     TopBar top{{}, 0, summary(desk.layout()), std::nullopt, {}};
@@ -519,7 +455,7 @@ FavoritesView favorites(const Desk &desk) {
 MenuView menu(const Desk &desk, const DeskMenu &menu) {
     MenuView view;
     for (const auto row : DeskMenu::allRows)
-        view.rows.push_back({name(row), desk.value(row), row == menu.row, row != DeskMenu::Row::saveMIDI});
+        view.rows.push_back({name(row), desk.value(row), row == menu.row});
     if (const auto &library = menu.library) {
         const auto &chosen = library->line == Line::chord ? desk.settings.chordSound : desk.settings.lineSound;
         MenuView::Library shown{library->line == Line::chord ? "Chords" : "Line", {}};
@@ -547,7 +483,6 @@ Scene scene(const Desk &desk, const Legend &legend, const GamepadFrame &held, bo
     case LayoutKind::petals: scene.stage = petals(desk.petals(), settings, frame); break;
     case LayoutKind::neighbourhood: scene.stage = neighbourhood(desk.neighbourhood(), settings, frame); break;
     case LayoutKind::twoVoices: scene.stage = twoVoices(desk.twoVoices(), settings, frame); break;
-    case LayoutKind::arranger: scene.stage = arranger(desk.arranger(), settings, frame); break;
     }
     if (desk.menu()) scene.menu = menu(desk, *desk.menu());
     return scene;
@@ -597,6 +532,8 @@ std::vector<DeskEffect> perform(Desk &desk, const Action &action) {
     case Action::Kind::selectEvent:
     case Action::Kind::stretchChoice:
     case Action::Kind::deselect:
+    case Action::Kind::write:
+    case Action::Kind::saveSong:
     case Action::Kind::choosePattern:
     case Action::Kind::chooseKit: break; // The studio's.
     }

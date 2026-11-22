@@ -7,9 +7,9 @@ class_name Stage
 const PANEL_PAD := 16.0
 const PANEL_GAP := 20.0
 const ITEM_GAP := 12.0
-const LANE := 58.0
-const LANE_GAP := 8.0
 const T := Paint.Text
+## Where a pie's outer ring begins, of its radius.
+const RING_EDGE := 0.64
 
 
 ## Draws `panels` across `rect`; what a click can choose goes in `hits`, as
@@ -74,8 +74,6 @@ static func height(item: Dictionary, width: float) -> float:
 		"chips":
 			var rows := chip_rows(item, width)
 			return rows.size() * (chip_height(item) + 6) - 6 if rows else 0
-		"lanes":
-			return item["lanes"].size() * (LANE + LANE_GAP) - LANE_GAP
 	return -1
 
 
@@ -104,7 +102,6 @@ static func draw_item(canvas: CanvasItem, rect: Rect2, item: Dictionary, hits: A
 		"scale": scale(canvas, rect, item["targets"])
 		"chips": chips(canvas, rect, item)
 		"bar": bar(canvas, rect, item)
-		"lanes": lanes(canvas, rect, item["lanes"])
 
 
 ## The largest square in `rect`, centred.
@@ -137,6 +134,9 @@ static func note(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
 ## A stick's pie: its targets round a circle, each named by what it would
 ## sound, and the stick's own place as a dot.
 static func pie(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
+	if item["outer_trigger"]:
+		ringed_pie(canvas, rect, item)
+		return
 	var middle := rect.get_center()
 	var radius := rect.size.x / 2
 	var accent := Paint.color(item["accent"])
@@ -166,6 +166,40 @@ static func pie(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
 						0.35 if target["hidden"] else 0.9)
 
 
+## A pie of two rings: the inner plays as the stick leans, and the outer, its
+## trigger's, is always shown, in a band marked with the trigger.
+static func ringed_pie(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
+	var middle := rect.get_center()
+	var radius := rect.size.x / 2
+	var accent := Paint.color(item["accent"])
+	canvas.draw_circle(middle, radius, Paint.color("raised", 0.5))
+	trigger_band(canvas, middle, radius * RING_EDGE, radius, item["outer_trigger"], item["outer_on"])
+	canvas.draw_arc(middle, radius * 0.27, 0, TAU, 64, Paint.color("rule"), 1, true)
+	stick_dot(canvas, item["stick"], middle, radius, accent)
+	T.new(item["title"], int(radius * 0.13), 700, true).fitted(radius * 0.5).draw_centred(canvas, middle, Paint.color("text"))
+	var room := radius * 0.31
+	for target in item["targets"]:
+		if target:
+			target_label(canvas, Paint.point(middle, target["bearing"], radius * 0.46), target, accent, true,
+					0.4 if target["hidden"] else 1.0, room)
+	for target in item["outer"]:
+		if target:
+			target_label(canvas, Paint.point(middle, target["bearing"], radius * 0.82), target, accent, true,
+					0.4 if target["hidden"] else 1.0, room)
+
+
+## The band of an outer ring, from `inner` to `outer`: tinted while its
+## trigger is held, with the trigger's mark in a gap between the places.
+static func trigger_band(canvas: CanvasItem, middle: Vector2, inner: float, outer: float, mark: String, on: bool) -> void:
+	# A window too small to lay the panel out has no band to draw.
+	if outer <= inner:
+		return
+	var tint := Paint.color("borrowed")
+	canvas.draw_arc(middle, (inner + outer) / 2, 0, TAU, 96, Color(tint, 0.2 if on else 0.05), outer - inner, true)
+	canvas.draw_arc(middle, inner, 0, TAU, 96, Color(tint, 0.9 if on else 0.35), 1.5 if on else 1.0, true)
+	control_chip(canvas, Paint.point(middle, 45, (inner + outer) / 2), mark, on, null, 1.25)
+
+
 ## Where a stick is, as a dot inside its pie.
 static func stick_dot(canvas: CanvasItem, stick: Vector2, middle: Vector2, radius: float, accent: Color) -> void:
 	var at := middle + Vector2(stick.x, -stick.y) * radius * 0.94
@@ -174,13 +208,17 @@ static func stick_dot(canvas: CanvasItem, stick: Vector2, middle: Vector2, radiu
 
 
 ## A target's label: its chord, and what it is, in a capsule centred on `at`.
-static func target_label(canvas: CanvasItem, at: Vector2, target: Dictionary, accent: Color, compact: bool, opacity := 1.0) -> void:
+static func target_label(canvas: CanvasItem, at: Vector2, target: Dictionary, accent: Color, compact: bool, opacity := 1.0,
+		room := INF) -> void:
 	var aimed: bool = target["aimed"]
 	var borrowed: bool = target["fit"] == "borrowed"
 	if target["fit"] == "tense" and not aimed:
 		opacity *= 0.75
 	var name := T.new(target["name"], 12 if compact else 14, 600, true, borrowed)
 	var detail := T.new(target["detail"], 9 if compact else 10, 500)
+	if room < INF:
+		name.fitted(room - 12, 0.7)
+		detail.fitted(room - 12, 0.7)
 	var has_detail: bool = target["detail"] != ""
 	var size := Vector2(maxf(name.width(), detail.width() if has_detail else 0.0) + 16,
 			name.height() + (detail.height() + 1 if has_detail else 0.0) + 8)
@@ -391,23 +429,33 @@ static func diamond(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
 static func faces(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
 	var middle := rect.get_center()
 	var side := rect.size.x
-	var tile := Vector2(side * 0.3, side * 0.24)
+	var ringed: bool = item["outer_trigger"] != ""
+	if ringed:
+		canvas.draw_circle(middle, side / 2, Paint.color("raised", 0.5))
+		trigger_band(canvas, middle, side / 2 * RING_EDGE, side / 2, item["outer_trigger"], item["outer_on"])
+	var tile := Vector2(side * 0.165, side * 0.13) if ringed else Vector2(side * 0.3, side * 0.24)
 	for face in item["faces"]:
-		face_tile(canvas, Rect2(Paint.point(middle, face["bearing"], side * 0.33) - tile / 2, tile), face)
+		face_tile(canvas, Rect2(Paint.point(middle, face["bearing"], side * (0.225 if ringed else 0.33)) - tile / 2, tile), face)
+	for face in item["outer"]:
+		face_tile(canvas, Rect2(Paint.point(middle, face["bearing"], side * 0.405) - tile / 2, tile), face)
 	# The middle, between the tiles: the chord heard, by number and name.
-	var room := side * 0.34
+	var room := side * (0.26 if ringed else 0.34)
 	if item["numeral"]:
-		var number := T.new(item["numeral"], int(side * 0.13), 800, true).fitted(room)
-		var name := T.new(item["name"], int(side * 0.05), 600, true).fitted(room)
+		var number := T.new(item["numeral"], int(side * (0.085 if ringed else 0.13)), 800, true).fitted(room)
+		var name := T.new(item["name"], int(side * (0.04 if ringed else 0.05)), 600, true).fitted(room)
 		var detail := T.new(item["detail"], 11, 500).fitted(room)
-		var over := T.new("over " + item["over"], int(side * 0.04), 700, true).fitted(room)
+		# Between the rings there may be no room for the line under the chord.
+		var shows_detail: bool = detail.width() <= room and not (ringed and item["over"])
+		var detail_height := detail.height() if shows_detail else 0.0
+		var over := T.new("over " + item["over"], int(side * (0.03 if ringed else 0.04)), 700, true).fitted(room)
 		var over_height := over.height() if item["over"] else 0.0
-		var top := middle.y - (number.height() + name.height() + detail.height() + over_height) / 2
+		var top := middle.y - (number.height() + name.height() + detail_height + over_height) / 2
 		number.draw(canvas, Vector2(middle.x, top), Paint.CHORD, true)
 		name.draw(canvas, Vector2(middle.x, top + number.height()), Paint.color("text"), true)
-		detail.draw(canvas, Vector2(middle.x, top + number.height() + name.height()), Paint.color("secondary"), true)
+		if shows_detail:
+			detail.draw(canvas, Vector2(middle.x, top + number.height() + name.height()), Paint.color("secondary"), true)
 		if item["over"]:
-			over.draw(canvas, Vector2(middle.x, top + number.height() + name.height() + detail.height()), Paint.MELODY, true)
+			over.draw(canvas, Vector2(middle.x, top + number.height() + name.height() + detail_height), Paint.MELODY, true)
 	elif item["over"]:
 		T.new(item["over"], int(side * 0.05), 700, true).fitted(room).draw_centred(canvas, middle, Paint.MELODY)
 	else:
@@ -425,16 +473,16 @@ static func face_tile(canvas: CanvasItem, rect: Rect2, face: Dictionary) -> void
 	var radius := rect.size.y * 0.18
 	Paint.box(canvas, rect, tint if heard else Paint.color("raised"), radius, tint if held or heard else Paint.color("rule", 0.6),
 			3.0 if held else 1.0)
-	var ink := Paint.INK if heard else Paint.color("text")
+	var ink := Paint.INK if heard else Paint.color("faint" if face["spare"] else "text")
 	var pad := rect.size.y * 0.1
-	var mark := T.new(face["button"], int(rect.size.y * 0.13), 800, true)
+	var mark := T.new(face["button"], maxi(9, int(rect.size.y * 0.16)), 800, true)
 	mark.draw(canvas, rect.position + Vector2(pad, pad * 0.8), Paint.INK if heard else tint)
 	if face["other"]:
 		var other := T.new(face["other"], int(rect.size.y * 0.11), 600, true)
 		other.draw(canvas, Vector2(rect.end.x - pad - other.width(), rect.position.y + pad * 0.8), Color(ink, 0.55))
 	var room := rect.size.x - 2 * pad
 	var number := T.new(face["numeral"] if face["numeral"] else "–", int(rect.size.y * 0.36), 800, true).fitted(room)
-	var name := T.new(face["name"], int(rect.size.y * 0.15), 600, true).fitted(room)
+	var name := T.new(face["name"], maxi(9, int(rect.size.y * 0.17)), 600, true).fitted(room)
 	var top := rect.get_center().y - (number.height() + name.height()) / 2 + rect.size.y * 0.05
 	number.draw(canvas, Vector2(rect.get_center().x, top), ink if face["numeral"] else Paint.color("faint"), true)
 	name.draw(canvas, Vector2(rect.get_center().x, top + number.height()), Color(ink, 0.85), true)
@@ -516,39 +564,3 @@ static func bar(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> void:
 	if item["pitch"] != null:
 		var y: float = body.end.y - body.size.y * item["pitch"]
 		Paint.capsule(canvas, Rect2(body.position.x, y - 3, width, 6), Paint.MELODY)
-
-
-## The arranger's four bars, a lane to each: its grid, its chords, the chord
-## being written, the cursor and the playhead.
-static func lanes(canvas: CanvasItem, rect: Rect2, all: Array) -> void:
-	var y := rect.position.y
-	for lane in all:
-		T.new(str(lane["number"]), 11, 700, true).draw_centred(canvas, Vector2(rect.position.x + 7, y + LANE / 2), Paint.color("faint"))
-		var body := Rect2(rect.position.x + 22, y, rect.size.x - 22, LANE)
-		var x := func(place: float) -> float: return body.position.x + body.size.x * place
-		Paint.box(canvas, body, Paint.color("raised", 0.35), 8)
-		# The grid's lines, faint, and the beats', stronger.
-		for line in lane["lines"]:
-			if line["beat"]:
-				canvas.draw_rect(Rect2(x.call(line["place"]), y, 1, LANE), Paint.color("rule", 0.9))
-			else:
-				canvas.draw_rect(Rect2(x.call(line["place"]), y + LANE * 0.65, 1, LANE * 0.35), Paint.color("rule", 0.35))
-		for block in lane["blocks"]:
-			var from: float = x.call(block["from"])
-			var shape := Rect2(from + 1, y + 4, maxf(2, x.call(block["to"]) - from - 2), LANE - 8)
-			var heard: bool = block["heard"]
-			Paint.box(canvas, shape, Paint.CHORD if heard else Paint.color("panel"), 6, Paint.CHORD if heard else Paint.color("rule"))
-			if block["name"]:
-				var name := T.new(block["name"], 13, 600, true).fitted(shape.size.x - 16)
-				if name.width() <= shape.size.x - 8:
-					name.draw(canvas, Vector2(shape.position.x + 8, shape.get_center().y - name.height() / 2),
-							Paint.INK if heard else Paint.color("text"))
-		if lane["writing"] != null:
-			var from: float = x.call(lane["writing"][0])
-			var shape := Rect2(from, y + 4, maxf(3, x.call(lane["writing"][1]) - from), LANE - 8)
-			Paint.box(canvas, shape, Paint.color("chord", 0.35), 6, Paint.CHORD, 2)
-		if lane["cursor"] != null:
-			Paint.capsule(canvas, Rect2(x.call(lane["cursor"]) - 1.5, y - 3, 3, LANE + 6), Paint.CHORD)
-		if lane["playhead"] != null:
-			canvas.draw_rect(Rect2(x.call(lane["playhead"]) - 1, y, 2, LANE), Paint.color("text"))
-		y += LANE + LANE_GAP

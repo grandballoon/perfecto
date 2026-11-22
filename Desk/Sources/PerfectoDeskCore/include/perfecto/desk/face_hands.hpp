@@ -1,8 +1,10 @@
 // Which hand holds what in Face Chords, read before the cores beside the desk.
 //
-// LB and RB held together are the timeline's layer. Each is kept from the
-// others from then until it is let go, so letting go of one does not press
-// the other's own use (the pins, the drum pads).
+// The timeline is a state the hands are in or not: Back goes into it and comes
+// out, and in it every button is the timeline's alone. RB + Back in play stays
+// the drums' (the kit before). Back, and an RB pressed in the timeline, are
+// kept from the others until let go, so neither reaches the desk's layouts or
+// the drum pads.
 //
 // RT is the chords' second layer and LT the compass's outer ring. The desk's
 // Face Chords reads its layer from LT, as the Swift core it is compared with
@@ -20,9 +22,9 @@ namespace perfecto::desk {
 class FaceHands {
 public:
     struct Read {
-        /// The frame without the bumpers the timeline's layer has kept.
+        /// The frame without the buttons kept from the others.
         GamepadFrame frame;
-        /// Whether LB and RB are both held.
+        /// Whether the hands are in the timeline.
         bool isTimeline = false;
         bool operator==(const Read &) const = default;
     };
@@ -33,14 +35,19 @@ public:
     Read read(const GamepadFrame &frame, bool reachable);
 
     /// The chords' layer trigger: RT, which stays where it was while the
-    /// timeline's layer is held.
+    /// hands are in the timeline.
     double chordLayer(double rightTrigger, bool isTimeline);
 
     bool isTimeline() const { return isTimeline_; }
 
+    /// Back to playing: recording or writing has begun, and the face buttons
+    /// are for the chords.
+    void leave() { isTimeline_ = false; }
+
 private:
     std::set<PadButton> kept_;
     bool isTimeline_ = false;
+    bool wasBack_ = false;
     double chordLayer_ = 0;
 };
 

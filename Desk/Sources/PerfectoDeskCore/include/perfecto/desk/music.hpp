@@ -174,7 +174,7 @@ struct DeskSettings {
     /// through (brightness and all to start with).
     RingOrder ringOrder;
     RingFilter ringFilter;
-    /// The grid the arranger snaps its times to (sixteenths to start with).
+    /// The grid the timeline snaps its times to (sixteenths to start with).
     BeatGrid grid;
     /// Colors pinned to the chords of keys, in named tables.
     Favorites favorites;

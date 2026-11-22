@@ -44,7 +44,7 @@ const char *name(desk::ChordFit fit) {
     return "in_key";
 }
 
-constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 25> actionNames = {{
+constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 27> actionNames = {{
     {desk::Action::Kind::chooseLayout, "choose_layout"},
     {desk::Action::Kind::toggleMenu, "toggle_menu"},
     {desk::Action::Kind::arrangeRing, "arrange_ring"},
@@ -68,6 +68,8 @@ constexpr std::array<std::pair<desk::Action::Kind, std::string_view>, 25> action
     {desk::Action::Kind::selectEvent, "timeline_select"},
     {desk::Action::Kind::stretchChoice, "timeline_stretch"},
     {desk::Action::Kind::deselect, "timeline_deselect"},
+    {desk::Action::Kind::write, "timeline_write"},
+    {desk::Action::Kind::saveSong, "timeline_save"},
     {desk::Action::Kind::choosePattern, "choose_pattern"},
     {desk::Action::Kind::chooseKit, "choose_kit"},
 }};
@@ -95,9 +97,6 @@ Variant v(const desk::Triggers::Bar &bar);
 Variant v(const desk::Ring::Sector &sector);
 Variant v(const desk::Chips::Chip &chip);
 Variant v(const desk::Bar::Mark &mark);
-Variant v(const desk::Lanes::GridLine &line);
-Variant v(const desk::Lanes::Block &block);
-Variant v(const desk::Lanes::Lane &lane);
 Variant v(const desk::Diamond::Petal &petal);
 Variant v(const desk::Faces::Face &face);
 Variant v(const desk::Panel &panel);
@@ -163,6 +162,8 @@ Variant v(const desk::Pie &pie) {
     d["detail"] = text(pie.detail);
     d["accent"] = v(pie.accent);
     d["compact"] = pie.compact;
+    d["outer_trigger"] = text(pie.outerTrigger);
+    d["outer_on"] = pie.isOuterOn;
     return d;
 }
 
@@ -198,33 +199,6 @@ Variant v(const desk::Bar::Mark &mark) {
     return d;
 }
 
-Variant v(const desk::Lanes::GridLine &line) {
-    Dictionary d;
-    d["place"] = line.place;
-    d["beat"] = line.isBeat;
-    return d;
-}
-
-Variant v(const desk::Lanes::Block &block) {
-    Dictionary d;
-    d["from"] = block.from;
-    d["to"] = block.to;
-    d["name"] = text(block.name);
-    d["heard"] = block.isHeard;
-    return d;
-}
-
-Variant v(const desk::Lanes::Lane &lane) {
-    Dictionary d;
-    d["number"] = lane.number;
-    d["lines"] = v(lane.lines);
-    d["blocks"] = v(lane.blocks);
-    d["writing"] = v(lane.writing);
-    d["cursor"] = v(lane.cursor);
-    d["playhead"] = v(lane.playhead);
-    return d;
-}
-
 Variant v(const desk::Diamond::Petal &petal) {
     Dictionary d;
     d["button"] = text(desk::name(petal.button));
@@ -244,6 +218,7 @@ Variant v(const desk::Faces::Face &face) {
     d["held"] = face.isHeld;
     d["heard"] = face.isHeard;
     d["over"] = face.isOver;
+    d["spare"] = face.isSpare;
     d["tint"] = v(desk::tint(face.button));
     return d;
 }
@@ -319,6 +294,9 @@ Variant item(const desk::Item &item) {
             } else if constexpr (std::is_same_v<T, desk::Faces>) {
                 Dictionary d = tagged("faces");
                 d["faces"] = v(value.faces);
+                d["outer"] = v(value.outer);
+                d["outer_trigger"] = text(value.outerTrigger);
+                d["outer_on"] = value.isOuterOn;
                 d["numeral"] = text(value.numeral);
                 d["name"] = text(value.name);
                 d["detail"] = text(value.detail);
@@ -333,14 +311,10 @@ Variant item(const desk::Item &item) {
                 d["chips"] = v(value.chips);
                 d["columns"] = value.columns;
                 return d;
-            } else if constexpr (std::is_same_v<T, desk::Bar>) {
+            } else {
                 Dictionary d = tagged("bar");
                 d["marks"] = v(value.marks);
                 d["pitch"] = v(value.pitch);
-                return d;
-            } else {
-                Dictionary d = tagged("lanes");
-                d["lanes"] = v(value.lanes);
                 return d;
             }
         },
@@ -387,7 +361,6 @@ Variant v(const desk::MenuView::Row &row) {
     d["name"] = text(row.name);
     d["value"] = text(row.value);
     d["chosen"] = row.isChosen;
-    d["changes"] = row.changes;
     return d;
 }
 
@@ -480,12 +453,14 @@ Variant v(const desk::TimelineBar &bar) {
     d["playing"] = bar.isPlaying;
     d["lanes"] = v(bar.lanes);
     d["controls"] = v(bar.controls);
+    d["editing"] = bar.isEditing;
     d["status"] = text(bar.status);
     d["status_tint"] = v(bar.statusTint);
     d["message"] = text(bar.message);
     Array tips;
     for (const auto &tip : bar.tips) tips.push_back(v(std::pair(tip.keys, tip.text)));
     d["tips"] = tips;
+    d["cursor"] = v(bar.cursor);
     return d;
 }
 

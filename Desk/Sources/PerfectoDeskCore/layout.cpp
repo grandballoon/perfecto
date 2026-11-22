@@ -17,7 +17,6 @@ std::string name(LayoutKind kind) {
     case LayoutKind::petals: return "Petals & Depth";
     case LayoutKind::neighbourhood: return "Neighbourhood";
     case LayoutKind::twoVoices: return "Two Voices";
-    case LayoutKind::arranger: return "Arranger";
     }
     return {};
 }
@@ -34,8 +33,6 @@ std::string summary(LayoutKind kind) {
         return "Only the chords one step from where you are: flick to move there, hold to listen.";
     case LayoutKind::twoVoices:
         return "The left hand swells the chords, the right plays a line over them with RT as pressure.";
-    case LayoutKind::arranger:
-        return "Aim a chord with both sticks and write it into four bars; play them back in a loop.";
     }
     return {};
 }

@@ -30,11 +30,11 @@
 
 namespace perfecto::desk {
 
-enum class LayoutKind { faceChords, twinRings, petals, neighbourhood, twoVoices, arranger };
+enum class LayoutKind { faceChords, twinRings, petals, neighbourhood, twoVoices };
 
-inline constexpr std::array<LayoutKind, 6> allLayoutKinds = {LayoutKind::faceChords, LayoutKind::twinRings,
+inline constexpr std::array<LayoutKind, 5> allLayoutKinds = {LayoutKind::faceChords, LayoutKind::twinRings,
                                                              LayoutKind::petals,     LayoutKind::neighbourhood,
-                                                             LayoutKind::twoVoices,  LayoutKind::arranger};
+                                                             LayoutKind::twoVoices};
 
 /// "Twin Rings", "Petals & Depth".
 std::string name(LayoutKind kind);

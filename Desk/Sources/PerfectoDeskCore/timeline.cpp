@@ -1,6 +1,6 @@
 #include "perfecto/desk/timeline.hpp"
 
-#include "perfecto/desk/arrangement.hpp"
+#include "perfecto/desk/beat_grid.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -11,13 +11,7 @@ namespace perfecto::desk {
 
 namespace {
 
-/// RT as a switch: on past halfway, held a little either side of it.
-const TriggerSteps &layerTrigger() {
-    static const TriggerSteps steps{{0.5}};
-    return steps;
-}
-
-/// LT, under RT, past halfway: stretching and nudging by the grid.
+/// LT past halfway: stretching and nudging by the grid.
 bool stretches(const GamepadFrame &frame) { return frame.leftTrigger >= 0.5; }
 
 /// The way `stick` is pushed, as a d-pad's direction: chosen when it leans
@@ -33,6 +27,11 @@ std::optional<PadButton> pushed(const Stick &stick, std::optional<PadButton> las
 
 bool isFace(PadButton button) {
     return button == PadButton::a || button == PadButton::b || button == PadButton::x || button == PadButton::y;
+}
+
+/// What the timeline takes besides the face buttons and the arrows.
+bool isTool(PadButton button) {
+    return button == PadButton::r3 || button == PadButton::lb || button == PadButton::rb;
 }
 
 bool isArrow(PadButton button) {
@@ -83,7 +82,8 @@ double Timeline::startBeat() const {
 
 void Timeline::edit(Song next, Edit kind) {
     if (next == song_) return;
-    if (!(kind == Edit::nudge && lastEdit_ == Edit::nudge)) {
+    // A run of one small edit is one undo.
+    if (kind == Edit::other || kind != lastEdit_) {
         undo_.push_back(song_);
         if (undo_.size() > memory) undo_.erase(undo_.begin());
     }
@@ -104,30 +104,37 @@ void Timeline::edit(const Layer &layer, Edit kind) {
 
 // MARK: – The hands
 
-Timeline::Taken Timeline::take(const PadInput &input, bool reachable, const DeskSettings &settings) {
+Timeline::Taken Timeline::take(const PadInput &input, bool isEditing, bool reachable, const DeskSettings &settings) {
     Taken taken{{}, input.frame};
     if (!reachable) {
-        isLayered_ = isClean_ = claimsLT_ = false;
+        isLayered_ = claimsLT_ = false;
         claimed_.clear();
         rightPush_ = leftPush_ = std::nullopt;
         return taken;
     }
-    const bool was = isLayered_;
-    isLayered_ = layerTrigger().step(input.frame.rightTrigger, isLayered_ ? 1 : 0) == 1;
-    if (isLayered_ && !was) isClean_ = true;
+    isLayered_ = isEditing;
 
     if (isLayered_) {
         for (const PadButton button : input.edges.pressed) {
-            if (!isFace(button) && !isArrow(button)) continue;
+            if (!isFace(button) && !isArrow(button) && !isTool(button)) continue;
             claimed_.insert(button);
             taken.out.append(act(button, input, settings));
-            isClean_ = false;
+            // Recording or writing has begun: the rest is the chords'.
+            if (!isLayered_) break;
         }
-        if (stretches(input.frame) && !stretches(input.previous)) claimsLT_ = true;
+        if (isLayered_ && stretches(input.frame) && !stretches(input.previous)) claimsLT_ = true;
+    } else if (writing_) {
+        for (const PadButton button : input.edges.pressed) {
+            if (button != PadButton::left && button != PadButton::right && button != PadButton::r3) continue;
+            claimed_.insert(button);
+            taken.out.append(act(button, input, settings));
+        }
+    }
+
+    if (isLayered_) {
 
         const auto right = pushed(input.frame.right, rightPush_);
         if (right && right != rightPush_) {
-            isClean_ = false;
             switch (*right) {
             case PadButton::left:
             case PadButton::right:
@@ -140,29 +147,39 @@ Timeline::Taken Timeline::take(const PadInput &input, bool reachable, const Desk
                 break;
             default: taken.out.append(erase(input.time())); break;
             }
-        } else if (right && (*right == PadButton::left || *right == PadButton::right) && input.time() >= repeatAt_) {
+        } else if (selection_ && right && (*right == PadButton::left || *right == PadButton::right) &&
+                   input.time() >= repeatAt_) {
             taken.out.append(nudge((*right == PadButton::right ? 1 : -1) * (stretches(input.frame) ? grid(settings) : fine)));
             repeatAt_ += repeatEvery;
         }
         rightPush_ = right;
 
         const auto left = pushed(input.frame.left, leftPush_);
+        const auto longer = [&](PadButton way) {
+            return resize((way == PadButton::up ? 1 : -1) * (stretches(input.frame) ? grid(settings) : fine));
+        };
         if (left && left != leftPush_) {
-            isClean_ = false;
             if (*left == PadButton::left) taken.out.append(undo(input.time()));
             if (*left == PadButton::right) taken.out.append(redo(input.time()));
+            if (*left == PadButton::up || *left == PadButton::down) {
+                taken.out.append(longer(*left));
+                resizeAt_ = input.time() + repeatDelay;
+            }
+        } else if (selection_ && left && (*left == PadButton::up || *left == PadButton::down) &&
+                   input.time() >= resizeAt_) {
+            taken.out.append(longer(*left));
+            resizeAt_ += repeatEvery;
         }
         leftPush_ = left;
     } else {
         rightPush_ = leftPush_ = std::nullopt;
-        if (was && isClean_) taken.out.append(deselect());
     }
 
     for (const PadButton button : input.edges.released) claimed_.erase(button);
     if (input.frame.leftTrigger < 0.45) claimsLT_ = false;
 
-    // The desk is handed the frame without what the timeline holds: RT is
-    // always the timeline's here.
+    // The desk is handed the frame without what the timeline holds; the
+    // chords' layer reaches it by LT (`Studio`).
     for (const PadButton button : claimed_) taken.frame.buttons.erase(button);
     taken.frame.rightTrigger = 0;
     if (claimsLT_) taken.frame.leftTrigger = 0;
@@ -177,8 +194,15 @@ Timeline::Out Timeline::act(PadButton button, const PadInput &input, const DeskS
     case PadButton::x: return stretches(input.frame) ? rewind(time, settings) : play(time, settings);
     case PadButton::y: return loop();
     case PadButton::b: return quantize(settings);
-    case PadButton::left: return moveSelection(-1, stretches(input.frame));
-    case PadButton::right: return moveSelection(1, stretches(input.frame));
+    case PadButton::left:
+        if (writing_) return moveCursor(-(stretches(input.frame) ? Song::beatsPerBar : move(settings.grid)), settings);
+        return moveSelection(-1, stretches(input.frame));
+    case PadButton::right:
+        if (writing_) return moveCursor(stretches(input.frame) ? Song::beatsPerBar : move(settings.grid), settings);
+        return moveSelection(1, stretches(input.frame));
+    case PadButton::r3: return toggleWrite(time, settings);
+    case PadButton::lb: return deselect();
+    case PadButton::rb: return save(settings);
     case PadButton::up: return moveLayer(-1);
     case PadButton::down: return moveLayer(1);
     default: return {};
@@ -217,6 +241,94 @@ Timeline::Out Timeline::hear(const Heard &heard, double time) {
     }
     heard_ = heard;
     return out;
+}
+
+Timeline::Out Timeline::write(const Heard &heard, double time, const DeskSettings &settings) {
+    Out out;
+    if (!writing_) return out;
+    writing_->tempo = settings.tempo;
+    auto &open = writing_->open;
+    const auto degree = [](const ChordPart &part) { return part.chord.spec.degree; };
+    std::set<int> voices;
+    for (const auto &[voice, _] : open) voices.insert(voice);
+    for (const auto &[voice, _] : heard) voices.insert(voice);
+    for (const int voice : voices) {
+        const auto was = open.find(voice);
+        const auto now = heard.find(voice);
+        const bool wasOpen = was != open.end();
+        if (wasOpen) {
+            // A chord colored as it is held is one chord, in its last color.
+            if (now != heard.end() && degree(now->second) == degree(was->second.second)) {
+                was->second.second = now->second;
+                continue;
+            }
+            out.append(place(voice, time, settings));
+        }
+        if (now == heard.end()) continue;
+        // What was already held when Write mode began is not written.
+        const auto before = heard_.find(voice);
+        if (wasOpen || before == heard_.end() || degree(before->second) != degree(now->second))
+            open.emplace(voice, std::pair(time, now->second));
+    }
+    return out;
+}
+
+Timeline::Out Timeline::place(int voice, double time, const DeskSettings &settings) {
+    const auto found = writing_->open.find(voice);
+    const auto [struck, part] = found->second;
+    writing_->open.erase(found);
+    const double held = (time - struck) * settings.tempo / 60;
+    const double beats = desk::length(settings.grid, held);
+    const double start = writing_->cursor;
+    Song next = song_;
+    if (!next.layer(layer_)) {
+        next.layers.push_back({next.next++, {}, std::nullopt, false});
+        layer_ = next.layers.back().id;
+    }
+    const int id = next.next++;
+    Layer *layer = next.layer(layer_);
+    *layer = written(*layer, id, start, beats, part);
+    edit(std::move(next));
+    writing_->cursor = start + beats;
+    return felt(Rumble::bump);
+}
+
+Timeline::Out Timeline::toggleWrite(double time, const DeskSettings &settings) {
+    if (recording_) return refused("Stop recording first");
+    if (writing_) {
+        Out out = write({}, time, settings);
+        writing_.reset();
+        out.append(felt(Rumble::bump));
+        return out;
+    }
+    Out out;
+    if (rolling_) out.append(pause(time));
+    const Layer *chosen = layer();
+    const auto span = chosen && selection_ ? chosen->span(selected()) : std::nullopt;
+    double cursor = 0;
+    if (span) cursor = span->to;
+    else if (cue_) cursor = *cue_;
+    else if (chosen)
+        for (const Event &event : chosen->events) cursor = std::max(cursor, event.end());
+    selection_.reset();
+    writing_ = Writing{std::max(nearest(settings.grid, cursor), 0.0), settings.tempo, {}};
+    isLayered_ = false;
+    out.append(felt(Rumble::bump));
+    return out;
+}
+
+Timeline::Out Timeline::moveCursor(double beats, const DeskSettings &settings) {
+    if (!writing_) return {};
+    const double next = std::max(nearest(settings.grid, writing_->cursor + beats), 0.0);
+    if (next == writing_->cursor) return felt(Rumble::refuse);
+    writing_->cursor = next;
+    return felt(Rumble::tick);
+}
+
+Timeline::Out Timeline::save(const DeskSettings &settings) const {
+    const auto file = midiFile(song_, settings);
+    if (!file) return refused("Nothing to save yet");
+    return {{}, {DeskEffect::saveMIDI(file->encoded(), "Perfecto Desk " + settings.summary())}};
 }
 
 Timeline::Out Timeline::advance(double time, const DeskSettings &settings) {
@@ -290,6 +402,10 @@ Timeline::Out Timeline::record(double time, const DeskSettings &settings) {
         out.append(felt(Rumble::bump));
         return out;
     }
+    if (writing_) {
+        cue_ = writing_->cursor;
+        writing_.reset();
+    }
     if (static_cast<int>(song_.layers.size()) >= Song::most)
         return refused("Eight tracks is the most: delete one to record another");
     const double from = song_.isEmpty() ? 0 : startBeat();
@@ -299,6 +415,7 @@ Timeline::Out Timeline::record(double time, const DeskSettings &settings) {
     const int id = next.layers.back().id;
     edit(std::move(next));
     recording_ = Recording{id, trims, {}};
+    isLayered_ = false;
     layer_ = id;
     selection_.reset();
     Out out = felt(Rumble::bump);
@@ -338,7 +455,11 @@ Timeline::Out Timeline::finishRecording(double time) {
 
 Timeline::Out Timeline::play(double time, const DeskSettings &settings) {
     if (rolling_) return pause(time);
-    if (song_.isEmpty()) return refused("Nothing recorded yet: hold LB + RB and press A");
+    if (writing_) {
+        cue_ = writing_->cursor;
+        writing_.reset();
+    }
+    if (song_.isEmpty()) return refused("Nothing recorded yet: press Back, then A");
     // Paused at the end, it plays from the start again.
     if (cue_ && !song_.isEndless() && *cue_ >= song_.end().value_or(0)) cue_.reset();
     Out out = felt(Rumble::bump);
@@ -358,6 +479,7 @@ Timeline::Out Timeline::pause(double time) {
 
 Timeline::Out Timeline::rewind(double time, const DeskSettings &settings) {
     if (recording_) return refused("Stop recording first");
+    if (writing_) writing_->cursor = 0;
     cue_.reset();
     Out out = felt(Rumble::tick);
     if (rolling_) {
@@ -368,6 +490,7 @@ Timeline::Out Timeline::rewind(double time, const DeskSettings &settings) {
 }
 
 Timeline::Out Timeline::stop(double time) {
+    writing_.reset();
     cue_.reset();
     if (!rolling_) return {};
     Out out;
@@ -384,7 +507,7 @@ Timeline::Out Timeline::halt() {
 
 Timeline::Out Timeline::loop() {
     const Layer *chosen = layer();
-    if (!chosen) return refused("Nothing recorded yet: hold LB + RB and press A");
+    if (!chosen) return refused("Nothing recorded yet: press Back, then A");
     if (recording_ && recording_->layer == chosen->id) return refused("Stop recording first");
     if (selection_) {
         edit(looped(*chosen, selected()));
@@ -397,12 +520,12 @@ Timeline::Out Timeline::loop() {
         edit(next);
         return felt(Rumble::bump);
     }
-    return refused("Select chords to loop first: hold LB + RB and press ← or →");
+    return refused("Select chords to loop first: press Back, then ← or →");
 }
 
 Timeline::Out Timeline::quantize(const DeskSettings &settings) {
     const Layer *chosen = layer();
-    if (!chosen) return refused("Nothing recorded yet: hold LB + RB and press A");
+    if (!chosen) return refused("Nothing recorded yet: press Back, then A");
     if (recording_ && recording_->layer == chosen->id) return refused("Stop recording first");
     std::set<int> ids = selected();
     if (ids.empty())
@@ -415,7 +538,7 @@ Timeline::Out Timeline::quantize(const DeskSettings &settings) {
 
 Timeline::Out Timeline::erase(double time) {
     const Layer *chosen = layer();
-    if (!chosen || !selection_) return refused("Select chords to delete first: hold LB + RB and press ← or →");
+    if (!chosen || !selection_) return refused("Select chords to delete first: press Back, then ← or →");
     edit(erased(*chosen, selected()));
     selection_.reset();
     Out out = settle(time);
@@ -474,6 +597,7 @@ Timeline::Out Timeline::moveSelection(int steps, bool stretch) {
 Timeline::Out Timeline::select(int layer, int id, bool stretch) {
     const Layer *found = song_.layer(layer);
     if (!found || found->between(id, id).empty()) return {};
+    writing_.reset();
     layer_ = layer;
     if (stretch && selection_ && selection_->layer == layer) selection_->head = id;
     else selection_ = Selection{layer, id, id};
@@ -488,10 +612,19 @@ Timeline::Out Timeline::deselect() {
 
 Timeline::Out Timeline::nudge(double beats) {
     const Layer *chosen = selection_ ? song_.layer(selection_->layer) : nullptr;
-    if (!chosen) return refused("Select chords to move first: hold LB + RB and press ← or →");
+    if (!chosen) return refused("Select chords to move first: press Back, then ← or →");
     const Layer next = nudged(*chosen, selected(), beats);
     if (next == *chosen) return felt(Rumble::refuse);
     edit(next, Edit::nudge);
+    return felt(Rumble::tick);
+}
+
+Timeline::Out Timeline::resize(double beats) {
+    const Layer *chosen = selection_ ? song_.layer(selection_->layer) : nullptr;
+    if (!chosen) return refused("Select chords to change their length: press Back, then ← or →");
+    const Layer next = resized(*chosen, selected(), beats);
+    if (next == *chosen) return felt(Rumble::refuse);
+    edit(next, Edit::resize);
     return felt(Rumble::tick);
 }
 
@@ -547,6 +680,16 @@ Legend Timeline::legend(Legend legend, bool reachable) const {
                 const auto found = legend.find(button(face));
                 if (found != legend.end()) found->second = "Replace selected: " + found->second;
             }
+        if (writing_)
+            for (const PadButton face : {PadButton::a, PadButton::b, PadButton::x, PadButton::y}) {
+                const auto found = legend.find(button(face));
+                if (found != legend.end()) found->second = "Write: " + found->second;
+            }
+        if (writing_) {
+            legend[button(PadButton::left)] = "Cursor back";
+            legend[button(PadButton::right)] = "Cursor on";
+            legend[button(PadButton::r3)] = "Leave Write mode";
+        }
         return legend;
     }
     const Layer *chosen = layer();
@@ -554,13 +697,15 @@ Legend Timeline::legend(Legend legend, bool reachable) const {
     legend[button(PadButton::x)] = rolling_ ? "Pause" : "Play";
     legend[button(PadButton::y)] = selection_ ? "Loop selection" : chosen && chosen->loop ? "Stop looping" : "Loop (select first)";
     legend[button(PadButton::b)] = selection_ ? "Fix timing of selection" : "Fix timing of track";
-    legend[button(PadButton::left)] = "Select previous chord";
-    legend[button(PadButton::right)] = "Select next chord";
+    legend[button(PadButton::left)] = writing_ ? "Cursor back" : "Select previous chord";
+    legend[button(PadButton::right)] = writing_ ? "Cursor on" : "Select next chord";
+    legend[button(PadButton::r3)] = writing_ ? "Leave Write mode" : "Write mode";
     legend[button(PadButton::up)] = "Track above";
     legend[button(PadButton::down)] = "Track below";
-    legend[PadControl::leftTrigger()] = "Select more · move a grid step · with X, back to start";
+    legend[PadControl::leftTrigger()] = writing_ ? "Cursor by a bar · with X, back to start"
+                                                  : "Select more · a grid step · with X, back to start";
     legend[PadControl::rightStick()] = "← → move earlier / later · ↑ mute track · ↓ delete";
-    legend[PadControl::leftStick()] = "← undo · → redo";
+    legend[PadControl::leftStick()] = "← undo · → redo · ↑ longer · ↓ shorter";
     return legend;
 }
 

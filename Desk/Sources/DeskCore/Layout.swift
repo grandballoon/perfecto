@@ -6,7 +6,7 @@ import MusicTheoryCore
 // frames and performs what it returns.
 
 public enum LayoutKind: String, CaseIterable, Codable, Sendable {
-    case faceChords, twinRings, petals, neighbourhood, twoVoices, arranger
+    case faceChords, twinRings, petals, neighbourhood, twoVoices
 
     public var name: String {
         switch self {
@@ -15,7 +15,6 @@ public enum LayoutKind: String, CaseIterable, Codable, Sendable {
         case .petals: "Petals & Depth"
         case .neighbourhood: "Neighbourhood"
         case .twoVoices: "Two Voices"
-        case .arranger: "Arranger"
         }
     }
 
@@ -27,7 +26,6 @@ public enum LayoutKind: String, CaseIterable, Codable, Sendable {
         case .petals: "Left stick the degree, the face buttons strike at four heights, the triggers bend darker and brighter."
         case .neighbourhood: "Only the chords one step from where you are: flick to move there, hold to listen."
         case .twoVoices: "The left hand swells the chords, the right plays a line over them with RT as pressure."
-        case .arranger: "Aim a chord with both sticks and write it into four bars; play them back in a loop."
         }
     }
 }

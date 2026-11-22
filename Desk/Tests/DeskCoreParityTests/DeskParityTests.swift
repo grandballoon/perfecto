@@ -205,8 +205,6 @@ enum DeskParityText {
             return "rumble \(rumble)"
         case let .preview(sound, notes):
             return "preview \(sound) \(Self.notes(notes))"
-        case let .saveMIDI(bytes, name):
-            return "saveMIDI \(name) " + bytes.map { String(format: "%02x", $0) }.joined()
         case let .refuse(reason):
             return "refuse \(reason)"
         }
@@ -273,8 +271,6 @@ enum DeskParityText {
             let voices = desk.twoVoices
             return targets("degree", voices.degreeTargets(s))
                 + voices.petals(s).map { "petal \($0.note) \($0.isChordTone ? 1 : 0) \($0.isReachable ? 1 : 0)" }
-        case .arranger:
-            return targets("degree", desk.arranger.degreeTargets(s))
         }
     }
 

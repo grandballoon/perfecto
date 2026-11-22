@@ -1,10 +1,10 @@
 // The desk, the drums, the timeline and the left hand's colors, played
 // together from one controller.
 //
-// Each frame is read for which hand holds what (`FaceHands`: LB and RB
-// together are the timeline's layer, RT the chords' and LT the compass's),
+// Each frame is read for which hand holds what (`FaceHands`: Back goes
+// into the timeline and out, RT is the chords' layer and LT the compass's),
 // then goes to the drums, which take the buttons they play (`Drums`), then
-// to the timeline, which takes what its layer holds (`Timeline::take`), then to the colors, which read the left stick and LB
+// to the timeline, which takes what it holds while the hands are in it (`Timeline::take`), then to the colors, which read the left stick and LB
 // and give Face Chords a color for each degree (`FaceColors`), and the desk
 // is stepped with what is left, so the desk knows nothing of them and plays
 // as the parity test has it. The timeline
@@ -59,6 +59,8 @@ public:
     const Drums &drums() const { return drums_; }
     const Timeline &timeline() const { return timeline_; }
     const FaceColors &colors() const { return colors_; }
+    /// Whether the hands are in the timeline (Back goes in and out).
+    bool isTimeline() const { return hands_.isTimeline(); }
     /// The last frame as the hands played it, before the drums and the
     /// timeline took their share.
     const std::optional<GamepadFrame> &frame() const { return frame_; }

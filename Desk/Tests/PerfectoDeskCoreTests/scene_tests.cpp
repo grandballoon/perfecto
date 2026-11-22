@@ -122,8 +122,7 @@ TEST_CASE("the menu lists every row, the one chosen lit") {
     const auto menu = scene(desk, false).menu;
     REQUIRE(menu.has_value());
     REQUIRE(menu->rows.size() == DeskMenu::allRows.size());
-    CHECK(menu->rows[0] == MenuView::Row{"Layout", "Twin Rings", true, true});
-    CHECK_FALSE(menu->rows.back().changes);
+    CHECK(menu->rows[0] == MenuView::Row{"Layout", "Twin Rings", true});
     CHECK_FALSE(menu->library.has_value());
 }
 
@@ -176,22 +175,6 @@ TEST_CASE("the chord sounding is pinned by the mouse, and unpinned") {
     CHECK(scene(desk, false).favorites.degrees[0].pinned.empty());
 }
 
-TEST_CASE("the arranger's lanes are four bars, the grid in each, the cursor at the start") {
-    Desk desk(catalog);
-    perform(desk, {Action::Kind::chooseLayout, 5});
-    const auto stage = scene(desk, false).stage;
-    const auto lanes = items<Lanes>(stage[0]).at(0).lanes;
-    REQUIRE(lanes.size() == 4);
-    CHECK(lanes[0].number == 1);
-    CHECK(lanes[0].lines.size() == 16);
-    CHECK(lanes[0].lines[4] == Lanes::GridLine{0.25, true});
-    CHECK(lanes[0].lines[1] == Lanes::GridLine{0.0625, false});
-    CHECK(lanes[0].cursor == 0.0);
-    CHECK_FALSE(lanes[1].cursor.has_value());
-    CHECK(items<Facts>(stage[0]).at(0).facts[1].second == "bar 1 · beat 1");
-    CHECK(items<Pies>(stage[1]).at(0).pies.size() == 2);
-}
-
 TEST_CASE("every layout but Face Chords has a stage of two panels") {
     for (size_t i = 0; i < allLayoutKinds.size(); ++i) {
         Desk desk(catalog);
@@ -205,14 +188,20 @@ TEST_CASE("Face Chords shows each button's chord by number and name, and the cho
     auto faces = items<Faces>(scene(desk, false).stage.at(0)).at(0);
     REQUIRE(faces.faces.size() == 4);
     CHECK(faces.faces[0] == Faces::Face{PadButton::a, 180, "I", "C maj", "", false, false});
-    CHECK(faces.faces[3] == Faces::Face{PadButton::b, 90, "IV", "F maj", "+RT ii", false, false});
+    CHECK(faces.faces[3] == Faces::Face{PadButton::b, 90, "IV", "F maj", "", false, false});
     CHECK(faces.numeral.empty());
     CHECK(faces.detail == "Hold a face button");
     desk.step(frame(1, {PadButton::b}));
     desk.step(GamepadFrame{.time = 2, .leftTrigger = 1, .buttons = {PadButton::b}});
     const auto scene = perfecto::desk::scene(desk, false);
     faces = items<Faces>(scene.stage.at(0)).at(0);
-    CHECK(faces.faces[3] == Faces::Face{PadButton::b, 90, "ii", "D min", "−RT IV", true, true});
+    // The rings stay where they are: the outer one's B is lit.
+    CHECK(faces.faces[3] == Faces::Face{PadButton::b, 90, "IV", "F maj", "", false, false});
+    CHECK(faces.outer[3] == Faces::Face{PadButton::b, 90, "ii", "D min", "", true, true});
+    CHECK(faces.outerTrigger == "RT");
+    CHECK(faces.isOuterOn);
+    // A has one chord in both layers: the outer place is the spare one.
+    CHECK(faces.outer[0].isSpare);
     CHECK(faces.numeral == "ii");
     CHECK(faces.name == "D min");
     CHECK(items<Caption>(scene.stage.at(0)).at(0).title == "RT held");

@@ -182,8 +182,6 @@ final class DeskHost {
                 rumble = (kind, ProcessInfo.processInfo.systemUptime)
             case let .preview(sound, notes):
                 audio.preview(sound: sound, notes: notes)
-            case let .saveMIDI(bytes, name):
-                save(bytes, name: name)
             case let .refuse(why):
                 gamepads.play(.refuse)
                 xbox360.play(.refuse)
@@ -221,20 +219,6 @@ final class DeskHost {
         }
     }
 
-    private func save(_ bytes: [UInt8], name: String) {
-        let folder = FileManager.default.urls(for: .musicDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Perfecto Desk", isDirectory: true)
-        let url = folder.appendingPathComponent(name).appendingPathExtension("mid")
-        do {
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try Data(bytes).write(to: url)
-            notice = "Saved \(url.lastPathComponent) in Music › Perfecto Desk"
-            NSWorkspace.shared.activateFileViewerSelecting([url])
-        } catch {
-            notice = "Could not save: \(error.localizedDescription)"
-        }
-    }
-
     /// Everything off, as the app quits.
     func stop() {
         perform(live.letGo())
@@ -249,6 +233,18 @@ private struct Saved: Codable {
     var layout: LayoutKind
 
     private static let key = "desk.saved"
+
+    init(settings: DeskSettings, layout: LayoutKind) {
+        self.settings = settings
+        self.layout = layout
+    }
+
+    /// A layout since retired leaves the settings kept.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        settings = try container.decode(DeskSettings.self, forKey: .settings)
+        layout = (try? container.decode(LayoutKind.self, forKey: .layout)) ?? .twinRings
+    }
 
     static func load() -> Saved? {
         UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(Saved.self, from: $0) }

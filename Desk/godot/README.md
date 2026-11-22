@@ -55,6 +55,9 @@ On the Steam Deck or another Linux machine the second step is `scons -C extensio
 plays it with the patched Godot (see "A smaller mix chunk" below), at the 128-frame chunk and 3 ms output latency the project sets.
 Stock Godot (`Godot --path project`) also runs it, at its own 512 frames.
 
+To keep a version as an app of its own, `./make-app.sh` builds `Perfecto Desk.app` in `~/Applications` (about 125 MB).
+It holds the patched Godot and a copy of the project, so it plays that version whatever the checkout does next, and running the script again replaces it.
+
 ```bash
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path project -- --quit-after-frames 300
 ```
@@ -64,7 +67,7 @@ Godot's own `--quit-after` ends the main loop before the audio server can let go
 
 It plays from the first controller Godot knows (an Xbox One or Series controller, over Bluetooth or USB, and most others) and from the computer keyboard, always, as `../README.md` lays it out.
 It opens on Face Chords, whose face buttons play the chords `project/desk/face_chords.json` gives (`../README.md` says how).
-Notes go to the kernel's sound, to MIDI from the source **Perfecto Desk**, or both (Menu › Output), and a saved arrangement goes to Music › Perfecto Desk.
+Notes go to the kernel's sound, to MIDI from the source **Perfecto Desk**, or both (Menu › Output), and a saved song goes to Music › Perfecto Desk.
 
 Not yet as the Mac desk had it:
 
