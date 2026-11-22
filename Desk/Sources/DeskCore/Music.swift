@@ -21,18 +21,34 @@ public enum LBLayer: String, CaseIterable, Codable, Sendable {
     }
 }
 
-/// What the left stick colors Face Chords' chords with: the Orchid's chord
-/// buttons, one to a direction, or the phone's joystick table in one of its
-/// three modes.
+/// What the left stick colors Face Chords' chords with: the phone's step
+/// compass, the Orchid's chord buttons, one to a direction, or the phone's
+/// joystick table in one of its three modes.
 public enum FaceStick: String, CaseIterable, Codable, Sendable {
-    case orchid, perfectoDefault, perfectoExtended, perfectoChromatic
+    case compass, orchid, perfectoDefault, perfectoExtended, perfectoChromatic
 
     public var name: String {
         switch self {
+        case .compass: "Step compass"
         case .orchid: "Orchid buttons"
         case .perfectoDefault: "Perfecto · default"
         case .perfectoExtended: "Perfecto · extended"
         case .perfectoChromatic: "Perfecto · chromatic"
+        }
+    }
+}
+
+/// How the compass helps keep to the key, as the phone's Key assist does:
+/// not at all, by telling what is out of it apart, or by playing only what
+/// is in it.
+public enum KeyAssist: String, CaseIterable, Codable, Sendable {
+    case normal, colorCode, assist
+
+    public var name: String {
+        switch self {
+        case .normal: "Normal"
+        case .colorCode: "Color code"
+        case .assist: "Assist"
         }
     }
 }
@@ -82,14 +98,16 @@ public struct DeskSettings: Equatable, Codable, Sendable {
     /// What LB puts on the sticks in Twin rings.
     public var lbLayer = LBLayer.compass
     /// What the left stick colors Face Chords' chords with.
-    public var faceStick = FaceStick.perfectoDefault
+    public var faceStick = FaceStick.compass
+    /// How the compass on Face Chords' left stick keeps to the key.
+    public var keyAssist = KeyAssist.normal
     /// Which chords and notes can be played, and what the guard has heard.
     public var consonance = ConsonanceGuard()
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, ringOrder, ringFilter, grid, favorites, lbLayer, faceStick, consonance
+        case key, octave, inversion, voiceLeading, chordSound, lineSound, tempo, output, ranking, ringArrangement, ringOrder, ringFilter, grid, favorites, lbLayer, faceStick, keyAssist, consonance
     }
 
     /// Each setting as it was kept, and any kept before it existed as it
@@ -115,6 +133,7 @@ public struct DeskSettings: Equatable, Codable, Sendable {
         read(.favorites, &favorites)
         read(.lbLayer, &lbLayer)
         read(.faceStick, &faceStick)
+        read(.keyAssist, &keyAssist)
         read(.consonance, &consonance)
     }
 

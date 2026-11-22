@@ -205,17 +205,17 @@ TEST_CASE("Face Chords shows each button's chord by number and name, and the cho
     auto faces = items<Faces>(scene(desk, false).stage.at(0)).at(0);
     REQUIRE(faces.faces.size() == 4);
     CHECK(faces.faces[0] == Faces::Face{PadButton::a, 180, "I", "C maj", "", false, false});
-    CHECK(faces.faces[3] == Faces::Face{PadButton::b, 90, "IV", "F maj", "+LT ii", false, false});
+    CHECK(faces.faces[3] == Faces::Face{PadButton::b, 90, "IV", "F maj", "+RT ii", false, false});
     CHECK(faces.numeral.empty());
     CHECK(faces.detail == "Hold a face button");
     desk.step(frame(1, {PadButton::b}));
     desk.step(GamepadFrame{.time = 2, .leftTrigger = 1, .buttons = {PadButton::b}});
     const auto scene = perfecto::desk::scene(desk, false);
     faces = items<Faces>(scene.stage.at(0)).at(0);
-    CHECK(faces.faces[3] == Faces::Face{PadButton::b, 90, "ii", "D min", "−LT IV", true, true});
+    CHECK(faces.faces[3] == Faces::Face{PadButton::b, 90, "ii", "D min", "−RT IV", true, true});
     CHECK(faces.numeral == "ii");
     CHECK(faces.name == "D min");
-    CHECK(items<Caption>(scene.stage.at(0)).at(0).title == "LT held");
+    CHECK(items<Caption>(scene.stage.at(0)).at(0).title == "RT held");
 }
 
 TEST_CASE("Face Chords shows the second voice: the button it sounds, its chord, and how the voices are played") {

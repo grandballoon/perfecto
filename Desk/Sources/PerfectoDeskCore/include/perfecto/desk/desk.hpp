@@ -67,13 +67,13 @@ private:
 /// the sound library.
 struct DeskMenu {
     enum class Row {
-        layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, faceStick, chordSound,
+        layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, faceStick, keyAssist, chordSound,
         lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI,
     };
 
-    static constexpr std::array<Row, 20> allRows = {
+    static constexpr std::array<Row, 21> allRows = {
         Row::layout,     Row::consonance, Row::guardInKey, Row::forgetRun,    Row::ring,
-        Row::ringOrder,  Row::ringFilter, Row::lbLayer,    Row::faceStick,    Row::chordSound,   Row::lineSound,
+        Row::ringOrder,  Row::ringFilter, Row::lbLayer,    Row::faceStick,    Row::keyAssist,  Row::chordSound,   Row::lineSound,
         Row::key,        Row::scale,      Row::octave,     Row::tempo,        Row::grid,
         Row::voiceLeading, Row::ranking,  Row::output,     Row::saveMIDI,
     };

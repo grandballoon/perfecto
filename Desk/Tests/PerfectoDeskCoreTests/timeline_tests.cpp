@@ -37,11 +37,11 @@ struct StudioRig {
         return studio.step(frame);
     }
 
-    /// Holds `buttons` alone, RT pulled or not.
-    Studio::Played hold(double time, std::set<PadButton> buttons, bool rt = false, double lt = 0) {
+    /// Holds `buttons` alone, the timeline's layer (LB + RB) held or not.
+    Studio::Played hold(double time, std::set<PadButton> buttons, bool layer = false, double lt = 0) {
         return at(time, [&](GamepadFrame &f) {
             f.buttons = std::move(buttons);
-            f.rightTrigger = rt ? 1 : 0;
+            if (layer) f.buttons.insert({PadButton::lb, PadButton::rb});
             f.leftTrigger = lt;
         });
     }
@@ -344,7 +344,7 @@ TEST_CASE("RT is the timeline's only in Face Chords") {
 
 TEST_CASE("the legend says what RT does, and what it holds while held") {
     StudioRig rig;
-    CHECK(rig.studio.legend().at(PadControl::rightTrigger()) == "Hold for the timeline");
+    CHECK(rig.studio.legend().at(PadControl::button(PadButton::rb)).find("with LB: timeline") != std::string::npos);
     rig.hold(1, {}, true);
     const auto legend = rig.studio.legend();
     CHECK(legend.at(PadControl::button(PadButton::a)) == "Record a new track");
@@ -369,22 +369,22 @@ TEST_CASE("the bar shows the lanes, the choice and the playhead") {
     CHECK(bar.isPlaying);
     // With a chord selected, the bar says what can be done to it.
     CHECK(bar.message == "1 chord selected. Play a chord to replace it: the timing stays the same.");
-    CHECK(bar.tips.front() == TimelineBar::Tip{"RT + LT + ← →", "Select more"});
+    CHECK(bar.tips.front() == TimelineBar::Tip{"LB+RB + LT + ← →", "Select more"});
 }
 
 TEST_CASE("the bar says how to begin, and what to do while recording and after") {
     StudioRig rig;
     auto bar = timelineBar(rig.timeline(), 0);
     CHECK(bar.status == "Nothing recorded yet");
-    CHECK(bar.tips == std::vector<TimelineBar::Tip>{{"RT + A", "Record"}});
+    CHECK(bar.tips == std::vector<TimelineBar::Tip>{{"LB+RB + A", "Record"}});
     rig.hold(10, {PadButton::a}, true);
     bar = timelineBar(rig.timeline(), 10);
     CHECK(bar.status == "● Recording track 1 · bar 1 · beat 1");
-    CHECK(bar.tips.front() == TimelineBar::Tip{"RT + A", "Stop recording"});
+    CHECK(bar.tips.front() == TimelineBar::Tip{"LB+RB + A", "Stop recording"});
     playTwo(rig, 10);
     bar = timelineBar(rig.timeline(), 20);
     CHECK(bar.status == "Stopped · 1 track");
-    CHECK(bar.tips.front() == TimelineBar::Tip{"RT + X", "Play"});
+    CHECK(bar.tips.front() == TimelineBar::Tip{"LB+RB + X", "Play"});
     // No word the average player has to look up.
     for (const auto &tip : bar.tips) CHECK(tip.text.find("uantiz") == std::string::npos);
 }

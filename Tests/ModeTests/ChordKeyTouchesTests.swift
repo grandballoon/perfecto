@@ -30,6 +30,18 @@ struct ChordKeyTouchesTests {
         #expect(ChordKeySlide.height(at: 0) == 0 && ChordKeySlide.height(at: 1) == 1)
     }
 
+    /// A silent key is slid over as the space between keys is: the finger
+    /// keeps the key it had, and landing on one presses nothing.
+    @Test func aFingerKeepsItsKeyOverASilentOne() {
+        var touches = makeTouches()
+        touches.silent = [.IV]
+        #expect(touches.touch(1, at: onI) == KeyChange<Degree>(pressed: .I))
+        #expect(touches.touch(1, at: onIV) == KeyChange<Degree>())
+        #expect(touches.touch(1, at: onV) == KeyChange<Degree>(released: .I, pressed: .V))
+        #expect(touches.touch(2, at: onIV) == KeyChange<Degree>())
+        #expect(touches.lift([1, 2]) == [.V])
+    }
+
     @Test func aFingerPressesTheKeyItLandsOn() {
         var touches = makeTouches()
         #expect(touches.touch(1, at: onI) == KeyChange<Degree>(pressed: .I))

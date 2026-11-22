@@ -54,7 +54,7 @@ public struct SoundCatalog: Equatable, Sendable {
 /// the sound library.
 public struct DeskMenu: Equatable, Sendable {
     public enum Row: CaseIterable, Sendable {
-        case layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, faceStick, chordSound, lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI
+        case layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, faceStick, keyAssist, chordSound, lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI
 
         public var name: String {
             switch self {
@@ -67,6 +67,7 @@ public struct DeskMenu: Equatable, Sendable {
             case .ringFilter: "Ring filter"
             case .lbLayer: "LB layer"
             case .faceStick: "Face Chords stick"
+            case .keyAssist: "Key assist"
             case .chordSound: "Chord sound"
             case .lineSound: "Line sound"
             case .key: "Key"
@@ -310,6 +311,9 @@ public struct Desk: Equatable, Sendable {
         case .faceStick:
             let all = FaceStick.allCases
             settings.faceStick = all[((all.firstIndex(of: settings.faceStick)! + steps) % all.count + all.count) % all.count]
+        case .keyAssist:
+            let all = KeyAssist.allCases
+            settings.keyAssist = all[((all.firstIndex(of: settings.keyAssist)! + steps) % all.count + all.count) % all.count]
         case .chordSound, .lineSound:
             let line: Line = row == .chordSound ? .chord : .melody
             setSound(catalog.sound(steps, from: sound(of: line)), for: line)
@@ -370,6 +374,7 @@ public struct Desk: Equatable, Sendable {
         case .ringFilter: settings.ringFilter.name
         case .lbLayer: settings.lbLayer.name
         case .faceStick: settings.faceStick.name
+        case .keyAssist: settings.keyAssist.name
         case .chordSound: catalog.name(of: settings.chordSound)
         case .lineSound: catalog.name(of: settings.lineSound)
         case .key: settings.key.root.name

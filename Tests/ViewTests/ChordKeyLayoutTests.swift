@@ -11,15 +11,24 @@ import UIKit
 struct ChordKeyLayoutTests {
 
     @Test func aLayoutIsArrangedTheSameOnEveryScreen() {
-        #expect(ChordGridLayout.grid.arrangement(isLandscape: false) == .grid)
-        #expect(ChordGridLayout.grid.arrangement(isLandscape: true) == .grid)
-        #expect(ChordGridLayout.circle.arrangement(isLandscape: false) == .circle)
-        #expect(ChordGridLayout.circle.arrangement(isLandscape: true) == .circle)
+        func arrangement(_ layout: ChordGridLayout, isLandscape: Bool,
+                         handedness: Handedness = .right) -> ChordKeyArrangement {
+            layout.arrangement(isLandscape: isLandscape, handedness: handedness)
+        }
+        #expect(arrangement(.grid, isLandscape: false) == .grid)
+        #expect(arrangement(.grid, isLandscape: true) == .grid)
+        #expect(arrangement(.circle, isLandscape: false) == .circle)
+        #expect(arrangement(.circle, isLandscape: true) == .circle)
         // The row needs the width of a phone on its side.
-        #expect(ChordGridLayout.horizontalBar.arrangement(isLandscape: false) == .grid)
-        #expect(ChordGridLayout.horizontalBar.arrangement(isLandscape: true) == .row)
-        #expect(ChordGridLayout.octave.arrangement(isLandscape: false) == .octave)
-        #expect(ChordGridLayout.octave.arrangement(isLandscape: true) == .octave)
+        #expect(arrangement(.horizontalBar, isLandscape: false) == .grid)
+        #expect(arrangement(.horizontalBar, isLandscape: true) == .row)
+        #expect(arrangement(.octave, isLandscape: false) == .octave)
+        #expect(arrangement(.octave, isLandscape: true) == .octave)
+        // The edge needs a phone on its side too, and follows the hand.
+        #expect(arrangement(.edge, isLandscape: false) == .circle)
+        #expect(arrangement(.edge, isLandscape: true) == .edge(.right))
+        #expect(arrangement(.edge, isLandscape: true, handedness: .left) == .edge(.left))
+        #expect(arrangement(.grid, isLandscape: true, handedness: .left) == .grid)
     }
 
     /// A key's outline is a shape in its view's frame, which is what it is

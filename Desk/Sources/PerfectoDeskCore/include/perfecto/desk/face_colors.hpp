@@ -17,6 +17,9 @@
 //   sixth, 6 with Dim a diminished seventh.
 // - Perfecto's joystick table: the phone's joystick, its eight directions in
 //   one of its three modes, as it had them (`JoystickMap`).
+// - The phone's step compass (`FaceCompass`), the one the desk starts on: a
+//   kind of step on each of four directions, LT reaching each one's second
+//   choice, and Key assist saying what is played out of the key.
 //
 // Pins are the desk's favorites (`Favorites`, the table played), which Twin
 // Rings' Y layer and the Favorites tab play and edit too: a chord holds up
@@ -100,6 +103,10 @@ public:
     std::optional<int> anchor() const { return anchor_; }
     /// Whether LB holds the pins on the stick.
     bool isOnPins() const { return isOnPins_; }
+    /// The compass's direction the stick is on, clockwise from up.
+    std::optional<int> compassAim() const { return compassAim_; }
+    /// Whether LT has the stick on the compass's outer places.
+    bool isOuter() const { return isOuter_; }
 
     /// One frame of the hands. `face` is Face Chords as it is before the
     /// desk is stepped, so what it sounds is what LB pins; `reachable`,
@@ -123,15 +130,20 @@ public:
 private:
     std::optional<int> aim_;
     std::optional<int> anchor_;
+    std::optional<int> compassAim_;
+    bool isOuter_ = false;
     bool isOnPins_ = false;
-    /// LB pressed while coloring: the direction the color is kept on, until
-    /// the stick leaves it.
+    /// LB pressed while coloring: the direction the color is kept on (in the
+    /// scheme's own directions), until the stick leaves it.
     std::optional<int> keepsLive_;
 
-    /// The color at `aim` given `anchor` (the Orchid's only), in the layer
-    /// the stick is in.
-    theory::ChordColor colorAt(std::optional<int> anchor, std::optional<int> aim, theory::Degree degree,
-                               const DeskSettings &settings) const;
+    /// The color the scheme gives `degree` now, pins aside.
+    theory::ChordColor liveColor(theory::Degree degree, const DeskSettings &settings) const;
+    /// Whether the scheme colors any chord Face Chords is sounding.
+    bool colorsWhatSounds(const FaceChords &face, const DeskSettings &settings) const;
+    /// The compass's four directions, as targets.
+    std::vector<std::optional<Target>> compassTargets(std::optional<theory::Degree> degree,
+                                                      const DeskSettings &settings) const;
     /// Pins what Face Chords sounds, or takes it out if it is pinned.
     std::vector<DeskEffect> pin(const FaceChords &face, DeskSettings &settings) const;
 };

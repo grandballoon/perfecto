@@ -10,20 +10,58 @@ extension PianoSource {
     }
 }
 
-/// The piano (`PianoState`): the white keys of its span across the width
-/// it is given, each key lit in the colors of the sources sounding its
+extension Hand {
+    /// The color a hand's keys are lit in by score practice.
+    var color: Color {
+        switch self {
+        case .right: return Color(red: 0.35, green: 0.85, blue: 0.5)
+        case .left:  return Color(red: 0.78, green: 0.52, blue: 1)
+        }
+    }
+}
+
+extension Hands {
+    /// The color the runs of these hands are drawn in: a hand's own, or
+    /// for both together, a third beside them.
+    var color: Color {
+        switch self {
+        case .right: return Hand.right.color
+        case .left:  return Hand.left.color
+        case .both:  return Color(red: 0.98, green: 0.8, blue: 0.4)
+        }
+    }
+}
+
+/// The piano (`PianoState`): the white keys of its span across the frame
+/// it is given (with the whole screen, no wider than a piano's keys as
+/// long as the frame is high, centered with black either side), each key lit in the colors of the sources sounding its
 /// note. A key that several sources are sounding is divided between their
 /// colors along its length, and a lit key out of view is marked in its
 /// colors at the end it lies beyond.
 ///
-/// No touch plays it: a pinch and a drag change what is in view
-/// (`PianoTouches`), and its corner button or a double tap gives it the
-/// whole screen or puts it back.
+/// Score practice lights keys too (`practice`): a key a hand is playing in
+/// the hand's color, flashing white as it is struck so a key struck again
+/// is seen to be, and the hand's next keys with a dot of its color.
+///
+/// No touch plays it, except while a run is being tapped (`onKeyDown`):
+/// a pinch and a drag change what is in view (`PianoTouches`), and its
+/// corner button or a double tap gives it the whole screen or puts it
+/// back. While a run is tapped, a finger presses the key it is on, and the
+/// last key tapped is marked right or wrong (`tap`).
 struct PianoView: View {
     @Environment(PerformanceState.self) private var state
 
-    /// Whether this is the piano that has the whole screen.
+    /// Whether this is the piano that has the whole screen, which has its
+    /// own button to put it back.
     var isExpanded = false
+    /// The keys lit by score practice.
+    var practice: [Int: [KeyLight]] = [:]
+    /// While a run is tapped: a key pressed, and let go. Nil: no touch
+    /// plays a key.
+    var onKeyDown: ((Int) -> Void)? = nil
+    var onKeyUp: (Int) -> Void = { _ in }
+    /// The last key tapped, marked right or wrong.
+    var tap: PracticeTap? = nil
 
     /// The narrowest white key that has room for its octave's name.
     private static let namedKeyWidth: CGFloat = 14
@@ -31,37 +69,48 @@ struct PianoView: View {
     /// How much closer each step of an assistive technology's adjusting
     /// brings the piano.
     private static let adjustingStep = 1.5
+    /// How long a struck key flashes.
+    private static let strike = 0.15
 
     var body: some View {
         let piano = state.piano
         GeometryReader { geo in
-            // The strip's keys are as long as it is high; the whole
-            // screen's keep a piano's proportions.
-            let place = isExpanded
-                ? PianoKeys.standing(in: geo.size, above: geo.safeAreaInsets.bottom, span: piano.span)
-                : CGRect(origin: .zero, size: geo.size)
-            let keys = PianoKeys(size: place.size, span: piano.span)
+            // With the whole screen the keys keep a piano's proportions,
+            // centered with black either side; the strip's fill it.
+            let width = isExpanded ? PianoKeys.width(of: piano.span, in: geo.size) : geo.size.width
+            let inset = (geo.size.width - width) / 2
+            let keys = PianoKeys(size: CGSize(width: width, height: geo.size.height), span: piano.span)
             let lights = piano.lights
             ZStack(alignment: .topLeading) {
                 ZStack(alignment: .topLeading) {
                     // The black keys lie over the white ones.
                     ForEach((PianoKeys.whites + PianoKeys.blacks).filter(keys.shows), id: \.self) { note in
-                        key(note, in: keys, lit: lights[note] ?? [])
+                        key(note, in: keys, lit: lights[note] ?? [], practice: practice[note] ?? [])
                     }
                     edgeMarks(lights, in: keys)
                 }
-                .frame(width: place.width, height: place.height, alignment: .topLeading)
-                .offset(y: place.minY)
+                .frame(width: width, height: geo.size.height, alignment: .topLeading)
+                .clipped()
+                .offset(x: inset)
                 PianoTouches(
                     onZoom: { scale, x in
-                        let at = Double(x / geo.size.width)
+                        let at = Double((x - inset) / width)
                         piano.span = piano.span.moved(by: Double(scale), from: at, to: at)
                     },
                     onDrag: { dx in
-                        piano.span = piano.span.moved(from: 0, to: Double(dx / geo.size.width))
+                        piano.span = piano.span.moved(from: 0, to: Double(dx / width))
                     },
-                    onDoubleTap: toggleExpanded)
-                expandButton(insets: geo.safeAreaInsets)
+                    onDoubleTap: toggleExpanded,
+                    onPress: onKeyDown.map { down in
+                        { (point: CGPoint) -> Int? in
+                            let point = CGPoint(x: point.x - inset, y: point.y)
+                            guard let note = keys.note(at: point) else { return nil }
+                            down(note)
+                            return note
+                        }
+                    },
+                    onRelease: onKeyUp)
+                if !isExpanded { expandButton(insets: geo.safeAreaInsets) }
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             .clipped()
@@ -80,33 +129,75 @@ struct PianoView: View {
         withAnimation(.easeOut(duration: 0.25)) { state.piano.isExpanded.toggle() }
     }
 
-    private func key(_ note: Int, in keys: PianoKeys, lit: [PianoSource]) -> some View {
+    private func key(_ note: Int, in keys: PianoKeys, lit: [PianoSource], practice: [KeyLight]) -> some View {
         let isBlack = PianoKeys.isBlack(note)
         let frame = keys.frame(of: note)
+        let sounding = practice.compactMap { light -> (hand: Hand, since: Double)? in
+            if case let .sounding(since) = light.kind { return (light.hand, since) }
+            return nil
+        }
+        let next = practice.filter { $0.kind == .next }.map(\.hand)
+        let colors = lit.map(\.color) + sounding.map(\.hand.color)
+        let flash = sounding.map { max(0, 1 - $0.since / Self.strike) }.max() ?? 0
         return VStack(spacing: 0) {
-            if lit.isEmpty {
+            if colors.isEmpty {
                 Color(white: isBlack ? 0.08 : 0.92)
             } else {
-                ForEach(lit, id: \.self) { $0.color }
+                ForEach(colors.indices, id: \.self) { colors[$0] }
             }
         }
         // A lit black key is a shade darker than the white keys lit beside it.
-        .overlay(Color.black.opacity(isBlack && !lit.isEmpty ? 0.25 : 0))
+        .overlay(Color.black.opacity(isBlack && !colors.isEmpty ? 0.25 : 0))
+        .overlay(Color.white.opacity(0.55 * flash))
+        .overlay { tapMark(on: note, width: frame.width) }
         .overlay(alignment: .bottom) {
-            if keys.whiteWidth >= Self.namedKeyWidth, let name = PianoKeys.octaveName(of: note) {
-                Text(name)
-                    // Larger as the keys are, up to a size that still reads as a label.
-                    .font(.system(size: (keys.whiteWidth * 0.3).clamped(to: 8...14),
-                                  weight: .medium, design: .monospaced))
-                    .foregroundStyle(Color.black.opacity(lit.isEmpty ? 0.45 : 0.8))
-                    .fixedSize()
-                    .padding(.bottom, 4)
+            VStack(spacing: 3) {
+                ForEach(next, id: \.self) { hand in
+                    Circle()
+                        .fill(hand.color)
+                        .overlay(Circle().stroke(Color.black.opacity(0.35), lineWidth: 0.5))
+                        .frame(width: frame.width * 0.5, height: frame.width * 0.5)
+                }
+                if keys.whiteWidth >= Self.namedKeyWidth, let name = PianoKeys.octaveName(of: note) {
+                    Text(name)
+                        // Larger as the keys are, up to a size that still reads as a label.
+                        .font(.system(size: (keys.whiteWidth * 0.3).clamped(to: 8...14),
+                                      weight: .medium, design: .monospaced))
+                        .foregroundStyle(Color.black.opacity(colors.isEmpty ? 0.45 : 0.8))
+                        .fixedSize()
+                }
             }
+            .padding(.bottom, 4)
         }
         .border(Color.black, width: 0.5)
         .frame(width: frame.width, height: frame.height)
         .offset(x: frame.minX, y: frame.minY)
     }
+
+    /// The last key tapped, if it is `note`: a red key with a cross if it
+    /// was wrong, and a ring with a tick if it was right.
+    @ViewBuilder
+    private func tapMark(on note: Int, width: CGFloat) -> some View {
+        if let tap, tap.pitch == note {
+            let isRight = tap.outcome.isRight
+            let color = isRight ? Self.rightColor : Self.wrongColor
+            ZStack(alignment: .top) {
+                Rectangle()
+                    .fill(color.opacity(isRight ? 0.18 : 0.55))
+                    .overlay(Rectangle().strokeBorder(color, lineWidth: max(2, width * 0.08)))
+                Image(systemName: isRight ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: (width * 0.6).clamped(to: 10...28), weight: .bold))
+                    .foregroundStyle(.white, color)
+                    .padding(.top, 6)
+            }
+            .allowsHitTesting(false)
+            .transition(.opacity)
+            .id(tap.number)
+        }
+    }
+
+    static let rightColor = Color(red: 0.2, green: 0.8, blue: 1)
+    static let wrongColor = Color(red: 1, green: 0.27, blue: 0.23)
 
     /// A mark at each end for the lit keys beyond it, in their sources'
     /// colors, so a zoomed piano still says that something is sounding.

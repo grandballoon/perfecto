@@ -68,6 +68,7 @@ std::string name(DeskMenu::Row row) {
     case DeskMenu::Row::ringFilter: return "Ring filter";
     case DeskMenu::Row::lbLayer: return "LB layer";
     case DeskMenu::Row::faceStick: return "Face Chords stick";
+    case DeskMenu::Row::keyAssist: return "Key assist";
     case DeskMenu::Row::chordSound: return "Chord sound";
     case DeskMenu::Row::lineSound: return "Line sound";
     case DeskMenu::Row::key: return "Key";
@@ -273,6 +274,7 @@ std::vector<DeskEffect> Desk::change(DeskMenu::Row row, int steps) {
         settings.lbLayer = settings.lbLayer == LBLayer::compass ? LBLayer::voices : LBLayer::compass;
         break;
     case DeskMenu::Row::faceStick: settings.faceStick = stepped(allFaceSticks, settings.faceStick, steps); break;
+    case DeskMenu::Row::keyAssist: settings.keyAssist = stepped(allKeyAssists, settings.keyAssist, steps); break;
     case DeskMenu::Row::chordSound:
     case DeskMenu::Row::lineSound: {
         const Line line = row == DeskMenu::Row::chordSound ? Line::chord : Line::melody;
@@ -332,6 +334,7 @@ std::string Desk::value(DeskMenu::Row row) const {
     case DeskMenu::Row::ringFilter: return name(settings.ringFilter);
     case DeskMenu::Row::lbLayer: return name(settings.lbLayer);
     case DeskMenu::Row::faceStick: return name(settings.faceStick);
+    case DeskMenu::Row::keyAssist: return name(settings.keyAssist);
     case DeskMenu::Row::chordSound: return catalog_.name(settings.chordSound);
     case DeskMenu::Row::lineSound: return catalog_.name(settings.lineSound);
     case DeskMenu::Row::key: return theory::name(settings.key.root);

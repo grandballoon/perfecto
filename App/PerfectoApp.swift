@@ -24,6 +24,8 @@ struct PerfectoApp: App {
             },
             layerLead: NotePlayer.sequencedLead,
             piano: piano,
+            // Score practice plays the score on the same audio and MIDI.
+            practiceSinks: [output.sink, midi],
             liveSound: keys,
             output:  output,
             micGate: MicrophonePermissionGate(logger: logger),

@@ -18,7 +18,7 @@ echo "Building…"
 if ! xcodebuild build \
     -project Perfecto.xcodeproj -scheme Perfecto -configuration Release \
     -destination 'platform=macOS,variant=Mac Catalyst' \
-    -derivedDataPath build/DerivedDataMac > "$log" 2>&1; then
+    -derivedDataPath build/DerivedDataMac -allowProvisioningUpdates > "$log" 2>&1; then
     grep -E "error:" "$log" >&2 || true
     echo "The build failed; see $log" >&2
     exit 1

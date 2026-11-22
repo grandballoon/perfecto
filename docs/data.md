@@ -667,8 +667,10 @@ final class PerformanceState {
     let micAccess: MicAccess
 }
 
-enum ChordGridLayout     { case grid, circle, horizontalBar }   // chosen in Setup
-enum ChordKeyArrangement { case grid, circle, row }             // what a layout gives a screen
+enum ChordGridLayout     { case grid, circle, horizontalBar, octave, edge }   // chosen in Setup
+enum ChordKeyArrangement { case grid, circle, row, octave, edge(Handedness) }  // what a layout gives a screen
+enum Handedness          { case right, left }                  // the edge layout's hand, chosen in Setup
+enum CenterSurface       { case compass, table, tree }         // what the edge layout has in its middle
 enum ColorSurface        { case joystick, grid }
 enum SurfaceShape        { case bar, grid }
 ```

@@ -1,9 +1,10 @@
 // The desk, the drums, the timeline and the left hand's colors, played
 // together from one controller.
 //
-// Each frame goes to the drums first, which take the buttons they play
-// (`Drums`), then to the timeline, which takes what RT holds
-// (`Timeline::take`), then to the colors, which read the left stick and LB
+// Each frame is read for which hand holds what (`FaceHands`: LB and RB
+// together are the timeline's layer, RT the chords' and LT the compass's),
+// then goes to the drums, which take the buttons they play (`Drums`), then
+// to the timeline, which takes what its layer holds (`Timeline::take`), then to the colors, which read the left stick and LB
 // and give Face Chords a color for each degree (`FaceColors`), and the desk
 // is stepped with what is left, so the desk knows nothing of them and plays
 // as the parity test has it. The timeline
@@ -21,6 +22,7 @@
 #include "perfecto/desk/desk.hpp"
 #include "perfecto/desk/drums.hpp"
 #include "perfecto/desk/face_colors.hpp"
+#include "perfecto/desk/face_hands.hpp"
 #include "perfecto/desk/pad.hpp"
 #include "perfecto/desk/scene.hpp"
 #include "perfecto/desk/timeline.hpp"
@@ -90,7 +92,10 @@ private:
     Drums drums_;
     Timeline timeline_;
     FaceColors colors_;
+    FaceHands hands_;
     std::optional<GamepadFrame> frame_;
+    /// The last frame as the hands' reading left it, for the drums' edges.
+    std::optional<GamepadFrame> handed_;
     /// The last frame as the drums left it, for the timeline's edges.
     std::optional<GamepadFrame> drummed_;
     /// The last frame as the timeline left it, for the colors' edges.

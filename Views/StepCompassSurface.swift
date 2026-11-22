@@ -36,6 +36,23 @@ enum StepCompassGrid {
                       width: width, height: height)
     }
 
+    /// A corner of the compass: the two cells by two the cross leaves
+    /// empty there, which a compass with room for them fills with its
+    /// switches (`StepCompassSurface.hasCorners`).
+    enum Corner: CaseIterable {
+        case topLeading, topTrailing, bottomLeading, bottomTrailing
+    }
+
+    /// The frame of `corner` in a compass of `size`: its four cells and the
+    /// gaps between them.
+    static func frame(of corner: Corner, in size: CGSize) -> CGRect {
+        let leading = corner == .topLeading || corner == .bottomLeading
+        let top = corner == .topLeading || corner == .topTrailing
+        let (column, row) = (leading ? 0 : middle.column + 1, top ? 0 : middle.row + 1)
+        return frame(column: column, row: row, in: size)
+            .union(frame(column: column + 1, row: row + 1, in: size))
+    }
+
     /// What is under `point` in a compass of `size`: nil in a gap between
     /// cells, in a corner, or outside it, so a finger sliding across one
     /// stays on what it was on.
@@ -70,9 +87,19 @@ extension StepCompassGrid.Target {
 /// as a tap there would be, so a finger played is the latest place it is
 /// on and a finger kept walks a step for every place it crosses. A gap, a
 /// corner or a place with no chord leaves it on what it was on.
+///
+/// With room for them (`hasCorners`, the edge layout's middle), the corners
+/// the cross leaves empty hold the compass's switches, so they are within
+/// reach while playing: the order its choices are in, whether its places
+/// are named by chords, a step back along the walk kept (which it names),
+/// and the pin.
 struct StepCompassSurface: View {
     /// Its height on a phone held upright: five rows of places.
     static let portraitHeight: CGFloat = 250
+
+    /// Whether the corners hold the compass's switches; without them, the
+    /// pin is a small switch in the bottom trailing corner.
+    var hasCorners = false
 
     @Environment(PerformanceState.self) private var state
 
@@ -83,9 +110,10 @@ struct StepCompassSurface: View {
     @GestureState private var isDown = false
 
     var body: some View {
-        // The chord the places are named for, if they are named by chords.
+        // The chord the places are named for, if they are named by chords;
+        // whether they are in the key is told by the chord held either way.
         let degree = state.compassShowsChords ? state.activeDegree : nil
-        let steps = degree.map {
+        let steps = state.activeDegree.map {
             StepCompass.steps(from: state.compassOrigin(for: $0), key: state.playedKey, degree: $0,
                               ranking: state.compassRanking)
         }
@@ -101,7 +129,7 @@ struct StepCompassSurface: View {
                     ForEach(CompassPlace.all, id: \.self) { place in
                         let cell = StepCompassGrid.cell(of: place)
                         let frame = StepCompassGrid.frame(column: cell.column, row: cell.row, in: geo.size)
-                        placeButton(place, step: degree.flatMap { _ in stepOf(place) }, degree: degree)
+                        placeButton(place, step: stepOf(place), degree: degree)
                             .frame(width: frame.width, height: frame.height)
                             .offset(x: frame.minX, y: frame.minY)
                     }
@@ -117,7 +145,11 @@ struct StepCompassSurface: View {
                         .onChanged { drag in
                             guard let target = StepCompassGrid.target(at: drag.location, in: geo.size),
                                   target != touched else { return }
-                            if case .place(let place) = target, degree != nil, stepOf(place) == nil { return }
+                            // A place with no chord on the chord named, or one that
+                            // plays nothing (the key assistance), leaves the finger
+                            // on what it was on.
+                            if case .place(let place) = target,
+                               degree != nil && stepOf(place) == nil || !state.placesSound([place]) { return }
                             touched = target
                             switch target {
                             case .place(let place): state.compassPressed(place)
@@ -130,26 +162,91 @@ struct StepCompassSurface: View {
                     if case .place(let place) = touched { state.compassLifted(place) }
                     touched = nil
                 }
-                @Bindable var state = state
-                KeepSwitch(label: "Keep the compass's color", keeps: $state.keepsCompassColor)
-                    .frame(height: keepSide)
-                    .offset(x: geo.size.width - keepSide, y: geo.size.height - keepSide)
+                if hasCorners {
+                    ForEach(StepCompassGrid.Corner.allCases, id: \.self) { corner in
+                        let frame = StepCompassGrid.frame(of: corner, in: geo.size)
+                        cornerButton(corner, degree: degree)
+                            .frame(width: frame.width, height: frame.height)
+                            .offset(x: frame.minX, y: frame.minY)
+                    }
+                } else {
+                    @Bindable var state = state
+                    KeepSwitch(label: "Keep the compass's color", keeps: $state.keepsCompassColor)
+                        .frame(height: keepSide)
+                        .offset(x: geo.size.width - keepSide, y: geo.size.height - keepSide)
+                }
             }
         }
     }
 
+    // MARK: – Corners
+
+    @ViewBuilder
+    private func cornerButton(_ corner: StepCompassGrid.Corner, degree: Degree?) -> some View {
+        let keeps = state.keepsCompassColor
+        switch corner {
+        case .topLeading:
+            let ranking = state.compassRanking
+            CornerChip(text: ranking.displayName.lowercased(), detail: "ORDER",
+                              isOn: false, isEnabled: true) {
+                let all = ColorStepRanking.allCases
+                state.compassRanking = all[((all.firstIndex(of: ranking) ?? 0) + 1) % all.count]
+            }
+            .accessibilityLabel("The order of the compass's choices")
+            .accessibilityValue(ranking.displayName)
+        case .topTrailing:
+            let named = state.compassShowsChords
+            CornerChip(text: named ? "chords" : "places", detail: "NAMES",
+                              isOn: false, isEnabled: true) {
+                state.compassShowsChords.toggle()
+            }
+            .accessibilityLabel("Name the compass's places by their chords")
+            .accessibilityValue(named ? "On" : "Off")
+        case .bottomLeading:
+            let walk = state.compassWalk
+            let text = keeps && !walk.isEmpty ? walkText(walk, on: degree) : "—"
+            CornerChip(text: text, detail: keeps ? "BACK A STEP" : "PIN TO WALK",
+                              isOn: false, isEnabled: keeps && !walk.isEmpty) {
+                state.compassStepBack()
+            }
+            .accessibilityLabel("Back a step along the compass's walk")
+            .accessibilityValue(text)
+        case .bottomTrailing:
+            CornerChip(text: keeps ? "kept" : "played", detail: "PIN",
+                              isOn: keeps, isEnabled: true) {
+                state.keepsCompassColor.toggle()
+            }
+            .accessibilityLabel("Keep the compass's color")
+            .accessibilityValue(keeps ? "On" : "Off")
+        }
+    }
+
+    /// The walk kept, as the steps it takes: by what each does on the chord
+    /// held ("+7 · +9"), or by its places' names with none held.
+    private func walkText(_ walk: [CompassPlace], on degree: Degree?) -> String {
+        guard let degree else { return walk.map { Self.inertName($0.kind) }.joined(separator: " · ") }
+        return CompassWalk.steps(walk, key: state.playedKey, degree: degree, ranking: state.compassRanking,
+                                 assistance: state.keyAssistance)
+            .map(\.editName).joined(separator: " · ")
+    }
+
+    /// A place: `step` is its choice on the chord held, if one is, which
+    /// says whether it is in the key; `degree` is the chord it is named for,
+    /// if it is named by chords.
     private func placeButton(_ place: CompassPlace, step: ColorStep?, degree: Degree?) -> some View {
         let isOn = !state.keepsCompassColor && state.compassPlaces.first == place
+        let mark = state.keyAssistance.mark(isInKey: step.map { $0.fit != .borrowed })
         let text: String, detail: String
         if let degree {
-            text = step.map { name(of: $0, on: degree) } ?? "—"
-            detail = step.map { $0.editName + ($0.fit == .avoid ? " · avoid" : $0.fit == .borrowed ? " · out of key" : "") } ?? ""
+            text = step.map { name(of: $0, on: degree, mark: mark) } ?? "—"
+            detail = step.map { [$0.editName, $0.fit == .avoid ? "avoid" : nil, mark.note]
+                .compactMap { $0 }.joined(separator: " · ") } ?? ""
         } else {
             text = Self.inertName(place.kind)
             detail = place.rank == 1 ? "1ST" : "2ND"
         }
         return CompassChip(text: text, detail: detail, isOn: isOn, isEnabled: degree == nil || step != nil,
-                           isBorrowed: step?.fit == .borrowed,
+                           mark: mark,
                            onTap: { state.compassPressed(place); state.compassLifted(place) })
             .accessibilityLabel("\(Self.inertName(place.kind)), \(place.rank == 1 ? "first" : "second") choice")
             .accessibilityValue(degree == nil ? "" : text)
@@ -159,15 +256,15 @@ struct StepCompassSurface: View {
         let keeps = state.keepsCompassColor
         let plain = degree.map { chordLabel(key: state.playedKey, spec: ChordSpec(degree: $0, color: .base)) }
         return CompassChip(text: keeps ? "clear" : plain ?? "plain", detail: keeps ? "BACK TO PLAIN" : "AS IT IS",
-                           isOn: false, isEnabled: true, isBorrowed: false, isMiddle: true,
+                           isOn: false, isEnabled: true, isMiddle: true,
                            onTap: { state.compassCleared() })
             .accessibilityLabel(keeps ? "Back to the plain chord" : "The plain chord")
     }
 
     /// A step's chord, "G 7", with its fit marked.
-    private func name(of step: ColorStep, on degree: Degree) -> String {
+    private func name(of step: ColorStep, on degree: Degree, mark: KeyMark) -> String {
         let name = chordLabel(key: state.playedKey, spec: ChordSpec(degree: degree, color: .tones(step.tones)))
-        return name + (step.fit == .borrowed ? "*" : step.fit == .avoid ? "◦" : "")
+        return name + mark.suffix(avoid: step.fit == .avoid)
     }
 
     private static func inertName(_ kind: ColorStepKind) -> String {
@@ -180,39 +277,130 @@ struct StepCompassSurface: View {
     }
 }
 
-/// One of the compass's places, as drawn. Its finger is read by the
-/// compass as a whole, so it can slide onto another; `onTap` is for
-/// accessibility.
-private struct CompassChip: View {
+/// The steps a walk of the compass's places takes from a degree's triad,
+/// in order: each from where the last one led, a place with no choice
+/// left out, and a step that `assistance` does not let sound, as
+/// `KeyAssistance.walk` takes them.
+enum CompassWalk {
+    static func steps(_ places: [CompassPlace], key: Key, degree: Degree, ranking: ColorStepRanking,
+                      assistance: KeyAssistance) -> [ColorStep] {
+        var tones = StepCompass.base(key: key, degree: degree)
+        return places.compactMap { place in
+            guard let step = StepCompass.step(at: place, from: tones, key: key, degree: degree, ranking: ranking),
+                  assistance.sounds(isInKey: step.fit != .borrowed) else { return nil }
+            tones = step.tones
+            return step
+        }
+    }
+}
+
+/// One of a color surface's switches (the compass's corners, the table's
+/// and the tree's controls): a button, dimmer than the places so the
+/// colors read first.
+struct CornerChip: View {
     let text: String
     let detail: String
     let isOn: Bool
     let isEnabled: Bool
-    let isBorrowed: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                Text(text)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .foregroundStyle(isOn ? Color.black : Color(white: isEnabled ? 0.8 : 0.3))
+                Text(detail)
+                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .foregroundStyle(isOn ? Color.black.opacity(0.7) : Color(white: 0.45))
+            }
+            .padding(.horizontal, 6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(RoundedRectangle(cornerRadius: 8)
+                .fill(isOn ? Color.orange : Color(white: 0.07)))
+            .overlay(RoundedRectangle(cornerRadius: 8)
+                .stroke(isOn ? Color.orange : Color(white: 0.18), lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+    }
+}
+
+/// One of a color surface's places, as drawn: the compass's, the table's
+/// and the tree's. Its finger is read by the surface as a whole, so it can
+/// slide onto another; `onTap` is for accessibility. Its `mark` is how the
+/// key assistance tells it apart (`KeyMark`): in the key's color or out of
+/// it, or greyed out as one that plays nothing.
+struct CompassChip: View {
+    let text: String
+    let detail: String
+    let isOn: Bool
+    let isEnabled: Bool
+    var mark = KeyMark.plain
     var isMiddle = false
     let onTap: () -> Void
 
     var body: some View {
+        let isSilent = mark == .silent
+        let tint = mark.tint
         VStack(spacing: 1) {
             Text(text)
                 .font(.system(size: 13, weight: .bold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-                .foregroundStyle(isOn ? Color.black : Color(white: isEnabled ? 0.95 : 0.3))
+                .foregroundStyle(isOn ? Color.black : Color(white: isEnabled && !isSilent ? 0.95 : 0.3))
             Text(detail)
                 .font(.system(size: 8, weight: .semibold, design: .monospaced))
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .foregroundStyle(isOn ? Color.black.opacity(0.7) : Color(white: 0.55))
+                .foregroundStyle(isOn ? Color.black.opacity(0.7)
+                                 : tint.map { $0.opacity(0.9) } ?? Color(white: isSilent ? 0.3 : 0.55))
         }
         .padding(.horizontal, 3)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(RoundedRectangle(cornerRadius: 8)
-            .fill(isOn ? Color.orange : Color(white: isMiddle ? 0.17 : 0.12)))
+            .fill(isOn ? Color.orange
+                  : isSilent ? Color(white: 0.07)
+                  : tint.map { $0.opacity(0.22) } ?? Color(white: isMiddle ? 0.17 : 0.12)))
         .overlay(RoundedRectangle(cornerRadius: 8)
-            .stroke(isOn ? Color.orange : Color(white: isBorrowed ? 0.5 : 0.25),
-                    style: StrokeStyle(lineWidth: 1, dash: isBorrowed ? [3, 2] : [])))
+            .stroke(isOn ? Color.orange : tint ?? Color(white: isSilent ? 0.16 : 0.25),
+                    style: StrokeStyle(lineWidth: tint == nil ? 1 : 1.5, dash: mark.isOutOfKey ? [3, 2] : [])))
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { onTap() }
+    }
+}
+
+extension KeyMark {
+    /// The color of a choice in the key, and of one out of it: far apart in
+    /// hue and in lightness, and apart from the orange of a choice that is on.
+    static let inKeyColor = Color(red: 0.18, green: 0.78, blue: 0.86)
+    static let outOfKeyColor = Color(red: 0.98, green: 0.30, blue: 0.72)
+
+    /// The color the mark draws a choice in; nil for one drawn as any other.
+    var tint: Color? {
+        switch self {
+        case .inKey:           return Self.inKeyColor
+        case .outOfKey:        return Self.outOfKeyColor
+        case .plain, .silent:  return nil
+        }
+    }
+
+    /// Whether it marks a choice out of the key, which is outlined in dashes.
+    var isOutOfKey: Bool { self == .outOfKey || self == .silent }
+
+    /// What a choice's detail says of its place in the key.
+    var note: String? {
+        isOutOfKey ? "out of key" : nil
+    }
+
+    /// What is written after a choice's chord: * out of the key, while it
+    /// is told apart, or else ◦ for an avoid note.
+    func suffix(avoid: Bool) -> String {
+        isOutOfKey ? "*" : avoid ? "◦" : ""
     }
 }

@@ -24,10 +24,20 @@ std::string name(LBLayer layer) {
 
 std::string name(FaceStick stick) {
     switch (stick) {
+    case FaceStick::compass: return "Step compass";
     case FaceStick::orchid: return "Orchid buttons";
     case FaceStick::perfectoDefault: return "Perfecto · default";
     case FaceStick::perfectoExtended: return "Perfecto · extended";
     case FaceStick::perfectoChromatic: return "Perfecto · chromatic";
+    }
+    return {};
+}
+
+std::string name(KeyAssist assist) {
+    switch (assist) {
+    case KeyAssist::normal: return "Normal";
+    case KeyAssist::colorCode: return "Color code";
+    case KeyAssist::assist: return "Assist";
     }
     return {};
 }

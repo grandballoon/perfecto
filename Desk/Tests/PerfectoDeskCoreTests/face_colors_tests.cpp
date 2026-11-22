@@ -194,11 +194,11 @@ TEST_CASE("LB with the second voice still routes a press, and the stick plays th
     CHECK(studio.colors().isOnPins());
 }
 
-TEST_CASE("RT takes the stick for the timeline, and the menu lets go of the color") {
+TEST_CASE("the timeline's layer takes the stick, and the menu lets go of the color") {
     Studio studio = faceChords();
     studio.step(frame(1, {a}));
     studio.step(frame(1.1, {a}, lean(90)));
-    studio.step(frame(1.2, {a}, lean(90), 1));
+    studio.step(frame(1.2, {a, lb, PadButton::rb}, lean(90)));
     CHECK(notes(studio) == std::vector{60, 64, 67});
     studio.step(frame(1.3, {a}, lean(90)));
     CHECK(notes(studio) == std::vector{60, 64, 67, 74});
@@ -255,13 +255,13 @@ TEST_CASE("the screen shows what each direction plays on the chord held, and wit
     CHECK(studio.legend().at(PadControl::leftStick()) == "The pins of the chord held");
     studio.step(frame(1.5, {a}));
     CHECK(studio.legend().at(PadControl::leftStick()) == "Color: Orchid buttons · roll on for two");
-    CHECK(studio.legend().at(PadControl::button(lb)) == "Press while coloring: pin · hold: the pins");
+    CHECK(studio.legend().at(PadControl::button(lb)) == "Press while coloring: pin · hold: the pins · with RB: timeline");
 }
 
 TEST_CASE("the menu chooses the stick's scheme") {
-    // The phone's own table, in its default mode, to start with.
+    // The phone's step compass to start with.
     Desk desk(catalog, DeskSettings(), LayoutKind::faceChords);
-    CHECK(desk.value(DeskMenu::Row::faceStick) == "Perfecto · default");
+    CHECK(desk.value(DeskMenu::Row::faceStick) == "Step compass");
     desk.step(frame(1, {PadButton::start}));
     for (int i = 0; i < 8; ++i) {
         desk.step(frame(2 + double(i) * 0.1, {PadButton::down}));
@@ -269,12 +269,12 @@ TEST_CASE("the menu chooses the stick's scheme") {
     }
     REQUIRE(desk.menu()->row == DeskMenu::Row::faceStick);
     desk.step(frame(3, {PadButton::right}));
-    CHECK(desk.settings.faceStick == FaceStick::perfectoExtended);
+    CHECK(desk.settings.faceStick == FaceStick::orchid);
     desk.step(frame(3.1));
     desk.step(frame(3.2, {PadButton::left}));
     desk.step(frame(3.3));
     desk.step(frame(3.4, {PadButton::left}));
-    CHECK(desk.value(DeskMenu::Row::faceStick) == "Orchid buttons");
+    CHECK(desk.value(DeskMenu::Row::faceStick) == "Perfecto · chromatic");
 }
 
 }

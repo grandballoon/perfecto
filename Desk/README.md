@@ -64,11 +64,12 @@ A degree on a stick whose chord the guard blocks is not chosen, and a chord bein
 
 The key's chords by number on the four face buttons, as a guitarist's chart has them.
 A always plays I.
-Without LT, B, X and Y play IV, V and vii°; with LT held, ii, iii and vi.
-The map is `godot/project/desk/face_chords.json`, read when the desk starts (a degree for each button, without LT and with it); a mistake in it is shown and leaves this one.
-What sounds is always the latest face button held, read in the layer LT is in now: pulling or letting go of LT while a button is held changes the chord as a new press does, and a button let go hands the chord back to one still held beneath it.
-With no face button held nothing sounds, and LT alone strikes nothing.
-LT is on past halfway, and held a little either side of it, so a trigger resting near the middle cannot flicker between two chords.
+Without RT, B, X and Y play IV, V and vii°; with RT held, ii, iii and vi.
+RT + A is the one combination left without a chord of its own, and plays I for now.
+The map is `godot/project/desk/face_chords.json`, read when the desk starts (a degree for each button, without RT and with it); a mistake in it is shown and leaves this one.
+What sounds is always the latest face button held, read in the layer RT is in now: pulling or letting go of RT while a button is held changes the chord as a new press does, and a button let go hands the chord back to one still held beneath it.
+With no face button held nothing sounds, and RT alone strikes nothing.
+RT is on past halfway, and held a little either side of it, so a trigger resting near the middle cannot flicker between two chords.
 The screen shows each button as a tile where it is on the controller, with its chord's number and name and the other layer's chord in a corner, and the chord heard large in the middle.
 The d-pad rolls the inversion and moves the octave, and the chord held moves with it.
 
@@ -81,11 +82,11 @@ Each press goes to one voice or both, chosen as it is pressed, and each voice so
 - **At first** a press is the first voice's.
 - **With LB held** it is the second's alone, and stays there when LB is let go.
 - **LB double-clicked** puts both voices on: a press plays its chord on both, and another double-click goes back to one.
-- **With both on**, LB and a face button, or a face button and LT pulled at the same moment (either first, within 80 ms), play the second voice alone, over what the first is holding.
+- **With both on**, LB and a face button, or a face button and RT pulled at the same moment (either first, within 80 ms), play the second voice alone, over what the first is holding.
 
-LT struck with a face button so is the second voice's pull: the second voice plays that button's chord with LT, and the first voice keeps its chord for as long as the pull is held, as if LT were let go.
-Every other pull is both voices' layer, as with one voice: LT held before a face button plays both in its layer, and LT pulled later on a held button changes both voices' chords.
-A press that comes a moment before LT has been struck on both, so the first voice plays it for that moment and then goes back to what it held.
+RT struck with a face button so is the second voice's pull: the second voice plays that button's chord with RT, and the first voice keeps its chord for as long as the pull is held, as if RT were let go.
+Every other pull is both voices' layer, as with one voice: RT held before a face button plays both in its layer, and RT pulled later on a held button changes both voices' chords.
+A press that comes a moment before RT has been struck on both, so the first voice plays it for that moment and then goes back to what it held.
 
 The middle of the screen names the second voice's chord under the first's, and its button has a blue bar along its foot.
 
@@ -123,32 +124,33 @@ There are eight:
 #### The timeline
 
 A bar along the top of Face Chords records what you play, plays it back, and lets you fix it and build it up, track over track, like a looper or a simple DAW.
-**Hold RT to use it**: while RT is held, the face buttons, the d-pad and the sticks work the timeline instead of playing chords.
-Let go of RT to play again.
+**Hold LB + RB to use it**: while both are held, the face buttons, the d-pad and the sticks work the timeline instead of playing chords.
+Let go of either to play again.
 The bar always says what to do next, with the buttons for it.
-It leaves R3 and LB to the second voice and L3 and RB to the drums.
+It leaves R3 to the second voice and L3 to the drums, and LB and RB alone keep their own uses.
+Each bumper stays the timeline's until it is let go, so letting go of one does not pin a color or open the drum pads.
 
 To start:
 
-1. **RT + A** starts recording. Play some chords.
-2. **RT + A** again stops. What you played is the first track, starting at your first chord.
-3. **RT + X** plays it back, and pauses it; again plays on from where it paused.
-   **RT + LT + X** goes back to the start.
-4. **RT + A** again records a new track while the others play along, so you can build a song up a part at a time.
+1. **LB + RB + A** starts recording. Play some chords.
+2. **LB + RB + A** again stops. What you played is the first track, starting at your first chord.
+3. **LB + RB + X** plays it back, and pauses it; again plays on from where it paused.
+   **LB + RB + LT + X** goes back to the start.
+4. **LB + RB + A** again records a new track while the others play along, so you can build a song up a part at a time.
 
 To change what you recorded, first select chords:
 
-- **RT + ← →** selects the previous or next chord; add **LT** to select more than one.
-  **RT + ↑ ↓** picks the track.
-- **Play a chord** (with RT let go) to replace the selected ones: their timing stays the same, so you can try other chords in the same rhythm.
-- **RT + Y** loops the selection: the track repeats it for as long as the song plays, and you can still change it.
-  With nothing selected, **RT + Y** stops a track looping.
-- **RT + B** fixes the timing: the selected chords (or the whole track, with none selected) snap to the nearest line of the grid, so they land in time.
+- **LB + RB + ← →** selects the previous or next chord; add **LT** to select more than one.
+  **LB + RB + ↑ ↓** picks the track.
+- **Play a chord** (with the bumpers let go) to replace the selected ones: their timing stays the same, so you can try other chords in the same rhythm.
+- **LB + RB + Y** loops the selection: the track repeats it for as long as the song plays, and you can still change it.
+  With nothing selected, **LB + RB + Y** stops a track looping.
+- **LB + RB + B** fixes the timing: the selected chords (or the whole track, with none selected) snap to the nearest line of the grid, so they land in time.
   The grid is sixteenth notes unless Menu › Arranger grid says otherwise.
-- **RT + right stick ← →** moves the selection a little earlier or later, again and again while held (with LT, a whole grid step).
+- **LB + RB + right stick ← →** moves the selection a little earlier or later, again and again while held (with LT, a whole grid step).
   **↑** mutes the track and **↓** deletes the selection.
-- **RT + left stick ← →** undoes and redoes.
-- **Tap RT** to deselect.
+- **LB + RB + left stick ← →** undoes and redoes.
+- **Tap LB + RB** to deselect.
 
 Chords played without letting go stay joined through every change, so a smooth progression stays smooth.
 A song with a loop in it plays until you stop it; one without stops at its end.
@@ -159,10 +161,24 @@ Its playback goes to the kernel's sound only, not yet to MIDI, and it records th
 #### Coloring with the left stick
 
 The left stick colors the chords the face buttons hold, and LB pins the colors it finds.
-Two ways of coloring are built, to be compared: Menu › Face Chords stick chooses one, and the panel left of the face buttons shows what each direction plays on the chord held (with none held, what it does).
+Three ways of coloring are built: the step compass, which the desk starts on, and two to compare it with.
+Menu › Face Chords stick chooses one, and the panel left of the face buttons shows what each direction plays on the chord held (with none held, what it does).
 A color is played while the stick leans and goes when it comes back to the middle; a chord already held takes a new color tied, so only the notes that move are struck again.
 The stick colors every chord held alike, both voices', each on its own degree, and a stick leaned before a face button colors the chord the button strikes.
-RT held takes the stick for the timeline, so the chords are plain meanwhile.
+LB + RB held takes the stick for the timeline, so the chords are plain meanwhile.
+
+**The step compass** is the phone's.
+Up adds a tone, right raises one, down takes one away and left lowers one, each the kind's first choice.
+LT held reaches each kind's second choice, the phone's outer four places.
+Menu › Compass order chooses how the choices are ranked.
+
+**Key assist** (Menu › Key assist) has the phone's three settings:
+
+- **Normal** plays every place and marks none.
+- **Color code** plays every place and marks the chords out of the key.
+- **Assist** plays only chords in the key: a place whose chord is out of it falls back to the nearest choice of the same kind in the key, and the panel marks it "nearest".
+  A kind with nothing in the key plays the plain chord.
+
 
 **Orchid buttons** are the eight chord buttons of Telepathic Instruments' Orchid, a direction each:
 
@@ -196,7 +212,7 @@ The panel names each direction's color by the chord it makes on the chord held.
   Pressed while coloring, the stick keeps the color it pinned until it moves to another direction, so nothing jumps.
 - The pins are the favorites (below, under Twin Rings), in the table played: a chord's pins are its degree's favorites in the key, so what is pinned here is in the Favorites tab and in Twin Rings' Y layer, and the other way round.
 
-LB is the toggle because it is the one control that is free with a face button and the stick both held: the thumbs are on them, the d-pad is under the same thumb as the stick, LT is the face buttons' second layer, RB the drums and RT the timeline, and L3 starts the beat.
+LB is the toggle because it is the one control that is free with a face button and the stick both held: the thumbs are on them, the d-pad is under the same thumb as the stick, RT is the face buttons' second layer, LT the compass's outer places, RB the drums, and L3 starts the beat.
 LB's own uses are the second voice's, and they are read from the face buttons' presses, so they still work: with LB held a face button pressed goes to the second voice, and the stick plays that chord's pins.
 Two presses of LB within a third of a second still switch both voices on, with the second voice added, so pin and unpin with a breath between.
 The timeline records a colored chord as it sounds.
@@ -335,7 +351,7 @@ The layouts are a functional core with an imperative shell.
   Each layout is a `Layout`, stepped by frames against the `DeskSettings` they share, and every chord is a `DeskChord` voiced by the theory core's `computeVoicing`.
   Its tests script frames and check the effects by equality.
 - What the screen shows is a value too, made by the C++ core (`scene.hpp`), so the Godot desk's scripts only draw it.
-- The timeline is a core of the C++ desk alone, beside `Desk` and not inside it, so the desk the parity test plays is unchanged: the song and its edits are values (`song.hpp`: layers of events, loops, nudge, quantize, rechord), the hands and the transport are `Timeline` (`timeline.hpp`), and `Studio` (`studio.hpp`) composes the two, handing the desk each frame without what RT holds and the timeline what the desk sounds.
+- The timeline is a core of the C++ desk alone, beside `Desk` and not inside it, so the desk the parity test plays is unchanged: the song and its edits are values (`song.hpp`: layers of events, loops, nudge, quantize, rechord), the hands and the transport are `Timeline` (`timeline.hpp`), and `Studio` (`studio.hpp`) composes the two, handing the desk each frame without what the timeline's layer (LB + RB) holds and the timeline what the desk sounds.
   What plays back is worked out 50 ms ahead and stamped with the moment it sounds, and the shell puts each on its kernel frame.
 - The Godot desk's shell is `godot/extension` (`PerfectoDesk`, in C++), which reads the controller and the keyboard through Godot, steps the C++ core, and plays its effects on the kernel, MIDI and the motors (`godot/README.md`).
 - The Mac desk's shell is `Sources/PerfectoDesk`: `DeskHost` reads the controllers 250 times a second, merges them into one frame, steps the desk, and performs its effects on `DeskAudio` (the kernel's Audio Unit, with every preset loaded), `DeskMIDI` and the controllers' motors.

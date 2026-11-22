@@ -472,6 +472,7 @@ Try **E** next as a Setup choice for the slide, since it needs no surface at all
 - **Borrowed fills.**
   Where a kind has no in-key edit (no in-key raise on ii), does the compass play the borrowed one (D major on ii, the V of V: often exactly what is wanted) marked as such, or stay silent?
   The table suggests borrowed fills are musically good more often than not.
+  For now it plays them, and Setup's key assistance (`KeyAssistance`, described in `docs/edge-layout.md`) colors them apart or silences them.
 - **Take-away.**
   Are the removals worth two of eight places?
   A bare fifth is useful in a rock voicing; a chord without its 5th sounds little different.
