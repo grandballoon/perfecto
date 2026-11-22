@@ -63,13 +63,14 @@ Studio::Played Studio::step(const GamepadFrame &frame) {
     handed_ = hands.frame;
     Drums::Step drummed = drums_.step(PadInput(hands.frame, handedBefore), reachable(), desk_.settings);
     const double chordLayer = hands_.chordLayer(drummed.frame.rightTrigger, hands.isTimeline);
-    // The timeline reads its layer from RT, which LB + RB stand for now.
-    if (reachable()) drummed.frame.rightTrigger = hands.isTimeline ? 1 : 0;
+    // In the timeline RB is its own, kept from the drums.
+    if (hands.isTimeline && frame.isDown(PadButton::rb)) drummed.frame.buttons.insert(PadButton::rb);
     const GamepadFrame drummedBefore = drummed_ ? *drummed_ : GamepadFrame{.time = frame.time};
     drummed_ = drummed.frame;
     Played played;
-    auto taken = timeline_.take(PadInput(drummed.frame, drummedBefore), reachable(), desk_.settings);
+    auto taken = timeline_.take(PadInput(drummed.frame, drummedBefore), hands.isTimeline, reachable(), desk_.settings);
     played.append(std::move(taken.out));
+    if (!timeline_.isLayered()) hands_.leave();
     const GamepadFrame takenBefore = taken_ ? *taken_ : GamepadFrame{.time = frame.time};
     taken_ = taken.frame;
     auto colored = colors_.step(PadInput(taken.frame, takenBefore), reachable(), desk_.faceChords(), desk_.settings);
@@ -81,6 +82,7 @@ Studio::Played Studio::step(const GamepadFrame &frame) {
     played.append(settled(desk_.step(played_frame)));
     played.append(std::move(drummed.effects));
     played.drums.insert(played.drums.end(), drummed.drums.begin(), drummed.drums.end());
+    played.append(timeline_.write(heard(desk_), frame.time, desk_.settings));
     played.append(timeline_.hear(heard(desk_), frame.time));
     played.append(timeline_.advance(frame.time, desk_.settings));
     return played;
@@ -126,6 +128,8 @@ Studio::Played Studio::perform(const Action &action) {
     case Action::Kind::selectEvent: played.append(timeline_.select(action.index, action.value, false)); break;
     case Action::Kind::stretchChoice: played.append(timeline_.select(action.index, action.value, true)); break;
     case Action::Kind::deselect: played.append(timeline_.deselect()); break;
+    case Action::Kind::write: played.append(timeline_.toggleWrite(now, settings)); break;
+    case Action::Kind::saveSong: played.append(timeline_.save(settings)); break;
     case Action::Kind::choosePattern:
         if (action.index >= 0 && action.index < static_cast<int>(drumPatterns().size()))
             drums_.choosePattern(action.index - drums_.machine().pattern());
@@ -133,6 +137,8 @@ Studio::Played Studio::perform(const Action &action) {
     case Action::Kind::chooseKit: played.drums = drums_.setKit(action.index, now); break;
     default: return settled(desk::perform(desk_, action));
     }
+    // A click that starts recording or writing hands the buttons back too.
+    if (!timeline_.isLayered()) hands_.leave();
     return played;
 }
 
@@ -146,13 +152,13 @@ Legend Studio::legend() const {
     Legend legend = drums_.legend(timeline_.legend(colors_.legend(std::move(base), reachable(), desk_.settings), reachable()),
                                   reachable());
     if (!reachable()) return legend;
-    const auto rb = PadControl::button(PadButton::rb), lb = PadControl::button(PadButton::lb);
+    const auto back = PadControl::button(PadButton::back);
     if (hands_.isTimeline()) {
-        legend[rb] = legend[lb] = "Timeline (let go to play)";
-    } else {
-        legend[rb] += " · with LB: timeline";
-        const auto held = legend.find(lb);
-        legend[lb] = (held == legend.end() ? "" : held->second + " · ") + "with RB: timeline";
+        legend[back] = "Back to playing";
+        legend[PadControl::button(PadButton::lb)] = "Deselect";
+        legend[PadControl::button(PadButton::rb)] = "Save as MIDI";
+    } else if (!drums_.isLayered()) {
+        legend[back] = "Edit the timeline";
     }
     return legend;
 }
@@ -176,14 +182,21 @@ TimelineBar timelineBar(const Timeline &timeline, double time) {
         if (layer.loop) reach = std::max(reach, layer.loop->to);
     }
     if (recording && playhead) reach = std::max(reach, *playhead);
+    const auto &writing = timeline.writing();
+    if (writing) reach = std::max(reach, writing->cursor + 1);
     const double bar = Song::beatsPerBar;
     const double length = std::max(shortestShown, std::ceil(reach / bar) * bar);
-    const double from = head && !recording ? std::floor(std::max(*head, 0.0) / length) * length : 0;
+    const auto page = writing ? std::optional(writing->cursor) : head;
+    const double from = page && !recording ? std::floor(std::max(*page, 0.0) / length) * length : 0;
     const double to = from + length;
     const auto shown = [&](double start, double end) { return start < to && end > from; };
     const auto covers = [&](double start, double end) { return playhead && start <= *playhead && *playhead < end; };
 
     TimelineBar view{from, to, Song::beatsPerBar, head, playhead.has_value(), {}, {}, "", Tint::secondary, "", {}};
+    // The buttons are the timeline's only in it, so only then are they shown.
+    const bool editing = timeline.isLayered();
+    view.isEditing = editing;
+    const auto keys = [&](const char *shown) { return std::string(editing ? shown : ""); };
     for (size_t i = 0; i < song.layers.size(); ++i) {
         const Layer &layer = song.layers[i];
         const bool isRecording = recording && recording->layer == layer.id;
@@ -206,6 +219,11 @@ TimelineBar timelineBar(const Timeline &timeline, double time) {
                                        !layer.isMuted && covers(echo.start, echo.end), true, false});
             }
         }
+        if (writing && chosenLayer && chosenLayer->id == layer.id)
+            for (const auto &[voice, open] : writing->open)
+                lane.blocks.push_back({0, writing->cursor,
+                                       writing->cursor + std::max((time - open.first) * writing->tempo / 60, 0.0),
+                                       open.second.chord.name(), voice, false, true, false, false});
         if (isRecording && playhead)
             for (const auto &[voice, open] : recording->open)
                 lane.blocks.push_back({0, open.first, std::max(*playhead, open.first), open.second.chord.name(), voice,
@@ -219,25 +237,41 @@ TimelineBar timelineBar(const Timeline &timeline, double time) {
     const bool looping = chosenLayer && chosenLayer->loop;
     using Icon = TimelineBar::Icon;
     view.controls = {
-        {Icon::rewind, "Back to start", "LB+RB + LT + X", false, (head && *head > 0) && !recording,
+        {Icon::rewind, "Back to start", keys("LT + X"), false, (head && *head > 0) && !recording,
          {Kind::rewind, 0, 0, {}}},
-        {rolling ? Icon::pause : Icon::play, rolling ? "Pause" : "Play", "LB+RB + X", false, !song.isEmpty() || rolling,
+        {rolling ? Icon::pause : Icon::play, rolling ? "Pause" : "Play", keys("X"), false, !song.isEmpty() || rolling,
          {Kind::play, 0, 0, {}}},
-        {recording ? Icon::stopRecording : Icon::record, recording ? "Stop recording" : "Record", "LB+RB + A",
+        {recording ? Icon::stopRecording : Icon::record, recording ? "Stop recording" : "Record", keys("A"),
          recording.has_value(), true, {Kind::record, 0, 0, {}}},
-        {Icon::none, selection || !looping ? "⟲ Loop selection" : "⟲ Stop looping", "LB+RB + Y", false,
+        {Icon::none, "Write", keys("R3"), writing.has_value(), !recording, {Kind::write, 0, 0, {}}},
+        {Icon::none, selection || !looping ? "⟲ Loop selection" : "⟲ Stop looping", keys("Y"), false,
          selection || looping, {Kind::loop, 0, 0, {}}},
-        {Icon::none, "⌗ Fix timing", "LB+RB + B", false, chosenLayer != nullptr, {Kind::quantize, 0, 0, {}}},
-        {Icon::none, "✕ Delete", "LB+RB + R-stick ↓", false, selection, {Kind::erase, 0, 0, {}}},
-        {Icon::none, "↶ Undo", "LB+RB + L-stick ←", false, timeline.canUndo(), {Kind::undo, 0, 0, {}}},
-        {Icon::none, "↷ Redo", "LB+RB + L-stick →", false, timeline.canRedo(), {Kind::redo, 0, 0, {}}},
+        {Icon::none, "⌗ Fix timing", keys("B"), false, chosenLayer != nullptr, {Kind::quantize, 0, 0, {}}},
+        {Icon::none, "✕ Delete", keys("R-stick ↓"), false, selection, {Kind::erase, 0, 0, {}}},
+        {Icon::none, "↶ Undo", keys("L-stick ←"), false, timeline.canUndo(), {Kind::undo, 0, 0, {}}},
+        {Icon::none, "↷ Redo", keys("L-stick →"), false, timeline.canRedo(), {Kind::redo, 0, 0, {}}},
+        {Icon::none, "Save MIDI", keys("RB"), false, !song.isEmpty(), {Kind::saveSong, 0, 0, {}}},
     };
 
+    const TimelineBar::Tip toPlaying{"Back", "Back to playing"}, toEditing{"Back", "Edit timeline"};
     if (recording) {
         view.status = "● Recording track " + std::to_string(song.layers.size()) + " · " + position(*playhead);
         view.statusTint = Tint::chord;
         view.message = "Recording: play along, and every chord you play is captured.";
-        view.tips = {{"LB+RB + A", "Stop recording"}, {"LB+RB + X", "Pause"}};
+        if (editing) view.tips = {{"A", "Stop recording"}, {"X", "Pause"}, toPlaying};
+        else view.tips = {{"Back, then A", "Stop recording"}};
+        return view;
+    }
+    if (writing) {
+        view.cursor = writing->cursor;
+        view.status = "Writing · " + position(writing->cursor);
+        view.statusTint = Tint::chord;
+        view.message = "Hold a chord to write it at the cursor, for as long as you hold it. Nothing has to play.";
+        if (editing)
+            view.tips = {{"← →", "Move cursor"}, {"LT + ← →", "By a bar"}, {"L-stick ←", "Undo"},
+                         {"X", "Play from cursor"}, {"R3", "Done"}, {"Back", "Write chords"}};
+        else
+            view.tips = {{"← →", "Move cursor"}, {"LT + ← →", "By a bar"}, {"R3", "Done"}, {"Back", "Undo, play and more"}};
         return view;
     }
     if (playhead) {
@@ -248,23 +282,33 @@ TimelineBar timelineBar(const Timeline &timeline, double time) {
     } else {
         view.status = song.isEmpty() ? "Nothing recorded yet" : "Stopped · " + count(song.layers.size(), "track", "tracks");
     }
-    if (song.isEmpty()) {
-        view.message = "Hold LB + RB and press A to start recording, then play chords. Press LB + RB + A again to stop.";
-        view.tips = {{"LB+RB + A", "Record"}};
-    } else if (selection) {
+    if (selection)
         view.message = count(chosen.size(), "chord", "chords") +
                        " selected. Play a chord to replace " + (chosen.size() == 1 ? "it" : "them") +
                        ": the timing stays the same.";
-        view.tips = {{"LB+RB + LT + ← →", "Select more"},       {"LB+RB + Y", "Loop selection"},
-                     {"LB+RB + B", "Fix timing"},                {"LB+RB + R-stick ← →", "Move earlier / later"},
-                     {"LB+RB + R-stick ↓", "Delete"},            {"Tap LB+RB", "Deselect"}};
+    if (!editing) {
+        if (song.isEmpty()) view.message = "Press Back to edit the timeline, then A to record.";
+        else if (!selection) view.message = "Press Back to work with what you recorded.";
+        view.tips = {toEditing};
+    } else if (song.isEmpty()) {
+        view.message = "Press A to record, or R3 to write chords without playing.";
+        view.tips = {{"A", "Record"}, {"R3", "Write chords without playing"}, toPlaying};
+    } else if (selection) {
+        view.message = count(chosen.size(), "chord", "chords") + " selected. Press Back, then play a chord to replace " +
+                       (chosen.size() == 1 ? "it" : "them") + ": the timing stays the same.";
+        view.tips = {{"LT + ← →", "Select more"},       {"Y", "Loop selection"},
+                     {"B", "Fix timing"},               {"R-stick ← →", "Move earlier / later"},
+                     {"L-stick ↑ ↓", "Longer / shorter"},
+                     {"R-stick ↓", "Delete"},           {"LB", "Deselect"}, toPlaying};
     } else {
-        view.message = "Hold LB + RB to work with what you recorded.";
-        view.tips = {{"LB+RB + X", playhead ? "Pause" : "Play"}, {"LB+RB + A", "Record a new track"},
-                     {"LB+RB + ← →", "Select a chord"},         {"LB+RB + ↑ ↓", "Pick a track"},
-                     {"LB+RB + B", "Fix timing of the track"}};
-        if (looping) view.tips.push_back({"LB+RB + Y", "Stop looping"});
-        if (head && *head > 0) view.tips.push_back({"LB+RB + LT + X", "Back to start"});
+        view.message = "Every button works the timeline. Press Back to play chords.";
+        view.tips = {{"X", playhead ? "Pause" : "Play"}, {"A", "Record a new track"},
+                     {"← →", "Select a chord"},          {"↑ ↓", "Pick a track"},
+                     {"B", "Fix timing of the track"},
+                     {"R3", "Write"},                    {"RB", "Save MIDI"}};
+        if (looping) view.tips.push_back({"Y", "Stop looping"});
+        if (head && *head > 0) view.tips.push_back({"LT + X", "Back to start"});
+        view.tips.push_back(toPlaying);
     }
     return view;
 }

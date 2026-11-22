@@ -54,7 +54,7 @@ public struct SoundCatalog: Equatable, Sendable {
 /// the sound library.
 public struct DeskMenu: Equatable, Sendable {
     public enum Row: CaseIterable, Sendable {
-        case layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, faceStick, keyAssist, chordSound, lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output, saveMIDI
+        case layout, consonance, guardInKey, forgetRun, ring, ringOrder, ringFilter, lbLayer, faceStick, keyAssist, chordSound, lineSound, key, scale, octave, tempo, grid, voiceLeading, ranking, output
 
         public var name: String {
             switch self {
@@ -74,11 +74,10 @@ public struct DeskMenu: Equatable, Sendable {
             case .scale: "Scale"
             case .octave: "Octave"
             case .tempo: "Tempo"
-            case .grid: "Arranger grid"
+            case .grid: "Grid"
             case .voiceLeading: "Voice leading"
             case .ranking: "Compass order"
             case .output: "Output"
-            case .saveMIDI: "Save the arrangement"
             }
         }
     }
@@ -108,7 +107,6 @@ public struct Desk: Equatable, Sendable {
     public private(set) var petals = Petals()
     public private(set) var neighbourhood = Neighbourhood()
     public private(set) var twoVoices = TwoVoices()
-    public private(set) var arranger = Arranger()
     public private(set) var menu: DeskMenu?
     public let catalog: SoundCatalog
     /// What the last frame said, if any has come.
@@ -118,7 +116,7 @@ public struct Desk: Equatable, Sendable {
     /// frame came is not part of it.
     public static func == (a: Desk, b: Desk) -> Bool {
         a.settings == b.settings && a.layout == b.layout && a.faceChords == b.faceChords && a.twinRings == b.twinRings && a.petals == b.petals
-            && a.neighbourhood == b.neighbourhood && a.twoVoices == b.twoVoices && a.arranger == b.arranger
+            && a.neighbourhood == b.neighbourhood && a.twoVoices == b.twoVoices
             && a.menu == b.menu && a.catalog == b.catalog && a.frame?.untimed == b.frame?.untimed
     }
 
@@ -149,7 +147,6 @@ public struct Desk: Equatable, Sendable {
         case .petals: out = petals.step(input, settings: &settings)
         case .neighbourhood: out = neighbourhood.step(input, settings: &settings)
         case .twoVoices: out = twoVoices.step(input, settings: &settings)
-        case .arranger: out = arranger.step(input, settings: &settings)
         }
         if settings.key != key { settings.favorites.keyChanged(to: settings.key) }
         settings.consonance.hear(out)
@@ -165,7 +162,6 @@ public struct Desk: Equatable, Sendable {
         case .petals: petals.line.isSounding ? petals.line.chord : nil
         case .neighbourhood: neighbourhood.line.isSounding ? neighbourhood.line.chord : neighbourhood.centre
         case .twoVoices: twoVoices.chords.isSounding ? twoVoices.chords.chord : twoVoices.chord(settings)
-        case .arranger: arranger.line.isSounding ? arranger.line.chord : arranger.aimed(settings)
         }
     }
 
@@ -211,7 +207,6 @@ public struct Desk: Equatable, Sendable {
         case .petals: out = petals.releaseAll()
         case .neighbourhood: out = neighbourhood.releaseAll()
         case .twoVoices: out = twoVoices.releaseAll()
-        case .arranger: out = arranger.releaseAll()
         }
         settings.consonance.hear(out)
         return out
@@ -234,7 +229,6 @@ public struct Desk: Equatable, Sendable {
         case .petals: return petals.legend(settings)
         case .neighbourhood: return neighbourhood.legend(settings)
         case .twoVoices: return twoVoices.legend(settings)
-        case .arranger: return arranger.legend(settings)
         }
     }
 
@@ -274,10 +268,6 @@ public struct Desk: Equatable, Sendable {
                     let line: Line = menu.row == .chordSound ? .chord : .melody
                     let place = catalog.place(of: sound(of: line)) ?? (0, 0)
                     menu.library = DeskMenu.Library(line: line, category: place.category, index: place.index)
-                case .saveMIDI:
-                    if let file = arranger.midiFile(settings) {
-                        out.append(.saveMIDI(bytes: file.encoded(), name: "Perfecto Desk \(settings.summary)"))
-                    }
                 case .layout:
                     closes = true
                 default:
@@ -341,8 +331,6 @@ public struct Desk: Equatable, Sendable {
         case .output:
             let all = DeskOutput.allCases
             settings.output = all[((all.firstIndex(of: settings.output)! + steps) % all.count + all.count) % all.count]
-        case .saveMIDI:
-            break
         }
         return []
     }
@@ -385,7 +373,6 @@ public struct Desk: Equatable, Sendable {
         case .voiceLeading: settings.voiceLeading ? "On" : "Off"
         case .ranking: settings.ranking == .theory ? "Theory" : "Common first"
         case .output: settings.output.name
-        case .saveMIDI: !arranger.arrangement.isEmpty ? "A to save" : "Nothing written yet"
         }
     }
 }

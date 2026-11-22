@@ -18,6 +18,8 @@
 
 #include "perfecto/desk/music.hpp"
 
+#include <perfecto/theory/midi_file.hpp>
+
 #include <compare>
 #include <optional>
 #include <set>
@@ -179,6 +181,19 @@ Layer erased(const Layer &layer, const std::set<int> &ids);
 
 /// The events `beats` later.
 Layer shifted(const Layer &layer, double beats);
+
+/// `part` written from `start` for `length` beats, as the event `id`. What
+/// was on its channel gives way: an event that started before it ends where
+/// it starts, and one that starts under it is gone.
+Layer written(const Layer &layer, int id, double start, double length, const ChordPart &part);
+
+/// `ids` each `beats` longer (shorter, below 0), up to the next start on
+/// their channel and no shorter than `shortestEvent`.
+Layer resized(const Layer &layer, const std::set<int> &ids, double beats);
+
+/// The song as it is heard, a track to each layer not muted, its loops
+/// repeated to the song's end; none with nothing to hear.
+std::optional<theory::MidiFile> midiFile(const Song &song, const DeskSettings &settings);
 
 } // namespace perfecto::desk
 

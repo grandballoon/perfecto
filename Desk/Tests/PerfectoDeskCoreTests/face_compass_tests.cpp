@@ -1,6 +1,6 @@
 // Face Chords as it is held: A the root, RT the chords' second layer, the
 // phone's step compass on the left stick with LT its outer places, Key assist,
-// and LB + RB the timeline's layer.
+// and Back the way into the timeline.
 
 #include <doctest.h>
 
@@ -22,7 +22,7 @@ const Key cMajor{PitchClass::C, ScaleType::major};
 constexpr auto ranking = ColorStepRanking::theory;
 
 constexpr PadButton a = PadButton::a, b = PadButton::b, x = PadButton::x, y = PadButton::y;
-constexpr PadButton lb = PadButton::lb, rb = PadButton::rb;
+constexpr PadButton lb = PadButton::lb, back = PadButton::back;
 
 Stick lean(double bearing) {
     const double radians = bearing * std::acos(-1.0) / 180;
@@ -133,33 +133,33 @@ TEST_CASE("the stick colors what the button strikes, on each degree its own") {
     CHECK(notes(s) != colored);
 }
 
-TEST_CASE("LB and RB together hold the timeline, and letting go presses neither's own use") {
+TEST_CASE("in the timeline LB is its own, and out of it the pins'") {
     Studio s = studio();
     s.step(frame(1, {a}));
     s.step(frame(1.1, {a}, lean(0)));
-    s.step(frame(1.2, {a, lb, rb}, lean(0)));
+    s.step(frame(1.2, {a, back}, lean(0)));
     CHECK(s.timeline().isLayered());
-    CHECK_FALSE(s.colors().isOnPins());
-    CHECK_FALSE(s.drums().isLayered());
-    // RB let go first: LB is still the timeline's, so it does not pin.
-    s.step(frame(1.3, {a, lb}, lean(0)));
-    CHECK_FALSE(s.timeline().isLayered());
+    s.step(frame(1.3, {a}, lean(0)));
+    s.step(frame(1.4, {a, lb}, lean(0)));
     CHECK_FALSE(s.colors().isOnPins());
     CHECK(s.desk().settings.favorites.colors(cMajor, Degree::I).empty());
-    s.step(frame(1.4, {a}, lean(0)));
-    // Pressed afresh, LB is the pins' again.
-    s.step(frame(1.5, {a, lb}, lean(0)));
+    s.step(frame(1.5, {a}, lean(0)));
+    s.step(frame(1.6, {a, back}, lean(0)));
+    CHECK_FALSE(s.timeline().isLayered());
+    s.step(frame(1.7, {a}, lean(0)));
+    s.step(frame(1.8, {a, lb}, lean(0)));
     CHECK(s.colors().isOnPins());
 }
 
-TEST_CASE("LB + RB + A records, and RT alone does not") {
+TEST_CASE("Back then A records, and RT + A does not") {
     Studio s = studio();
     s.step(frame(1));
     s.step(frame(1.1, {a}, Stick::rest(), 0, 1));
     CHECK_FALSE(s.timeline().recording());
     s.step(frame(1.2));
-    s.step(frame(1.3, {lb, rb}));
-    s.step(frame(1.4, {lb, rb, a}));
+    s.step(frame(1.3, {back}));
+    s.step(frame(1.35));
+    s.step(frame(1.4, {a}));
     CHECK(s.timeline().recording());
 }
 
@@ -169,10 +169,23 @@ TEST_CASE("the panel shows the compass's four places, inner or outer") {
     auto shown = scene(s, false);
     auto pie = std::get<Pie>(shown.stage.at(0).items.at(1));
     REQUIRE(pie.targets.size() == 4);
+    REQUIRE(pie.outer.has_value());
+    REQUIRE(pie.outer->size() == 4);
+    CHECK(pie.outerTrigger == "LT");
+    CHECK_FALSE(pie.isOuterOn);
     CHECK(std::get<Caption>(shown.stage.at(0).items.at(0)).title == "Compass · inner");
-    s.step(frame(1.1, {a}, Stick::rest(), 1));
+    const auto inner = pie.targets[0]->name;
+    const auto further = (*pie.outer)[0]->name;
+    s.step(frame(1.1, {a}, lean(0), 1));
     shown = scene(s, false);
+    pie = std::get<Pie>(shown.stage.at(0).items.at(1));
     CHECK(std::get<Caption>(shown.stage.at(0).items.at(0)).title == "Compass · outer");
+    CHECK(pie.isOuterOn);
+    // Both rings stay where they were, and only the outer place is aimed at.
+    CHECK(pie.targets[0]->name == inner);
+    CHECK((*pie.outer)[0]->name == further);
+    CHECK_FALSE(pie.targets[0]->isAimed);
+    CHECK((*pie.outer)[0]->isAimed);
 }
 
 }

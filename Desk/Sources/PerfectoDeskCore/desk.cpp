@@ -75,11 +75,10 @@ std::string name(DeskMenu::Row row) {
     case DeskMenu::Row::scale: return "Scale";
     case DeskMenu::Row::octave: return "Octave";
     case DeskMenu::Row::tempo: return "Tempo";
-    case DeskMenu::Row::grid: return "Arranger grid";
+    case DeskMenu::Row::grid: return "Grid";
     case DeskMenu::Row::voiceLeading: return "Voice leading";
     case DeskMenu::Row::ranking: return "Compass order";
     case DeskMenu::Row::output: return "Output";
-    case DeskMenu::Row::saveMIDI: return "Save the arrangement";
     }
     return {};
 }
@@ -95,7 +94,7 @@ bool Desk::operator==(const Desk &other) const {
     };
     return settings == other.settings && layout_ == other.layout_ && faceChords_ == other.faceChords_ &&
            twinRings_ == other.twinRings_ && petals_ == other.petals_ && neighbourhood_ == other.neighbourhood_ &&
-           twoVoices_ == other.twoVoices_ && arranger_ == other.arranger_ && menu_ == other.menu_ &&
+           twoVoices_ == other.twoVoices_ && menu_ == other.menu_ &&
            catalog_ == other.catalog_ && untimed(frame_) == untimed(other.frame_);
 }
 
@@ -117,7 +116,6 @@ std::vector<DeskEffect> Desk::step(const GamepadFrame &frame) {
     case LayoutKind::petals: out = petals_.step(input, settings); break;
     case LayoutKind::neighbourhood: out = neighbourhood_.step(input, settings); break;
     case LayoutKind::twoVoices: out = twoVoices_.step(input, settings); break;
-    case LayoutKind::arranger: out = arranger_.step(input, settings); break;
     }
     if (settings.key != key) settings.favorites.keyChanged(settings.key);
     settings.consonance.hear(out);
@@ -138,8 +136,6 @@ std::optional<DeskChord> Desk::pinnable() const {
         return neighbourhood_.line().isSounding() ? neighbourhood_.line().chord() : neighbourhood_.centre();
     case LayoutKind::twoVoices:
         return twoVoices_.chords().isSounding() ? twoVoices_.chords().chord() : twoVoices_.chord(settings);
-    case LayoutKind::arranger:
-        return arranger_.line().isSounding() ? arranger_.line().chord() : arranger_.aimed(settings);
     }
     return std::nullopt;
 }
@@ -171,7 +167,6 @@ std::vector<DeskEffect> Desk::releaseLayout() {
     case LayoutKind::petals: out = petals_.releaseAll(); break;
     case LayoutKind::neighbourhood: out = neighbourhood_.releaseAll(); break;
     case LayoutKind::twoVoices: out = twoVoices_.releaseAll(); break;
-    case LayoutKind::arranger: out = arranger_.releaseAll(); break;
     }
     settings.consonance.hear(out);
     return out;
@@ -198,7 +193,6 @@ Legend Desk::legend() const {
     case LayoutKind::petals: return petals_.legend(settings);
     case LayoutKind::neighbourhood: return neighbourhood_.legend(settings);
     case LayoutKind::twoVoices: return twoVoices_.legend(settings);
-    case LayoutKind::arranger: return arranger_.legend(settings);
     }
     return {};
 }
@@ -247,10 +241,6 @@ std::vector<DeskEffect> Desk::stepMenu(const PadInput &input) {
                 menu.library = DeskMenu::Library{line, place.category, place.index};
                 break;
             }
-            case DeskMenu::Row::saveMIDI:
-                if (const auto file = arranger_.midiFile(settings))
-                    out.push_back(DeskEffect::saveMIDI(file->encoded(), "Perfecto Desk " + settings.summary()));
-                break;
             case DeskMenu::Row::layout: closes = true; break;
             default: append(out, change(menu.row, 1)); break;
             }
@@ -303,7 +293,6 @@ std::vector<DeskEffect> Desk::change(DeskMenu::Row row, int steps) {
                                                                          : ColorStepRanking::theory;
         break;
     case DeskMenu::Row::output: settings.output = stepped(allDeskOutputs, settings.output, steps); break;
-    case DeskMenu::Row::saveMIDI: break;
     }
     return {};
 }
@@ -345,7 +334,6 @@ std::string Desk::value(DeskMenu::Row row) const {
     case DeskMenu::Row::voiceLeading: return settings.voiceLeading ? "On" : "Off";
     case DeskMenu::Row::ranking: return settings.ranking == ColorStepRanking::theory ? "Theory" : "Common first";
     case DeskMenu::Row::output: return name(settings.output);
-    case DeskMenu::Row::saveMIDI: return !arranger_.arrangement().isEmpty() ? "A to save" : "Nothing written yet";
     }
     return {};
 }

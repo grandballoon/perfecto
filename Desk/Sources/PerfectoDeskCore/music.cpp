@@ -1,6 +1,6 @@
 #include "perfecto/desk/music.hpp"
 
-#include "perfecto/desk/arrangement.hpp"
+#include "perfecto/desk/beat_grid.hpp"
 #include "perfecto/desk/ring_pie.hpp"
 
 #include <perfecto/theory/key_degree.hpp>

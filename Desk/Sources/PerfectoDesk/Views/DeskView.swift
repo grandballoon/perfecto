@@ -41,7 +41,6 @@ struct DeskView: View {
         case .petals: PetalsView(layout: desk.petals, settings: desk.settings, frame: host.frame)
         case .neighbourhood: NeighbourhoodView(layout: desk.neighbourhood, settings: desk.settings, frame: host.frame)
         case .twoVoices: TwoVoicesView(layout: desk.twoVoices, settings: desk.settings, frame: host.frame)
-        case .arranger: ArrangerView(layout: desk.arranger, settings: desk.settings, frame: host.frame)
         }
     }
 }
@@ -184,10 +183,10 @@ struct MenuView: View {
                             Text(row.name)
                                 .font(.system(size: 14, weight: .medium))
                             Spacer()
-                            if row == menu.row, ![.saveMIDI].contains(row) { Text("◀").foregroundStyle(Theme.faint) }
+                            if row == menu.row { Text("◀").foregroundStyle(Theme.faint) }
                             Text(desk.value(of: row))
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            if row == menu.row, ![.saveMIDI].contains(row) { Text("▶").foregroundStyle(Theme.faint) }
+                            if row == menu.row { Text("▶").foregroundStyle(Theme.faint) }
                         }
                         .foregroundStyle(row == menu.row ? Color.black : Theme.text)
                         .padding(.horizontal, 14).padding(.vertical, 9)

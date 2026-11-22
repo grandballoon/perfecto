@@ -56,6 +56,12 @@ static func draw(canvas: CanvasItem, rect: Rect2, t: Dictionary, hits: Array) ->
 		canvas.draw_rect(Rect2(px - 1, track.position.y, 2, bottom - track.position.y), ink)
 		var top := track.position.y
 		canvas.draw_colored_polygon(PackedVector2Array([Vector2(px - 5, top), Vector2(px + 5, top), Vector2(px, top + 6)]), ink)
+	if t["cursor"] != null:
+		var cx: float = x.call(t["cursor"])
+		var bottom := lanes_top + maxi(1, t["lanes"].size()) * (h + LANE_GAP) - LANE_GAP
+		Paint.capsule(canvas, Rect2(cx - 1.5, track.position.y, 3, bottom - track.position.y), Paint.CHORD)
+		var top := track.position.y
+		canvas.draw_colored_polygon(PackedVector2Array([Vector2(cx - 6, top), Vector2(cx + 6, top), Vector2(cx, top + 7)]), Paint.CHORD)
 	guide(canvas, Rect2(inner.position.x, inner.end.y - GUIDE, inner.size.x, GUIDE), t)
 
 
@@ -108,8 +114,9 @@ static func header(canvas: CanvasItem, rect: Rect2, t: Dictionary, hits: Array) 
 		right -= width + 6
 	var mid := rect.position.y + BUTTON / 2
 	x += 6
-	var title := T.new("Timeline", 12, 600)
-	title.draw(canvas, Vector2(x, mid - title.height() / 2), Paint.color("text"))
+	var editing: bool = t["editing"]
+	var title := T.new("Editing timeline" if editing else "Timeline", 12, 700 if editing else 600)
+	title.draw(canvas, Vector2(x, mid - title.height() / 2), Paint.CHORD if editing else Paint.color("text"))
 	x += title.width() + 14
 	var status := T.new(t["status"], 12, 600, true).fitted(right - 12 - x)
 	status.draw(canvas, Vector2(x, mid - status.height() / 2), Paint.color(t["status_tint"]))

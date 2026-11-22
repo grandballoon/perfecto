@@ -37,11 +37,25 @@ struct StudioRig {
         return studio.step(frame);
     }
 
-    /// Holds `buttons` alone, the timeline's layer (LB + RB) held or not.
+    /// Presses and lets go of Back just before `time` if the hands are not
+    /// where `layer` says, with what is held still held.
+    void inTimeline(double time, bool layer) {
+        if (studio.isTimeline() == layer) return;
+        GamepadFrame down = last;
+        down.time = time - 0.002;
+        down.buttons.insert(PadButton::back);
+        studio.step(down);
+        last = down;
+        last.time = time - 0.001;
+        last.buttons.erase(PadButton::back);
+        studio.step(last);
+    }
+
+    /// Holds `buttons` alone, in the timeline or out of it.
     Studio::Played hold(double time, std::set<PadButton> buttons, bool layer = false, double lt = 0) {
+        inTimeline(time, layer);
         return at(time, [&](GamepadFrame &f) {
             f.buttons = std::move(buttons);
-            if (layer) f.buttons.insert({PadButton::lb, PadButton::rb});
             f.leftTrigger = lt;
         });
     }
@@ -101,7 +115,7 @@ bool hushes(const std::vector<TimelineEffect> &playback) {
 
 TEST_SUITE("Timeline") {
 
-TEST_CASE("RT + A records what is played, the first take from its first chord") {
+TEST_CASE("A in the timeline records what is played, the first take from its first chord") {
     StudioRig rig;
     const auto started = rig.hold(10, {PadButton::a}, true);
     // A was the timeline's: it struck nothing.
@@ -127,7 +141,7 @@ TEST_CASE("a take with nothing played is not kept") {
     CHECK_FALSE(rig.timeline().canUndo());
 }
 
-TEST_CASE("RT + X plays it back, each chord stamped with when it sounds") {
+TEST_CASE("X in the timeline plays it back, each chord stamped with when it sounds") {
     StudioRig rig;
     recordTwo(rig, 10);
     auto played = rig.hold(20, {PadButton::x}, true);
@@ -144,7 +158,7 @@ TEST_CASE("RT + X plays it back, each chord stamped with when it sounds") {
     CHECK_FALSE(rig.timeline().rolling());
 }
 
-TEST_CASE("RT + X pauses where it is, and plays on from there") {
+TEST_CASE("X in the timeline pauses where it is, and plays on from there") {
     StudioRig rig;
     recordTwo(rig, 10);
     rig.hold(20, {PadButton::x}, true);
@@ -167,7 +181,7 @@ TEST_CASE("RT + X pauses where it is, and plays on from there") {
     CHECK(cues(rig.at(30.46).playback) == Cues{{30.5, {}}, {30.5, IV}});
 }
 
-TEST_CASE("RT + LT + X goes back to the start, and plays on from there if it plays") {
+TEST_CASE("LT + X in the timeline goes back to the start, and plays on from there if it plays") {
     StudioRig rig;
     recordTwo(rig, 10);
     rig.hold(20, {PadButton::x}, true);
@@ -223,19 +237,19 @@ TEST_CASE("chords chosen take the chord played, each keeping its time") {
     recordTwo(rig, 10);
     rig.hold(20, {PadButton::right}, true);  // the first chord
     CHECK(rig.timeline().selected() == std::set<int>{rig.song().layers[0].events[0].id});
-    rig.hold(20.1, {});  // RT let go after choosing: the choice stays
+    rig.hold(20.1, {});  // back to playing: the choice stays
     REQUIRE(rig.timeline().selection());
     const auto played = rig.hold(21, {PadButton::y});  // vii° is heard, and written
     CHECK(sounded(played.effects) == std::vector<std::vector<int>>{viiDim});
     CHECK(times(rig.song().layers[0]) == Times{{0, 1}, {1, 2}});
     CHECK(notes(rig.song().layers[0]) == std::vector<std::vector<int>>{viiDim, IV});
-    // Undone with the left stick, under RT.
+    // Undone with the left stick, in the timeline.
     rig.hold(22, {}, true);
     rig.at(22.1, [](GamepadFrame &f) { f.left = lean(270); });
     CHECK(notes(rig.song().layers[0]) == std::vector<std::vector<int>>{I, IV});
 }
 
-TEST_CASE("RT tapped alone lets go of the choice") {
+TEST_CASE("LB in the timeline lets go of the choice, and going in and out does not") {
     StudioRig rig;
     recordTwo(rig, 10);
     rig.hold(20, {PadButton::right}, true);
@@ -243,7 +257,60 @@ TEST_CASE("RT tapped alone lets go of the choice") {
     REQUIRE(rig.timeline().selection());
     rig.hold(21, {}, true);
     rig.hold(21.1, {});
+    REQUIRE(rig.timeline().selection());
+    rig.hold(22, {PadButton::lb}, true);
     CHECK_FALSE(rig.timeline().selection());
+    CHECK(rig.studio.colors().isOnPins() == false);
+}
+
+TEST_CASE("Back goes into the timeline and out, and never changes the layout from Face Chords") {
+    StudioRig rig;
+    rig.at(1, [](GamepadFrame &f) { f.buttons = {PadButton::back}; });
+    CHECK(rig.studio.isTimeline());
+    rig.at(1.5, [](GamepadFrame &f) { f.buttons = {}; });
+    CHECK(rig.studio.isTimeline());
+    rig.at(2, [](GamepadFrame &f) { f.buttons = {PadButton::back}; });
+    CHECK_FALSE(rig.studio.isTimeline());
+    CHECK(rig.studio.desk().layout() == LayoutKind::faceChords);
+}
+
+TEST_CASE("RB + Back in play is still the drums' kit") {
+    StudioRig rig;
+    rig.at(1, [](GamepadFrame &f) { f.buttons = {PadButton::rb}; });
+    rig.at(1.1, [](GamepadFrame &f) { f.buttons = {PadButton::rb, PadButton::back}; });
+    CHECK_FALSE(rig.studio.isTimeline());
+    CHECK(rig.studio.desk().layout() == LayoutKind::faceChords);
+}
+
+TEST_CASE("RB in the timeline is not the drum pads, even held on the way out") {
+    StudioRig rig;
+    rig.hold(1, {PadButton::rb}, true);
+    CHECK_FALSE(rig.studio.drums().isLayered());
+    rig.at(1.1, [](GamepadFrame &f) { f.buttons = {PadButton::rb, PadButton::back}; });
+    CHECK_FALSE(rig.studio.isTimeline());
+    rig.at(1.2, [](GamepadFrame &f) { f.buttons = {PadButton::rb}; });
+    CHECK_FALSE(rig.studio.drums().isLayered());
+    // Back with that RB still held goes nowhere.
+    rig.at(1.3, [](GamepadFrame &f) { f.buttons = {PadButton::rb, PadButton::back}; });
+    CHECK_FALSE(rig.studio.isTimeline());
+    CHECK(rig.studio.desk().layout() == LayoutKind::faceChords);
+}
+
+TEST_CASE("starting to record hands the face buttons back to the chords") {
+    StudioRig rig;
+    rig.hold(1, {PadButton::a}, true);
+    CHECK(rig.timeline().recording());
+    CHECK_FALSE(rig.studio.isTimeline());
+    rig.at(1.1, [](GamepadFrame &f) { f.buttons = {}; });
+    const auto struck = rig.at(1.2, [](GamepadFrame &f) { f.buttons = {PadButton::b}; });
+    CHECK(sounded(struck.effects) == std::vector<std::vector<int>>{IV});
+}
+
+TEST_CASE("a click on Record hands the buttons back too") {
+    StudioRig rig;
+    rig.hold(1, {}, true);
+    rig.studio.perform({Action::Kind::record, 0, 0, {}});
+    CHECK_FALSE(rig.studio.isTimeline());
 }
 
 TEST_CASE("LT stretches the choice, and Y loops it") {
@@ -335,20 +402,25 @@ TEST_CASE("leaving Face Chords stops the timeline") {
     CHECK_FALSE(rig.timeline().rolling());
 }
 
-TEST_CASE("RT is the timeline's only in Face Chords") {
+TEST_CASE("the timeline is only in Face Chords, and Back changes the layout elsewhere") {
     StudioRig rig;
     rig.studio.choose(LayoutKind::twinRings);
-    rig.hold(1, {PadButton::a}, true);
+    rig.at(1, [](GamepadFrame &f) { f.buttons = {PadButton::back}; });
+    CHECK_FALSE(rig.studio.isTimeline());
+    CHECK(rig.studio.desk().layout() != LayoutKind::twinRings);
     CHECK_FALSE(rig.timeline().recording());
 }
 
-TEST_CASE("the legend says what RT does, and what it holds while held") {
+TEST_CASE("the legend says how to go in, and what every button does there") {
     StudioRig rig;
-    CHECK(rig.studio.legend().at(PadControl::button(PadButton::rb)).find("with LB: timeline") != std::string::npos);
+    CHECK(rig.studio.legend().at(PadControl::button(PadButton::back)) == "Edit the timeline");
     rig.hold(1, {}, true);
     const auto legend = rig.studio.legend();
     CHECK(legend.at(PadControl::button(PadButton::a)) == "Record a new track");
     CHECK(legend.at(PadControl::button(PadButton::x)) == "Play");
+    CHECK(legend.at(PadControl::button(PadButton::back)) == "Back to playing");
+    CHECK(legend.at(PadControl::button(PadButton::lb)) == "Deselect");
+    CHECK(legend.at(PadControl::button(PadButton::rb)) == "Save as MIDI");
 }
 
 TEST_CASE("the bar shows the lanes, the choice and the playhead") {
@@ -368,23 +440,28 @@ TEST_CASE("the bar shows the lanes, the choice and the playhead") {
     CHECK(bar.status == "Playing · bar 1 · beat 1");
     CHECK(bar.isPlaying);
     // With a chord selected, the bar says what can be done to it.
-    CHECK(bar.message == "1 chord selected. Play a chord to replace it: the timing stays the same.");
-    CHECK(bar.tips.front() == TimelineBar::Tip{"LB+RB + LT + ← →", "Select more"});
+    CHECK(bar.isEditing);
+    CHECK(bar.message == "1 chord selected. Press Back, then play a chord to replace it: the timing stays the same.");
+    CHECK(bar.tips.front() == TimelineBar::Tip{"LT + ← →", "Select more"});
 }
 
 TEST_CASE("the bar says how to begin, and what to do while recording and after") {
     StudioRig rig;
     auto bar = timelineBar(rig.timeline(), 0);
     CHECK(bar.status == "Nothing recorded yet");
-    CHECK(bar.tips == std::vector<TimelineBar::Tip>{{"LB+RB + A", "Record"}});
+    CHECK(bar.tips == std::vector<TimelineBar::Tip>{{"Back", "Edit timeline"}});
+    rig.hold(5, {}, true);
+    CHECK(timelineBar(rig.timeline(), 5).tips.front() == TimelineBar::Tip{"A", "Record"});
+    rig.hold(5.5, {});
     rig.hold(10, {PadButton::a}, true);
     bar = timelineBar(rig.timeline(), 10);
     CHECK(bar.status == "● Recording track 1 · bar 1 · beat 1");
-    CHECK(bar.tips.front() == TimelineBar::Tip{"LB+RB + A", "Stop recording"});
+    CHECK(bar.tips.front() == TimelineBar::Tip{"Back, then A", "Stop recording"});
     playTwo(rig, 10);
+    rig.hold(20, {}, true);
     bar = timelineBar(rig.timeline(), 20);
     CHECK(bar.status == "Stopped · 1 track");
-    CHECK(bar.tips.front() == TimelineBar::Tip{"LB+RB + X", "Play"});
+    CHECK(bar.tips.front() == TimelineBar::Tip{"X", "Play"});
     // No word the average player has to look up.
     for (const auto &tip : bar.tips) CHECK(tip.text.find("uantiz") == std::string::npos);
 }

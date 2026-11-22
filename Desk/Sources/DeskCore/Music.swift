@@ -91,7 +91,7 @@ public struct DeskSettings: Equatable, Codable, Sendable {
     /// The order the ring's sectors go round in, and which cells it lets through.
     public var ringOrder = RingOrder.brightness
     public var ringFilter = RingFilter.all
-    /// The grid the arranger snaps its times to.
+    /// The grid the timeline snaps its times to.
     public var grid = BeatGrid.sixteenth
     /// Colors pinned to the chords of keys, in named tables.
     public var favorites = Favorites()
@@ -284,8 +284,6 @@ public enum DeskEffect: Equatable, Sendable {
     case rumble(Rumble)
     /// Play a short chord in `sound`, to hear it while choosing it.
     case preview(sound: String, notes: [Int])
-    /// Save `file`'s bytes as a Standard MIDI File called `name`.
-    case saveMIDI(bytes: [UInt8], name: String)
     /// Something asked for was not played, and why: shown, and felt as `Rumble.refuse`.
     case refuse(String)
 }

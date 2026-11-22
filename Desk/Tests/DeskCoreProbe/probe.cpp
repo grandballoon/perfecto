@@ -141,7 +141,6 @@ std::vector<std::string> screenOf(const Desk &desk) {
             lines.push_back("petal " + std::to_string(petal.note) + " " + (petal.isChordTone ? "1" : "0") + " " +
                             (petal.isReachable ? "1" : "0"));
         break;
-    case LayoutKind::arranger: targets(lines, "degree", desk.arranger().degreeTargets(s)); break;
     }
     return lines;
 }

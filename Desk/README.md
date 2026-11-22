@@ -34,10 +34,10 @@ Unlike the phone, a note's velocity is how hard it was struck, and what is playe
 ## The controls every layout shares
 
 - **Back** goes to the next layout; a click on the layouts along the top does too.
-- **Start** opens the menu: the layout, how the color ring is laid out, what Face Chords' left stick colors with, the chords' and the line's sounds, the key, the scale, the octave, the tempo, voice leading, the step compass's order, the output, and saving the arrangement as a MIDI file.
+- **Start** opens the menu: the layout, how the color ring is laid out, what Face Chords' left stick colors with, the chords' and the line's sounds, the key, the scale, the octave, the tempo, voice leading, the step compass's order, and the output.
   The d-pad moves and changes, A opens, B closes.
   A on a sound opens the library: left and right through its categories, up and down through its sounds, each heard as it is reached.
-- **B** lets go of everything (but in Face Chords and Petals, where it strikes, and the Arranger, where it undoes).
+- **B** lets go of everything (but in Face Chords and Petals, where it strikes).
 - The **d-pad** rolls the inversion (left and right) and moves the octave (up and down), unless a layout needs it for something else.
 
 ## The consonance guard
@@ -70,7 +70,9 @@ The map is `godot/project/desk/face_chords.json`, read when the desk starts (a d
 What sounds is always the latest face button held, read in the layer RT is in now: pulling or letting go of RT while a button is held changes the chord as a new press does, and a button let go hands the chord back to one still held beneath it.
 With no face button held nothing sounds, and RT alone strikes nothing.
 RT is on past halfway, and held a little either side of it, so a trigger resting near the middle cannot flicker between two chords.
-The screen shows each button as a tile where it is on the controller, with its chord's number and name and the other layer's chord in a corner, and the chord heard large in the middle.
+The screen shows the face buttons as two concentric rings of tiles, each where its button is on the controller, with its chord's number and name, and the chord heard large in the middle.
+The inner ring is the chords without RT and the outer ring the chords with it, always shown and marked RT, so a chord never moves when the trigger is pulled.
+A's place on the outer ring is greyed, since RT + A has no chord of its own yet.
 The d-pad rolls the inversion and moves the octave, and the chord held moves with it.
 
 #### A second voice
@@ -96,6 +98,7 @@ Face Chords has a drum machine under it, and drum pads.
 
 - **L3** starts and stops the beat, on the click, so the beat starts where it is clicked.
 - **RB held** makes the face buttons drum pads: A kick, B snare, X closed hat, Y open hat; with LT held too, A low tom, B clap, X mid tom, Y high tom.
+  The screen shows them as the chords are shown, the toms and clap on the outer ring, marked LT.
   A face button or d-pad press made under RB is the drums' until it is let go, so it never reaches the chords, and a chord held when RB is pulled sounds on.
 - **RB with the d-pad**: left and right choose the beat, up and down move the tempo 4 bpm.
   The tempo is the desk's one tempo, which Menu › Tempo also sets.
@@ -124,33 +127,45 @@ There are eight:
 #### The timeline
 
 A bar along the top of Face Chords records what you play, plays it back, and lets you fix it and build it up, track over track, like a looper or a simple DAW.
-**Hold LB + RB to use it**: while both are held, the face buttons, the d-pad and the sticks work the timeline instead of playing chords.
-Let go of either to play again.
+**Press Back to go into it, and Back again to come out.**
+While you are in it the title reads "Editing timeline", and the face buttons, the d-pad, the bumpers and the sticks all work the timeline, each on its own, instead of playing chords.
 The bar always says what to do next, with the buttons for it.
-It leaves R3 to the second voice and L3 to the drums, and LB and RB alone keep their own uses.
-Each bumper stays the timeline's until it is let go, so letting go of one does not pin a color or open the drum pads.
+RB + Back while playing is still the drums' previous kit, and Menu › Layout changes the layout, since Back no longer does in Face Chords.
 
 To start:
 
-1. **LB + RB + A** starts recording. Play some chords.
-2. **LB + RB + A** again stops. What you played is the first track, starting at your first chord.
-3. **LB + RB + X** plays it back, and pauses it; again plays on from where it paused.
-   **LB + RB + LT + X** goes back to the start.
-4. **LB + RB + A** again records a new track while the others play along, so you can build a song up a part at a time.
+1. **Back**, then **A** starts recording, and hands the buttons straight back so you can play some chords.
+2. **Back**, then **A** again stops. What you played is the first track, starting at your first chord, and you are still in the timeline.
+3. **X** plays it back, and pauses it; again plays on from where it paused.
+   **LT + X** goes back to the start.
+4. **A** records a new track while the others play along, so you can build a song up a part at a time.
 
-To change what you recorded, first select chords:
+To change what you recorded, go into the timeline and select chords:
 
-- **LB + RB + ← →** selects the previous or next chord; add **LT** to select more than one.
-  **LB + RB + ↑ ↓** picks the track.
-- **Play a chord** (with the bumpers let go) to replace the selected ones: their timing stays the same, so you can try other chords in the same rhythm.
-- **LB + RB + Y** loops the selection: the track repeats it for as long as the song plays, and you can still change it.
-  With nothing selected, **LB + RB + Y** stops a track looping.
-- **LB + RB + B** fixes the timing: the selected chords (or the whole track, with none selected) snap to the nearest line of the grid, so they land in time.
-  The grid is sixteenth notes unless Menu › Arranger grid says otherwise.
-- **LB + RB + right stick ← →** moves the selection a little earlier or later, again and again while held (with LT, a whole grid step).
+- **← →** selects the previous or next chord; add **LT** to select more than one.
+  **↑ ↓** picks the track.
+- **Back**, then **play a chord** to replace the selected ones: their timing stays the same, so you can try other chords in the same rhythm.
+- **Y** loops the selection: the track repeats it for as long as the song plays, and you can still change it.
+  With nothing selected, **Y** stops a track looping.
+- **B** fixes the timing: the selected chords (or the whole track, with none selected) snap to the nearest line of the grid, so they land in time.
+  The grid is sixteenth notes unless Menu › Grid says otherwise.
+- **Right stick ← →** moves the selection a little earlier or later, again and again while held (with LT, a whole grid step).
   **↑** mutes the track and **↓** deletes the selection.
-- **LB + RB + left stick ← →** undoes and redoes.
-- **Tap LB + RB** to deselect.
+- **Left stick ↑ ↓** makes the selection longer or shorter, again and again while held (with LT, a whole grid step), as far as the next chord.
+- **Left stick ← →** undoes and redoes.
+- **LB** deselects.
+
+To write chords without playing in time, use Write mode:
+
+1. **R3** in the timeline goes into Write mode, with an orange cursor on the bar, after the selection, where playback paused, or at the end of the track, and hands the buttons back for chords.
+2. **Hold a chord**: it is written at the cursor for as long as you hold it, snapped to the grid, and the cursor moves to its end.
+   Nothing has to be playing, and coloring a held chord keeps it one chord.
+3. **← →** moves the cursor a line of the grid, and with **LT** a bar.
+   A chord written over others replaces what it covers.
+4. **R3** leaves Write mode.
+   **Back**, then **X** plays from the cursor and leaves it too.
+
+**RB** in the timeline saves the song as a MIDI file in Music › Perfecto Desk, with a track for each track heard and its loops repeated to the song's end.
 
 Chords played without letting go stay joined through every change, so a smooth progression stays smooth.
 A song with a loop in it plays until you stop it; one without stops at its end.
@@ -165,11 +180,12 @@ Three ways of coloring are built: the step compass, which the desk starts on, an
 Menu › Face Chords stick chooses one, and the panel left of the face buttons shows what each direction plays on the chord held (with none held, what it does).
 A color is played while the stick leans and goes when it comes back to the middle; a chord already held takes a new color tied, so only the notes that move are struck again.
 The stick colors every chord held alike, both voices', each on its own degree, and a stick leaned before a face button colors the chord the button strikes.
-LB + RB held takes the stick for the timeline, so the chords are plain meanwhile.
+In the timeline the stick is the timeline's, so the chords are plain meanwhile.
 
 **The step compass** is the phone's.
 Up adds a tone, right raises one, down takes one away and left lowers one, each the kind's first choice.
 LT held reaches each kind's second choice, the phone's outer four places.
+The panel draws them as two concentric rings, the outer always shown and marked LT.
 Menu › Compass order chooses how the choices are ranked.
 
 **Key assist** (Menu › Key assist) has the phone's three settings:
@@ -248,7 +264,7 @@ A bumper tapped moves the key a fifth; X switches voice leading; Y holds the cho
 R3 with the stick at rest is the middle: it takes back the compass's step first, to the chord as it was before the compass, and then the color, to the plain chord; the middle of the compass says what it will go back to.
 
 The ring can be laid out three ways, since each gives up something the others keep.
-L3 turns to the next, as do Menu › Color ring and the switch over the ring; Petals and the Arranger follow the same choice.
+L3 turns to the next, as do Menu › Color ring and the switch over the ring; Petals follows the same choice.
 
 - **Home**: the major scale's seven modes, turned so the degree's own is at the top, so up is always the chord as the key has it.
   The ring is lopsided by as much as the own mode is near an end (on I, one sector brighter and five darker), so the gap moves with the degree.
@@ -272,7 +288,7 @@ In the fanned orders, of two modes ranked alike, the brighter goes clockwise.
 
 A filter (Menu › Ring filter) leaves some cells out of reach: **In key**, **Major third**, **Minor third**, or **No clash** (no tone a semitone over another).
 The cells it leaves out keep their places, dimmed and unlabelled, so a direction still means what it did; a sector with nothing left in it is out of the stick's reach.
-The order and the filter shape the right stick's ring in Twin Rings and the Arranger; Petals' triggers always step darker and brighter by brightness.
+The order and the filter shape the right stick's ring in Twin Rings; Petals' triggers always step darker and brighter by brightness.
 
 #### Favorites
 
@@ -313,24 +329,6 @@ The right stick points at the key's seven notes, the tonic at the top, the chord
 Y leaves only the chord's own notes to point at.
 With RB held, the right stick is a Trautonium's bar: two octaves of continuous pitch, which comes to rest on the key's nearest note when the stick stays put.
 
-### Arranger
-
-The other layouts play; this one writes, in time.
-The sticks aim a chord as Twin rings does, and it is placed in four bars, each chord with its own start and length, and silence where nothing is placed.
-The bars are drawn as four lanes, each chord as long as it lasts, with the cursor in orange and the playhead moving through them.
-
-There are three ways to give a chord its length:
-
-- **Hold to write.** With the bars stopped, RT held at the cursor sounds the aimed chord and writes it for as long as it is held, at the tempo.
-  It grows on the screen as it is held, a tick is felt on each beat, and on letting go it is snapped to the grid and the cursor moves to its end.
-- **Record live.** With the bars playing (Y), RT writes at the playhead: the chord starts where it was struck, on the nearest line of the grid, and is as long as it was held.
-- **Stretch.** LB and RB shorten and lengthen the chord at the cursor (or the one that has just ended there): a tap by a line of the grid, a hold smoothly, for as long as it is held, as far as the next chord.
-
-The grid is Free, 1/16, 1/8, 1/4 or 1/2, changed by L3 or Menu › Arranger grid; it snaps the cursor's moves and every length, and Free snaps nothing.
-A writes a beat's chord at the cursor, X clears the chord there, B undoes, LT listens to the aimed chord, and the d-pad moves the cursor a line of the grid or a bar.
-The tempo is in the menu.
-Menu › Save the arrangement writes it as a MIDI file to Music › Perfecto Desk, each chord as long as it was written.
-
 ## How the principles are carried
 
 - **Consonance.** Every target is a chord of the key unless it says otherwise: a borrowed chord is drawn dashed and in italics, and one with a semitone clash is dimmed.
@@ -351,7 +349,7 @@ The layouts are a functional core with an imperative shell.
   Each layout is a `Layout`, stepped by frames against the `DeskSettings` they share, and every chord is a `DeskChord` voiced by the theory core's `computeVoicing`.
   Its tests script frames and check the effects by equality.
 - What the screen shows is a value too, made by the C++ core (`scene.hpp`), so the Godot desk's scripts only draw it.
-- The timeline is a core of the C++ desk alone, beside `Desk` and not inside it, so the desk the parity test plays is unchanged: the song and its edits are values (`song.hpp`: layers of events, loops, nudge, quantize, rechord), the hands and the transport are `Timeline` (`timeline.hpp`), and `Studio` (`studio.hpp`) composes the two, handing the desk each frame without what the timeline's layer (LB + RB) holds and the timeline what the desk sounds.
+- The timeline is a core of the C++ desk alone, beside `Desk` and not inside it, so the desk the parity test plays is unchanged: the song and its edits are values (`song.hpp`: layers of events, loops, nudge, quantize, rechord), the hands and the transport are `Timeline` (`timeline.hpp`), and `Studio` (`studio.hpp`) composes the two, handing the desk each frame without what the timeline holds while the hands are in it (Back goes in and out: `face_hands.hpp`) holds and the timeline what the desk sounds.
   What plays back is worked out 50 ms ahead and stamped with the moment it sounds, and the shell puts each on its kernel frame.
 - The Godot desk's shell is `godot/extension` (`PerfectoDesk`, in C++), which reads the controller and the keyboard through Godot, steps the C++ core, and plays its effects on the kernel, MIDI and the motors (`godot/README.md`).
 - The Mac desk's shell is `Sources/PerfectoDesk`: `DeskHost` reads the controllers 250 times a second, merges them into one frame, steps the desk, and performs its effects on `DeskAudio` (the kernel's Audio Unit, with every preset loaded), `DeskMIDI` and the controllers' motors.

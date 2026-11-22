@@ -1,11 +1,10 @@
 // The timeline: a bar along the top of Face Chords that records what is
 // played, layer over layer, plays it back, and edits it.
 //
-// RT held is the timeline's hand (in the studio, LB + RB held stand for it:
-// `FaceHands`), as RB is the drums' and the other trigger the chords'
-// second layer; it leaves R3 and LB to the second voice and L3 and RB to the
-// drums. A button pressed while RT is held is the timeline's until it is let
-// go, so it never reaches the chords:
+// The hands are in it or not (`FaceHands`: Back goes in and comes out). In it,
+// a button pressed is the timeline's until it is let go, so it never reaches
+// the chords. Starting to record or write hands the buttons back at once, so
+// the chords can be played; Back then A stops a recording:
 //
 // - A records a new layer, from the selection's start or the song's, with
 //   every other layer playing along; again stops recording.
@@ -21,8 +20,17 @@
 // - The right stick nudges the chosen chords a 32nd of a beat earlier or
 //   later (left, right; held, again and again), by a line of the grid with
 //   LT; up mutes the layer, down deletes the chosen chords.
-// - The left stick undoes (left) and redoes (right).
-// - RT tapped alone lets go of the choice.
+// - The left stick undoes (left) and redoes (right), and makes the chosen
+//   chords longer (up) or shorter (down): held, again and again; by a line
+//   of the grid with LT.
+// - R3 goes into Write mode and out: chords are written at a cursor, with
+//   nothing playing, each as long as it is held, snapped to the grid, and
+//   the cursor moves to its end. ← and → then move the cursor, by a bar with
+//   LT.
+// - LB lets go of the choice, and RB saves the song as a MIDI file.
+//
+// In Write mode, out of the timeline, ← and → still move the cursor and R3
+// still leaves it, so a progression is written without going back in.
 //
 // With chords chosen, a chord played is written into them, each at its own
 // time: the progression changes and its rhythm does not.
@@ -139,6 +147,15 @@ public:
         bool operator==(const Recording &) const = default;
     };
 
+    /// Write mode: where the next chord goes, and what each voice has been
+    /// holding since when, at the tempo it is held at.
+    struct Writing {
+        double cursor;
+        double tempo;
+        std::map<int, std::pair<double, ChordPart>> open;
+        bool operator==(const Writing &) const = default;
+    };
+
     /// What the timeline did: what to sound, and what to feel and show.
     struct Out {
         std::vector<TimelineEffect> playback;
@@ -179,11 +196,12 @@ public:
     std::set<int> selected() const;
     const std::optional<Rolling> &rolling() const { return rolling_; }
     const std::optional<Recording> &recording() const { return recording_; }
+    const std::optional<Writing> &writing() const { return writing_; }
     /// Where the song is at `time`, while it plays.
     std::optional<double> playhead(double time) const;
     /// Where it paused, and plays on from; none at the start.
     const std::optional<double> &cue() const { return cue_; }
-    /// Whether RT holds the timeline.
+    /// Whether the hands are in the timeline.
     bool isLayered() const { return isLayered_; }
     bool canUndo() const { return !undo_.empty() && !recording_; }
     bool canRedo() const { return !redo_.empty() && !recording_; }
@@ -192,13 +210,18 @@ public:
 
     // The hands.
 
-    /// One frame of the controller. `reachable` says whether the hands can
-    /// play the timeline now (Face Chords, the menu closed).
-    Taken take(const PadInput &input, bool reachable, const DeskSettings &settings);
+    /// One frame of the controller. `isEditing` says whether the hands are in
+    /// the timeline, and `reachable` whether they can play it now (Face
+    /// Chords, the menu closed). Starting to record or write ends `isLayered`.
+    Taken take(const PadInput &input, bool isEditing, bool reachable, const DeskSettings &settings);
 
     /// What the desk sounds at `time`: recorded, or with chords chosen,
     /// written into them.
     Out hear(const Heard &heard, double time);
+
+    /// What the desk sounds at `time`, written at the cursor in Write mode.
+    /// Called before `hear`, which remembers it.
+    Out write(const Heard &heard, double time, const DeskSettings &settings);
 
     /// What plays back from the last given up to `time` and the lookahead.
     Out advance(double time, const DeskSettings &settings);
@@ -232,6 +255,14 @@ public:
     Out select(int layer, int id, bool stretch);
     Out deselect();
     Out nudge(double beats);
+    /// Makes the chosen chords `beats` longer (shorter, below 0).
+    Out resize(double beats);
+    /// Goes into Write mode, or out.
+    Out toggleWrite(double time, const DeskSettings &settings);
+    /// Moves the cursor `beats` later (earlier, below 0), on the grid.
+    Out moveCursor(double beats, const DeskSettings &settings);
+    /// Asks the shell to save the song as a MIDI file.
+    Out save(const DeskSettings &settings) const;
     Out undo(double time);
     Out redo(double time);
 
@@ -239,13 +270,14 @@ public:
     Legend legend(Legend legend, bool reachable) const;
 
 private:
-    enum class Edit { other, nudge };
+    enum class Edit { other, nudge, resize };
 
     Song song_;
     int layer_ = 0;
     std::optional<Selection> selection_;
     std::optional<Rolling> rolling_;
     std::optional<Recording> recording_;
+    std::optional<Writing> writing_;
     std::optional<double> cue_;
     /// What each track is sounding until.
     std::map<Track, double> sounding_;
@@ -256,14 +288,12 @@ private:
     Edit lastEdit_ = Edit::other;
 
     bool isLayered_ = false;
-    /// Whether RT, since it was pulled, has done nothing: let go, it lets
-    /// go of the choice.
-    bool isClean_ = false;
     std::set<PadButton> claimed_;
     bool claimsLT_ = false;
     std::optional<PadButton> rightPush_;
     std::optional<PadButton> leftPush_;
     double repeatAt_ = 0;
+    double resizeAt_ = 0;
 
     double beatAt(double time) const;
     double timeAt(double beat) const;
@@ -275,6 +305,8 @@ private:
     Out roll(double time, double beat, const DeskSettings &settings);
     Out schedule(double from, double to, bool entering, const DeskSettings &settings);
     Out finishRecording(double time);
+    /// Writes what `voice` has been holding at the cursor.
+    Out place(int voice, double time, const DeskSettings &settings);
     /// Lets go of everything playing back.
     Out halt();
     /// Lets go of what tracks no longer heard sound, and of a choice of

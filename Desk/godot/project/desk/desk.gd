@@ -513,7 +513,7 @@ func menu(whole: Rect2, m: Dictionary) -> void:
 		var name := T.new(row["name"], 14, 500)
 		name.draw_centred(self, Vector2(line.position.x + 14 + name.width() / 2, line.get_center().y), ink)
 		var value := T.new(row["value"], 14, 600, true)
-		var arrows: bool = chosen and row["changes"]
+		var arrows: bool = chosen
 		var right := line.end.x - 14
 		if arrows:
 			var after := T.new("▶", 12)

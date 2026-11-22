@@ -29,7 +29,7 @@ These are the theory core's (its README), and these besides:
   An `extension` of another file's type is a member declared with the type and defined in the extending file's source (`DeskSettings::ring` in `ring_pie.cpp`).
   The settings' types that live in later files (`BeatGrid`, `RingArrangement`, `RingOrder`, `RingFilter`) are declared opaque in `music.hpp` and given their values by `DeskSettings()`.
 - **Swift labels.**
-  Where two Swift functions differ only by an argument label, the label goes into the C++ name: `refusalOfNote`, `allowsNote`, `Favorites::pinOf`, `Arrangement::chordAt` and `chordNear`, `DeskChord::onRoot` (as `KeyDegree::onRoot` in the theory core).
+  Where two Swift functions differ only by an argument label, the label goes into the C++ name: `refusalOfNote`, `allowsNote`, `Favorites::pinOf`, `DeskChord::onRoot` (as `KeyDegree::onRoot` in the theory core).
   `PadEdges` keeps `pressed` and `released` as sets, so its queries are `pressed.contains(button)`.
 - **Temporaries.**
   A member that returns a reference into its object returns a copy when the object is a temporary (`ChordTones::pitchClasses() &&`), so `for (int t : chord.tones().pitchClasses())` is safe; a new one does the same.
