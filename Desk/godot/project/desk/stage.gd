@@ -191,6 +191,9 @@ static func ringed_pie(canvas: CanvasItem, rect: Rect2, item: Dictionary) -> voi
 ## The band of an outer ring, from `inner` to `outer`: tinted while its
 ## trigger is held, with the trigger's mark in a gap between the places.
 static func trigger_band(canvas: CanvasItem, middle: Vector2, inner: float, outer: float, mark: String, on: bool) -> void:
+	# A window too small to lay the panel out has no band to draw.
+	if outer <= inner:
+		return
 	var tint := Paint.color("borrowed")
 	canvas.draw_arc(middle, (inner + outer) / 2, 0, TAU, 96, Color(tint, 0.2 if on else 0.05), outer - inner, true)
 	canvas.draw_arc(middle, inner, 0, TAU, 96, Color(tint, 0.9 if on else 0.35), 1.5 if on else 1.0, true)
